@@ -8,3 +8,6 @@
 > Commits you push to the connected branch sync back to Lovable and show up in
 > the editor, so keep the branch in a working state.
 <!-- LOVABLE:END -->
+
+- Keep demonstration records in `src/data/mock-clinic.ts` behind a local data boundary so `/api/v1/` can replace them without rewriting the UI.
+- Keep shared Clinic OS navigation and global search in the root application shell so every feature route has the same workspace context.
