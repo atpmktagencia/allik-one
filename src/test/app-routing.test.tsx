@@ -31,6 +31,7 @@ describe("Inventory and applications routes", () => {
     "/estoque/recebimento",
     "/estoque/movimentacoes",
     "/estoque/produtos/00000000-0000-4000-8000-000000000001",
+    "/estoque/lotes/00000000-0000-4000-8000-000000000001",
     "/aplicacoes/nova",
   ]) {
     it(`matches ${path}`, () => {

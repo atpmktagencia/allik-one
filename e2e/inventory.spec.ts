@@ -9,7 +9,7 @@ test("database-backed stock, product details, movements and reload", async ({ pa
   await page.reload();
   await page.getByRole("link", { name: "Injetável A", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Lotes", exact: true })).toBeVisible();
-  await expect(page.getByRole("cell", { name: "A-SEED-02", exact: true })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Rastrear lote A-SEED-02", exact: true })).toBeVisible();
   await page.getByRole("link", { name: "Movimentações", exact: true }).last().click();
   await expect(page.getByRole("cell", { name: "SEED-M1", exact: true }).first()).toBeVisible();
   await page.goto("/estoque/recebimento");

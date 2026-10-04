@@ -117,6 +117,10 @@ export async function receivingResponse(request: Request) {
           `${input.operationId}:${index}`,
         ],
       );
+      await client.query(
+        "INSERT INTO inventory_receipt_movements(receipt_id,movement_id) VALUES($1,$2)",
+        [input.operationId, movement.rows[0].id],
+      );
       if (item.purchaseItemId)
         await client.query(
           "INSERT INTO inventory_receipt_items(receipt_id,purchase_item_id,movement_id) VALUES($1,$2,$3)",

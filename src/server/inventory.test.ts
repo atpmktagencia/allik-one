@@ -1,6 +1,7 @@
 import { beforeAll, afterAll, describe, it, expect } from "vitest";
 import { migrate } from "drizzle-orm/node-postgres/migrator";
 import { randomUUID } from "node:crypto";
+import { readFile } from "node:fs/promises";
 import { getDb, getPool } from "./db";
 import { hasPreviewSession, previewLogin } from "./auth";
 import { inventoryResponse } from "./inventory";
@@ -8,6 +9,7 @@ import { receivingResponse } from "./receiving";
 import { purchasingResponse } from "./purchases";
 import { stockOperationResponse } from "./stock-operations";
 import { applicationResponse } from "./applications";
+import { lotTraceResponse } from "./lot-trace";
 const origin = "http://localhost:4317";
 let cookie = "";
 beforeAll(async () => {
@@ -651,6 +653,316 @@ describe("PostgreSQL direct applications", () => {
         body.operationId,
       ]),
     ).rejects.toThrow("append-only");
+  });
+});
+describe("Lot traceability", () => {
+  it("links two deliveries, a transfer, an application and a count to the same lot and reconciles every local", async () => {
+    const f = await fixture();
+    const supplierId = randomUUID();
+    const supplier = `Fornecedor de rastreio ${supplierId}`;
+    expect(
+      (await purchasingResponse(receivingRequest({ id: supplierId, name: supplier }), "suppliers"))
+        .status,
+    ).toBe(201);
+    const purchaseId = randomUUID();
+    const reference = `PO-${purchaseId}`;
+    expect(
+      (
+        await purchasingResponse(
+          receivingRequest({
+            id: purchaseId,
+            reference,
+            supplierId,
+            items: [{ productId: f.productId, quantity: "10", unitCost: "2" }],
+          }),
+          "purchases",
+        )
+      ).status,
+    ).toBe(201);
+    const purchaseItemId = (
+      await getPool().query("SELECT id FROM inventory_purchase_items WHERE purchase_id=$1", [
+        purchaseId,
+      ])
+    ).rows[0].id;
+    const firstReceipt = randomUUID();
+    const secondReceipt = randomUUID();
+    const number = `TRACE-${randomUUID()}`;
+    const receipt = {
+      operationId: firstReceipt,
+      purchaseId,
+      reference,
+      supplier,
+      locationId: String(f.params[1]),
+      items: [
+        {
+          purchaseItemId,
+          productId: f.productId,
+          lot: number,
+          expiry: "2099-01-01",
+          quantity: "6",
+          unitCost: "2",
+        },
+      ],
+    };
+    expect((await receivingResponse(receivingRequest(receipt))).status).toBe(201);
+    expect(
+      (
+        await receivingResponse(
+          receivingRequest({
+            ...receipt,
+            operationId: secondReceipt,
+            items: [{ ...receipt.items[0], quantity: "4" }],
+          }),
+        )
+      ).status,
+    ).toBe(201);
+    const lotId = (
+      await getPool().query("SELECT id FROM inventory_lots WHERE product_id=$1 AND number=$2", [
+        f.productId,
+        number,
+      ])
+    ).rows[0].id as string;
+    const destination = (
+      await getPool().query("INSERT INTO inventory_locations(name) VALUES($1) RETURNING id", [
+        `Destino trace ${randomUUID()}`,
+      ])
+    ).rows[0].id as string;
+    const operationId = randomUUID();
+    expect(
+      (
+        await stockOperationResponse(
+          receivingRequest({
+            operationId,
+            lotId,
+            sourceId: f.params[1],
+            destinationId: destination,
+            quantity: "4",
+            reference: `TR-${operationId}`,
+            reason: "Reposição sintética de unidade",
+          }),
+          "TRANSFER",
+        )
+      ).status,
+    ).toBe(201);
+    const applicationId = randomUUID();
+    const applicationReference = `AP-${applicationId}`;
+    expect(
+      (
+        await applicationResponse(
+          receivingRequest({
+            operationId: applicationId,
+            patientRef: "demo-patient-b",
+            reference: applicationReference,
+            service: "Procedimento sintético",
+            professional: "Executor sintético",
+            locationId: destination,
+            items: [{ productId: f.productId, lotId, quantity: "1" }],
+          }),
+        )
+      ).status,
+    ).toBe(201);
+    expect(
+      (
+        await stockOperationResponse(
+          receivingRequest({
+            operationId: randomUUID(),
+            lotId,
+            locationId: destination,
+            expectedQuantity: "3",
+            countedQuantity: "2.875",
+            reference: `CT-${randomUUID()}`,
+            reason: "Diferença na contagem física",
+          }),
+          "ADJUSTMENT",
+        )
+      ).status,
+    ).toBe(201);
+    const response = await lotTraceResponse(request(`trace/lots/${lotId}`));
+    expect(response.status).toBe(200);
+    expect(response.headers.get("cache-control")).toContain("no-store");
+    const trace = (await response.json()).data;
+    expect(trace.lot).toMatchObject({ id: lotId, number, supplier, productId: f.productId });
+    expect(trace.summary).toMatchObject({
+      received: "10.000",
+      consumed: "1.000",
+      adjusted: "-0.125",
+      ledgerQuantity: "8.875",
+      balanceQuantity: "8.875",
+      totalEvents: 6,
+      auditEntries: 6,
+      auditedEvents: 6,
+      reconciled: true,
+    });
+    expect(trace.balances.every((balance: { matches: boolean }) => balance.matches)).toBe(true);
+    expect(
+      trace.balances.find((balance: { locationId: string }) => balance.locationId === destination)
+        .quantity,
+    ).toBe("2.875");
+    const receipts = trace.events.filter((event: { receiptId: string | null }) => event.receiptId);
+    expect(new Set(receipts.map((event: { receiptId: string }) => event.receiptId))).toEqual(
+      new Set([firstReceipt, secondReceipt]),
+    );
+    expect(
+      receipts.every(
+        (event: { purchaseId: string; supplierId: string }) =>
+          event.purchaseId === purchaseId && event.supplierId === supplierId,
+      ),
+    ).toBe(true);
+    expect(
+      trace.events.filter((event: { operationId: string }) => event.operationId === operationId),
+    ).toHaveLength(2);
+    expect(
+      trace.events.find(
+        (event: { applicationId: string }) => event.applicationId === applicationId,
+      ),
+    ).toMatchObject({ applicationReference, patientRef: "demo-patient-b", quantity: "-1.000" });
+    expect(trace.events.every((event: { audit: unknown[] }) => event.audit.length === 1)).toBe(
+      true,
+    );
+    expect(trace.nextCursor).toBeNull();
+    expect(JSON.stringify(trace)).not.toContain("request_hash");
+  });
+  it("links direct receipts explicitly even when two operations share the same reference", async () => {
+    const f = await fixture();
+    const reference = `DIRECT-${randomUUID()}`;
+    const body = {
+      operationId: randomUUID(),
+      reference,
+      supplier: "Fornecedor direto sintético",
+      locationId: String(f.params[1]),
+      items: [
+        {
+          productId: f.productId,
+          lot: `DIRECT-${randomUUID()}`,
+          expiry: "2099-01-01",
+          quantity: "2",
+          unitCost: "2",
+        },
+      ],
+    };
+    expect((await receivingResponse(receivingRequest(body))).status).toBe(201);
+    const second = {
+      ...body,
+      operationId: randomUUID(),
+      items: [{ ...body.items[0], quantity: "3" }],
+    };
+    expect((await receivingResponse(receivingRequest(second))).status).toBe(201);
+    const lot = (
+      await getPool().query("SELECT id FROM inventory_lots WHERE product_id=$1 AND number=$2", [
+        f.productId,
+        body.items[0]!.lot,
+      ])
+    ).rows[0].id;
+    const trace = (await (await lotTraceResponse(request(`trace/lots/${lot}`))).json()).data;
+    expect(trace.events).toHaveLength(2);
+    expect(new Set(trace.events.map((event: { receiptId: string }) => event.receiptId))).toEqual(
+      new Set([body.operationId, second.operationId]),
+    );
+    expect(
+      trace.events.every((event: { purchaseId: string | null }) => event.purchaseId === null),
+    ).toBe(true);
+    await expect(
+      getPool().query("DELETE FROM inventory_receipt_movements WHERE receipt_id=$1", [
+        body.operationId,
+      ]),
+    ).rejects.toThrow("append-only");
+  });
+  it("backfills old receipt links from operation UUIDs and ignores seed and withdrawal keys", async () => {
+    const migration = await readFile("drizzle/0005_colorful_susan_delgado.sql", "utf8");
+    const backfill = migration
+      .split("--> statement-breakpoint")
+      .find((statement) => statement.includes("INSERT INTO inventory_receipt_movements"))!;
+    const client = await getPool().connect();
+    const schema = `test_legacy_trace_${randomUUID().replaceAll("-", "")}`;
+    const receiptIds = [randomUUID(), randomUUID()];
+    const ids = [randomUUID(), randomUUID(), randomUUID(), randomUUID()];
+    try {
+      await client.query("BEGIN");
+      await client.query(`CREATE SCHEMA ${schema}`);
+      await client.query(`SET LOCAL search_path TO ${schema},public`);
+      await client.query(
+        "CREATE TABLE inventory_receipts(id uuid PRIMARY KEY,reference text); CREATE TABLE inventory_movements(id uuid PRIMARY KEY,operation_key text,type text,reference text); CREATE TABLE inventory_receipt_movements(movement_id uuid PRIMARY KEY,receipt_id uuid)",
+      );
+      await client.query(
+        "INSERT INTO inventory_receipts VALUES($1,'SAME-REF'),($2,'SAME-REF')",
+        receiptIds,
+      );
+      await client.query(
+        "INSERT INTO inventory_movements VALUES($1,$2,'IN','SAME-REF'),($3,$4,'IN','SAME-REF'),($5,'seed-m1:TEST','IN','SAME-REF'),($6,$7,'OUT','SAME-REF')",
+        [
+          ids[0],
+          `${receiptIds[0]!.toUpperCase()}:0`,
+          ids[1],
+          `${receiptIds[1]}:1`,
+          ids[2],
+          ids[3],
+          `${receiptIds[0]}:2`,
+        ],
+      );
+      await client.query(backfill);
+      await client.query(backfill);
+      const links = (
+        await client.query("SELECT movement_id,receipt_id FROM inventory_receipt_movements")
+      ).rows;
+      expect(links).toHaveLength(2);
+      expect(links).toEqual(
+        expect.arrayContaining([
+          { movement_id: ids[0], receipt_id: receiptIds[0] },
+          { movement_id: ids[1], receipt_id: receiptIds[1] },
+        ]),
+      );
+    } finally {
+      await client.query("ROLLBACK");
+      client.release();
+    }
+  });
+  it("paginates identical timestamps without dropping or duplicating movements", async () => {
+    const f = await fixture();
+    await getPool().query(
+      "INSERT INTO inventory_movements(lot_id,location_id,type,delta,actor,reference,reason,operation_key) SELECT $1,$2,'IN',1,'test','PAGE-TEST','Histórico sintético de paginação',gen_random_uuid()::text FROM generate_series(1,60)",
+      f.params,
+    );
+    const first = (await (await lotTraceResponse(request(`trace/lots/${f.params[0]}`))).json())
+      .data;
+    expect(first.events).toHaveLength(50);
+    expect(first.nextCursor).toBeTruthy();
+    const next = (
+      await (
+        await lotTraceResponse(
+          request(`trace/lots/${f.params[0]}?cursor=${encodeURIComponent(first.nextCursor)}`),
+        )
+      ).json()
+    ).data;
+    expect(next.events).toHaveLength(11);
+    expect(next.nextCursor).toBeNull();
+    expect(
+      new Set([...first.events, ...next.events].map((event: { id: string }) => event.id)).size,
+    ).toBe(61);
+    expect(first.summary.totalEvents).toBe(61);
+    expect(next.summary.reconciled).toBe(true);
+  });
+  it("retains zero balances, expired lots and inactive locations for historical inspection", async () => {
+    const f = await fixture("10", -1);
+    await movement(f.params, "-10", "ADJUSTMENT");
+    await getPool().query("UPDATE inventory_locations SET active=false WHERE id=$1", [f.params[1]]);
+    const trace = (await (await lotTraceResponse(request(`trace/lots/${f.params[0]}`))).json())
+      .data;
+    expect(trace.lot.status).toBe("EXPIRED");
+    expect(trace.summary.balanceQuantity).toBe("0.000");
+    expect(trace.balances).toHaveLength(1);
+    expect(trace.balances[0]).toMatchObject({ active: false, quantity: "0.000", matches: true });
+    expect(trace.events).toHaveLength(2);
+  });
+  it("requires authentication and validates lot and pagination before queries", async () => {
+    expect(
+      (await lotTraceResponse(new Request(`${origin}/api/v1/inventory/trace/lots/${randomUUID()}`)))
+        .status,
+    ).toBe(401);
+    expect((await lotTraceResponse(request("trace/lots/invalid"))).status).toBe(400);
+    expect(
+      (await lotTraceResponse(request(`trace/lots/${randomUUID()}?cursor=invalid`))).status,
+    ).toBe(400);
+    expect((await lotTraceResponse(request(`trace/lots/${randomUUID()}`))).status).toBe(404);
   });
 });
 describe("Preview access", () => {

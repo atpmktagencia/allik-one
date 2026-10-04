@@ -28,6 +28,7 @@ import { Route as EstoqueAcessoRouteImport } from './routes/estoque/acesso'
 import { Route as EstoqueMovimentacoesRouteImport } from './routes/estoque/movimentacoes'
 import { Route as EstoqueRecebimentoRouteImport } from './routes/estoque/recebimento'
 import { Route as PacientesPatientIdRouteImport } from './routes/pacientes.$patientId'
+import { Route as EstoqueLotesLotIdRouteImport } from './routes/estoque/lotes/$lotId'
 import { Route as EstoqueProdutosProductIdRouteImport } from './routes/estoque/produtos/$productId'
 import { Route as ApiV1InventorySplatRouteImport } from './routes/api/v1/inventory/$'
 
@@ -126,6 +127,11 @@ const PacientesPatientIdRoute = PacientesPatientIdRouteImport.update({
   path: '/$patientId',
   getParentRoute: () => PacientesRoute,
 } as any)
+const EstoqueLotesLotIdRoute = EstoqueLotesLotIdRouteImport.update({
+  id: '/lotes/$lotId',
+  path: '/lotes/$lotId',
+  getParentRoute: () => EstoqueRoute,
+} as any)
 const EstoqueProdutosProductIdRoute =
   EstoqueProdutosProductIdRouteImport.update({
     id: '/produtos/$productId',
@@ -158,6 +164,7 @@ export interface FileRoutesByFullPath {
   '/pacientes/$patientId': typeof PacientesPatientIdRoute
   '/aplicacoes/': typeof AplicacoesIndexRoute
   '/estoque/': typeof EstoqueIndexRoute
+  '/estoque/lotes/$lotId': typeof EstoqueLotesLotIdRoute
   '/estoque/produtos/$productId': typeof EstoqueProdutosProductIdRoute
   '/api/v1/inventory/$': typeof ApiV1InventorySplatRoute
 }
@@ -179,6 +186,7 @@ export interface FileRoutesByTo {
   '/pacientes/$patientId': typeof PacientesPatientIdRoute
   '/aplicacoes': typeof AplicacoesIndexRoute
   '/estoque': typeof EstoqueIndexRoute
+  '/estoque/lotes/$lotId': typeof EstoqueLotesLotIdRoute
   '/estoque/produtos/$productId': typeof EstoqueProdutosProductIdRoute
   '/api/v1/inventory/$': typeof ApiV1InventorySplatRoute
 }
@@ -203,6 +211,7 @@ export interface FileRoutesById {
   '/pacientes/$patientId': typeof PacientesPatientIdRoute
   '/aplicacoes/': typeof AplicacoesIndexRoute
   '/estoque/': typeof EstoqueIndexRoute
+  '/estoque/lotes/$lotId': typeof EstoqueLotesLotIdRoute
   '/estoque/produtos/$productId': typeof EstoqueProdutosProductIdRoute
   '/api/v1/inventory/$': typeof ApiV1InventorySplatRoute
 }
@@ -228,6 +237,7 @@ export interface FileRouteTypes {
     | '/pacientes/$patientId'
     | '/aplicacoes/'
     | '/estoque/'
+    | '/estoque/lotes/$lotId'
     | '/estoque/produtos/$productId'
     | '/api/v1/inventory/$'
   fileRoutesByTo: FileRoutesByTo
@@ -249,6 +259,7 @@ export interface FileRouteTypes {
     | '/pacientes/$patientId'
     | '/aplicacoes'
     | '/estoque'
+    | '/estoque/lotes/$lotId'
     | '/estoque/produtos/$productId'
     | '/api/v1/inventory/$'
   id:
@@ -272,6 +283,7 @@ export interface FileRouteTypes {
     | '/pacientes/$patientId'
     | '/aplicacoes/'
     | '/estoque/'
+    | '/estoque/lotes/$lotId'
     | '/estoque/produtos/$productId'
     | '/api/v1/inventory/$'
   fileRoutesById: FileRoutesById
@@ -427,6 +439,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PacientesPatientIdRouteImport
       parentRoute: typeof PacientesRoute
     }
+    '/estoque/lotes/$lotId': {
+      id: '/estoque/lotes/$lotId'
+      path: '/lotes/$lotId'
+      fullPath: '/estoque/lotes/$lotId'
+      preLoaderRoute: typeof EstoqueLotesLotIdRouteImport
+      parentRoute: typeof EstoqueRoute
+    }
     '/estoque/produtos/$productId': {
       id: '/estoque/produtos/$productId'
       path: '/produtos/$productId'
@@ -463,6 +482,7 @@ interface EstoqueRouteChildren {
   EstoqueMovimentacoesRoute: typeof EstoqueMovimentacoesRoute
   EstoqueRecebimentoRoute: typeof EstoqueRecebimentoRoute
   EstoqueIndexRoute: typeof EstoqueIndexRoute
+  EstoqueLotesLotIdRoute: typeof EstoqueLotesLotIdRoute
   EstoqueProdutosProductIdRoute: typeof EstoqueProdutosProductIdRoute
 }
 
@@ -471,6 +491,7 @@ const EstoqueRouteChildren: EstoqueRouteChildren = {
   EstoqueMovimentacoesRoute: EstoqueMovimentacoesRoute,
   EstoqueRecebimentoRoute: EstoqueRecebimentoRoute,
   EstoqueIndexRoute: EstoqueIndexRoute,
+  EstoqueLotesLotIdRoute: EstoqueLotesLotIdRoute,
   EstoqueProdutosProductIdRoute: EstoqueProdutosProductIdRoute,
 }
 

@@ -477,7 +477,16 @@ export function ProductDetailPage({ productId }: { productId: string }) {
                 )}
                 {lots.map((lot) => (
                   <tr key={lot.id} className="border-t border-border">
-                    <td className="px-5 py-4 font-medium">{lot.lot}</td>
+                    <td className="px-5 py-4 font-medium">
+                      <Link
+                        to="/estoque/lotes/$lotId"
+                        params={{ lotId: lot.lotId }}
+                        aria-label={`Rastrear lote ${lot.lot}`}
+                        className="hover:underline"
+                      >
+                        {lot.lot}
+                      </Link>
+                    </td>
                     <td className="px-5 py-4">{lot.expiry}</td>
                     <td className="px-5 py-4 text-muted-foreground">{lot.supplier}</td>
                     <td className="px-5 py-4 text-muted-foreground">{lot.location}</td>

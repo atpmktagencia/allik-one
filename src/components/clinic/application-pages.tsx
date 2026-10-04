@@ -95,7 +95,17 @@ export function ApplicationsPage() {
                     <td className="px-4 py-4">
                       {application.items.map((item) => (
                         <p key={item.movementId}>
-                          {item.product} · {item.lot} · {item.quantity} {item.unit}
+                          <span>
+                            {item.product} · {item.lot} · {item.quantity} {item.unit}
+                          </span>
+                          <Link
+                            to="/estoque/lotes/$lotId"
+                            params={{ lotId: item.lotId }}
+                            className="ml-2 underline"
+                            aria-label={`Rastrear lote ${item.lot}`}
+                          >
+                            Rastrear lote
+                          </Link>
                         </p>
                       ))}
                     </td>

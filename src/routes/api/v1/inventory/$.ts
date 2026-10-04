@@ -4,6 +4,7 @@ import { receivingResponse } from "@/server/receiving";
 import { purchasingResponse } from "@/server/purchases";
 import { stockOperationResponse } from "@/server/stock-operations";
 import { applicationResponse } from "@/server/applications";
+import { lotTraceResponse } from "@/server/lot-trace";
 
 function resource(request: Request) {
   const path = new URL(request.url).pathname.replace(/\/$/, "");
@@ -17,6 +18,8 @@ export const Route = createFileRoute("/api/v1/inventory/$")({
   server: {
     handlers: {
       GET: ({ request }) => {
+        if (new URL(request.url).pathname.startsWith("/api/v1/inventory/trace/"))
+          return lotTraceResponse(request);
         if (new URL(request.url).pathname.replace(/\/$/, "") === "/api/v1/inventory/applications")
           return applicationResponse(request);
         const name = resource(request);

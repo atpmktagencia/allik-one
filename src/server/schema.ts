@@ -163,6 +163,15 @@ export const receiptItems = pgTable("inventory_receipt_items", {
     .references(() => movements.id),
 });
 
+export const receiptMovements = pgTable("inventory_receipt_movements", {
+  movementId: uuid("movement_id")
+    .primaryKey()
+    .references(() => movements.id),
+  receiptId: uuid("receipt_id")
+    .notNull()
+    .references(() => receipts.id),
+});
+
 export const operations = pgTable(
   "inventory_operations",
   {

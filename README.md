@@ -94,6 +94,18 @@ Somente os códigos `demo-patient-a`, `demo-patient-b` e `demo-patient-c` são a
 
 Os testes verificam FEFO, reenvio após resposta perdida, concorrência com itens em ordem inversa, validade no dia, indisponibilidade, referência duplicada e rollback após falha no segundo movimento. O navegador verifica recebimento de dois lotes → recomendação FEFO → aplicação de dois produtos → saldo → histórico → recarga. O aceite no Preview depende da migration e da validação desse fluxo na Vercel.
 
+### Rastreabilidade do lote — Milestone 5
+
+Abra o lote na tabela de produto ou selecione “Rastrear lote” em uma aplicação. `/estoque/lotes/:lotId` mostra produto, fornecedor, validade, situação, saldo físico por local e o caminho do lote, da movimentação mais recente à mais antiga. Cada evento exibe quantidade, local, referência, motivo, responsável e seus registros de auditoria. Recebimentos incluem pedido/fornecedor quando vinculados; transferências mostram os dois locais; aplicações mostram a referência, paciente sintético, serviço e executor. Entradas iniciais ou sem recebimento vinculado são identificadas como tais.
+
+GET `/api/v1/inventory/trace/lots/:lotId` exige sessão do Preview e retorna `lot`, `summary`, `balances`, `events` e `nextCursor`. O resumo separa entradas, consumo por aplicações e ajustes, mantendo quantidades decimais como texto. A conferência compara cada saldo com a soma de seus movimentos, inclusive em locais inativos e posições zeradas. A quantidade de movimentos com auditoria também é conferida. Lotes vencidos e produtos inativos continuam consultáveis para inspeção histórica.
+
+A consulta usa uma transação de leitura `REPEATABLE READ`: dados do lote, saldos, resumo e auditoria de cada página vêm do mesmo estado do banco. Cada página contém até 50 movimentos; envie `?cursor=<nextCursor>` para continuar. O cursor preserva microssegundos e desempata pelo UUID, evitando omissões quando vários movimentos têm o mesmo horário. A interface mantém as páginas carregadas se uma página posterior falhar e permite tentar novamente. Páginas sucessivas são consultas independentes; selecione “Atualizar rastreabilidade” para consultar novas movimentações.
+
+A migration `0005_colorful_susan_delgado.sql` adiciona vínculos imutáveis entre **todos** os recebimentos e seus movimentos, incluindo entradas sem pedido. Recebimentos anteriores são vinculados pela UUID na chave de operação, sem depender da referência textual, que pode se repetir. Entradas do seed e saídas não recebem vínculos artificiais. Novos vínculos são gravados na mesma transação do recebimento; esta etapa não reescreve movimentos, auditoria ou saldos existentes.
+
+Os testes exercitam o preenchimento de vínculos antigos, referências repetidas, UUID com letras maiúsculas, paginação de movimentos com o mesmo horário e histórico de lote vencido/zerado. O teste de navegador percorre fornecedor → pedido → duas entregas parciais → transferência → aplicação → contagem → rastreabilidade → recarga, conferindo recebimentos, pedido, paciente sintético, saldo e auditoria. O aceite remoto permanece pendente até validar esse fluxo no Preview autorizado da Vercel.
+
 ### Testes com PostgreSQL descartável no Codex Cloud
 
 Com Docker local disponível, execute `npm run test:integration:local`. O comando cria um PostgreSQL 16 com banco `allik_test` e senha aleatória, aplica migrations pelos testes e remove o contêiner ao terminar. Não usa `DATABASE_URL` externa. O acesso ao socket local do Docker e a processos filhos deve estar permitido; o primeiro uso baixa `postgres:16-alpine`.
