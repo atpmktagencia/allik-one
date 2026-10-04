@@ -51,6 +51,9 @@ test("supplier, partial deliveries, transfer, application, count and complete lo
   await expect(page.getByLabel("Quantidade 1", { exact: true })).toHaveValue("6.000");
   await page.getByRole("button", { name: "Confirmar recebimento", exact: true }).click();
   await expect(
+    page.getByRole("status").filter({ hasText: "Recebimento registrado." }),
+  ).toBeVisible();
+  await expect(
     page.getByRole("button", { name: `Receber ${reference}`, exact: true }),
   ).toBeDisabled();
   await page.goto("/estoque/movimentacoes");
