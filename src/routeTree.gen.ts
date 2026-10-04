@@ -19,6 +19,11 @@ import { Route as FinanceiroRouteImport } from './routes/financeiro'
 import { Route as PacientesRouteImport } from './routes/pacientes'
 import { Route as ProntuarioRouteImport } from './routes/prontuario'
 import { Route as VendasRouteImport } from './routes/vendas'
+import { Route as EstoqueProdutosProductIdRouteImport } from './routes/estoque/produtos/$productId'
+import { Route as EstoqueRecebimentoRouteImport } from './routes/estoque/recebimento'
+import { Route as EstoqueMovimentacoesRouteImport } from './routes/estoque/movimentacoes'
+import { Route as AplicacoesRouteImport } from './routes/aplicacoes'
+import { Route as AplicacoesNovaRouteImport } from './routes/aplicacoes/nova'
 import { Route as PacientesPatientIdRouteImport } from './routes/pacientes.$patientId'
 
 const IndexRoute = IndexRouteImport.update({
@@ -71,6 +76,39 @@ const VendasRoute = VendasRouteImport.update({
   path: '/vendas',
   getParentRoute: () => rootRouteImport,
 } as any)
+const EstoqueProdutosProductIdRoute = EstoqueProdutosProductIdRouteImport.update({
+  id: '/produtos/$productId',
+  path: '/produtos/$productId',
+  getParentRoute: () => EstoqueRoute,
+} as any)
+const EstoqueRecebimentoRoute = EstoqueRecebimentoRouteImport.update({
+  id: '/recebimento',
+  path: '/recebimento',
+  getParentRoute: () => EstoqueRoute,
+} as any)
+const EstoqueMovimentacoesRoute = EstoqueMovimentacoesRouteImport.update({
+  id: '/movimentacoes',
+  path: '/movimentacoes',
+  getParentRoute: () => EstoqueRoute,
+} as any)
+const AplicacoesRoute = AplicacoesRouteImport.update({
+  id: '/aplicacoes',
+  path: '/aplicacoes',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AplicacoesNovaRoute = AplicacoesNovaRouteImport.update({
+  id: '/nova',
+  path: '/nova',
+  getParentRoute: () => AplicacoesRoute,
+} as any)
+const EstoqueRouteWithChildren = EstoqueRoute._addFileChildren({
+  EstoqueProdutosProductIdRoute,
+  EstoqueRecebimentoRoute,
+  EstoqueMovimentacoesRoute,
+})
+const AplicacoesRouteWithChildren = AplicacoesRoute._addFileChildren({
+  AplicacoesNovaRoute,
+})
 const PacientesPatientIdRoute = PacientesPatientIdRouteImport.update({
   id: '/$patientId',
   path: '/$patientId',
@@ -82,7 +120,17 @@ export interface FileRoutesByFullPath {
   '/agenda': typeof AgendaRoute
   '/configuracoes': typeof ConfiguracoesRoute
   '/crm': typeof CrmRoute
-  '/estoque': typeof EstoqueRoute
+  '/estoque': typeof EstoqueRouteWithChildren
+  '/estoque/produtos/$productId': typeof EstoqueProdutosProductIdRoute
+  '/estoque/recebimento': typeof EstoqueRecebimentoRoute
+  '/estoque/movimentacoes': typeof EstoqueMovimentacoesRoute
+  '/aplicacoes': typeof AplicacoesRouteWithChildren
+  '/aplicacoes/nova': typeof AplicacoesNovaRouteWithChildren
+  '/estoque/produtos/$productId': typeof EstoqueProdutosProductIdRoute
+  '/estoque/recebimento': typeof EstoqueRecebimentoRoute
+  '/estoque/movimentacoes': typeof EstoqueMovimentacoesRoute
+  '/aplicacoes': typeof AplicacoesRouteWithChildren
+  '/aplicacoes/nova': typeof AplicacoesNovaRoute
   '/exames': typeof ExamesRoute
   '/financeiro': typeof FinanceiroRoute
   '/pacientes': typeof PacientesRouteWithChildren
@@ -164,7 +212,8 @@ export interface RootRouteChildren {
   AgendaRoute: typeof AgendaRoute
   ConfiguracoesRoute: typeof ConfiguracoesRoute
   CrmRoute: typeof CrmRoute
-  EstoqueRoute: typeof EstoqueRoute
+  EstoqueRoute: typeof EstoqueRouteWithChildren
+  AplicacoesRoute: typeof AplicacoesRouteWithChildren
   ExamesRoute: typeof ExamesRoute
   FinanceiroRoute: typeof FinanceiroRoute
   PacientesRoute: typeof PacientesRouteWithChildren
@@ -271,7 +320,8 @@ const rootRouteChildren: RootRouteChildren = {
   AgendaRoute: AgendaRoute,
   ConfiguracoesRoute: ConfiguracoesRoute,
   CrmRoute: CrmRoute,
-  EstoqueRoute: EstoqueRoute,
+  EstoqueRoute: EstoqueRouteWithChildren,
+  AplicacoesRoute: AplicacoesRouteWithChildren,
   ExamesRoute: ExamesRoute,
   FinanceiroRoute: FinanceiroRoute,
   PacientesRoute: PacientesRouteWithChildren,
