@@ -29,7 +29,7 @@ function ProductMark() {
   return <Link to="/" className="flex items-center gap-3 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring"><span className="flex size-9 items-center justify-center rounded-md bg-sidebar-primary text-sidebar-primary-foreground"><HeartPulse className="size-5" /></span><span><span className="block font-display text-base font-semibold text-sidebar-foreground">Clinic OS</span><span className="block text-[11px] text-sidebar-muted">Health operating system</span></span></Link>;
 }
 
-function Navigation({ onNavigate }: { onNavigate?: () => void }) {
+function Navigation({ onNavigate }: { onNavigate?: (() => void) | undefined }) {
   const path = useRouterState({ select: (state) => state.location.pathname });
   const renderItems = (items: typeof mainItems | typeof managementItems) => items.map((item) => {
     const active = item.to === "/" ? path === "/" : path.startsWith(item.to);
@@ -38,7 +38,7 @@ function Navigation({ onNavigate }: { onNavigate?: () => void }) {
   return <nav className="flex flex-1 flex-col px-3 py-4"><div className="space-y-1">{renderItems(mainItems)}</div><p className="mb-2 mt-7 px-3 text-[10px] font-semibold uppercase tracking-widest text-sidebar-muted">Gestão</p><div className="space-y-1">{renderItems(managementItems)}</div></nav>;
 }
 
-function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
+function SidebarContent({ onNavigate }: { onNavigate?: (() => void) | undefined }) {
   return <div className="flex h-full flex-col bg-sidebar"><div className="border-b border-sidebar-border px-5 py-5"><ProductMark /></div><Navigation onNavigate={onNavigate} /><div className="border-t border-sidebar-border p-4"><div className="mb-4 flex items-center gap-2 rounded-md bg-sidebar-accent/50 px-3 py-2 text-[11px] text-sidebar-muted"><ShieldCheck className="size-4 text-sidebar-primary" /><span>Ambiente seguro</span></div><div className="flex items-center gap-3"><Avatar className="size-9"><AvatarFallback className="bg-sidebar-accent text-xs font-semibold text-sidebar-foreground">MS</AvatarFallback></Avatar><div className="min-w-0 flex-1"><p className="truncate text-xs font-semibold text-sidebar-foreground">Marcos Scorsafava</p><p className="text-[11px] text-sidebar-muted">Administrador</p></div><ChevronDown className="size-3.5 text-sidebar-muted" /></div></div></div>;
 }
 
