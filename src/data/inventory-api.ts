@@ -42,6 +42,7 @@ export type InventoryMovement = {
   reference: string;
   reason: string;
   operationId?: string | null;
+  applicationId?: string | null;
   origin?: string | null;
   destination?: string | null;
 };

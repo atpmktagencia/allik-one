@@ -29,6 +29,13 @@
       "when": 1791149403122,
       "tag": "0003_spooky_genesis",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1791150523465,
+      "tag": "0004_keen_argent",
+      "breakpoints": true
     }
   ]
 }

@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react";
+import { useState } from "react";
 import { Link } from "@tanstack/react-router";
 import {
   AlertTriangle,
@@ -8,7 +8,6 @@ import {
   ChevronRight,
   ClipboardList,
   Package,
-  Plus,
   Search,
   SlidersHorizontal,
   Truck,
@@ -26,7 +25,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
-import { applications, formatBRL } from "@/data/mock-stock";
+import { formatBRL } from "@/data/mock-stock";
 import {
   formatExpiry,
   summarizeStock,
@@ -37,6 +36,7 @@ import {
 } from "@/data/inventory-api";
 import { InventoryState } from "./inventory-state";
 import { StockOperationForms } from "./stock-operation-forms";
+import { SectionHeader } from "./section-header";
 
 const statusClass: Record<string, string> = {
   Normal: "bg-success-soft text-success-foreground border-transparent",
@@ -54,34 +54,7 @@ export function StockStatus({ status }: { status: string }) {
   );
 }
 
-export function SectionHeader({
-  eyebrow,
-  title,
-  description,
-  action,
-}: {
-  eyebrow?: string;
-  title: string;
-  description?: string;
-  action?: React.ReactNode;
-}) {
-  return (
-    <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-      <div>
-        <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-          {eyebrow}
-        </p>
-        <h1 className="mt-1 font-display text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
-          {title}
-        </h1>
-        {description && (
-          <p className="mt-1 max-w-2xl text-sm text-muted-foreground">{description}</p>
-        )}
-      </div>
-      {action}
-    </div>
-  );
-}
+export { SectionHeader } from "./section-header";
 
 export function MetricCard({
   icon: Icon,
@@ -748,207 +721,4 @@ export function MovementsPage() {
   );
 }
 
-export function ApplicationsPage() {
-  return (
-    <div className="space-y-7">
-      <SectionHeader
-        eyebrow="Operação · Aplicações"
-        title="Aplicações"
-        description="Demonstração com registros fictícios. Aplicações reais serão habilitadas no Milestone 4."
-        action={
-          <Button asChild>
-            <Link to="/aplicacoes/nova">
-              <Plus />
-              Nova aplicação
-            </Link>
-          </Button>
-        }
-      />
-      <div className="rounded-xl border border-border bg-card p-4 shadow-soft">
-        <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-          <span className="rounded-full bg-info-soft px-3 py-1.5 text-info-foreground">
-            Rastreabilidade
-          </span>
-          <span>
-            Aplicação concluída → consumo de estoque → transação de entitlement → evento de
-            compensação → auditoria.
-          </span>
-        </div>
-      </div>
-      <div className="overflow-hidden rounded-xl border border-border bg-card shadow-soft">
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[1100px] text-sm">
-            <thead className="bg-muted/40 text-left text-xs text-muted-foreground">
-              <tr>
-                {[
-                  "Data",
-                  "Paciente",
-                  "Serviço",
-                  "Profissional executor",
-                  "Produto / lote",
-                  "Qtd.",
-                  "Origem",
-                  "Status",
-                ].map((h) => (
-                  <th key={h} className="px-4 py-3 font-medium">
-                    {h}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {applications.map((a) => (
-                <tr key={a.id} className="border-t border-border hover:bg-muted/20">
-                  <td className="px-4 py-4 text-xs text-muted-foreground">
-                    {a.date}
-                    <p>{a.id}</p>
-                  </td>
-                  <td className="px-4 py-4 font-medium">{a.patient}</td>
-                  <td className="px-4 py-4">{a.service}</td>
-                  <td className="px-4 py-4">{a.professional}</td>
-                  <td className="px-4 py-4">
-                    <span className="font-medium">{a.product}</span>
-                    <span className="ml-2 text-xs text-muted-foreground">{a.lot}</span>
-                  </td>
-                  <td className="px-4 py-4 font-semibold">{a.quantity}</td>
-                  <td className="px-4 py-4">
-                    <Badge variant="outline">{a.origin}</Badge>
-                  </td>
-                  <td className="px-4 py-4">
-                    <Badge className="bg-success-soft text-success-foreground hover:bg-success-soft">
-                      Concluída
-                    </Badge>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-export function NewApplicationPage() {
-  return (
-    <div className="space-y-7">
-      <SectionHeader
-        eyebrow="Operação · Aplicação"
-        title="Nova aplicação"
-        description="Fluxo visual de registro. A confirmação real será transacional no backend."
-        action={
-          <Button asChild variant="outline">
-            <Link to="/aplicacoes">Cancelar</Link>
-          </Button>
-        }
-      />
-      <div className="grid gap-5 xl:grid-cols-[1fr_360px]">
-        <div className="space-y-5">
-          <FormCard
-            title="1. Atendimento"
-            description="Identifique o paciente e o serviço executado."
-          >
-            <div className="grid gap-4 md:grid-cols-2">
-              <Field label="Paciente" value="Paciente A." />
-              <Field label="Serviço / procedimento" value="Protocolo Metabólico" />
-            </div>
-          </FormCard>
-          <FormCard
-            title="2. Execução"
-            description="Profissional executor é diferente de vendedor, prescritor ou indicador quando aplicável."
-          >
-            <div className="grid gap-4 md:grid-cols-2">
-              <Field label="Profissional executor" value="Enf. Ana Costa" />
-              <Field label="Data / hora" value="03/10/2026 18:10" />
-            </div>
-          </FormCard>
-          <FormCard
-            title="3. Origem do consumo"
-            description="O consumo deve estar autorizado por uma fonte válida."
-          >
-            <div className="grid gap-4 md:grid-cols-2">
-              <Field label="Origem" value="Pacote" />
-              <Field label="Entitlement" value="ENT-00071 · Protocolo Metabólico 30D" />
-            </div>
-          </FormCard>
-          <FormCard
-            title="4. Produto e lote"
-            description="Seleção FEFO prioriza o lote disponível com vencimento mais próximo."
-          >
-            <div className="grid gap-4 md:grid-cols-3">
-              <Field label="Produto" value="Injetável A" />
-              <Field label="Lote" value="A24F08 · vence 18/02/2027" />
-              <Field label="Quantidade" value="2 un" />
-            </div>
-            <div className="mt-4 rounded-lg bg-warning-soft p-3 text-xs text-warning-foreground">
-              <div className="flex items-start gap-2">
-                <AlertTriangle className="mt-0.5 size-4 shrink-0" />
-                <span>
-                  Saldo será validado novamente no backend antes da confirmação. Estoque negativo
-                  não é permitido.
-                </span>
-              </div>
-            </div>
-          </FormCard>
-        </div>
-        <aside className="h-fit rounded-xl border border-border bg-card p-5 shadow-soft">
-          <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-            Confirmação
-          </p>
-          <div className="mt-5 space-y-4 text-sm">
-            <Summary label="Paciente" value="Paciente A." />
-            <Summary label="Serviço" value="Protocolo Metabólico" />
-            <Summary label="Produto" value="Injetável A · A24F08" />
-            <Summary label="Quantidade" value="2 un" />
-            <Summary label="Origem" value="Pacote" />
-          </div>
-          <div className="my-5 border-t border-border" />
-          <p className="text-xs text-muted-foreground">
-            Ao concluir, o backend deverá registrar a aplicação, consumo de entitlement, movimento
-            de estoque, evento de compensação e auditoria em uma transação consistente.
-          </p>
-          <p className="mt-4 text-xs text-muted-foreground">
-            Demonstração. Aplicação será habilitada no Milestone 4.
-          </p>
-          <Button className="mt-5 w-full" disabled>
-            Confirmar aplicação
-          </Button>
-        </aside>
-      </div>
-    </div>
-  );
-}
-
-function FormCard({
-  title,
-  description,
-  children,
-}: {
-  title: string;
-  description: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="rounded-xl border border-border bg-card p-5 shadow-soft">
-      <h2 className="font-semibold">{title}</h2>
-      <p className="mt-1 text-xs text-muted-foreground">{description}</p>
-      <div className="mt-5">{children}</div>
-    </div>
-  );
-}
-function Field({ label, value }: { label: string; value: string }) {
-  return (
-    <div>
-      <label className="text-xs font-medium text-muted-foreground">{label}</label>
-      <Input className="mt-1.5 bg-muted/20" value={value} readOnly />
-    </div>
-  );
-}
-function Summary({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex items-start justify-between gap-4">
-      <span className="text-muted-foreground">{label}</span>
-      <span className="text-right font-medium">{value}</span>
-    </div>
-  );
-}
+export { ApplicationsPage, NewApplicationPage } from "./application-pages";

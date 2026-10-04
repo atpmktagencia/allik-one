@@ -54,7 +54,7 @@ Para E2E, use um servidor local com migrations/seed e sessão configurados, inst
 
 GET `/api/v1/inventory/products`, `/products/:id`, `/locations`, `/lots`, `/stock` e `/movements`. Os filtros usam `productId`, `locationId` e `search`. As rotas HTTP e o driver do banco ficam no servidor; as telas usam TanStack Query. Uma sessão assinada do Preview é exigida na API.
 
-Product, Location, Lot e StockMovement persistem no PostgreSQL. StockBalance é uma projeção do ledger, atualizada por trigger na mesma transação. UPDATE/DELETE de movimentações e auditoria são rejeitados; alteração direta de saldo também é rejeitada. A constraint de saldo não negativo protege concorrência. Aplicações continuam identificadas como demonstração, com confirmação desabilitada.
+Product, Location, Lot e StockMovement persistem no PostgreSQL. StockBalance é uma projeção do ledger, atualizada por trigger na mesma transação. UPDATE/DELETE de movimentações e auditoria são rejeitados; alteração direta de saldo também é rejeitada. A constraint de saldo não negativo protege concorrência. Aplicações diretas de demonstração registram consumo transacional no Milestone 4.
 
 ### Compras e recebimento — Milestone 2
 
@@ -79,6 +79,20 @@ POST `/api/v1/inventory/adjustments` recebe `operationId`, `lotId`, `locationId`
 A migration `0003_spooky_genesis.sql` registra as operações e seus movimentos com histórico imutável. As rotas exigem sessão do Preview e mesma origem; o responsável é definido pelo servidor. O UUID e o hash do conteúdo permitem repetir um envio idêntico sem duplicar movimentos. Os saldos são travados em ordem consistente para transferências simultâneas em sentidos opostos; diferenças de contagem são calculadas com `numeric` no PostgreSQL. Após uma resposta perdida, o formulário conserva o envio original para reenvio enquanto permanece aberto.
 
 Os testes cobrem preservação do total, repetição e concorrência, rollback após falha no destino, contagem zero, conflito de saldo consultado e imutabilidade. O teste de navegador confirma transferência, contagem, filtros e persistência após recarregar. O aceite no Preview depende da aplicação da migration e da validação na Vercel com PostgreSQL.
+
+### Aplicações diretas e FEFO — Milestone 4
+
+`/aplicacoes/nova` registra uma aplicação direta sintética com referência única, serviço, executor e local de consumo. Selecione um ou mais produtos e confira os lotes físicos utilizados. O formulário sugere, por produto e local, o lote disponível com vencimento mais próximo (FEFO); permite escolher outro lote disponível ou dividir o consumo em linhas de lotes distintos. Lotes bloqueados, vencidos, vazios e produtos inativos não são sugeridos. A recomendação trata o estoque disponível e não determina procedimentos ou quantidades clínicas.
+
+GET/POST `/api/v1/inventory/applications` exige sessão do Preview; POST exige a mesma origem. O envio contém `operationId`, `patientRef`, `reference`, `service`, `professional`, `locationId` e até 20 `items` com `productId`, `lotId` e `quantity` positiva, com até três casas decimais. Não repita o mesmo lote em várias linhas. O servidor confere novamente produto, validade na data de Fortaleza, status do lote, local ativo e saldo. Um lote válido até hoje pode ser consumido. O horário é o da confirmação no servidor.
+
+A migration `0004_keen_argent.sql` adiciona aplicações e vínculos imutáveis com as saídas do ledger. Todos os saldos consumidos são travados em ordem consistente, mesmo quando itens chegam em ordem diferente. Aplicação, movimentos `OUT`, saldos e auditoria são confirmados na mesma transação; um item inválido ou uma falha posterior desfaz tudo. UUID e hash permitem repetir um envio idêntico sem duplicar a baixa. A referência única também impede recriar a mesma aplicação com outra UUID. Falhas ambíguas preservam o envio original na interface enquanto o formulário permanece aberto.
+
+`/aplicacoes` consulta o histórico persistido e permite buscar referência, paciente sintético, serviço, executor, produto ou lote. `/estoque/movimentacoes` mostra as saídas com a referência da aplicação; a API de movimentos inclui `applicationId` para rastreabilidade. O responsável pela movimentação é o operador autenticado do Preview; o executor declarado no formulário é um campo separado.
+
+Somente os códigos `demo-patient-a`, `demo-patient-b` e `demo-patient-c` são aceitos. Seus rótulos ficam na fronteira local `mock-clinic.ts`; nenhum prontuário, CPF ou cadastro de paciente é gravado no inventário. O fluxo desta etapa é de aplicação direta; não consome pacotes/entitlements e não cria cobrança ou compensação. O modo compartilhado continua proibido em produção.
+
+Os testes verificam FEFO, reenvio após resposta perdida, concorrência com itens em ordem inversa, validade no dia, indisponibilidade, referência duplicada e rollback após falha no segundo movimento. O navegador verifica recebimento de dois lotes → recomendação FEFO → aplicação de dois produtos → saldo → histórico → recarga. O aceite no Preview depende da migration e da validação desse fluxo na Vercel.
 
 ### Testes com PostgreSQL descartável no Codex Cloud
 

@@ -7,6 +7,7 @@ import { inventoryResponse } from "./inventory";
 import { receivingResponse } from "./receiving";
 import { purchasingResponse } from "./purchases";
 import { stockOperationResponse } from "./stock-operations";
+import { applicationResponse } from "./applications";
 const origin = "http://localhost:4317";
 let cookie = "";
 beforeAll(async () => {
@@ -420,6 +421,236 @@ describe("PostgreSQL transfers and physical counts", () => {
         )
       ).status,
     ).toBe(403);
+  });
+});
+describe("PostgreSQL direct applications", () => {
+  async function applicationFixture(days = 90) {
+    const f = await fixture("10", days);
+    return {
+      operationId: randomUUID(),
+      patientRef: "demo-patient-a",
+      reference: `AP-${randomUUID()}`,
+      service: "Procedimento sintético",
+      professional: "Executor sintético",
+      locationId: String(f.params[1]),
+      items: [{ productId: f.productId, lotId: String(f.params[0]), quantity: "2.125" }],
+    };
+  }
+  const apply = (body: unknown) => applicationResponse(receivingRequest(body));
+  async function quantity(lotId: string, locationId: string) {
+    return (
+      await getPool().query(
+        "SELECT quantity::text FROM inventory_balances WHERE lot_id=$1 AND location_id=$2",
+        [lotId, locationId],
+      )
+    ).rows[0].quantity;
+  }
+  it("confirms exactly once under concurrent replay and links stock, audit and application history", async () => {
+    const body = await applicationFixture();
+    const responses = await Promise.all([apply(body), apply(body)]);
+    expect(responses.map((response) => response.status).sort()).toEqual([200, 201]);
+    expect(await quantity(body.items[0]!.lotId, body.locationId)).toBe("7.875");
+    const ledger = await getPool().query(
+      "SELECT m.delta::text,m.actor,(SELECT count(*)::int FROM inventory_audit au WHERE au.movement_id=m.id) AS audits FROM inventory_application_movements am JOIN inventory_movements m ON m.id=am.movement_id WHERE am.application_id=$1",
+      [body.operationId],
+    );
+    expect(ledger.rows).toEqual([{ delta: "-2.125", actor: "preview-operator", audits: 1 }]);
+    const history = await applicationResponse(request("applications"));
+    expect(history.headers.get("cache-control")).toContain("no-store");
+    const saved = (await history.json()).data.find(
+      (application: { id: string }) => application.id === body.operationId,
+    );
+    expect(saved).toMatchObject({
+      patientRef: "demo-patient-a",
+      reference: body.reference,
+      professional: body.professional,
+    });
+    expect(saved.items).toHaveLength(1);
+    expect(saved.items[0]).toMatchObject({ lotId: body.items[0]!.lotId, quantity: "2.125" });
+    const movementHistory = await inventoryResponse(request(`movements?search=${body.reference}`));
+    expect((await movementHistory.json()).data[0].applicationId).toBe(body.operationId);
+  });
+  it("rejects changed replays and duplicate references without a second withdrawal", async () => {
+    const body = await applicationFixture();
+    expect((await apply(body)).status).toBe(201);
+    expect((await apply({ ...body, service: "Outro procedimento" })).status).toBe(409);
+    expect((await apply({ ...body, operationId: randomUUID() })).status).toBe(409);
+    expect(await quantity(body.items[0]!.lotId, body.locationId)).toBe("7.875");
+  });
+  it("serializes competing applications without overspending", async () => {
+    const body = await applicationFixture();
+    body.items[0]!.quantity = "6";
+    const second = { ...body, operationId: randomUUID(), reference: `AP-${randomUUID()}` };
+    const responses = await Promise.all([apply(body), apply(second)]);
+    expect(responses.map((response) => response.status).sort()).toEqual([201, 409]);
+    expect(await quantity(body.items[0]!.lotId, body.locationId)).toBe("4.000");
+  });
+  it("refuses the entire application when a later item has insufficient stock", async () => {
+    const body = await applicationFixture();
+    const second = await fixture("3");
+    await movement([second.params[0], body.locationId], "3", "IN");
+    body.items.push({
+      productId: second.productId,
+      lotId: String(second.params[0]),
+      quantity: "4",
+    });
+    expect((await apply(body)).status).toBe(409);
+    expect(await quantity(body.items[0]!.lotId, body.locationId)).toBe("10.000");
+    expect(await quantity(body.items[1]!.lotId, body.locationId)).toBe("3.000");
+    expect(
+      (
+        await getPool().query("SELECT id FROM inventory_applications WHERE id=$1", [
+          body.operationId,
+        ])
+      ).rowCount,
+    ).toBe(0);
+    expect(
+      (
+        await getPool().query("SELECT id FROM inventory_movements WHERE reference=$1", [
+          body.reference,
+        ])
+      ).rowCount,
+    ).toBe(0);
+    body.items[1]!.quantity = "1.125";
+    expect((await apply(body)).status).toBe(201);
+    expect(await quantity(body.items[0]!.lotId, body.locationId)).toBe("7.875");
+    expect(await quantity(body.items[1]!.lotId, body.locationId)).toBe("1.875");
+  });
+  it("accepts today's validity but rejects expired and quarantined lots", async () => {
+    const expired = await applicationFixture(-1);
+    expect((await apply(expired)).status).toBe(409);
+    const today = await applicationFixture(0);
+    expect((await apply(today)).status).toBe(201);
+    const blocked = await applicationFixture();
+    await getPool().query("UPDATE inventory_lots SET status='QUARANTINED' WHERE id=$1", [
+      blocked.items[0]!.lotId,
+    ]);
+    expect((await apply(blocked)).status).toBe(409);
+  });
+  it("rolls back an earlier withdrawal when a later movement fails in the database", async () => {
+    const body = await applicationFixture();
+    const second = await fixture();
+    await movement([second.params[0], body.locationId], "10", "IN");
+    body.items.push({
+      productId: second.productId,
+      lotId: String(second.params[0]),
+      quantity: "1",
+    });
+    const name = `test_application_failure_${randomUUID().replaceAll("-", "")}`;
+    // Fault injection in the disposable test database, after the first item is written.
+    await getPool().query(`CREATE FUNCTION ${name}() RETURNS trigger LANGUAGE plpgsql AS $$
+      BEGIN IF NEW.reference='${body.reference}' AND NEW.lot_id='${second.params[0]}'::uuid THEN RAISE EXCEPTION 'Synthetic later movement failure'; END IF; RETURN NEW; END; $$`);
+    await getPool().query(
+      `CREATE TRIGGER ${name} BEFORE INSERT ON inventory_movements FOR EACH ROW EXECUTE FUNCTION ${name}()`,
+    );
+    try {
+      expect((await apply(body)).status).toBe(503);
+      expect(await quantity(body.items[0]!.lotId, body.locationId)).toBe("10.000");
+      expect(await quantity(body.items[1]!.lotId, body.locationId)).toBe("10.000");
+      expect(
+        (
+          await getPool().query("SELECT id FROM inventory_applications WHERE id=$1", [
+            body.operationId,
+          ])
+        ).rowCount,
+      ).toBe(0);
+      expect(
+        (
+          await getPool().query("SELECT id FROM inventory_movements WHERE reference=$1", [
+            body.reference,
+          ])
+        ).rowCount,
+      ).toBe(0);
+    } finally {
+      await getPool().query(`DROP TRIGGER ${name} ON inventory_movements`);
+      await getPool().query(`DROP FUNCTION ${name}()`);
+    }
+    expect((await apply(body)).status).toBe(201);
+    expect(await quantity(body.items[0]!.lotId, body.locationId)).toBe("7.875");
+  });
+  it("locks multi-item applications consistently even when item order is reversed", async () => {
+    const body = await applicationFixture();
+    const second = await fixture();
+    await movement([second.params[0], body.locationId], "10", "IN");
+    body.items[0]!.quantity = "6";
+    body.items.push({
+      productId: second.productId,
+      lotId: String(second.params[0]),
+      quantity: "6",
+    });
+    const reversed = {
+      ...body,
+      operationId: randomUUID(),
+      reference: `AP-${randomUUID()}`,
+      items: [...body.items].reverse(),
+    };
+    const responses = await Promise.all([apply(body), apply(reversed)]);
+    expect(responses.map((response) => response.status).sort()).toEqual([201, 409]);
+    expect(await quantity(body.items[0]!.lotId, body.locationId)).toBe("4.000");
+    expect(await quantity(body.items[1]!.lotId, body.locationId)).toBe("4.000");
+  });
+  it("rejects inactive products and locations and products without stock control", async () => {
+    const body = await applicationFixture();
+    await getPool().query("UPDATE inventory_products SET active=false WHERE id=$1", [
+      body.items[0]!.productId,
+    ]);
+    expect((await apply(body)).status).toBe(409);
+    await getPool().query(
+      "UPDATE inventory_products SET active=true,stock_controlled=false WHERE id=$1",
+      [body.items[0]!.productId],
+    );
+    expect((await apply(body)).status).toBe(409);
+    await getPool().query("UPDATE inventory_products SET stock_controlled=true WHERE id=$1", [
+      body.items[0]!.productId,
+    ]);
+    await getPool().query("UPDATE inventory_locations SET active=false WHERE id=$1", [
+      body.locationId,
+    ]);
+    expect((await apply(body)).status).toBe(409);
+    expect(await quantity(body.items[0]!.lotId, body.locationId)).toBe("10.000");
+  });
+  it("rejects mismatched products and stock from a different local", async () => {
+    const body = await applicationFixture();
+    const unrelated = await fixture();
+    expect(
+      (await apply({ ...body, items: [{ ...body.items[0], productId: unrelated.productId }] }))
+        .status,
+    ).toBe(409);
+    expect((await apply({ ...body, locationId: String(unrelated.params[1]) })).status).toBe(409);
+  });
+  it("rejects repeated lots and real patient references before accessing stock", async () => {
+    const body = await applicationFixture();
+    expect((await apply({ ...body, items: [body.items[0], body.items[0]] })).status).toBe(400);
+    expect((await apply({ ...body, patientRef: "external-patient" })).status).toBe(400);
+    expect((await apply({ ...body, items: [{ ...body.items[0], quantity: "0" }] })).status).toBe(
+      400,
+    );
+    expect(await quantity(body.items[0]!.lotId, body.locationId)).toBe("10.000");
+  });
+  it("protects application history and requires same-origin Preview authentication", async () => {
+    const body = await applicationFixture();
+    expect((await applicationResponse(new Request(origin))).status).toBe(401);
+    expect(
+      (
+        await applicationResponse(
+          new Request(origin, {
+            method: "POST",
+            headers: { cookie, origin: "https://other.invalid" },
+          }),
+        )
+      ).status,
+    ).toBe(403);
+    expect((await apply(body)).status).toBe(201);
+    await expect(
+      getPool().query("UPDATE inventory_applications SET reference='EDITED' WHERE id=$1", [
+        body.operationId,
+      ]),
+    ).rejects.toThrow("append-only");
+    await expect(
+      getPool().query("DELETE FROM inventory_application_movements WHERE application_id=$1", [
+        body.operationId,
+      ]),
+    ).rejects.toThrow("append-only");
   });
 });
 describe("Preview access", () => {

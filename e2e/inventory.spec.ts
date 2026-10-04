@@ -17,7 +17,10 @@ test("database-backed stock, product details, movements and reload", async ({ pa
   await expect(page.getByRole("button", { name: "Confirmar recebimento" })).toBeEnabled();
   await page.goto("/aplicacoes/nova");
   await expect(page.getByRole("heading", { name: "Nova aplicação", exact: true })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Confirmar aplicação" })).toBeDisabled();
+  await expect(page.getByRole("button", { name: "Confirmar aplicação" })).toBeEnabled();
+  expect(await page.locator("form").evaluate((form: HTMLFormElement) => form.checkValidity())).toBe(
+    false,
+  );
 });
 test("filters to empty and reports missing products", async ({ page }) => {
   await page.goto("/estoque/acesso");

@@ -3,6 +3,7 @@ import { inventoryResponse } from "@/server/inventory";
 import { receivingResponse } from "@/server/receiving";
 import { purchasingResponse } from "@/server/purchases";
 import { stockOperationResponse } from "@/server/stock-operations";
+import { applicationResponse } from "@/server/applications";
 
 function resource(request: Request) {
   const path = new URL(request.url).pathname.replace(/\/$/, "");
@@ -16,6 +17,8 @@ export const Route = createFileRoute("/api/v1/inventory/$")({
   server: {
     handlers: {
       GET: ({ request }) => {
+        if (new URL(request.url).pathname.replace(/\/$/, "") === "/api/v1/inventory/applications")
+          return applicationResponse(request);
         const name = resource(request);
         return name === "suppliers" || name === "purchases"
           ? purchasingResponse(request, name)
@@ -25,6 +28,7 @@ export const Route = createFileRoute("/api/v1/inventory/$")({
         const name = resource(request);
         if (name === "suppliers" || name === "purchases") return purchasingResponse(request, name);
         const path = new URL(request.url).pathname.replace(/\/$/, "");
+        if (path === "/api/v1/inventory/applications") return applicationResponse(request);
         if (path === "/api/v1/inventory/transfers")
           return stockOperationResponse(request, "TRANSFER");
         if (path === "/api/v1/inventory/adjustments")

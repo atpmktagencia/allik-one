@@ -13,6 +13,13 @@ export type Patient = {
   tag: string;
 };
 
+// Application Preview references are synthetic codes, separate from patient records.
+export const applicationPatients = [
+  { id: "demo-patient-a", name: "Paciente A." },
+  { id: "demo-patient-b", name: "Paciente B." },
+  { id: "demo-patient-c", name: "Paciente C." },
+];
+
 export const patients: Patient[] = [
   {
     id: "ana-beatriz",

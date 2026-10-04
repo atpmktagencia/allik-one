@@ -191,3 +191,34 @@ export const operationMovements = pgTable("inventory_operation_movements", {
     .notNull()
     .references(() => operations.id),
 });
+
+export const applications = pgTable(
+  "inventory_applications",
+  {
+    id: uuid("id").primaryKey(),
+    requestHash: text("request_hash").notNull(),
+    reference: text("reference").notNull().unique(),
+    patientRef: text("patient_ref").notNull(),
+    service: text("service").notNull(),
+    professional: text("professional").notNull(),
+    locationId: uuid("location_id")
+      .notNull()
+      .references(() => locations.id),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    check(
+      "application_synthetic_patient",
+      sql`${t.patientRef} IN ('demo-patient-a','demo-patient-b','demo-patient-c')`,
+    ),
+  ],
+);
+
+export const applicationMovements = pgTable("inventory_application_movements", {
+  movementId: uuid("movement_id")
+    .primaryKey()
+    .references(() => movements.id),
+  applicationId: uuid("application_id")
+    .notNull()
+    .references(() => applications.id),
+});
