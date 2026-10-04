@@ -14,4 +14,13 @@ describe("App routing", () => {
 
     expect(matches.at(-1)?.routeId).not.toBe(rootRouteId);
   });
+
+  it("matches the Patient 360 detail route", () => {
+    const router = createRouter({ routeTree, context: { queryClient: new QueryClient() } });
+
+    const matches = router.matchRoutes("/pacientes/ana-beatriz");
+
+    expect(matches.at(-1)?.routeId).toBe("/pacientes/$patientId");
+    expect(matches.at(-1)?.params).toMatchObject({ patientId: "ana-beatriz" });
+  });
 });
