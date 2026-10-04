@@ -125,11 +125,6 @@ export interface FileRoutesByFullPath {
   '/estoque/recebimento': typeof EstoqueRecebimentoRoute
   '/estoque/movimentacoes': typeof EstoqueMovimentacoesRoute
   '/aplicacoes': typeof AplicacoesRouteWithChildren
-  '/aplicacoes/nova': typeof AplicacoesNovaRouteWithChildren
-  '/estoque/produtos/$productId': typeof EstoqueProdutosProductIdRoute
-  '/estoque/recebimento': typeof EstoqueRecebimentoRoute
-  '/estoque/movimentacoes': typeof EstoqueMovimentacoesRoute
-  '/aplicacoes': typeof AplicacoesRouteWithChildren
   '/aplicacoes/nova': typeof AplicacoesNovaRoute
   '/exames': typeof ExamesRoute
   '/financeiro': typeof FinanceiroRoute
@@ -143,7 +138,12 @@ export interface FileRoutesByTo {
   '/agenda': typeof AgendaRoute
   '/configuracoes': typeof ConfiguracoesRoute
   '/crm': typeof CrmRoute
-  '/estoque': typeof EstoqueRoute
+  '/estoque': typeof EstoqueRouteWithChildren
+  '/estoque/produtos/$productId': typeof EstoqueProdutosProductIdRoute
+  '/estoque/recebimento': typeof EstoqueRecebimentoRoute
+  '/estoque/movimentacoes': typeof EstoqueMovimentacoesRoute
+  '/aplicacoes': typeof AplicacoesRouteWithChildren
+  '/aplicacoes/nova': typeof AplicacoesNovaRoute
   '/exames': typeof ExamesRoute
   '/financeiro': typeof FinanceiroRoute
   '/pacientes': typeof PacientesRouteWithChildren
@@ -157,7 +157,12 @@ export interface FileRoutesById {
   '/agenda': typeof AgendaRoute
   '/configuracoes': typeof ConfiguracoesRoute
   '/crm': typeof CrmRoute
-  '/estoque': typeof EstoqueRoute
+  '/estoque': typeof EstoqueRouteWithChildren
+  '/estoque/produtos/$productId': typeof EstoqueProdutosProductIdRoute
+  '/estoque/recebimento': typeof EstoqueRecebimentoRoute
+  '/estoque/movimentacoes': typeof EstoqueMovimentacoesRoute
+  '/aplicacoes': typeof AplicacoesRouteWithChildren
+  '/aplicacoes/nova': typeof AplicacoesNovaRoute
   '/exames': typeof ExamesRoute
   '/financeiro': typeof FinanceiroRoute
   '/pacientes': typeof PacientesRouteWithChildren
@@ -173,6 +178,11 @@ export interface FileRouteTypes {
     | '/configuracoes'
     | '/crm'
     | '/estoque'
+    | '/estoque/produtos/$productId'
+    | '/estoque/recebimento'
+    | '/estoque/movimentacoes'
+    | '/aplicacoes'
+    | '/aplicacoes/nova'
     | '/exames'
     | '/financeiro'
     | '/pacientes'
@@ -257,6 +267,41 @@ declare module '@tanstack/react-router' {
       fullPath: '/estoque'
       preLoaderRoute: typeof EstoqueRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/estoque/produtos/$productId': {
+      id: '/estoque/produtos/$productId'
+      path: '/produtos/$productId'
+      fullPath: '/estoque/produtos/$productId'
+      preLoaderRoute: typeof EstoqueProdutosProductIdRouteImport
+      parentRoute: typeof EstoqueRoute
+    }
+    '/estoque/recebimento': {
+      id: '/estoque/recebimento'
+      path: '/recebimento'
+      fullPath: '/estoque/recebimento'
+      preLoaderRoute: typeof EstoqueRecebimentoRouteImport
+      parentRoute: typeof EstoqueRoute
+    }
+    '/estoque/movimentacoes': {
+      id: '/estoque/movimentacoes'
+      path: '/movimentacoes'
+      fullPath: '/estoque/movimentacoes'
+      preLoaderRoute: typeof EstoqueMovimentacoesRouteImport
+      parentRoute: typeof EstoqueRoute
+    }
+    '/aplicacoes': {
+      id: '/aplicacoes'
+      path: '/aplicacoes'
+      fullPath: '/aplicacoes'
+      preLoaderRoute: typeof AplicacoesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/aplicacoes/nova': {
+      id: '/aplicacoes/nova'
+      path: '/nova'
+      fullPath: '/aplicacoes/nova'
+      preLoaderRoute: typeof AplicacoesNovaRouteImport
+      parentRoute: typeof AplicacoesRoute
     }
     '/exames': {
       id: '/exames'
