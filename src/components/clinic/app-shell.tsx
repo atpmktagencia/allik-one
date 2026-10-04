@@ -15,6 +15,7 @@ const mainItems = [
   { label: "Prontuário", to: "/prontuario", icon: FileHeart },
   { label: "Vendas", to: "/vendas", icon: WalletCards },
   { label: "Estoque", to: "/estoque", icon: Package },
+  { label: "Aplicações", to: "/aplicacoes", icon: ClipboardPlus },
   { label: "Financeiro", to: "/financeiro", icon: Archive },
 ] as const;
 const managementItems = [
@@ -23,7 +24,7 @@ const managementItems = [
   { label: "Configurações", to: "/configuracoes", icon: Settings },
 ] as const;
 
-const pageTitles: Record<string, string> = { "/": "Visão geral", "/agenda": "Agenda", "/pacientes": "Pacientes", "/prontuario": "Prontuário", "/vendas": "Vendas", "/estoque": "Estoque", "/financeiro": "Financeiro", "/crm": "CRM", "/exames": "Exames", "/configuracoes": "Configurações" };
+const pageTitles: Record<string, string> = { "/": "Visão geral", "/agenda": "Agenda", "/pacientes": "Pacientes", "/prontuario": "Prontuário", "/vendas": "Vendas", "/estoque": "Estoque", "/financeiro": "Financeiro", "/aplicacoes": "Aplicações", "/crm": "CRM", "/exames": "Exames", "/configuracoes": "Configurações" };
 
 function ProductMark() {
   return <Link to="/" className="flex items-center gap-3 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring"><span className="flex size-9 items-center justify-center rounded-md bg-sidebar-primary text-sidebar-primary-foreground"><HeartPulse className="size-5" /></span><span><span className="block font-display text-base font-semibold text-sidebar-foreground">Clinic OS</span><span className="block text-[11px] text-sidebar-muted">Health operating system</span></span></Link>;
