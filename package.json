@@ -4,6 +4,8 @@
   "sideEffects": false,
   "type": "module",
   "scripts": {
+    "cloud:setup": "bash scripts/setup-codex-cloud.sh",
+    "cloud:check": "node --env-file-if-exists=.env.local scripts/check-codex-cloud.mjs",
     "dev": "vite dev",
     "build": "node scripts/prepare-preview.mjs && vite build",
     "build:dev": "vite build --mode development",
@@ -17,7 +19,9 @@
     "db:migrate": "tsx scripts/migrate.ts",
     "db:seed": "tsx scripts/seed-inventory.ts",
     "test:integration": "vitest run --config vitest.integration.config.ts",
+    "test:integration:local": "node scripts/test-local-postgres.mjs",
     "test:e2e": "playwright test",
+    "test:e2e:local": "node scripts/test-local-postgres.mjs --e2e",
     "test:preview-guard": "node --test scripts/prepare-preview.check.mjs"
   },
   "overrides": {

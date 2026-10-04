@@ -1,5 +1,32 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { inventoryResponse } from "@/server/inventory";
+import { receivingResponse } from "@/server/receiving";
+import { purchasingResponse } from "@/server/purchases";
+
+function resource(request: Request) {
+  const path = new URL(request.url).pathname.replace(/\/$/, "");
+  return path === "/api/v1/inventory/suppliers"
+    ? "suppliers"
+    : path === "/api/v1/inventory/purchases"
+      ? "purchases"
+      : undefined;
+}
 export const Route = createFileRoute("/api/v1/inventory/$")({
-  server: { handlers: { GET: ({ request }) => inventoryResponse(request) } },
+  server: {
+    handlers: {
+      GET: ({ request }) => {
+        const name = resource(request);
+        return name === "suppliers" || name === "purchases"
+          ? purchasingResponse(request, name)
+          : inventoryResponse(request);
+      },
+      POST: ({ request }) => {
+        const name = resource(request);
+        if (name === "suppliers" || name === "purchases") return purchasingResponse(request, name);
+        return new URL(request.url).pathname.replace(/\/$/, "") === "/api/v1/inventory/receipts"
+          ? receivingResponse(request)
+          : Response.json({ error: "Recurso não encontrado." }, { status: 404 });
+      },
+    },
+  },
 });

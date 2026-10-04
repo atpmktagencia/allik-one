@@ -4,6 +4,8 @@ import { randomUUID } from "node:crypto";
 import { getDb, getPool } from "./db";
 import { hasPreviewSession, previewLogin } from "./auth";
 import { inventoryResponse } from "./inventory";
+import { receivingResponse } from "./receiving";
+import { purchasingResponse } from "./purchases";
 const origin = "http://localhost:4317";
 let cookie = "";
 beforeAll(async () => {
@@ -51,6 +53,164 @@ function movement(params: unknown[], delta: string, type = "OUT") {
 }
 const request = (resource: string) =>
   new Request(`${origin}/api/v1/inventory/${resource}`, { headers: { cookie } });
+const receivingRequest = (body: unknown) =>
+  new Request(`${origin}/api/v1/inventory/receipts`, {
+    method: "POST",
+    headers: { cookie, origin, "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+
+describe("PostgreSQL receiving", () => {
+  async function receiptFixture() {
+    const f = await fixture();
+    return {
+      operationId: randomUUID(),
+      reference: "RECEIPT-TEST",
+      supplier: "Fornecedor sintético",
+      locationId: String(f.params[1]),
+      items: [
+        {
+          productId: f.productId,
+          lot: randomUUID(),
+          expiry: "2099-01-01",
+          quantity: "2.125",
+          unitCost: "2",
+        },
+      ],
+    };
+  }
+  it("serializes duplicate receipts and projects one movement, balance and audit", async () => {
+    const body = await receiptFixture();
+    const results = await Promise.all([
+      receivingResponse(receivingRequest(body)),
+      receivingResponse(receivingRequest(body)),
+    ]);
+    expect(results.map((r) => r.status).sort()).toEqual([200, 201]);
+    const ledger = await getPool().query(
+      "SELECT m.delta::text AS quantity, b.quantity::text AS balance, (SELECT count(*)::int FROM inventory_audit a WHERE a.movement_id=m.id) AS audits FROM inventory_movements m JOIN inventory_balances b ON b.lot_id=m.lot_id AND b.location_id=m.location_id WHERE m.operation_key=$1",
+      [`${body.operationId}:0`],
+    );
+    expect(ledger.rows).toEqual([{ quantity: "2.125", balance: "2.125", audits: 1 }]);
+  });
+  it("rolls back new lots, receipts and entries when a later product is invalid", async () => {
+    const body = await receiptFixture();
+    body.items.push({ ...body.items[0]!, productId: randomUUID(), lot: randomUUID() });
+    expect((await receivingResponse(receivingRequest(body))).status).toBe(409);
+    const receipt = await getPool().query("SELECT id FROM inventory_receipts WHERE id=$1", [
+      body.operationId,
+    ]);
+    const lot = await getPool().query(
+      "SELECT id FROM inventory_lots WHERE product_id=$1 AND number=$2",
+      [body.items[0]!.productId, body.items[0]!.lot],
+    );
+    expect(receipt.rows).toHaveLength(0);
+    expect(lot.rows).toHaveLength(0);
+  });
+  it("rejects changes to an already committed operation without adding stock", async () => {
+    const body = await receiptFixture();
+    expect((await receivingResponse(receivingRequest(body))).status).toBe(201);
+    body.items[0]!.quantity = "99";
+    expect((await receivingResponse(receivingRequest(body))).status).toBe(409);
+    const ledger = await getPool().query(
+      "SELECT delta::text AS quantity FROM inventory_movements WHERE operation_key=$1",
+      [`${body.operationId}:0`],
+    );
+    expect(ledger.rows).toEqual([{ quantity: "2.125" }]);
+  });
+});
+
+describe("PostgreSQL purchase receiving", () => {
+  async function purchaseFixture() {
+    const f = await fixture();
+    const supplierId = randomUUID();
+    const supplier = `Fornecedor ${supplierId}`;
+    expect(
+      (await purchasingResponse(receivingRequest({ id: supplierId, name: supplier }), "suppliers"))
+        .status,
+    ).toBe(201);
+    const purchaseId = randomUUID();
+    const reference = `PO-${purchaseId}`;
+    const order = {
+      id: purchaseId,
+      reference,
+      supplierId,
+      items: [{ productId: f.productId, quantity: "10", unitCost: "2" }],
+    };
+    expect((await purchasingResponse(receivingRequest(order), "purchases")).status).toBe(201);
+    const line = (
+      await getPool().query("SELECT id FROM inventory_purchase_items WHERE purchase_id=$1", [
+        purchaseId,
+      ])
+    ).rows[0].id as string;
+    const body = {
+      operationId: randomUUID(),
+      purchaseId,
+      reference,
+      supplier,
+      locationId: String(f.params[1]),
+      items: [
+        {
+          productId: f.productId,
+          purchaseItemId: line,
+          lot: randomUUID(),
+          expiry: "2099-01-01",
+          quantity: "4",
+          unitCost: "2",
+        },
+      ],
+    };
+    return { body, order };
+  }
+  async function readOrder(id: string) {
+    const response = await purchasingResponse(
+      new Request(`${origin}/api/v1/inventory/purchases`, { headers: { cookie } }),
+      "purchases",
+    );
+    const result = await response.json();
+    return result.data.find((order: { id: string }) => order.id === id);
+  }
+  it("tracks open, partial and fully received orders without duplicate replay", async () => {
+    const { body } = await purchaseFixture();
+    expect((await readOrder(body.purchaseId)).status).toBe("OPEN");
+    expect((await receivingResponse(receivingRequest(body))).status).toBe(201);
+    expect((await receivingResponse(receivingRequest(body))).status).toBe(200);
+    const partial = await readOrder(body.purchaseId);
+    expect(partial.status).toBe("PARTIAL");
+    expect(partial.items[0].remaining).toBe("6.000");
+    body.operationId = randomUUID();
+    body.items[0]!.quantity = "6";
+    expect((await receivingResponse(receivingRequest(body))).status).toBe(201);
+    expect((await readOrder(body.purchaseId)).status).toBe("RECEIVED");
+  });
+  it("serializes competing deliveries and rejects excess quantities", async () => {
+    const { body } = await purchaseFixture();
+    body.items[0]!.quantity = "6";
+    const second = {
+      ...body,
+      operationId: randomUUID(),
+      items: [{ ...body.items[0]!, lot: randomUUID() }],
+    };
+    const results = await Promise.all([
+      receivingResponse(receivingRequest(body)),
+      receivingResponse(receivingRequest(second)),
+    ]);
+    expect(results.map((response) => response.status).sort()).toEqual([201, 409]);
+    expect((await readOrder(body.purchaseId)).items[0].received).toBe("6.000");
+  });
+  it("rolls back the purchase counter when a lot is invalid", async () => {
+    const { body } = await purchaseFixture();
+    body.items[0]!.expiry = "2020-01-01";
+    expect((await receivingResponse(receivingRequest(body))).status).toBe(409);
+    expect((await readOrder(body.purchaseId)).items[0].received).toBe("0.000");
+  });
+  it("replays order creation without duplicating its lines and rejects a changed request", async () => {
+    const { body, order } = await purchaseFixture();
+    expect((await purchasingResponse(receivingRequest(order), "purchases")).status).toBe(200);
+    expect((await readOrder(body.purchaseId)).items).toHaveLength(1);
+    order.items[0]!.quantity = "11";
+    expect((await purchasingResponse(receivingRequest(order), "purchases")).status).toBe(409);
+  });
+});
 describe("Preview access", () => {
   it("denies unauthenticated inventory reads", async () => {
     expect((await inventoryResponse(new Request(`${origin}/api/v1/inventory/stock`))).status).toBe(

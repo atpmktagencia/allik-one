@@ -14,7 +14,7 @@ test("database-backed stock, product details, movements and reload", async ({ pa
   await expect(page.getByRole("cell", { name: "SEED-M1", exact: true }).first()).toBeVisible();
   await page.goto("/estoque/recebimento");
   await expect(page.getByRole("heading", { name: "Receber compra", exact: true })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Confirmar recebimento" })).toBeDisabled();
+  await expect(page.getByRole("button", { name: "Confirmar recebimento" })).toBeEnabled();
   await page.goto("/aplicacoes/nova");
   await expect(page.getByRole("heading", { name: "Nova aplicação", exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: "Confirmar aplicação" })).toBeDisabled();

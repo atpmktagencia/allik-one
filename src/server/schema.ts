@@ -102,3 +102,63 @@ export const audit = pgTable("inventory_audit", {
   action: text("action").notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
+
+export const receipts = pgTable("inventory_receipts", {
+  id: uuid("id").primaryKey(),
+  requestHash: text("request_hash").notNull(),
+  reference: text("reference").notNull(),
+  purchaseId: uuid("purchase_id").references(() => purchases.id),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const suppliers = pgTable("inventory_suppliers", {
+  id: uuid("id").primaryKey(),
+  name: text("name").notNull().unique(),
+  active: boolean("active").notNull().default(true),
+});
+
+export const purchases = pgTable("inventory_purchases", {
+  id: uuid("id").primaryKey(),
+  reference: text("reference").notNull().unique(),
+  supplierId: uuid("supplier_id")
+    .notNull()
+    .references(() => suppliers.id),
+  requestHash: text("request_hash").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const purchaseItems = pgTable(
+  "inventory_purchase_items",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    purchaseId: uuid("purchase_id")
+      .notNull()
+      .references(() => purchases.id),
+    productId: uuid("product_id")
+      .notNull()
+      .references(() => products.id),
+    quantity: numeric("quantity", { precision: 14, scale: 3 }).notNull(),
+    received: numeric("received", { precision: 14, scale: 3 }).notNull().default("0"),
+    unitCost: numeric("unit_cost", { precision: 14, scale: 4 }).notNull(),
+  },
+  (t) => [
+    uniqueIndex("purchase_product_unique").on(t.purchaseId, t.productId),
+    check("purchase_quantity_positive", sql`${t.quantity} > 0`),
+    check("purchase_received_valid", sql`${t.received} >= 0 AND ${t.received} <= ${t.quantity}`),
+    check("purchase_cost_nonnegative", sql`${t.unitCost} >= 0`),
+  ],
+);
+
+export const receiptItems = pgTable("inventory_receipt_items", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  receiptId: uuid("receipt_id")
+    .notNull()
+    .references(() => receipts.id),
+  purchaseItemId: uuid("purchase_item_id")
+    .notNull()
+    .references(() => purchaseItems.id),
+  movementId: uuid("movement_id")
+    .notNull()
+    .unique()
+    .references(() => movements.id),
+});
