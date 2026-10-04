@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { Link } from "@tanstack/react-router";
 import { AlertTriangle, ArrowDownToLine, Boxes, CalendarClock, ChevronRight, ClipboardList, Package, Plus, Search, SlidersHorizontal, Truck, Warehouse, XCircle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
