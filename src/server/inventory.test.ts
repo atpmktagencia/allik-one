@@ -6,6 +6,7 @@ import { hasPreviewSession, previewLogin } from "./auth";
 import { inventoryResponse } from "./inventory";
 import { receivingResponse } from "./receiving";
 import { purchasingResponse } from "./purchases";
+import { stockOperationResponse } from "./stock-operations";
 const origin = "http://localhost:4317";
 let cookie = "";
 beforeAll(async () => {
@@ -209,6 +210,216 @@ describe("PostgreSQL purchase receiving", () => {
     expect((await readOrder(body.purchaseId)).items).toHaveLength(1);
     order.items[0]!.quantity = "11";
     expect((await purchasingResponse(receivingRequest(order), "purchases")).status).toBe(409);
+  });
+});
+describe("PostgreSQL transfers and physical counts", () => {
+  async function transferFixture(quantity = "10", days = 90) {
+    const f = await fixture(quantity, days);
+    const destination = await getPool().query(
+      "INSERT INTO inventory_locations(name) VALUES($1) RETURNING id",
+      [`Destino ${randomUUID()}`],
+    );
+    const body = {
+      operationId: randomUUID(),
+      lotId: String(f.params[0]),
+      sourceId: String(f.params[1]),
+      destinationId: String(destination.rows[0].id),
+      quantity: "3.125",
+      reference: `TR-${randomUUID()}`,
+      reason: `Reposição entre locais ${randomUUID()}`,
+    };
+    return { f, body };
+  }
+  const transfer = (body: unknown) => stockOperationResponse(receivingRequest(body), "TRANSFER");
+  const count = (body: unknown) => stockOperationResponse(receivingRequest(body), "ADJUSTMENT");
+  const counting = (
+    body: Awaited<ReturnType<typeof transferFixture>>["body"],
+    expectedQuantity = "10",
+    countedQuantity = "7.125",
+  ) => ({
+    operationId: randomUUID(),
+    lotId: body.lotId,
+    locationId: body.sourceId,
+    expectedQuantity,
+    countedQuantity,
+    reference: `CT-${randomUUID()}`,
+    reason: "Conferência física no fechamento",
+  });
+  async function balances(lotId: string) {
+    return (
+      await getPool().query(
+        "SELECT location_id,quantity::text FROM inventory_balances WHERE lot_id=$1",
+        [lotId],
+      )
+    ).rows as { location_id: string; quantity: string }[];
+  }
+  it("moves the same lot atomically, preserves total and exposes both locations and reason", async () => {
+    const { body } = await transferFixture();
+    expect((await transfer(body)).status).toBe(201);
+    const stock = await balances(body.lotId);
+    expect(stock.find((row) => row.location_id === body.sourceId)?.quantity).toBe("6.875");
+    expect(stock.find((row) => row.location_id === body.destinationId)?.quantity).toBe("3.125");
+    const ledger = await getPool().query(
+      "SELECT m.delta::text, (SELECT count(*)::int FROM inventory_audit a WHERE a.movement_id=m.id) AS audits FROM inventory_operation_movements om JOIN inventory_movements m ON m.id=om.movement_id WHERE om.operation_id=$1 ORDER BY m.delta",
+      [body.operationId],
+    );
+    expect(ledger.rows).toEqual([
+      { delta: "-3.125", audits: 1 },
+      { delta: "3.125", audits: 1 },
+    ]);
+    const response = await inventoryResponse(request(`movements?search=${body.reference}`));
+    const history = (await response.json()).data;
+    expect(history).toHaveLength(2);
+    expect(
+      history.every(
+        (row: { operationId: string; origin: string; destination: string; reason: string }) =>
+          row.operationId === body.operationId &&
+          row.origin.startsWith("Local ") &&
+          row.destination.startsWith("Destino ") &&
+          row.reason === body.reason,
+      ),
+    ).toBe(true);
+    const reasonSearch = await inventoryResponse(
+      request(`movements?search=${encodeURIComponent(body.reason)}`),
+    );
+    expect((await reasonSearch.json()).data).toHaveLength(2);
+  });
+  it("replays simultaneous submissions exactly once and rejects changed payloads", async () => {
+    const { body } = await transferFixture();
+    const responses = await Promise.all([transfer(body), transfer(body)]);
+    expect(responses.map((r) => r.status).sort()).toEqual([200, 201]);
+    expect((await transfer({ ...body, quantity: "4" })).status).toBe(409);
+    expect(
+      (await balances(body.lotId)).find((row) => row.location_id === body.sourceId)?.quantity,
+    ).toBe("6.875");
+  });
+  it("rolls back both movements when the destination would exceed numeric capacity", async () => {
+    const { body } = await transferFixture();
+    await movement([body.lotId, body.destinationId], "99999999999.000", "IN");
+    expect((await transfer(body)).status).toBe(409);
+    const stock = await balances(body.lotId);
+    expect(stock.find((row) => row.location_id === body.sourceId)?.quantity).toBe("10.000");
+    expect(stock.find((row) => row.location_id === body.destinationId)?.quantity).toBe(
+      "99999999999.000",
+    );
+    const operation = await getPool().query("SELECT id FROM inventory_operations WHERE id=$1", [
+      body.operationId,
+    ]);
+    expect(operation.rowCount).toBe(0);
+    const ledger = await getPool().query("SELECT id FROM inventory_movements WHERE reference=$1", [
+      body.reference,
+    ]);
+    expect(ledger.rowCount).toBe(0);
+  });
+  it("serializes competing transfers without allowing negative stock", async () => {
+    const { body } = await transferFixture();
+    body.quantity = "6";
+    const responses = await Promise.all([
+      transfer(body),
+      transfer({ ...body, operationId: randomUUID() }),
+    ]);
+    expect(responses.map((r) => r.status).sort()).toEqual([201, 409]);
+    expect(
+      (await balances(body.lotId)).find((row) => row.location_id === body.sourceId)?.quantity,
+    ).toBe("4.000");
+  });
+  it("locks opposite transfers in the same order", async () => {
+    const { body } = await transferFixture();
+    await movement([body.lotId, body.destinationId], "10", "IN");
+    const reverse = {
+      ...body,
+      operationId: randomUUID(),
+      sourceId: body.destinationId,
+      destinationId: body.sourceId,
+      quantity: "2.125",
+    };
+    const responses = await Promise.all([transfer(body), transfer(reverse)]);
+    expect(responses.map((r) => r.status)).toEqual([201, 201]);
+    expect(
+      (await balances(body.lotId)).find((row) => row.location_id === body.sourceId)?.quantity,
+    ).toBe("9.000");
+  });
+  it("refuses expired, blocked and inactive destinations without changing stock", async () => {
+    const expired = await transferFixture("10", -1);
+    expect((await transfer(expired.body)).status).toBe(409);
+    const { body } = await transferFixture();
+    await getPool().query("UPDATE inventory_lots SET status='BLOCKED' WHERE id=$1", [body.lotId]);
+    expect((await transfer(body)).status).toBe(409);
+    await getPool().query("UPDATE inventory_lots SET status='AVAILABLE' WHERE id=$1", [body.lotId]);
+    await getPool().query("UPDATE inventory_locations SET active=false WHERE id=$1", [
+      body.destinationId,
+    ]);
+    expect((await transfer(body)).status).toBe(409);
+    expect(await balances(body.lotId)).toEqual([
+      { location_id: body.sourceId, quantity: "10.000" },
+    ]);
+  });
+  it("records exact count differences, including zero, and replays without duplication", async () => {
+    const { body } = await transferFixture();
+    const adjustment = counting(body);
+    expect((await count(adjustment)).status).toBe(201);
+    expect((await count(adjustment)).status).toBe(200);
+    expect((await balances(body.lotId))[0]?.quantity).toBe("7.125");
+    expect((await count(counting(body, "7.125", "0"))).status).toBe(201);
+    expect((await balances(body.lotId))[0]?.quantity).toBe("0.000");
+    const ledger = await getPool().query(
+      "SELECT delta::text FROM inventory_movements WHERE lot_id=$1 AND type='ADJUSTMENT' ORDER BY inventory_movements.delta",
+      [body.lotId],
+    );
+    expect(ledger.rows).toEqual([{ delta: "-7.125" }, { delta: "-2.875" }]);
+  });
+  it("rejects stale and concurrent counts instead of overwriting new movements", async () => {
+    const { body } = await transferFixture();
+    const responses = await Promise.all([
+      count(counting(body, "10", "8")),
+      count(counting(body, "10", "9")),
+    ]);
+    expect(responses.map((r) => r.status).sort()).toEqual([201, 409]);
+    const consulted = (await balances(body.lotId))[0]!.quantity;
+    await movement([body.lotId, body.sourceId], "2", "IN");
+    const stale = await count(counting(body, consulted));
+    expect(stale.status).toBe(409);
+    expect((await stale.json()).error).toContain("saldo mudou");
+  });
+  it("allows counting unavailable stock without making it usable", async () => {
+    const { body } = await transferFixture("10", -1);
+    await getPool().query("UPDATE inventory_lots SET status='BLOCKED' WHERE id=$1", [body.lotId]);
+    expect((await count(counting(body, "10", "12.125"))).status).toBe(201);
+    expect((await balances(body.lotId))[0]?.quantity).toBe("12.125");
+    expect((await transfer({ ...body, operationId: randomUUID() })).status).toBe(409);
+    const lot = await getPool().query("SELECT status FROM inventory_lots WHERE id=$1", [
+      body.lotId,
+    ]);
+    expect(lot.rows[0].status).toBe("BLOCKED");
+  });
+  it("rejects unchanged counts and prevents history alterations", async () => {
+    const { body } = await transferFixture();
+    expect((await count(counting(body, "10", "10"))).status).toBe(409);
+    expect((await transfer(body)).status).toBe(201);
+    await expect(
+      getPool().query("UPDATE inventory_operations SET request_hash='modified' WHERE id=$1", [
+        body.operationId,
+      ]),
+    ).rejects.toThrow("append-only");
+    await expect(
+      getPool().query("DELETE FROM inventory_operation_movements WHERE operation_id=$1", [
+        body.operationId,
+      ]),
+    ).rejects.toThrow("append-only");
+  });
+  it("denies unauthenticated and cross-origin writes", async () => {
+    expect((await stockOperationResponse(new Request(origin), "TRANSFER")).status).toBe(401);
+    expect(
+      (
+        await stockOperationResponse(
+          new Request(origin, {
+            method: "POST",
+            headers: { cookie, origin: "https://other.invalid" },
+          }),
+          "ADJUSTMENT",
+        )
+      ).status,
+    ).toBe(403);
   });
 });
 describe("Preview access", () => {

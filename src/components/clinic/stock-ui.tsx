@@ -36,6 +36,7 @@ import {
   type InventoryMovement,
 } from "@/data/inventory-api";
 import { InventoryState } from "./inventory-state";
+import { StockOperationForms } from "./stock-operation-forms";
 
 const statusClass: Record<string, string> = {
   Normal: "bg-success-soft text-success-foreground border-transparent",
@@ -588,6 +589,7 @@ export { ReceivingPage } from "./receiving-page";
 export function MovementsPage() {
   const [search, setSearch] = useState("");
   const [location, setLocation] = useState("all");
+  const [type, setType] = useState("all");
   const query = useInventory<InventoryMovement[]>("movements");
   if (query.isPending) return <InventoryState pending />;
   if (query.error)
@@ -604,15 +606,16 @@ export function MovementsPage() {
     .filter(
       (m) =>
         (location === "all" || m.location === location) &&
-        `${m.product} ${m.lot} ${m.reference} ${m.responsible}`
+        (type === "all" || m.type === type) &&
+        `${m.product} ${m.lot} ${m.reference} ${m.responsible} ${m.reason}`
           .toLowerCase()
           .includes(search.toLowerCase()),
     )
     .map((m) => ({
       ...m,
       date: new Date(m.date).toLocaleString("pt-BR", { timeZone: "America/Fortaleza" }),
-      origin: m.quantity > 0 ? "Origem registrada" : m.location,
-      destination: m.quantity > 0 ? m.location : "Saída registrada",
+      origin: m.origin ?? (m.quantity > 0 ? "Origem registrada" : m.location),
+      destination: m.destination ?? (m.quantity > 0 ? m.location : "Saída registrada"),
     }));
   return (
     <div className="space-y-7">
@@ -629,12 +632,47 @@ export function MovementsPage() {
           </Button>
         }
       />
-      <StockFilters
-        searchPlaceholder="Buscar produto, lote, referência ou responsável"
-        locations={locations}
-        onSearch={setSearch}
-        onLocation={setLocation}
-      />
+      <StockOperationForms />
+      <div className="grid gap-3 rounded-xl border bg-card p-4 md:grid-cols-3">
+        <label>
+          Buscar movimentações
+          <Input
+            placeholder="Produto, lote, referência ou motivo"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+        </label>
+        <label>
+          Filtrar local
+          <select
+            className="block h-10 w-full rounded-md border bg-background px-3"
+            value={location}
+            onChange={(e) => setLocation(e.target.value)}
+          >
+            <option value="all">Todos os locais</option>
+            {locations.map((name) => (
+              <option key={name} value={name}>
+                {name}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label>
+          Filtrar tipo
+          <select
+            className="block h-10 w-full rounded-md border bg-background px-3"
+            value={type}
+            onChange={(e) => setType(e.target.value)}
+          >
+            <option value="all">Todos os tipos</option>
+            <option value="IN">Entrada</option>
+            <option value="OUT">Saída</option>
+            <option value="TRANSFER">Transferência</option>
+            <option value="ADJUSTMENT">Ajuste</option>
+            <option value="REVERSAL">Estorno</option>
+          </select>
+        </label>
+      </div>
       <div className="overflow-hidden rounded-xl border border-border bg-card shadow-soft">
         <div className="overflow-x-auto">
           <table className="w-full min-w-[1100px] text-sm">
@@ -650,6 +688,7 @@ export function MovementsPage() {
                   "Localização",
                   "Responsável",
                   "Referência",
+                  "Motivo",
                 ].map((h) => (
                   <th key={h} className="px-4 py-3 font-medium">
                     {h}
@@ -660,7 +699,7 @@ export function MovementsPage() {
             <tbody>
               {stockMovements.length === 0 && (
                 <tr>
-                  <td colSpan={9} className="p-8 text-center text-muted-foreground">
+                  <td colSpan={10} className="p-8 text-center text-muted-foreground">
                     Nenhuma movimentação encontrada.
                   </td>
                 </tr>
@@ -669,12 +708,22 @@ export function MovementsPage() {
                 <tr key={m.id} className="border-t border-border hover:bg-muted/20">
                   <td className="px-4 py-4 text-xs text-muted-foreground">{m.date}</td>
                   <td className="px-4 py-4">
-                    <Badge variant="outline">{m.type}</Badge>
+                    <Badge variant="outline">
+                      {{
+                        IN: "Entrada",
+                        OUT: "Saída",
+                        TRANSFER: "Transferência",
+                        ADJUSTMENT: "Ajuste",
+                        REVERSAL: "Estorno",
+                      }[m.type] ?? m.type}
+                    </Badge>
                   </td>
                   <td className="px-4 py-4 font-medium">{m.product}</td>
                   <td className="px-4 py-4">{m.lot}</td>
                   <td className="px-4 py-4 text-xs text-muted-foreground">
-                    {m.origin} → {m.destination}
+                    {m.type === "ADJUSTMENT"
+                      ? `Contagem física · ${m.location}`
+                      : `${m.origin} → ${m.destination}`}
                   </td>
                   <td
                     className={cn(
@@ -688,6 +737,7 @@ export function MovementsPage() {
                   <td className="px-4 py-4 text-xs">{m.location}</td>
                   <td className="px-4 py-4 text-xs">{m.responsible}</td>
                   <td className="px-4 py-4 text-xs text-muted-foreground">{m.reference}</td>
+                  <td className="px-4 py-4 text-xs text-muted-foreground">{m.reason}</td>
                 </tr>
               ))}
             </tbody>

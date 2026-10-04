@@ -49,10 +49,13 @@ export async function inventoryResponse(request: Request) {
     if (path === "movements") {
       const result = await pool.query(
         `SELECT m.id, m.lot_id AS "lotId", p.id AS "productId", m.created_at AS date, m.type, p.name AS product, l.number AS lot,
-        loc.name AS location, m.delta::float8 AS quantity, m.actor AS responsible, m.reference, m.reason
+        loc.name AS location, m.delta::float8 AS quantity, m.actor AS responsible, m.reference, m.reason,
+        o.id AS "operationId", source.name AS origin, destination.name AS destination
         FROM inventory_movements m JOIN inventory_lots l ON l.id=m.lot_id JOIN inventory_products p ON p.id=l.product_id JOIN inventory_locations loc ON loc.id=m.location_id
+        LEFT JOIN inventory_operation_movements om ON om.movement_id=m.id LEFT JOIN inventory_operations o ON o.id=om.operation_id
+        LEFT JOIN inventory_locations source ON source.id=o.source_id LEFT JOIN inventory_locations destination ON destination.id=o.destination_id
         WHERE ($1::uuid IS NULL OR p.id=$1) AND ($2::uuid IS NULL OR loc.id=$2)
-        AND (p.name ILIKE $3 OR l.number ILIKE $3 OR m.reference ILIKE $3 OR m.actor ILIKE $3)
+        AND (p.name ILIKE $3 OR l.number ILIKE $3 OR m.reference ILIKE $3 OR m.actor ILIKE $3 OR m.reason ILIKE $3)
         ORDER BY m.created_at DESC, m.id LIMIT 200`,
         params,
       );

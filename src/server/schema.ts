@@ -162,3 +162,32 @@ export const receiptItems = pgTable("inventory_receipt_items", {
     .unique()
     .references(() => movements.id),
 });
+
+export const operations = pgTable(
+  "inventory_operations",
+  {
+    id: uuid("id").primaryKey(),
+    type: text("type").notNull(),
+    requestHash: text("request_hash").notNull(),
+    sourceId: uuid("source_id")
+      .notNull()
+      .references(() => locations.id),
+    destinationId: uuid("destination_id").references(() => locations.id),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    check(
+      "operation_type_valid",
+      sql`(${t.type} = 'TRANSFER' AND ${t.destinationId} IS NOT NULL AND ${t.destinationId} <> ${t.sourceId}) OR (${t.type} = 'ADJUSTMENT' AND ${t.destinationId} IS NULL)`,
+    ),
+  ],
+);
+
+export const operationMovements = pgTable("inventory_operation_movements", {
+  movementId: uuid("movement_id")
+    .primaryKey()
+    .references(() => movements.id),
+  operationId: uuid("operation_id")
+    .notNull()
+    .references(() => operations.id),
+});

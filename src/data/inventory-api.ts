@@ -41,6 +41,9 @@ export type InventoryMovement = {
   responsible: string;
   reference: string;
   reason: string;
+  operationId?: string | null;
+  origin?: string | null;
+  destination?: string | null;
 };
 export class InventoryError extends Error {
   constructor(

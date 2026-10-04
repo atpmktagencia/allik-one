@@ -68,6 +68,18 @@ Informe somente a quantidade entregue na remessa. O pedido passa de Aberto a Par
 
 Os testes de integração cobrem repetição concorrente, rollback, entregas concorrentes, estados do pedido e criação idempotente. O Milestone 2 só deve ser aceito no Preview após aplicar as migrations e validar esse fluxo na Vercel.
 
+### Transferências e contagens — Milestone 3
+
+Em `/estoque/movimentacoes`, transfira um lote entre locais ativos ou ajuste uma posição pela quantidade física encontrada. As operações exigem referência e motivo de pelo menos 10 caracteres. O histórico mostra origem/destino, diferença de saldo e motivo; permite filtrar por local, tipo ou texto.
+
+POST `/api/v1/inventory/transfers` recebe `operationId`, `lotId`, `sourceId`, `destinationId`, `quantity`, `reference` e `reason`. A quantidade é positiva, com até três casas decimais; origem e destino devem ser diferentes. Lotes vencidos, bloqueados ou em quarentena não podem ser transferidos. Dois movimentos do mesmo lote (saída na origem e entrada no destino), vínculos, saldos e auditoria são gravados na mesma transação. Qualquer falha desfaz ambos; a quantidade total do lote é preservada.
+
+POST `/api/v1/inventory/adjustments` recebe `operationId`, `lotId`, `locationId`, `expectedQuantity`, `countedQuantity`, `reference` e `reason`. As quantidades são decimais não negativas com até três casas. O formulário guarda o saldo consultado ao selecionar a posição. Se outra movimentação mudar esse saldo antes da confirmação, o servidor retorna 409 e exige nova consulta, sem sobrescrever a movimentação. Contagens iguais ao saldo não geram ajuste. Uma contagem pode zerar o saldo ou conferir lotes indisponíveis, mantendo o status e a validade originais.
+
+A migration `0003_spooky_genesis.sql` registra as operações e seus movimentos com histórico imutável. As rotas exigem sessão do Preview e mesma origem; o responsável é definido pelo servidor. O UUID e o hash do conteúdo permitem repetir um envio idêntico sem duplicar movimentos. Os saldos são travados em ordem consistente para transferências simultâneas em sentidos opostos; diferenças de contagem são calculadas com `numeric` no PostgreSQL. Após uma resposta perdida, o formulário conserva o envio original para reenvio enquanto permanece aberto.
+
+Os testes cobrem preservação do total, repetição e concorrência, rollback após falha no destino, contagem zero, conflito de saldo consultado e imutabilidade. O teste de navegador confirma transferência, contagem, filtros e persistência após recarregar. O aceite no Preview depende da aplicação da migration e da validação na Vercel com PostgreSQL.
+
 ### Testes com PostgreSQL descartável no Codex Cloud
 
 Com Docker local disponível, execute `npm run test:integration:local`. O comando cria um PostgreSQL 16 com banco `allik_test` e senha aleatória, aplica migrations pelos testes e remove o contêiner ao terminar. Não usa `DATABASE_URL` externa. O acesso ao socket local do Docker e a processos filhos deve estar permitido; o primeiro uso baixa `postgres:16-alpine`.
