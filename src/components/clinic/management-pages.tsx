@@ -6,7 +6,7 @@ import { PageHeader, PreviewNotice, Section } from "./page-kit";
 import { StatusPill } from "./status-pill";
 
 export function CrmPage() {
-  const stages = [{ title: "Novos contatos", count: 8, names: ["Fernanda Moraes", "Paulo Reis"] }, { title: "Em avaliação", count: 5, names: [patients[2].name, "Camila Torres"] }, { title: "Proposta enviada", count: 4, names: [patients[0].name, "Juliana Alves"] }, { title: "Convertidos", count: 12, names: [patients[1].name, patients[3].name] }];
+  const stages = [{ title: "Novos contatos", count: 8, names: ["Fernanda Moraes", "Paulo Reis"] }, { title: "Em avaliação", count: 5, names: ["Ricardo Mendes", "Camila Torres"] }, { title: "Proposta enviada", count: 4, names: ["Ana Beatriz Lima", "Juliana Alves"] }, { title: "Convertidos", count: 12, names: ["Marina Costa Alves", "Luciana Prado"] }];
   return <div className="space-y-6"><PageHeader eyebrow="Relacionamento" title="CRM" description="Da primeira conversa ao cuidado recorrente, sem duplicar a identidade do paciente." action={<PreviewNotice />} /><div className="grid gap-4 xl:grid-cols-4">{stages.map((stage) => <Section key={stage.title} title={stage.title} description={`${stage.count} oportunidades`}><div className="space-y-3">{stage.names.map((name, index) => <div key={name} className="rounded-md border border-border bg-muted/30 p-3"><p className="text-sm font-medium">{name}</p><p className="mt-1 text-xs text-muted-foreground">{index ? "Retorno agendado" : "Último contato hoje"}</p></div>)}</div></Section>)}</div></div>;
 }
 
