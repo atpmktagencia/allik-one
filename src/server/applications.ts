@@ -19,13 +19,20 @@ export async function applicationResponse(request: Request) {
     return Response.json({ error: "Acesso negado." }, { status: 403, headers });
   if (request.method === "GET") {
     try {
-      const result = await getPool()
-        .query(`SELECT a.id,a.reference,a.patient_ref AS "patientRef",a.service,a.professional,a.created_at AS "createdAt",loc.name AS location,
+      const selectedUnitId = new URL(request.url).searchParams.get("unitId");
+      if (selectedUnitId && !can(auth, "inventory.read", selectedUnitId))
+        return Response.json({ error: "Unidade não autorizada." }, { status: 403, headers });
+      const allowedUnits = auth.preview || auth.role === "SUPER_ADMIN" ? null : auth.unitIds;
+      const result = await getPool().query(
+        `SELECT a.id,a.reference,a.patient_ref AS "patientRef",a.service,a.professional,a.created_at AS "createdAt",loc.name AS location,
         jsonb_agg(jsonb_build_object('movementId',m.id,'productId',p.id,'product',p.name,'lotId',l.id,'lot',l.number,'quantity',(-m.delta)::text,'unit',p.unit) ORDER BY split_part(m.operation_key,':',2)::integer) AS items
         FROM inventory_applications a JOIN inventory_locations loc ON loc.id=a.location_id
         JOIN inventory_application_movements am ON am.application_id=a.id JOIN inventory_movements m ON m.id=am.movement_id
         JOIN inventory_lots l ON l.id=m.lot_id JOIN inventory_products p ON p.id=l.product_id
-        GROUP BY a.id,loc.name ORDER BY a.created_at DESC,a.id LIMIT 200`);
+        WHERE ($1::uuid IS NULL OR loc.unit_id=$1) AND ($2::uuid[] IS NULL OR loc.unit_id=ANY($2))
+        GROUP BY a.id,loc.name ORDER BY a.created_at DESC,a.id LIMIT 200`,
+        [selectedUnitId, allowedUnits],
+      );
       return Response.json({ data: result.rows }, { headers });
     } catch (error) {
       console.error(

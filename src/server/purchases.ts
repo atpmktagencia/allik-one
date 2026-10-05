@@ -25,18 +25,26 @@ export async function purchasingResponse(request: Request, resource: "suppliers"
   let client: PoolClient | undefined;
   try {
     if (request.method === "GET") {
+      const selectedUnitId = new URL(request.url).searchParams.get("unitId");
+      if (selectedUnitId && !can(auth, "inventory.read", selectedUnitId))
+        return Response.json({ error: "Unidade não autorizada." }, { status: 403, headers });
+      const allowedUnits = auth.preview || auth.role === "SUPER_ADMIN" ? null : auth.unitIds;
       const result =
         resource === "suppliers"
           ? await getPool().query(
-              "SELECT id,name FROM inventory_suppliers WHERE active ORDER BY name",
+              "SELECT id,name FROM inventory_suppliers WHERE organization_id=$1 AND active ORDER BY name",
+              [auth.organizationId],
             )
-          : await getPool()
-              .query(`SELECT p.id,p.reference,p.supplier_id AS "supplierId",s.name AS supplier,
+          : await getPool().query(
+              `SELECT p.id,p.reference,p.supplier_id AS "supplierId",s.name AS supplier,
           CASE WHEN bool_and(i.received=i.quantity) THEN 'RECEIVED' WHEN bool_or(i.received>0) THEN 'PARTIAL' ELSE 'OPEN' END AS status,
           json_agg(json_build_object('id',i.id,'productId',i.product_id,'name',pr.name,'quantity',i.quantity::text,'received',i.received::text,'unitCost',i.unit_cost::text,'remaining',(i.quantity-i.received)::text) ORDER BY pr.name) AS items
           FROM inventory_purchases p JOIN inventory_suppliers s ON s.id=p.supplier_id
           JOIN inventory_purchase_items i ON i.purchase_id=p.id JOIN inventory_products pr ON pr.id=i.product_id
-          GROUP BY p.id,s.name ORDER BY p.created_at DESC,p.id LIMIT 200`);
+          WHERE ($1::uuid IS NULL OR p.unit_id=$1) AND ($2::uuid[] IS NULL OR p.unit_id=ANY($2))
+          GROUP BY p.id,s.name ORDER BY p.created_at DESC,p.id LIMIT 200`,
+              [selectedUnitId, allowedUnits],
+            );
       return Response.json({ data: result.rows }, { headers });
     }
     let body: unknown;

@@ -2,7 +2,7 @@ import "@tanstack/react-start/server-only";
 import { createHash } from "node:crypto";
 import type { PoolClient } from "pg";
 import { z } from "zod";
-import { actor, authenticate, can } from "./auth";
+import { actor, authenticate, can, canAccessLocations } from "./auth";
 import { getPool } from "./db";
 import {
   locationCatalogInput,
@@ -54,6 +54,11 @@ export async function catalogResponse(
             { error: "Informe o cadastro para consultar o histórico." },
             { status: 400, headers },
           );
+        if (
+          parsed.data.resource === "LOCATION" &&
+          !(await canAccessLocations(auth, [parsed.data.itemId]))
+        )
+          return Response.json({ error: "Local não autorizado." }, { status: 403, headers });
         const column = parsed.data.resource === "PRODUCT" ? "product_id" : "location_id";
         const result = await getPool().query(
           `SELECT id,action,actor,reason,created_at AS date,before_data AS before,after_data AS after
@@ -62,7 +67,15 @@ export async function catalogResponse(
         );
         return Response.json({ data: result.rows }, { headers });
       }
-      const result = await getPool().query(`SELECT ${columns} FROM ${table} ORDER BY name,id`);
+      const result = isProduct
+        ? await getPool().query(
+            `SELECT ${columns} FROM inventory_products WHERE organization_id=$1 ORDER BY name,id`,
+            [auth.organizationId],
+          )
+        : await getPool().query(
+            `SELECT ${columns} FROM inventory_locations WHERE unit_id=ANY($1::uuid[]) OR $2::boolean ORDER BY name,id`,
+            [auth.unitIds, auth.preview || auth.role === "SUPER_ADMIN"],
+          );
       return Response.json({ data: result.rows }, { headers });
     }
     let body: unknown;
@@ -83,6 +96,12 @@ export async function catalogResponse(
         { status: 400, headers },
       );
     const input: ProductInput | LocationInput = parsed.data;
+    if (
+      !isProductInput(input) &&
+      input.action === "UPDATE" &&
+      !(await canAccessLocations(auth, [input.id]))
+    )
+      return Response.json({ error: "Local não autorizado." }, { status: 403, headers });
     const hash = createHash("sha256").update(JSON.stringify({ resource, input })).digest("hex");
     client = await getPool().connect();
     await client.query("BEGIN");
