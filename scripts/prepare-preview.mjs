@@ -68,7 +68,9 @@ if (process.env.PILOT_RESET_INVITE === "true") {
     process.env.INVENTORY_ENVIRONMENT !== "production" ||
     !process.env.DATABASE_URL
   ) {
-    process.stderr.write("Pilot invite reset denied outside the isolated production environment.\n");
+    process.stderr.write(
+      "Pilot invite reset denied outside the isolated production environment.\n",
+    );
     process.exit(1);
   }
   const result = spawnSync(
@@ -82,6 +84,32 @@ if (process.env.PILOT_RESET_INVITE === "true") {
   process.stdout.write(output);
   if (result.error || result.status !== 0) {
     console.error("Pilot invite reset failed; deployment stopped.");
+    process.exit(1);
+  }
+}
+
+if (process.env.IMPORT_FORTALEZA_STIN_ORDER_098059 === "true") {
+  if (
+    process.env.VERCEL_ENV !== "production" ||
+    process.env.INVENTORY_ENVIRONMENT !== "production" ||
+    !process.env.DATABASE_URL
+  ) {
+    process.stderr.write(
+      "Fortaleza order import denied outside the isolated production Pilot database.\n",
+    );
+    process.exit(1);
+  }
+  const result = spawnSync(
+    process.execPath,
+    ["node_modules/tsx/dist/cli.mjs", "scripts/import-fortaleza-stin-order-098059.ts"],
+    { encoding: "utf8", env: process.env },
+  );
+  const output = `${result.stdout ?? ""}${result.stderr ?? ""}`
+    .replaceAll(process.env.DATABASE_URL, "[database credential hidden]")
+    .replace(/postgres(?:ql)?:\/\/[^\s"']+/gi, "[database credential hidden]");
+  process.stdout.write(output);
+  if (result.error || result.status !== 0) {
+    console.error("Fortaleza order import failed; deployment stopped.");
     process.exit(1);
   }
 }
