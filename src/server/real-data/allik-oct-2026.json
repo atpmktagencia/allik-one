@@ -1,0 +1,665 @@
+{
+  "inventorySource": {
+    "file": "CONTROLE DE ESTOQUE ALL.IK (1) (1).xlsx",
+    "sha256": "ba73299c57a303c458f67d732d495985e657e3667766a26efedcf3cf9dba873c",
+    "sheet": "Injetáveis",
+    "clinic": "Juazeiro do Norte"
+  },
+  "priceSource": {
+    "file": "Tabela_de_Valores_Injetaveis_Allik_Clinic_ATUALIZADA.pdf",
+    "sha256": "e0930db547f03a782aa8d488cfd29e42194ae191e567615e5e8f5d6791ca1da7",
+    "notice": "Valores sujeitos a atualização. Consultar a tabela vigente antes de informar ao paciente."
+  },
+  "items": [
+    {
+      "sourceRow": 4,
+      "sku": "JDO-001-IM-ADEK",
+      "name": "ADEK",
+      "route": "IM",
+      "unit": "Caixa",
+      "lot": null,
+      "expiresOn": "2026-10-31",
+      "quantity": 20.0,
+      "minimum": 20.0,
+      "supplier": "Stin Pharma",
+      "location": null,
+      "notes": null
+    },
+    {
+      "sourceRow": 5,
+      "sku": "JDO-002-IM-ANTI-INFLAMATORIO-E-ANTIOXID",
+      "name": "ANTI INFLAMATORIO E ANTIOXIDANTE",
+      "route": "IM",
+      "unit": "Kit",
+      "lot": null,
+      "expiresOn": "2026-10-31",
+      "quantity": 5.0,
+      "minimum": 20.0,
+      "supplier": "Essentia Pharma",
+      "location": null,
+      "notes": null
+    },
+    {
+      "sourceRow": 6,
+      "sku": "JDO-003-IM-BOOSTER-ATP",
+      "name": "BOOSTER ATP",
+      "route": "IM",
+      "unit": "Caixa",
+      "lot": null,
+      "expiresOn": "2027-04-30",
+      "quantity": 20.0,
+      "minimum": 30.0,
+      "supplier": "Stin Pharma",
+      "location": null,
+      "notes": null
+    },
+    {
+      "sourceRow": 7,
+      "sku": "JDO-004-IM-BOOSTER-MOROSIL",
+      "name": "BOOSTER MOROSIL",
+      "route": "IM",
+      "unit": "Caixa",
+      "lot": null,
+      "expiresOn": "2026-11-30",
+      "quantity": 14.0,
+      "minimum": 20.0,
+      "supplier": "Central Pharma",
+      "location": null,
+      "notes": null
+    },
+    {
+      "sourceRow": 8,
+      "sku": "JDO-005-IM-COENZIMA-Q10",
+      "name": "COENZIMA Q10",
+      "route": "IM",
+      "unit": "Caixa",
+      "lot": null,
+      "expiresOn": "2027-06-30",
+      "quantity": 18.0,
+      "minimum": 30.0,
+      "supplier": "Stin Pharma/Central",
+      "location": null,
+      "notes": null
+    },
+    {
+      "sourceRow": 9,
+      "sku": "JDO-006-IM-CURCUMINA",
+      "name": "CURCUMINA",
+      "route": "IM",
+      "unit": "Caixa",
+      "lot": null,
+      "expiresOn": "2027-05-31",
+      "quantity": 5.0,
+      "minimum": 30.0,
+      "supplier": "Stin Pharma",
+      "location": null,
+      "notes": null
+    },
+    {
+      "sourceRow": 10,
+      "sku": "JDO-007-IM-INSULIN-SUPPORT",
+      "name": "INSULIN SUPPORT",
+      "route": "IM",
+      "unit": "Frasco-ampola",
+      "lot": null,
+      "expiresOn": "2027-02-28",
+      "quantity": 25.0,
+      "minimum": 30.0,
+      "supplier": "Stin Pharma",
+      "location": null,
+      "notes": null
+    },
+    {
+      "sourceRow": 11,
+      "sku": "JDO-008-IM-L-GLUTATION",
+      "name": "L GLUTATION",
+      "route": "IM",
+      "unit": "Caixa",
+      "lot": null,
+      "expiresOn": null,
+      "quantity": 0.0,
+      "minimum": 0.0,
+      "supplier": "Stin Pharma",
+      "location": null,
+      "notes": null
+    },
+    {
+      "sourceRow": 12,
+      "sku": "JDO-009-IM-NADH",
+      "name": "NADH",
+      "route": "IM",
+      "unit": "Frasco-ampola",
+      "lot": null,
+      "expiresOn": "2027-05-31",
+      "quantity": 12.0,
+      "minimum": 20.0,
+      "supplier": "Stin Pharma",
+      "location": null,
+      "notes": null
+    },
+    {
+      "sourceRow": 13,
+      "sku": "JDO-010-IM-NANDROLONA-DECANOATO",
+      "name": "NANDROLONA DECANOATO",
+      "route": "IM",
+      "unit": "Ampola",
+      "lot": null,
+      "expiresOn": "2028-03-31",
+      "quantity": 3.0,
+      "minimum": 10.0,
+      "supplier": "Stin Pharma",
+      "location": null,
+      "notes": null
+    },
+    {
+      "sourceRow": 14,
+      "sku": "JDO-011-EVIM-POOL-COGNITIVO-NEURO-HEALTH",
+      "name": "POOL COGNITIVO (NEURO HEALTH)",
+      "route": "EV/IM",
+      "unit": "Ampola",
+      "lot": null,
+      "expiresOn": "2027-01-31",
+      "quantity": 10.0,
+      "minimum": 10.0,
+      "supplier": "Central Pharma",
+      "location": null,
+      "notes": null
+    },
+    {
+      "sourceRow": 15,
+      "sku": "JDO-012-IM-RESVERATROL",
+      "name": "RESVERATROL",
+      "route": "IM",
+      "unit": "Caixa",
+      "lot": null,
+      "expiresOn": "2027-05-31",
+      "quantity": 24.0,
+      "minimum": 30.0,
+      "supplier": "Stin Pharma",
+      "location": null,
+      "notes": null
+    },
+    {
+      "sourceRow": 16,
+      "sku": "JDO-013-IM-RESVERATROL-MICELAR",
+      "name": "RESVERATROL MICELAR",
+      "route": "IM",
+      "unit": "Caixa",
+      "lot": null,
+      "expiresOn": "2027-01-31",
+      "quantity": 25.0,
+      "minimum": 30.0,
+      "supplier": "Essentia Pharma",
+      "location": null,
+      "notes": null
+    },
+    {
+      "sourceRow": 17,
+      "sku": "JDO-014-IM-TESTOSTERONA-CIPIONATO",
+      "name": "TESTOSTERONA CIPIONATO",
+      "route": "IM",
+      "unit": "Ampola",
+      "lot": null,
+      "expiresOn": "2027-04-30",
+      "quantity": 25.0,
+      "minimum": 15.0,
+      "supplier": "Stin Pharma",
+      "location": null,
+      "notes": null
+    },
+    {
+      "sourceRow": 18,
+      "sku": "JDO-015-IM-TESTOSTERONA-DURATESTON",
+      "name": "TESTOSTERONA DURATESTON",
+      "route": "IM",
+      "unit": "Frasco-ampola",
+      "lot": null,
+      "expiresOn": "2027-05-31",
+      "quantity": 6.0,
+      "minimum": 15.0,
+      "supplier": "Stin Pharma",
+      "location": null,
+      "notes": null
+    },
+    {
+      "sourceRow": 19,
+      "sku": "JDO-016-IM-TRIO-METILADOR",
+      "name": "TRIO METILADOR",
+      "route": "IM",
+      "unit": "Caixa",
+      "lot": null,
+      "expiresOn": "2027-05-31",
+      "quantity": 29.0,
+      "minimum": 10.0,
+      "supplier": "Stin Pharma/Central",
+      "location": null,
+      "notes": null
+    },
+    {
+      "sourceRow": 20,
+      "sku": "JDO-017-IM-TRIO-DETOX",
+      "name": "TRIO DETOX",
+      "route": "IM",
+      "unit": "Caixa",
+      "lot": null,
+      "expiresOn": "2026-10-31",
+      "quantity": 20.0,
+      "minimum": 20.0,
+      "supplier": "Central Pharma",
+      "location": null,
+      "notes": null
+    },
+    {
+      "sourceRow": 21,
+      "sku": "JDO-018-IM-VITAMINA-B12",
+      "name": "VITAMINA B12",
+      "route": "IM",
+      "unit": "Caixa",
+      "lot": null,
+      "expiresOn": "2027-05-31",
+      "quantity": 6.0,
+      "minimum": 20.0,
+      "supplier": "Stin Pharma",
+      "location": null,
+      "notes": null
+    },
+    {
+      "sourceRow": 22,
+      "sku": "JDO-019-IM-VITAMINA-D3",
+      "name": "VITAMINA D3",
+      "route": "IM",
+      "unit": "Caixa",
+      "lot": null,
+      "expiresOn": "2027-04-30",
+      "quantity": 5.0,
+      "minimum": 10.0,
+      "supplier": "Stin Pharma",
+      "location": null,
+      "notes": null
+    },
+    {
+      "sourceRow": 23,
+      "sku": "JDO-020-EV-ALFA-LIPOICO-300",
+      "name": "ALFA LIPOICO 300",
+      "route": "EV",
+      "unit": "Caixa",
+      "lot": null,
+      "expiresOn": "2026-10-31",
+      "quantity": 1.0,
+      "minimum": 10.0,
+      "supplier": "Stin Pharma",
+      "location": null,
+      "notes": null
+    },
+    {
+      "sourceRow": 24,
+      "sku": "JDO-021-EV-ALFA-LIPOICO-600",
+      "name": "ALFA LIPOICO 600",
+      "route": "EV",
+      "unit": "Caixa",
+      "lot": null,
+      "expiresOn": "2027-04-30",
+      "quantity": 2.0,
+      "minimum": 30.0,
+      "supplier": "Stin Pharma",
+      "location": null,
+      "notes": null
+    },
+    {
+      "sourceRow": 25,
+      "sku": "JDO-022-EV-ANTI-INFLAMATORIO-E-ANTIOXID",
+      "name": "ANTI INFLAMATORIO E ANTIOXIDANTE",
+      "route": "EV",
+      "unit": "Caixa",
+      "lot": null,
+      "expiresOn": "2026-10-31",
+      "quantity": 20.0,
+      "minimum": 20.0,
+      "supplier": "Essentia Pharma",
+      "location": null,
+      "notes": null
+    },
+    {
+      "sourceRow": 26,
+      "sku": "JDO-023-EV-COGNICAO-E-MEMORIA-PLUS",
+      "name": "COGNIÇÃO E MEMÓRIA PLUS",
+      "route": "EV",
+      "unit": "Kit",
+      "lot": null,
+      "expiresOn": "2026-10-31",
+      "quantity": 1.0,
+      "minimum": 10.0,
+      "supplier": "Essentia Pharma",
+      "location": null,
+      "notes": null
+    },
+    {
+      "sourceRow": 27,
+      "sku": "JDO-024-EV-DISBIOSE",
+      "name": "DISBIOSE",
+      "route": "EV",
+      "unit": "Kit",
+      "lot": null,
+      "expiresOn": "2026-10-31",
+      "quantity": 9.0,
+      "minimum": 10.0,
+      "supplier": "Stin Pharma",
+      "location": null,
+      "notes": null
+    },
+    {
+      "sourceRow": 28,
+      "sku": "JDO-025-EV-ESTEATOSE-HEPATICA",
+      "name": "ESTEATOSE HEPÁTICA",
+      "route": "EV",
+      "unit": "Kit",
+      "lot": null,
+      "expiresOn": "2027-04-30",
+      "quantity": 21.0,
+      "minimum": 20.0,
+      "supplier": "Stin Pharma",
+      "location": null,
+      "notes": null
+    },
+    {
+      "sourceRow": 29,
+      "sku": "JDO-026-EV-FADIGA-INDISPOSICAO",
+      "name": "FADIGA/INDISPOSIÇÃO",
+      "route": "EV",
+      "unit": "Kit",
+      "lot": null,
+      "expiresOn": "2026-10-31",
+      "quantity": 7.0,
+      "minimum": 20.0,
+      "supplier": "Essentia Pharma",
+      "location": null,
+      "notes": null
+    },
+    {
+      "sourceRow": 30,
+      "sku": "JDO-027-EV-FADIGA-MUSCULAR-E-HIPERTROFI",
+      "name": "FADIGA MUSCULAR E HIPERTROFIA",
+      "route": "EV",
+      "unit": "Kit",
+      "lot": null,
+      "expiresOn": "2027-04-30",
+      "quantity": 18.0,
+      "minimum": 20.0,
+      "supplier": "Stin Pharma",
+      "location": null,
+      "notes": null
+    },
+    {
+      "sourceRow": 31,
+      "sku": "JDO-028-EV-FERRO",
+      "name": "FERRO",
+      "route": "EV",
+      "unit": "Ampola",
+      "lot": null,
+      "expiresOn": "2028-04-30",
+      "quantity": 6.0,
+      "minimum": 10.0,
+      "supplier": "Farmácia",
+      "location": null,
+      "notes": null
+    },
+    {
+      "sourceRow": 32,
+      "sku": "JDO-029-EV-IMUNIDADE",
+      "name": "IMUNIDADE",
+      "route": "EV",
+      "unit": "Kit",
+      "lot": null,
+      "expiresOn": "2026-10-31",
+      "quantity": 4.0,
+      "minimum": 10.0,
+      "supplier": "Essentia Pharma",
+      "location": null,
+      "notes": null
+    },
+    {
+      "sourceRow": 33,
+      "sku": "JDO-030-EV-L-BAIBA",
+      "name": "L BAIBA",
+      "route": "EV",
+      "unit": "Kit",
+      "lot": null,
+      "expiresOn": "2026-10-31",
+      "quantity": 19.0,
+      "minimum": 20.0,
+      "supplier": "Essentia Pharma",
+      "location": null,
+      "notes": null
+    },
+    {
+      "sourceRow": 34,
+      "sku": "JDO-031-EV-L-GLUTATION",
+      "name": "L GLUTATION",
+      "route": "EV",
+      "unit": "Caixa",
+      "lot": null,
+      "expiresOn": "2027-04-30",
+      "quantity": 23.0,
+      "minimum": 20.0,
+      "supplier": "Stin Pharma",
+      "location": null,
+      "notes": null
+    },
+    {
+      "sourceRow": 35,
+      "sku": "JDO-032-Outra-LIDOCAINA",
+      "name": "LIDOCAÍNA",
+      "route": "Outra",
+      "unit": "Caixa",
+      "lot": null,
+      "expiresOn": "2027-06-30",
+      "quantity": 47.0,
+      "minimum": 50.0,
+      "supplier": "Stin Pharma",
+      "location": null,
+      "notes": null
+    },
+    {
+      "sourceRow": 36,
+      "sku": "JDO-033-EV-RESISTENCIA-INSULINICA",
+      "name": "RESISTÊNCIA INSULÍNICA",
+      "route": "EV",
+      "unit": "Kit",
+      "lot": null,
+      "expiresOn": "2026-12-31",
+      "quantity": 19.0,
+      "minimum": 20.0,
+      "supplier": "Essentia Pharma",
+      "location": null,
+      "notes": null
+    }
+  ],
+  "salePrices": [
+    {
+      "name": "ADEK",
+      "route": "IM",
+      "supplier": "Stin Pharma",
+      "price": 600
+    },
+    {
+      "name": "Anti-inflamatório",
+      "route": "IM",
+      "supplier": "Essentia Pharma",
+      "price": 500
+    },
+    {
+      "name": "Booster ATP",
+      "route": "IM",
+      "supplier": "Stin Pharma",
+      "price": 350
+    },
+    {
+      "name": "Booster Morusil",
+      "route": "IM",
+      "supplier": "Central Pharma",
+      "price": 400
+    },
+    {
+      "name": "Coenzima Q10",
+      "route": "IM",
+      "supplier": "Stin / Central",
+      "price": 350
+    },
+    {
+      "name": "Curcumina",
+      "route": "IM",
+      "supplier": "Stin Pharma",
+      "price": 250
+    },
+    {
+      "name": "Insulin Support",
+      "route": "IM",
+      "supplier": "Stin Pharma",
+      "price": 500
+    },
+    {
+      "name": "L-Glutathion",
+      "route": "IM",
+      "supplier": "Stin Pharma",
+      "price": 350
+    },
+    {
+      "name": "NADH",
+      "route": "IM",
+      "supplier": "Stin Pharma",
+      "price": 560
+    },
+    {
+      "name": "Nandrolona Decanoato",
+      "route": "IM",
+      "supplier": "Stin Pharma",
+      "price": 620
+    },
+    {
+      "name": "Pool Cognitivo",
+      "route": "IM",
+      "supplier": "Central Pharma",
+      "price": 350
+    },
+    {
+      "name": "Resveratrol",
+      "route": "IM",
+      "supplier": "Stin Pharma",
+      "price": 350
+    },
+    {
+      "name": "Resveratrol Micelar",
+      "route": "IM",
+      "supplier": "Essentia Pharma",
+      "price": 500
+    },
+    {
+      "name": "Testosterona Cipionato",
+      "route": "IM",
+      "supplier": "Stin Pharma",
+      "price": 500
+    },
+    {
+      "name": "Testosterona Durateston",
+      "route": "IM",
+      "supplier": "Stin Pharma",
+      "price": 650
+    },
+    {
+      "name": "Trio Metilador",
+      "route": "IM",
+      "supplier": "Stin / Central",
+      "price": 490
+    },
+    {
+      "name": "Trio Detox",
+      "route": "IM",
+      "supplier": "Central Pharma",
+      "price": 300
+    },
+    {
+      "name": "Vitamina B12",
+      "route": "IM",
+      "supplier": "Stin Pharma",
+      "price": 250
+    },
+    {
+      "name": "Vitamina D3 100.000 UI",
+      "route": "IM",
+      "supplier": "Stin Pharma",
+      "price": 250
+    },
+    {
+      "name": "Alfa Lipoico 600",
+      "route": "EV",
+      "supplier": "Stin Pharma",
+      "price": 770
+    },
+    {
+      "name": "Anti-inflamatório e Antioxidante",
+      "route": "EV",
+      "supplier": "Essentia Pharma",
+      "price": 800
+    },
+    {
+      "name": "Cognição e Memória Plus",
+      "route": "EV",
+      "supplier": "Essentia Pharma",
+      "price": 750
+    },
+    {
+      "name": "Disbiose",
+      "route": "EV",
+      "supplier": "Essentia Pharma",
+      "price": 700
+    },
+    {
+      "name": "Esteatose Hepática",
+      "route": "EV",
+      "supplier": "Stin Pharma",
+      "price": 750
+    },
+    {
+      "name": "Fadiga / Indisposição",
+      "route": "EV",
+      "supplier": "Essentia Pharma",
+      "price": 850
+    },
+    {
+      "name": "Fadiga Muscular e Hipertrofia",
+      "route": "EV",
+      "supplier": "Stin Pharma",
+      "price": 750
+    },
+    {
+      "name": "Ferro",
+      "route": "EV",
+      "supplier": "Farmácia",
+      "price": 270
+    },
+    {
+      "name": "Imunidade",
+      "route": "EV",
+      "supplier": "Essentia Pharma",
+      "price": 700
+    },
+    {
+      "name": "L-BAIBA Plus",
+      "route": "EV",
+      "supplier": "Essentia Pharma",
+      "price": 700
+    },
+    {
+      "name": "L-Glutathion",
+      "route": "EV",
+      "supplier": "Stin Pharma",
+      "price": 550
+    },
+    {
+      "name": "Resistência Insulínica",
+      "route": "EV",
+      "supplier": "Essentia Pharma",
+      "price": 750
+    }
+  ]
+}

@@ -57,6 +57,13 @@
       "when": 1791157718634,
       "tag": "0007_supplier_catalog",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1791167933972,
+      "tag": "0008_real_inventory",
+      "breakpoints": true
     }
   ]
 }

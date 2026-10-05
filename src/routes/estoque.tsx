@@ -31,6 +31,13 @@ function InventoryLayout() {
             Fornecedores e catálogos
           </Link>
           <Link
+            to="/estoque/valores"
+            className="shrink-0 rounded-md px-3 py-2 hover:bg-muted"
+            activeProps={{ className: "bg-muted font-medium" }}
+          >
+            Valores de venda
+          </Link>
+          <Link
             to="/estoque/recebimento"
             className="shrink-0 rounded-md px-3 py-2 hover:bg-muted"
             activeProps={{ className: "bg-muted font-medium" }}

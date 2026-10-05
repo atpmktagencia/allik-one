@@ -7,6 +7,7 @@ import { applicationResponse } from "@/server/applications";
 import { lotTraceResponse } from "@/server/lot-trace";
 import { supplierCatalogResponse } from "@/server/supplier-catalog";
 import { catalogResponse } from "@/server/catalog";
+import { salePricesResponse } from "@/server/sale-prices";
 
 function catalogResource(request: Request) {
   const path = new URL(request.url).pathname.replace(/\/$/, "");
@@ -28,6 +29,8 @@ export const Route = createFileRoute("/api/v1/inventory/$")({
   server: {
     handlers: {
       GET: ({ request }) => {
+        if (new URL(request.url).pathname.replace(/\/$/, "") === "/api/v1/inventory/sale-prices")
+          return salePricesResponse(request);
         if (
           /\/inventory\/vendor(?:s|-catalog|-history|-orders)\/?$/.test(
             new URL(request.url).pathname,

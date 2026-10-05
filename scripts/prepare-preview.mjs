@@ -8,14 +8,14 @@ if (process.env.INVENTORY_PREPARE_PREVIEW === "true") {
     process.env.INVENTORY_ALLOW_SEED !== "true" ||
     !process.env.DATABASE_URL
   ) {
-    console.error(
-      "Preview preparation denied: requires an isolated Preview database and explicit seed authorization.",
+    process.stderr.write(
+      "Preview preparation denied: requires an isolated Preview database and explicit seed authorization.\n",
     );
     process.exit(1);
   }
   for (const script of [
     "scripts/migrate.ts",
-    "scripts/seed-inventory.ts",
+    "scripts/import-real-inventory.ts",
     "scripts/import-essentia.ts",
     "scripts/import-stin.ts",
   ]) {
