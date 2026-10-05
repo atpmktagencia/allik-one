@@ -1,7 +1,7 @@
 import "@tanstack/react-start/server-only";
 import { createHash } from "node:crypto";
 import type { PoolClient } from "pg";
-import { hasPreviewSession } from "./auth";
+import { actor, authenticate, can, canAccessLocations } from "./auth";
 import { getPool } from "./db";
 import { applicationInput } from "../data/application-input";
 
@@ -9,11 +9,14 @@ const headers = { "Cache-Control": "private, no-store", Vary: "Cookie" };
 class ApplicationConflict extends Error {}
 
 export async function applicationResponse(request: Request) {
-  if (!hasPreviewSession(request))
+  const auth = await authenticate(request);
+  if (!auth)
     return Response.json(
       { error: "Entre para acessar as aplicações de demonstração." },
       { status: 401, headers },
     );
+  if (!can(auth, request.method === "GET" ? "inventory.read" : "inventory.consume"))
+    return Response.json({ error: "Acesso negado." }, { status: 403, headers });
   if (request.method === "GET") {
     try {
       const result = await getPool()
@@ -58,6 +61,11 @@ export async function applicationResponse(request: Request) {
       { status: 400, headers },
     );
   const input = parsed.data;
+  if (!(await canAccessLocations(auth, [input.locationId])))
+    return Response.json(
+      { error: "A localização não pertence a uma unidade autorizada." },
+      { status: 403, headers },
+    );
   const hash = createHash("sha256").update(JSON.stringify(input)).digest("hex");
   let client: PoolClient | undefined;
   try {
@@ -129,11 +137,13 @@ export async function applicationResponse(request: Request) {
     }
     for (const [index, line] of input.items.entries()) {
       const movement = await client.query(
-        "INSERT INTO inventory_movements(lot_id,location_id,type,delta,actor,reference,reason,operation_key) VALUES($1,$2,'OUT',$3,'preview-operator',$4,$5,$6) RETURNING id",
+        "INSERT INTO inventory_movements(lot_id,location_id,type,delta,actor,actor_user_id,reference,reason,operation_key) VALUES($1,$2,'OUT',$3,$4,$5,$6,$7,$8) RETURNING id",
         [
           line.lotId,
           input.locationId,
           `-${line.quantity}`,
+          actor(auth).name,
+          actor(auth).userId,
           input.reference,
           "Consumo por aplicação direta sintética",
           `${input.operationId}:${index}`,

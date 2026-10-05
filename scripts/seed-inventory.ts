@@ -23,7 +23,7 @@ try {
   ];
   for (const item of items)
     await client.query(
-      "INSERT INTO inventory_products(name,sku,category,unit,minimum) VALUES($1,$2,$3,$4,$5) ON CONFLICT DO NOTHING",
+      "INSERT INTO inventory_products(organization_id,name,sku,category,unit,minimum) VALUES('a1100000-0000-4000-8000-000000000001',$1,$2,$3,$4,$5) ON CONFLICT DO NOTHING",
       item,
     );
   const positions = [
@@ -73,9 +73,10 @@ try {
       continue;
     // An existing seed movement identifies its original location even after a rename.
     // Only create locations for missing initial entries; never recreate renamed seed locations.
-    await client.query("INSERT INTO inventory_locations(name) VALUES($1) ON CONFLICT DO NOTHING", [
-      location,
-    ]);
+    await client.query(
+      "INSERT INTO inventory_locations(unit_id,name) VALUES('a1100000-0000-4000-8000-000000000102',$1) ON CONFLICT DO NOTHING",
+      [location],
+    );
     const product = await client.query(
       "SELECT id FROM inventory_products WHERE lower(sku)=lower($1)",
       [sku],

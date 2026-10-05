@@ -1,7 +1,7 @@
 import "@tanstack/react-start/server-only";
 import { createHash } from "node:crypto";
 import type { PoolClient } from "pg";
-import { hasPreviewSession } from "./auth";
+import { actor, authenticate, can, canAccessLocations } from "./auth";
 import { getPool } from "./db";
 import { adjustmentInput, transferInput } from "../data/stock-operation-input";
 
@@ -9,8 +9,11 @@ const headers = { "Cache-Control": "private, no-store", Vary: "Cookie" };
 class StockConflict extends Error {}
 
 export async function stockOperationResponse(request: Request, type: "TRANSFER" | "ADJUSTMENT") {
-  if (!hasPreviewSession(request))
+  const auth = await authenticate(request);
+  if (!auth)
     return Response.json({ error: "Entre para movimentar o estoque." }, { status: 401, headers });
+  if (!can(auth, type === "TRANSFER" ? "inventory.transfer" : "inventory.adjust"))
+    return Response.json({ error: "Acesso negado." }, { status: 403, headers });
   if (request.headers.get("origin") !== new URL(request.url).origin)
     return Response.json({ error: "Origem não autorizada." }, { status: 403, headers });
   let body: unknown;
@@ -29,6 +32,11 @@ export async function stockOperationResponse(request: Request, type: "TRANSFER" 
   const input = parsed.data;
   const sourceId = "sourceId" in input ? input.sourceId : input.locationId;
   const destinationId = "destinationId" in input ? input.destinationId : null;
+  if (!(await canAccessLocations(auth, destinationId ? [sourceId, destinationId] : [sourceId])))
+    return Response.json(
+      { error: "Uma das localizações não pertence a uma unidade autorizada." },
+      { status: 403, headers },
+    );
   const hash = createHash("sha256").update(JSON.stringify({ type, input })).digest("hex");
   let client: PoolClient | undefined;
   try {
@@ -100,12 +108,14 @@ export async function stockOperationResponse(request: Request, type: "TRANSFER" 
     }
     for (const [index, change] of changes.entries()) {
       const movement = await client.query(
-        "INSERT INTO inventory_movements(lot_id,location_id,type,delta,actor,reference,reason,operation_key) VALUES($1,$2,$3,$4,'preview-operator',$5,$6,$7) RETURNING id",
+        "INSERT INTO inventory_movements(lot_id,location_id,type,delta,actor,actor_user_id,reference,reason,operation_key) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING id",
         [
           input.lotId,
           change.locationId,
           type,
           change.delta,
+          actor(auth).name,
+          actor(auth).userId,
           input.reference,
           input.reason,
           `${input.operationId}:${index}`,

@@ -8,6 +8,8 @@ import { lotTraceResponse } from "@/server/lot-trace";
 import { supplierCatalogResponse } from "@/server/supplier-catalog";
 import { catalogResponse } from "@/server/catalog";
 import { salePricesResponse } from "@/server/sale-prices";
+import { userAdminResponse } from "@/server/user-admin";
+import { writeOffResponse } from "@/server/write-offs";
 
 function catalogResource(request: Request) {
   const path = new URL(request.url).pathname.replace(/\/$/, "");
@@ -29,6 +31,8 @@ export const Route = createFileRoute("/api/v1/inventory/$")({
   server: {
     handlers: {
       GET: ({ request }) => {
+        if (new URL(request.url).pathname.replace(/\/$/, "") === "/api/v1/inventory/users")
+          return userAdminResponse(request);
         if (new URL(request.url).pathname.replace(/\/$/, "") === "/api/v1/inventory/sale-prices")
           return salePricesResponse(request);
         if (
@@ -49,6 +53,10 @@ export const Route = createFileRoute("/api/v1/inventory/$")({
           : inventoryResponse(request);
       },
       POST: ({ request }) => {
+        if (new URL(request.url).pathname.replace(/\/$/, "") === "/api/v1/inventory/write-offs")
+          return writeOffResponse(request);
+        if (new URL(request.url).pathname.replace(/\/$/, "") === "/api/v1/inventory/users")
+          return userAdminResponse(request);
         if (
           /\/inventory\/vendor(?:s|-catalog|-history|-orders)\/?$/.test(
             new URL(request.url).pathname,

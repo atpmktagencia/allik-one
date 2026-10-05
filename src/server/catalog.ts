@@ -2,7 +2,7 @@ import "@tanstack/react-start/server-only";
 import { createHash } from "node:crypto";
 import type { PoolClient } from "pg";
 import { z } from "zod";
-import { hasPreviewSession } from "./auth";
+import { actor, authenticate, can } from "./auth";
 import { getPool } from "./db";
 import {
   locationCatalogInput,
@@ -13,7 +13,7 @@ import {
 const headers = { "Cache-Control": "private, no-store", Vary: "Cookie" };
 const productColumns =
   'id,name,sku,category,unit,minimum::text,active,stock_controlled AS "stockControlled",version';
-const locationColumns = "id,name,active,version";
+const locationColumns = 'id,unit_id AS "unitId",name,active,version';
 class CatalogConflict extends Error {}
 class CatalogMissing extends Error {}
 type ProductInput = z.infer<typeof productCatalogInput>;
@@ -26,8 +26,11 @@ export async function catalogResponse(
   request: Request,
   resource: "products" | "locations" | "history",
 ) {
-  if (!hasPreviewSession(request))
+  const auth = await authenticate(request);
+  if (!auth)
     return Response.json({ error: "Entre para acessar os cadastros." }, { status: 401, headers });
+  if (!can(auth, request.method === "GET" ? "inventory.read" : "inventory.catalog.manage"))
+    return Response.json({ error: "Acesso negado." }, { status: 403, headers });
   if (request.method !== "GET" && request.method !== "POST")
     return Response.json({ error: "Método não permitido." }, { status: 405, headers });
   if (request.method !== "GET" && request.headers.get("origin") !== new URL(request.url).origin)
@@ -103,14 +106,34 @@ export async function catalogResponse(
     let before: CatalogSnapshot | null = null;
     let after: CatalogSnapshot;
     if (input.action === "CREATE") {
+      const requestedUnitId = !isProductInput(input)
+        ? (input.unitId ?? new URL(request.url).searchParams.get("unitId") ?? undefined)
+        : undefined;
+      const unitId =
+        requestedUnitId ??
+        (auth.unitIds.length === 1
+          ? auth.unitIds[0]
+          : auth.preview
+            ? "a1100000-0000-4000-8000-000000000102"
+            : undefined);
+      if (!isProductInput(input) && (!unitId || !can(auth, "inventory.catalog.manage", unitId)))
+        throw new CatalogConflict("Selecione uma unidade autorizada para o novo local.");
       const created = isProductInput(input)
         ? await client.query(
-            `INSERT INTO inventory_products(id,name,sku,category,unit,minimum) VALUES($1,$2,$3,$4,$5,$6) RETURNING ${productColumns}`,
-            [input.id, input.name, input.sku, input.category, input.unit, input.minimum],
+            `INSERT INTO inventory_products(id,organization_id,name,sku,category,unit,minimum) VALUES($1,$2,$3,$4,$5,$6,$7) RETURNING ${productColumns}`,
+            [
+              input.id,
+              auth.organizationId,
+              input.name,
+              input.sku,
+              input.category,
+              input.unit,
+              input.minimum,
+            ],
           )
         : await client.query(
-            `INSERT INTO inventory_locations(id,name) VALUES($1,$2) RETURNING ${locationColumns}`,
-            [input.id, input.name],
+            `INSERT INTO inventory_locations(id,unit_id,name) VALUES($1,$2,$3) RETURNING ${locationColumns}`,
+            [input.id, unitId, input.name],
           );
       after = created.rows[0];
     } else {
@@ -163,8 +186,8 @@ export async function catalogResponse(
       after = updated.rows[0];
     }
     await client.query(
-      `INSERT INTO inventory_catalog_changes(id,product_id,location_id,action,request_hash,before_data,after_data,actor,reason)
-       VALUES($1,$2,$3,$4,$5,$6::jsonb,$7::jsonb,'preview-operator',$8)`,
+      `INSERT INTO inventory_catalog_changes(id,product_id,location_id,action,request_hash,before_data,after_data,actor,actor_user_id,reason)
+       VALUES($1,$2,$3,$4,$5,$6::jsonb,$7::jsonb,$8,$9,$10)`,
       [
         input.operationId,
         isProduct ? input.id : null,
@@ -173,6 +196,8 @@ export async function catalogResponse(
         hash,
         before ? JSON.stringify(before) : null,
         JSON.stringify(after),
+        actor(auth).name,
+        actor(auth).userId,
         input.action === "CREATE" ? "Cadastro inicial" : input.reason,
       ],
     );

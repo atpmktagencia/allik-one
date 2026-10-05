@@ -34,11 +34,11 @@ afterAll(async () => {
 });
 async function fixture(quantity = "10", days = 90) {
   const product = await getPool().query(
-    `INSERT INTO inventory_products(name,sku,category,unit) VALUES('Produto de teste',$1,'Material','un') RETURNING id`,
+    `INSERT INTO inventory_products(organization_id,name,sku,category,unit) VALUES('a1100000-0000-4000-8000-000000000001','Produto de teste',$1,'Material','un') RETURNING id`,
     [randomUUID()],
   );
   const location = await getPool().query(
-    "INSERT INTO inventory_locations(name) VALUES($1) RETURNING id",
+    "INSERT INTO inventory_locations(unit_id,name) VALUES('a1100000-0000-4000-8000-000000000102',$1) RETURNING id",
     [`Local ${randomUUID()}`],
   );
   const lot = await getPool().query(
@@ -219,7 +219,7 @@ describe("PostgreSQL transfers and physical counts", () => {
   async function transferFixture(quantity = "10", days = 90) {
     const f = await fixture(quantity, days);
     const destination = await getPool().query(
-      "INSERT INTO inventory_locations(name) VALUES($1) RETURNING id",
+      "INSERT INTO inventory_locations(unit_id,name) VALUES('a1100000-0000-4000-8000-000000000102',$1) RETURNING id",
       [`Destino ${randomUUID()}`],
     );
     const body = {
@@ -723,9 +723,10 @@ describe("Lot traceability", () => {
       ])
     ).rows[0].id as string;
     const destination = (
-      await getPool().query("INSERT INTO inventory_locations(name) VALUES($1) RETURNING id", [
-        `Destino trace ${randomUUID()}`,
-      ])
+      await getPool().query(
+        "INSERT INTO inventory_locations(unit_id,name) VALUES('a1100000-0000-4000-8000-000000000102',$1) RETURNING id",
+        [`Destino trace ${randomUUID()}`],
+      )
     ).rows[0].id as string;
     const operationId = randomUUID();
     expect(

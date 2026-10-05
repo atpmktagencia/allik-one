@@ -20,15 +20,19 @@ import { Route as FinanceiroRouteImport } from './routes/financeiro'
 import { Route as PacientesRouteImport } from './routes/pacientes'
 import { Route as ProntuarioRouteImport } from './routes/prontuario'
 import { Route as VendasRouteImport } from './routes/vendas'
+import { Route as ApiInventoryActivationRouteImport } from './routes/api/inventory-activation'
 import { Route as ApiInventorySessionRouteImport } from './routes/api/inventory-session'
 import { Route as AplicacoesIndexRouteImport } from './routes/aplicacoes/index'
 import { Route as AplicacoesNovaRouteImport } from './routes/aplicacoes/nova'
 import { Route as EstoqueIndexRouteImport } from './routes/estoque/index'
 import { Route as EstoqueAcessoRouteImport } from './routes/estoque/acesso'
+import { Route as EstoqueAtivarRouteImport } from './routes/estoque/ativar'
 import { Route as EstoqueCadastrosRouteImport } from './routes/estoque/cadastros'
 import { Route as EstoqueFornecedoresRouteImport } from './routes/estoque/fornecedores'
+import { Route as EstoqueMinhaContaRouteImport } from './routes/estoque/minha-conta'
 import { Route as EstoqueMovimentacoesRouteImport } from './routes/estoque/movimentacoes'
 import { Route as EstoqueRecebimentoRouteImport } from './routes/estoque/recebimento'
+import { Route as EstoqueUsuariosRouteImport } from './routes/estoque/usuarios'
 import { Route as EstoqueValoresRouteImport } from './routes/estoque/valores'
 import { Route as PacientesPatientIdRouteImport } from './routes/pacientes.$patientId'
 import { Route as EstoqueLotesLotIdRouteImport } from './routes/estoque/lotes/$lotId'
@@ -90,6 +94,11 @@ const VendasRoute = VendasRouteImport.update({
   path: '/vendas',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiInventoryActivationRoute = ApiInventoryActivationRouteImport.update({
+  id: '/api/inventory-activation',
+  path: '/api/inventory-activation',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiInventorySessionRoute = ApiInventorySessionRouteImport.update({
   id: '/api/inventory-session',
   path: '/api/inventory-session',
@@ -115,6 +124,11 @@ const EstoqueAcessoRoute = EstoqueAcessoRouteImport.update({
   path: '/acesso',
   getParentRoute: () => EstoqueRoute,
 } as any)
+const EstoqueAtivarRoute = EstoqueAtivarRouteImport.update({
+  id: '/ativar',
+  path: '/ativar',
+  getParentRoute: () => EstoqueRoute,
+} as any)
 const EstoqueCadastrosRoute = EstoqueCadastrosRouteImport.update({
   id: '/cadastros',
   path: '/cadastros',
@@ -125,6 +139,11 @@ const EstoqueFornecedoresRoute = EstoqueFornecedoresRouteImport.update({
   path: '/fornecedores',
   getParentRoute: () => EstoqueRoute,
 } as any)
+const EstoqueMinhaContaRoute = EstoqueMinhaContaRouteImport.update({
+  id: '/minha-conta',
+  path: '/minha-conta',
+  getParentRoute: () => EstoqueRoute,
+} as any)
 const EstoqueMovimentacoesRoute = EstoqueMovimentacoesRouteImport.update({
   id: '/movimentacoes',
   path: '/movimentacoes',
@@ -133,6 +152,11 @@ const EstoqueMovimentacoesRoute = EstoqueMovimentacoesRouteImport.update({
 const EstoqueRecebimentoRoute = EstoqueRecebimentoRouteImport.update({
   id: '/recebimento',
   path: '/recebimento',
+  getParentRoute: () => EstoqueRoute,
+} as any)
+const EstoqueUsuariosRoute = EstoqueUsuariosRouteImport.update({
+  id: '/usuarios',
+  path: '/usuarios',
   getParentRoute: () => EstoqueRoute,
 } as any)
 const EstoqueValoresRoute = EstoqueValoresRouteImport.update({
@@ -174,13 +198,17 @@ export interface FileRoutesByFullPath {
   '/pacientes': typeof PacientesRouteWithChildren
   '/prontuario': typeof ProntuarioRoute
   '/vendas': typeof VendasRoute
+  '/api/inventory-activation': typeof ApiInventoryActivationRoute
   '/api/inventory-session': typeof ApiInventorySessionRoute
   '/aplicacoes/nova': typeof AplicacoesNovaRoute
   '/estoque/acesso': typeof EstoqueAcessoRoute
+  '/estoque/ativar': typeof EstoqueAtivarRoute
   '/estoque/cadastros': typeof EstoqueCadastrosRoute
   '/estoque/fornecedores': typeof EstoqueFornecedoresRoute
+  '/estoque/minha-conta': typeof EstoqueMinhaContaRoute
   '/estoque/movimentacoes': typeof EstoqueMovimentacoesRoute
   '/estoque/recebimento': typeof EstoqueRecebimentoRoute
+  '/estoque/usuarios': typeof EstoqueUsuariosRoute
   '/estoque/valores': typeof EstoqueValoresRoute
   '/pacientes/$patientId': typeof PacientesPatientIdRoute
   '/aplicacoes/': typeof AplicacoesIndexRoute
@@ -199,13 +227,17 @@ export interface FileRoutesByTo {
   '/pacientes': typeof PacientesRouteWithChildren
   '/prontuario': typeof ProntuarioRoute
   '/vendas': typeof VendasRoute
+  '/api/inventory-activation': typeof ApiInventoryActivationRoute
   '/api/inventory-session': typeof ApiInventorySessionRoute
   '/aplicacoes/nova': typeof AplicacoesNovaRoute
   '/estoque/acesso': typeof EstoqueAcessoRoute
+  '/estoque/ativar': typeof EstoqueAtivarRoute
   '/estoque/cadastros': typeof EstoqueCadastrosRoute
   '/estoque/fornecedores': typeof EstoqueFornecedoresRoute
+  '/estoque/minha-conta': typeof EstoqueMinhaContaRoute
   '/estoque/movimentacoes': typeof EstoqueMovimentacoesRoute
   '/estoque/recebimento': typeof EstoqueRecebimentoRoute
+  '/estoque/usuarios': typeof EstoqueUsuariosRoute
   '/estoque/valores': typeof EstoqueValoresRoute
   '/pacientes/$patientId': typeof PacientesPatientIdRoute
   '/aplicacoes': typeof AplicacoesIndexRoute
@@ -227,13 +259,17 @@ export interface FileRoutesById {
   '/pacientes': typeof PacientesRouteWithChildren
   '/prontuario': typeof ProntuarioRoute
   '/vendas': typeof VendasRoute
+  '/api/inventory-activation': typeof ApiInventoryActivationRoute
   '/api/inventory-session': typeof ApiInventorySessionRoute
   '/aplicacoes/nova': typeof AplicacoesNovaRoute
   '/estoque/acesso': typeof EstoqueAcessoRoute
+  '/estoque/ativar': typeof EstoqueAtivarRoute
   '/estoque/cadastros': typeof EstoqueCadastrosRoute
   '/estoque/fornecedores': typeof EstoqueFornecedoresRoute
+  '/estoque/minha-conta': typeof EstoqueMinhaContaRoute
   '/estoque/movimentacoes': typeof EstoqueMovimentacoesRoute
   '/estoque/recebimento': typeof EstoqueRecebimentoRoute
+  '/estoque/usuarios': typeof EstoqueUsuariosRoute
   '/estoque/valores': typeof EstoqueValoresRoute
   '/pacientes/$patientId': typeof PacientesPatientIdRoute
   '/aplicacoes/': typeof AplicacoesIndexRoute
@@ -256,13 +292,17 @@ export interface FileRouteTypes {
     | '/pacientes'
     | '/prontuario'
     | '/vendas'
+    | '/api/inventory-activation'
     | '/api/inventory-session'
     | '/aplicacoes/nova'
     | '/estoque/acesso'
+    | '/estoque/ativar'
     | '/estoque/cadastros'
     | '/estoque/fornecedores'
+    | '/estoque/minha-conta'
     | '/estoque/movimentacoes'
     | '/estoque/recebimento'
+    | '/estoque/usuarios'
     | '/estoque/valores'
     | '/pacientes/$patientId'
     | '/aplicacoes/'
@@ -281,13 +321,17 @@ export interface FileRouteTypes {
     | '/pacientes'
     | '/prontuario'
     | '/vendas'
+    | '/api/inventory-activation'
     | '/api/inventory-session'
     | '/aplicacoes/nova'
     | '/estoque/acesso'
+    | '/estoque/ativar'
     | '/estoque/cadastros'
     | '/estoque/fornecedores'
+    | '/estoque/minha-conta'
     | '/estoque/movimentacoes'
     | '/estoque/recebimento'
+    | '/estoque/usuarios'
     | '/estoque/valores'
     | '/pacientes/$patientId'
     | '/aplicacoes'
@@ -308,13 +352,17 @@ export interface FileRouteTypes {
     | '/pacientes'
     | '/prontuario'
     | '/vendas'
+    | '/api/inventory-activation'
     | '/api/inventory-session'
     | '/aplicacoes/nova'
     | '/estoque/acesso'
+    | '/estoque/ativar'
     | '/estoque/cadastros'
     | '/estoque/fornecedores'
+    | '/estoque/minha-conta'
     | '/estoque/movimentacoes'
     | '/estoque/recebimento'
+    | '/estoque/usuarios'
     | '/estoque/valores'
     | '/pacientes/$patientId'
     | '/aplicacoes/'
@@ -336,6 +384,7 @@ export interface RootRouteChildren {
   PacientesRoute: typeof PacientesRouteWithChildren
   ProntuarioRoute: typeof ProntuarioRoute
   VendasRoute: typeof VendasRoute
+  ApiInventoryActivationRoute: typeof ApiInventoryActivationRoute
   ApiInventorySessionRoute: typeof ApiInventorySessionRoute
   ApiV1InventorySplatRoute: typeof ApiV1InventorySplatRoute
 }
@@ -419,6 +468,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof VendasRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/inventory-activation': {
+      id: '/api/inventory-activation'
+      path: '/api/inventory-activation'
+      fullPath: '/api/inventory-activation'
+      preLoaderRoute: typeof ApiInventoryActivationRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/inventory-session': {
       id: '/api/inventory-session'
       path: '/api/inventory-session'
@@ -454,6 +510,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof EstoqueAcessoRouteImport
       parentRoute: typeof EstoqueRoute
     }
+    '/estoque/ativar': {
+      id: '/estoque/ativar'
+      path: '/ativar'
+      fullPath: '/estoque/ativar'
+      preLoaderRoute: typeof EstoqueAtivarRouteImport
+      parentRoute: typeof EstoqueRoute
+    }
     '/estoque/cadastros': {
       id: '/estoque/cadastros'
       path: '/cadastros'
@@ -468,6 +531,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof EstoqueFornecedoresRouteImport
       parentRoute: typeof EstoqueRoute
     }
+    '/estoque/minha-conta': {
+      id: '/estoque/minha-conta'
+      path: '/minha-conta'
+      fullPath: '/estoque/minha-conta'
+      preLoaderRoute: typeof EstoqueMinhaContaRouteImport
+      parentRoute: typeof EstoqueRoute
+    }
     '/estoque/movimentacoes': {
       id: '/estoque/movimentacoes'
       path: '/movimentacoes'
@@ -480,6 +550,13 @@ declare module '@tanstack/react-router' {
       path: '/recebimento'
       fullPath: '/estoque/recebimento'
       preLoaderRoute: typeof EstoqueRecebimentoRouteImport
+      parentRoute: typeof EstoqueRoute
+    }
+    '/estoque/usuarios': {
+      id: '/estoque/usuarios'
+      path: '/usuarios'
+      fullPath: '/estoque/usuarios'
+      preLoaderRoute: typeof EstoqueUsuariosRouteImport
       parentRoute: typeof EstoqueRoute
     }
     '/estoque/valores': {
@@ -536,10 +613,13 @@ const AplicacoesRouteWithChildren = AplicacoesRoute._addFileChildren(
 
 interface EstoqueRouteChildren {
   EstoqueAcessoRoute: typeof EstoqueAcessoRoute
+  EstoqueAtivarRoute: typeof EstoqueAtivarRoute
   EstoqueCadastrosRoute: typeof EstoqueCadastrosRoute
   EstoqueFornecedoresRoute: typeof EstoqueFornecedoresRoute
+  EstoqueMinhaContaRoute: typeof EstoqueMinhaContaRoute
   EstoqueMovimentacoesRoute: typeof EstoqueMovimentacoesRoute
   EstoqueRecebimentoRoute: typeof EstoqueRecebimentoRoute
+  EstoqueUsuariosRoute: typeof EstoqueUsuariosRoute
   EstoqueValoresRoute: typeof EstoqueValoresRoute
   EstoqueIndexRoute: typeof EstoqueIndexRoute
   EstoqueLotesLotIdRoute: typeof EstoqueLotesLotIdRoute
@@ -548,10 +628,13 @@ interface EstoqueRouteChildren {
 
 const EstoqueRouteChildren: EstoqueRouteChildren = {
   EstoqueAcessoRoute: EstoqueAcessoRoute,
+  EstoqueAtivarRoute: EstoqueAtivarRoute,
   EstoqueCadastrosRoute: EstoqueCadastrosRoute,
   EstoqueFornecedoresRoute: EstoqueFornecedoresRoute,
+  EstoqueMinhaContaRoute: EstoqueMinhaContaRoute,
   EstoqueMovimentacoesRoute: EstoqueMovimentacoesRoute,
   EstoqueRecebimentoRoute: EstoqueRecebimentoRoute,
+  EstoqueUsuariosRoute: EstoqueUsuariosRoute,
   EstoqueValoresRoute: EstoqueValoresRoute,
   EstoqueIndexRoute: EstoqueIndexRoute,
   EstoqueLotesLotIdRoute: EstoqueLotesLotIdRoute,
@@ -585,6 +668,7 @@ const rootRouteChildren: RootRouteChildren = {
   PacientesRoute: PacientesRouteWithChildren,
   ProntuarioRoute: ProntuarioRoute,
   VendasRoute: VendasRoute,
+  ApiInventoryActivationRoute: ApiInventoryActivationRoute,
   ApiInventorySessionRoute: ApiInventorySessionRoute,
   ApiV1InventorySplatRoute: ApiV1InventorySplatRoute,
 }

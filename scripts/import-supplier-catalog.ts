@@ -42,7 +42,7 @@ export async function importSupplierCatalog(catalog: SupplierCatalogSource) {
     const saved = imported.rowCount
       ? { rowCount: 0 }
       : await client.query(
-          "INSERT INTO inventory_suppliers(id,name,phone) VALUES($1,$2,$3) ON CONFLICT DO NOTHING RETURNING id",
+          "INSERT INTO inventory_suppliers(id,organization_id,name,phone) VALUES($1,'a1100000-0000-4000-8000-000000000001',$2,$3) ON CONFLICT DO NOTHING RETURNING id",
           [randomUUID(), catalog.supplier.name, catalog.supplier.phone],
         );
     const supplier = (

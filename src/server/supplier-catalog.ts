@@ -2,7 +2,7 @@ import "@tanstack/react-start/server-only";
 import { createHash, randomUUID } from "node:crypto";
 import type { PoolClient } from "pg";
 import { z } from "zod";
-import { hasPreviewSession } from "./auth";
+import { actor, authenticate, can, type AuthContext } from "./auth";
 import { getPool } from "./db";
 import {
   supplierProfileInput,
@@ -32,9 +32,10 @@ async function audit(
   before: unknown,
   after: unknown,
   reason: string,
+  auth: AuthContext,
 ) {
   await client.query(
-    `INSERT INTO inventory_supplier_changes(id,supplier_id,catalog_item_id,action,request_hash,before_data,after_data,actor,reason) VALUES($1,$2,$3,$4,$5,$6::jsonb,$7::jsonb,'preview-operator',$8)`,
+    `INSERT INTO inventory_supplier_changes(id,supplier_id,catalog_item_id,action,request_hash,before_data,after_data,actor,actor_user_id,reason) VALUES($1,$2,$3,$4,$5,$6::jsonb,$7::jsonb,$8,$9,$10)`,
     [
       id,
       supplierId,
@@ -43,6 +44,8 @@ async function audit(
       hash,
       before ? JSON.stringify(before) : null,
       JSON.stringify(after),
+      actor(auth).name,
+      actor(auth).userId,
       reason,
     ],
   );
@@ -52,14 +55,22 @@ async function saveProfile(
   client: PoolClient,
   input: z.infer<typeof supplierProfileInput>,
   hash: string,
+  auth: AuthContext,
 ) {
   let before: SupplierProfile | null = null;
   let after: SupplierProfile;
   if (input.action === "CREATE") {
     after = (
       await client.query(
-        `INSERT INTO inventory_suppliers(id,name,phone,email,active) VALUES($1,$2,$3,$4,$5) RETURNING ${supplierColumns}`,
-        [input.id, input.name, input.phone || null, input.email || null, input.active],
+        `INSERT INTO inventory_suppliers(id,organization_id,name,phone,email,active) VALUES($1,$2,$3,$4,$5,$6) RETURNING ${supplierColumns}`,
+        [
+          input.id,
+          auth.organizationId,
+          input.name,
+          input.phone || null,
+          input.email || null,
+          input.active,
+        ],
       )
     ).rows[0];
   } else {
@@ -97,6 +108,7 @@ async function saveProfile(
     before,
     after,
     input.action === "CREATE" ? "Cadastro inicial do fornecedor" : input.reason,
+    auth,
   );
   return after;
 }
@@ -105,6 +117,7 @@ async function saveCatalog(
   client: PoolClient,
   input: z.infer<typeof supplierCatalogInput>,
   hash: string,
+  auth: AuthContext,
 ) {
   const supplier = await client.query(
     "SELECT id FROM inventory_suppliers WHERE id=$1 AND active FOR SHARE",
@@ -167,6 +180,7 @@ async function saveCatalog(
     before,
     after,
     input.action === "CREATE" ? "Cadastro inicial do item comercial" : input.reason,
+    auth,
   );
   return after;
 }
@@ -175,6 +189,8 @@ async function createOrder(
   client: PoolClient,
   input: z.infer<typeof supplierOrderInput>,
   hash: string,
+  auth: AuthContext,
+  unitId: string,
 ): Promise<SupplierOrder> {
   const supplier: SupplierProfile = (
     await client.query(`SELECT ${supplierColumns} FROM inventory_suppliers WHERE id=$1 FOR SHARE`, [
@@ -205,8 +221,14 @@ async function createOrder(
       productId = randomUUID();
       const product = (
         await client.query(
-          `INSERT INTO inventory_products(id,name,sku,category,unit,minimum) VALUES($1,$2,$3,$4,'apresentação',0) RETURNING id,name,sku,category,unit,minimum::text,active,stock_controlled AS "stockControlled",version`,
-          [productId, item.name, `CAT-${item.id}`, `Catálogo ${supplier.name}`.slice(0, 100)],
+          `INSERT INTO inventory_products(id,organization_id,name,sku,category,unit,minimum) VALUES($1,$2,$3,$4,$5,'apresentação',0) RETURNING id,name,sku,category,unit,minimum::text,active,stock_controlled AS "stockControlled",version`,
+          [
+            productId,
+            auth.organizationId,
+            item.name,
+            `CAT-${item.id}`,
+            `Catálogo ${supplier.name}`.slice(0, 100),
+          ],
         )
       ).rows[0];
       await client.query("UPDATE inventory_supplier_catalog SET product_id=$2 WHERE id=$1", [
@@ -214,8 +236,15 @@ async function createOrder(
         productId,
       ]);
       await client.query(
-        `INSERT INTO inventory_catalog_changes(id,product_id,action,request_hash,after_data,actor,reason) VALUES($1,$2,'CREATE',$3,$4::jsonb,'preview-operator','Produto vinculado à apresentação comercial do pedido')`,
-        [randomUUID(), productId, hash, JSON.stringify(product)],
+        `INSERT INTO inventory_catalog_changes(id,product_id,action,request_hash,after_data,actor,actor_user_id,reason) VALUES($1,$2,'CREATE',$3,$4::jsonb,$5,$6,'Produto vinculado à apresentação comercial do pedido')`,
+        [
+          randomUUID(),
+          productId,
+          hash,
+          JSON.stringify(product),
+          actor(auth).name,
+          actor(auth).userId,
+        ],
       );
     } else {
       const product = await client.query(
@@ -248,8 +277,8 @@ async function createOrder(
       "O total excede o limite permitido para um pedido. Divida os itens em pedidos menores.",
     );
   await client.query(
-    "INSERT INTO inventory_purchases(id,reference,supplier_id,request_hash) VALUES($1,$2,$3,$4)",
-    [input.operationId, input.reference, input.supplierId, hash],
+    "INSERT INTO inventory_purchases(id,unit_id,reference,supplier_id,request_hash) VALUES($1,$2,$3,$4,$5)",
+    [input.operationId, unitId, input.reference, input.supplierId, hash],
   );
   for (const item of items)
     await client.query(
@@ -257,7 +286,7 @@ async function createOrder(
       [input.operationId, item.productId, item.quantity, item.price],
     );
   const saved = await client.query(
-    `INSERT INTO inventory_supplier_orders(id,request_hash,supplier_snapshot,items_snapshot,subtotal,freight,total,notes,actor) VALUES($1,$2,$3::jsonb,$4::jsonb,$5,$6,$7,$8,'preview-operator') RETURNING created_at AS date`,
+    `INSERT INTO inventory_supplier_orders(id,request_hash,supplier_snapshot,items_snapshot,subtotal,freight,total,notes,actor,actor_user_id) VALUES($1,$2,$3::jsonb,$4::jsonb,$5,$6,$7,$8,$9,$10) RETURNING created_at AS date`,
     [
       input.operationId,
       hash,
@@ -267,6 +296,8 @@ async function createOrder(
       input.freight,
       decimalMoney(total),
       input.notes,
+      actor(auth).name,
+      actor(auth).userId,
     ],
   );
   return {
@@ -278,17 +309,26 @@ async function createOrder(
     freight: input.freight,
     total: decimalMoney(total),
     notes: input.notes,
-    actor: "preview-operator",
+    actor: actor(auth).name,
     date: saved.rows[0].date,
   };
 }
 
 export async function supplierCatalogResponse(request: Request) {
-  if (!hasPreviewSession(request))
+  const auth = await authenticate(request);
+  if (!auth)
     return Response.json(
       { error: "Entre para acessar fornecedores e pedidos." },
       { status: 401, headers },
     );
+  const requestedPermission =
+    request.method === "GET"
+      ? "inventory.read"
+      : new URL(request.url).pathname.includes("vendor-orders")
+        ? "inventory.purchase.manage"
+        : "inventory.supplier.manage";
+  if (!can(auth, requestedPermission))
+    return Response.json({ error: "Acesso negado." }, { status: 403, headers });
   if (!["GET", "POST"].includes(request.method))
     return Response.json({ error: "Método não permitido." }, { status: 405, headers });
   if (request.method === "POST" && request.headers.get("origin") !== new URL(request.url).origin)
@@ -397,6 +437,21 @@ export async function supplierCatalogResponse(request: Request) {
         { status: 400, headers },
       );
     const hash = hashOf({ resource, input: parsed.data });
+    const selectedUnitId =
+      url.searchParams.get("unitId") ??
+      (auth.unitIds.length === 1
+        ? auth.unitIds[0]
+        : auth.preview
+          ? "a1100000-0000-4000-8000-000000000102"
+          : undefined);
+    if (
+      resource === "vendor-orders" &&
+      (!selectedUnitId || !can(auth, "inventory.purchase.manage", selectedUnitId))
+    )
+      return Response.json(
+        { error: "Selecione uma unidade autorizada para o pedido." },
+        { status: 403, headers },
+      );
     client = await getPool().connect();
     await client.query("BEGIN");
     await client.query("SELECT pg_advisory_xact_lock(hashtextextended($1,0))", [
@@ -430,10 +485,10 @@ export async function supplierCatalogResponse(request: Request) {
     }
     const result =
       resource === "vendors"
-        ? await saveProfile(client, supplierProfileInput.parse(body), hash)
+        ? await saveProfile(client, supplierProfileInput.parse(body), hash, auth)
         : resource === "vendor-catalog"
-          ? await saveCatalog(client, supplierCatalogInput.parse(body), hash)
-          : await createOrder(client, supplierOrderInput.parse(body), hash);
+          ? await saveCatalog(client, supplierCatalogInput.parse(body), hash, auth)
+          : await createOrder(client, supplierOrderInput.parse(body), hash, auth, selectedUnitId!);
     await client.query("COMMIT");
     return Response.json(
       {

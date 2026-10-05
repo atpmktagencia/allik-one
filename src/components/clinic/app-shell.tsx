@@ -1,5 +1,6 @@
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
-import { useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   Activity,
   Archive,
@@ -33,6 +34,7 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
+import { selectedUnitId, setSelectedUnitId } from "@/data/unit-context";
 
 const mainItems = [
   { label: "Visão geral", to: "/", icon: LayoutDashboard },
@@ -223,6 +225,32 @@ function GlobalSearch() {
 export function AppShell({ children }: { children: ReactNode }) {
   const path = useRouterState({ select: (state) => state.location.pathname });
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [identity, setIdentity] = useState<{
+    user: { name: string };
+    role: string;
+    units: Array<{ id: string; name: string }>;
+  } | null>(null);
+  const [unitId, setUnitId] = useState("");
+  const queryClient = useQueryClient();
+  useEffect(() => {
+    if (!path.startsWith("/estoque")) return;
+    void fetch("/api/inventory-session", { credentials: "same-origin" })
+      .then(async (response) => {
+        if (!response.ok) return;
+        const body = (await response.json()) as { data: typeof identity };
+        if (!body.data) return;
+        setIdentity(body.data);
+        const saved = selectedUnitId();
+        const initial = body.data.units.some((unit) => unit.id === saved)
+          ? saved
+          : body.data.units.length === 1
+            ? body.data.units[0]!.id
+            : "";
+        setUnitId(initial);
+        setSelectedUnitId(initial);
+      })
+      .catch(() => {});
+  }, [path]);
   const title = path.startsWith("/pacientes/")
     ? "Patient 360"
     : (pageTitles[path] ?? "Allik Fortaleza");
@@ -279,6 +307,51 @@ export function AppShell({ children }: { children: ReactNode }) {
             </div>
           </div>
         </header>
+        {path.startsWith("/estoque") && identity && (
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b bg-muted/30 px-4 py-2 text-sm lg:px-7">
+            <div>
+              <span className="font-medium">{identity.user.name}</span>
+              <span className="ml-2 text-muted-foreground">{identity.role}</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <label htmlFor="inventory-unit" className="text-muted-foreground">
+                Unidade
+              </label>
+              <select
+                id="inventory-unit"
+                className="h-9 rounded-md border bg-background px-3"
+                value={unitId}
+                onChange={(event) => {
+                  const value = event.target.value;
+                  setUnitId(value);
+                  setSelectedUnitId(value);
+                  void queryClient.invalidateQueries({ queryKey: ["inventory"] });
+                }}
+              >
+                {identity.units.length > 1 && <option value="">Todas as unidades</option>}
+                {identity.units.map((unit) => (
+                  <option key={unit.id} value={unit.id}>
+                    {unit.name}
+                  </option>
+                ))}
+              </select>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={async () => {
+                  await fetch("/api/inventory-session", {
+                    method: "DELETE",
+                    credentials: "same-origin",
+                  });
+                  setIdentity(null);
+                  window.location.assign("/estoque/acesso");
+                }}
+              >
+                Sair
+              </Button>
+            </div>
+          </div>
+        )}
         <main className="mx-auto w-full max-w-[1600px] p-4 sm:p-6 lg:p-8">{children}</main>
       </div>
     </div>

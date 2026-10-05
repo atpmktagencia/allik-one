@@ -19,6 +19,7 @@
     "db:migrate": "tsx scripts/migrate.ts",
     "db:seed": "tsx scripts/seed-inventory.ts",
     "db:import-real": "tsx scripts/import-real-inventory.ts",
+    "db:bootstrap-pilot": "tsx scripts/bootstrap-pilot.ts",
     "test:integration": "vitest run --config vitest.integration.config.ts",
     "test:integration:local": "node scripts/test-local-postgres.mjs",
     "test:e2e": "playwright test",

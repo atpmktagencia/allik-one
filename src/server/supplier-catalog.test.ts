@@ -176,10 +176,10 @@ describe("supplier catalog and immutable commercial orders", () => {
       unit_cost: "378.0000",
     });
     const locationId = randomUUID();
-    await getPool().query("INSERT INTO inventory_locations(id,name) VALUES($1,$2)", [
-      locationId,
-      `Local ${randomUUID()}`,
-    ]);
+    await getPool().query(
+      "INSERT INTO inventory_locations(id,unit_id,name) VALUES($1,'a1100000-0000-4000-8000-000000000102',$2)",
+      [locationId, `Local ${randomUUID()}`],
+    );
     const received = await receivingResponse(
       request("receipts", {
         operationId: randomUUID(),

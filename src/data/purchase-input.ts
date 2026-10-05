@@ -10,6 +10,7 @@ export const purchaseInput = z
     id: z.string().uuid(),
     reference: z.string().trim().min(1).max(100),
     supplierId: z.string().uuid(),
+    unitId: z.string().uuid().optional(),
     items: z
       .array(
         z.object({

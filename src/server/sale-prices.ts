@@ -1,14 +1,17 @@
 import "@tanstack/react-start/server-only";
-import { hasPreviewSession } from "./auth";
+import { authenticate, can } from "./auth";
 import { getPool } from "./db";
 
 export async function salePricesResponse(request: Request) {
   const headers = { "Cache-Control": "private, no-store", Vary: "Cookie" };
-  if (!hasPreviewSession(request))
+  const auth = await authenticate(request);
+  if (!auth)
     return Response.json(
       { error: "Entre para acessar os valores de venda." },
       { status: 401, headers },
     );
+  if (!can(auth, "inventory.read"))
+    return Response.json({ error: "Acesso negado." }, { status: 403, headers });
   try {
     const result = await getPool().query(
       `SELECT id,name,route,supplier,price::float8 AS price,source_file AS "sourceFile"

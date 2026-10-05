@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { withSelectedUnit } from "./unit-context";
 export type InventoryPosition = {
   id: string;
   productId: string;
@@ -55,7 +56,9 @@ export class InventoryError extends Error {
   }
 }
 export async function fetchInventory<T>(resource: string): Promise<T> {
-  const response = await fetch(`/api/v1/inventory/${resource}`, { credentials: "same-origin" });
+  const response = await fetch(withSelectedUnit(`/api/v1/inventory/${resource}`), {
+    credentials: "same-origin",
+  });
   const body = (await response.json()) as { data?: T; error?: string };
   if (!response.ok)
     throw new InventoryError(

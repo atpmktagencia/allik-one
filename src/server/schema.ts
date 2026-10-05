@@ -14,10 +14,148 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 
+export const organizations = pgTable(
+  "inventory_organizations",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    name: text("name").notNull(),
+    active: boolean("active").notNull().default(true),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("inventory_organization_name_case_unique").on(sql`lower(${t.name})`)],
+);
+
+export const units = pgTable(
+  "inventory_units",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id),
+    name: text("name").notNull(),
+    active: boolean("active").notNull().default(true),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("inventory_unit_organization_name_unique").on(
+      t.organizationId,
+      sql`lower(${t.name})`,
+    ),
+  ],
+);
+
+export const users = pgTable(
+  "inventory_users",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    name: text("name").notNull(),
+    email: text("email").notNull(),
+    profession: text("profession"),
+    title: text("title"),
+    passwordHash: text("password_hash"),
+    active: boolean("active").notNull().default(true),
+    sessionVersion: integer("session_version").notNull().default(0),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("inventory_user_email_case_unique").on(sql`lower(${t.email})`),
+    check("inventory_user_session_version_nonnegative", sql`${t.sessionVersion} >= 0`),
+  ],
+);
+
+export const memberships = pgTable(
+  "inventory_memberships",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id),
+    role: text("role").notNull(),
+    active: boolean("active").notNull().default(true),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("inventory_membership_user_organization_unique").on(t.userId, t.organizationId),
+    check(
+      "inventory_membership_role_valid",
+      sql`${t.role} IN ('SUPER_ADMIN','PARTNER_ADMIN','INVENTORY_MANAGER','UNIT_MANAGER','FINANCE','VIEWER')`,
+    ),
+  ],
+);
+
+export const unitAccess = pgTable(
+  "inventory_unit_access",
+  {
+    membershipId: uuid("membership_id")
+      .notNull()
+      .references(() => memberships.id, { onDelete: "cascade" }),
+    unitId: uuid("unit_id")
+      .notNull()
+      .references(() => units.id),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("inventory_unit_access_pk").on(t.membershipId, t.unitId)],
+);
+
+export const sessions = pgTable(
+  "inventory_sessions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    tokenHash: text("token_hash").notNull().unique(),
+    sessionVersion: integer("session_version").notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    lastSeenAt: timestamp("last_seen_at", { withTimezone: true }).notNull().defaultNow(),
+    revokedAt: timestamp("revoked_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("inventory_session_user_active").on(t.userId, t.expiresAt)],
+);
+
+export const invites = pgTable(
+  "inventory_invites",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id),
+    tokenHash: text("token_hash").notNull().unique(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    usedAt: timestamp("used_at", { withTimezone: true }),
+    revokedAt: timestamp("revoked_at", { withTimezone: true }),
+    createdByUserId: uuid("created_by_user_id").references(() => users.id),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("inventory_invite_user").on(t.userId, t.createdAt)],
+);
+
+export const authEvents = pgTable("inventory_auth_events", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id").references(() => users.id),
+  event: text("event").notNull(),
+  ipHash: text("ip_hash"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
 export const products = pgTable(
   "inventory_products",
   {
     id: uuid("id").primaryKey().defaultRandom(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id),
     name: text("name").notNull(),
     sku: text("sku").notNull().unique(),
     category: text("category").notNull(),
@@ -37,6 +175,9 @@ export const locations = pgTable(
   "inventory_locations",
   {
     id: uuid("id").primaryKey().defaultRandom(),
+    unitId: uuid("unit_id")
+      .notNull()
+      .references(() => units.id),
     name: text("name").notNull().unique(),
     active: boolean("active").notNull().default(true),
     version: integer("version").notNull().default(0),
@@ -55,6 +196,7 @@ export const catalogChanges = pgTable(
     beforeData: jsonb("before_data"),
     afterData: jsonb("after_data").notNull(),
     actor: text("actor").notNull(),
+    actorUserId: uuid("actor_user_id").references(() => users.id),
     reason: text("reason").notNull(),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
@@ -117,6 +259,7 @@ export const movements = pgTable(
     type: text("type").notNull(),
     delta: numeric("delta", { precision: 14, scale: 3 }).notNull(),
     actor: text("actor").notNull(),
+    actorUserId: uuid("actor_user_id").references(() => users.id),
     reference: text("reference").notNull(),
     reason: text("reason").notNull(),
     operationKey: text("operation_key").notNull().unique(),
@@ -136,6 +279,7 @@ export const audit = pgTable("inventory_audit", {
     .notNull()
     .references(() => movements.id),
   actor: text("actor").notNull(),
+  actorUserId: uuid("actor_user_id").references(() => users.id),
   action: text("action").notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
@@ -152,6 +296,9 @@ export const suppliers = pgTable(
   "inventory_suppliers",
   {
     id: uuid("id").primaryKey(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id),
     name: text("name").notNull().unique(),
     active: boolean("active").notNull().default(true),
     phone: text("phone"),
@@ -205,6 +352,7 @@ export const supplierChanges = pgTable(
     beforeData: jsonb("before_data"),
     afterData: jsonb("after_data").notNull(),
     actor: text("actor").notNull(),
+    actorUserId: uuid("actor_user_id").references(() => users.id),
     reason: text("reason").notNull(),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
@@ -223,11 +371,15 @@ export const supplierOrders = pgTable("inventory_supplier_orders", {
   total: numeric("total", { precision: 14, scale: 2 }).notNull(),
   notes: text("notes").notNull(),
   actor: text("actor").notNull(),
+  actorUserId: uuid("actor_user_id").references(() => users.id),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
 export const purchases = pgTable("inventory_purchases", {
   id: uuid("id").primaryKey(),
+  unitId: uuid("unit_id")
+    .notNull()
+    .references(() => units.id),
   reference: text("reference").notNull().unique(),
   supplierId: uuid("supplier_id")
     .notNull()
@@ -339,4 +491,17 @@ export const applicationMovements = pgTable("inventory_application_movements", {
   applicationId: uuid("application_id")
     .notNull()
     .references(() => applications.id),
+});
+
+export const writeOffs = pgTable("inventory_write_offs", {
+  id: uuid("id").primaryKey(),
+  movementId: uuid("movement_id")
+    .notNull()
+    .unique()
+    .references(() => movements.id),
+  type: text("type").notNull(),
+  requestHash: text("request_hash").notNull(),
+  reference: text("reference").notNull(),
+  reason: text("reason").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });

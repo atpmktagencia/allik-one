@@ -1,7 +1,7 @@
 import "@tanstack/react-start/server-only";
 import { createHash } from "node:crypto";
 import type { PoolClient } from "pg";
-import { hasPreviewSession } from "./auth";
+import { authenticate, can } from "./auth";
 import { getPool } from "./db";
 import { purchaseInput, supplierInput } from "../data/purchase-input";
 
@@ -9,8 +9,17 @@ const headers = { "Cache-Control": "private, no-store", Vary: "Cookie" };
 class PurchaseConflict extends Error {}
 
 export async function purchasingResponse(request: Request, resource: "suppliers" | "purchases") {
-  if (!hasPreviewSession(request))
+  const auth = await authenticate(request);
+  if (!auth)
     return Response.json({ error: "Entre para acessar as compras." }, { status: 401, headers });
+  const permission =
+    resource === "suppliers" && request.method !== "GET"
+      ? "inventory.supplier.manage"
+      : request.method === "GET"
+        ? "inventory.read"
+        : "inventory.purchase.manage";
+  if (!can(auth, permission))
+    return Response.json({ error: "Acesso negado." }, { status: 403, headers });
   if (request.method !== "GET" && request.headers.get("origin") !== new URL(request.url).origin)
     return Response.json({ error: "Origem não autorizada." }, { status: 403, headers });
   let client: PoolClient | undefined;
@@ -41,8 +50,8 @@ export async function purchasingResponse(request: Request, resource: "suppliers"
       if (!parsed.success)
         return Response.json({ error: "Informe o nome do fornecedor." }, { status: 400, headers });
       const result = await getPool().query(
-        "INSERT INTO inventory_suppliers(id,name) VALUES($1,$2) ON CONFLICT(id) DO NOTHING RETURNING id",
-        [parsed.data.id, parsed.data.name],
+        "INSERT INTO inventory_suppliers(id,organization_id,name) VALUES($1,$2,$3) ON CONFLICT(id) DO NOTHING RETURNING id",
+        [parsed.data.id, auth.organizationId, parsed.data.name],
       );
       if (!result.rowCount) {
         const existing = await getPool().query(
@@ -67,6 +76,19 @@ export async function purchasingResponse(request: Request, resource: "suppliers"
         { status: 400, headers },
       );
     const input = parsed.data;
+    const unitId =
+      input.unitId ??
+      new URL(request.url).searchParams.get("unitId") ??
+      (auth.unitIds.length === 1
+        ? auth.unitIds[0]
+        : auth.preview
+          ? "a1100000-0000-4000-8000-000000000102"
+          : undefined);
+    if (!unitId || !can(auth, "inventory.purchase.manage", unitId))
+      return Response.json(
+        { error: "Selecione uma unidade autorizada para o pedido." },
+        { status: 403, headers },
+      );
     const hash = createHash("sha256").update(JSON.stringify(input)).digest("hex");
     client = await getPool().connect();
     await client.query("BEGIN");
@@ -76,8 +98,8 @@ export async function purchasingResponse(request: Request, resource: "suppliers"
     );
     if (!supplier.rowCount) throw new PurchaseConflict("Fornecedor indisponível.");
     const result = await client.query(
-      "INSERT INTO inventory_purchases(id,reference,supplier_id,request_hash) VALUES($1,$2,$3,$4) ON CONFLICT(id) DO NOTHING RETURNING id",
-      [input.id, input.reference, input.supplierId, hash],
+      "INSERT INTO inventory_purchases(id,unit_id,reference,supplier_id,request_hash) VALUES($1,$2,$3,$4,$5) ON CONFLICT(id) DO NOTHING RETURNING id",
+      [input.id, unitId, input.reference, input.supplierId, hash],
     );
     if (!result.rowCount) {
       const existing = await client.query(

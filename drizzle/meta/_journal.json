@@ -71,6 +71,13 @@
       "when": 1791172800000,
       "tag": "0009_release_pending_lots",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1791230400000,
+      "tag": "0010_pilot_identity_units",
+      "breakpoints": true
     }
   ]
 }

@@ -1,7 +1,7 @@
 import "@tanstack/react-start/server-only";
 import { createHash } from "node:crypto";
 import type { PoolClient } from "pg";
-import { hasPreviewSession } from "./auth";
+import { actor, authenticate, can, canAccessLocations } from "./auth";
 import { getPool } from "./db";
 import { receiptInput } from "../data/receipt-input";
 
@@ -9,11 +9,14 @@ const headers = { "Cache-Control": "private, no-store", Vary: "Cookie" };
 class ReceiptConflict extends Error {}
 
 export async function receivingResponse(request: Request) {
-  if (!hasPreviewSession(request))
+  const auth = await authenticate(request);
+  if (!auth)
     return Response.json(
       { error: "Entre para registrar o recebimento." },
       { status: 401, headers },
     );
+  if (!can(auth, "inventory.receive"))
+    return Response.json({ error: "Acesso negado." }, { status: 403, headers });
   if (request.headers.get("origin") !== new URL(request.url).origin)
     return Response.json({ error: "Origem não autorizada." }, { status: 403, headers });
   let body: unknown;
@@ -29,6 +32,11 @@ export async function receivingResponse(request: Request) {
       { status: 400, headers },
     );
   const input = parsed.data;
+  if (!(await canAccessLocations(auth, [input.locationId])))
+    return Response.json(
+      { error: "A localização não pertence a uma unidade autorizada." },
+      { status: 403, headers },
+    );
   const hash = createHash("sha256").update(JSON.stringify(input)).digest("hex");
   let client: PoolClient | undefined;
   try {
@@ -108,11 +116,13 @@ export async function receivingResponse(request: Request) {
           "O lote existente tem validade, fornecedor, custo ou status diferente. Confira os dados.",
         );
       const movement = await client.query(
-        "INSERT INTO inventory_movements(lot_id,location_id,type,delta,actor,reference,reason,operation_key) VALUES($1,$2,'IN',$3,'preview-operator',$4,'Recebimento de compra',$5) RETURNING id",
+        "INSERT INTO inventory_movements(lot_id,location_id,type,delta,actor,actor_user_id,reference,reason,operation_key) VALUES($1,$2,'IN',$3,$4,$5,$6,'Recebimento de compra',$7) RETURNING id",
         [
           existing.id,
           input.locationId,
           item.quantity,
+          actor(auth).name,
+          actor(auth).userId,
           input.reference,
           `${input.operationId}:${index}`,
         ],

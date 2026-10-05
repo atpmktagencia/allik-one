@@ -39,7 +39,7 @@ export const productCatalogInput = z.discriminatedUnion("action", [
   z.object({ ...update, ...product }).strict(),
 ]);
 export const locationCatalogInput = z.discriminatedUnion("action", [
-  z.object({ ...common, action: z.literal("CREATE") }).strict(),
+  z.object({ ...common, action: z.literal("CREATE"), unitId: uuid.optional() }).strict(),
   z.object(update).strict(),
 ]);
 
@@ -54,7 +54,13 @@ export type CatalogProduct = {
   stockControlled: boolean;
   version: number;
 };
-export type CatalogLocation = { id: string; name: string; active: boolean; version: number };
+export type CatalogLocation = {
+  id: string;
+  name: string;
+  active: boolean;
+  version: number;
+  unitId?: string;
+};
 export type CatalogSnapshot = CatalogProduct | CatalogLocation;
 export type CatalogChange = {
   id: string;

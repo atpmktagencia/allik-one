@@ -16,20 +16,22 @@ try {
     console.log("Dados reais já importados.");
   } else {
     const tables = await client.query<{ tablename: string }>(
-      "SELECT tablename FROM pg_tables WHERE schemaname='public' AND tablename LIKE 'inventory_%' ORDER BY tablename",
+      `SELECT tablename FROM pg_tables WHERE schemaname='public' AND tablename LIKE 'inventory_%'
+       AND tablename NOT IN ('inventory_organizations','inventory_units','inventory_users','inventory_memberships','inventory_unit_access','inventory_sessions','inventory_invites','inventory_auth_events')
+       ORDER BY tablename`,
     );
     const names = tables.rows.map(({ tablename }) => `"${tablename.replaceAll('"', '""')}"`);
     if (names.length) await client.query(`TRUNCATE ${names.join(", ")} CASCADE`);
 
     const location = await client.query<{ id: string }>(
-      "INSERT INTO inventory_locations(name,active,version) VALUES($1,true,0) RETURNING id",
+      "INSERT INTO inventory_locations(unit_id,name,active,version) VALUES('a1100000-0000-4000-8000-000000000102',$1,true,0) RETURNING id",
       [`Allik ${data.inventorySource.clinic}`],
     );
     for (const item of data.items) {
       const displayName = `${item.name} (${item.route})`;
       const product = await client.query<{ id: string }>(
-        `INSERT INTO inventory_products(name,sku,category,unit,active,stock_controlled,minimum,version)
-         VALUES($1,$2,'Injetáveis',$3,true,true,$4,0) RETURNING id`,
+        `INSERT INTO inventory_products(organization_id,name,sku,category,unit,active,stock_controlled,minimum,version)
+         VALUES('a1100000-0000-4000-8000-000000000001',$1,$2,'Injetáveis',$3,true,true,$4,0) RETURNING id`,
         [displayName, item.sku, item.unit, item.minimum],
       );
       if (item.quantity <= 0) continue;

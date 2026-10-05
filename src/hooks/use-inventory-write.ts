@@ -1,6 +1,7 @@
 import { useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { InventoryError } from "@/data/inventory-api";
+import { withSelectedUnit } from "@/data/unit-context";
 
 // Retain the original payload after ambiguous failures, including its UUID.
 export function useInventoryWrite(resource: string) {
@@ -17,7 +18,7 @@ export function useInventoryWrite(resource: string) {
     setPending(true);
     setError(null);
     try {
-      const response = await fetch(`/api/v1/inventory/${resource}`, {
+      const response = await fetch(withSelectedUnit(`/api/v1/inventory/${resource}`), {
         method: "POST",
         credentials: "same-origin",
         headers: { "Content-Type": "application/json" },

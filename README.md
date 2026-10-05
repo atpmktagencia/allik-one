@@ -159,6 +159,23 @@ Para branches Neon criadas por deployment, autorize a preparação somente na br
 
 O acesso por senha compartilhada é exclusivo de demonstração sintética. A API nega esse modo em `INVENTORY_ENVIRONMENT=production`; identidade individual, papéis e escopo de produção devem ser implementados antes de operar com dados reais. Proteção de deployment/rate limiting da Vercel pode complementar o Preview.
 
+## Pilot multiusuário
+
+O Pilot usa um PostgreSQL Neon exclusivo, separado do Preview e de testes. Configure somente no
+ambiente `Production` da Vercel: `DATABASE_URL` pela integração Neon,
+`INVENTORY_ENVIRONMENT=production`, `INVENTORY_PREPARE_PILOT=true` no provisionamento inicial e
+`PILOT_SUPER_ADMIN_NAME`, `PILOT_SUPER_ADMIN_EMAIL` e `PILOT_SUPER_ADMIN_INVITE_TOKEN` como
+variáveis Sensitive.
+
+O build aplica migrations idempotentes e cria apenas a organização Allik, as unidades Fortaleza e
+Juazeiro do Norte e o primeiro superadministrador. Ele nunca executa seeds sintéticos no Pilot.
+Depois da ativação inicial, remova o token de bootstrap e desative `INVENTORY_PREPARE_PILOT`.
+
+Antes do uso operacional, confirme no console Neon a retenção disponível para o plano e faça um
+teste de restauração em uma branch separada. Em incidente: interrompa escritas, restaure em nova
+branch no ponto anterior ao evento, valide ledger versus balances e só então troque a conexão da
+Vercel. Preserve o banco afetado até concluir a conferência.
+
 ## Milestones
 
 1. API + dashboard e produto com dados do PostgreSQL; migrations, ledger e Preview verificado.

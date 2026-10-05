@@ -88,11 +88,13 @@ describe("Receipt API", () => {
       sql.startsWith("INSERT INTO inventory_movements"),
     );
     expect(movements).toHaveLength(2);
-    expect(movements[0]![0]).toContain("'preview-operator'");
+    expect(movements[0]![0]).toContain("actor_user_id");
     expect(movements[0]![1]).toEqual([
       "lot-id",
       input.locationId,
       "2.125",
+      "preview-operator",
+      null,
       "PO-42",
       `${input.operationId}:0`,
     ]);

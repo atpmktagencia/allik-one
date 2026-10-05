@@ -1,7 +1,7 @@
 import "@tanstack/react-start/server-only";
 import { z } from "zod";
 import type { PoolClient } from "pg";
-import { hasPreviewSession } from "./auth";
+import { authenticate, can } from "./auth";
 import { getPool } from "./db";
 
 const headers = { "Cache-Control": "private, no-store", Vary: "Cookie" };
@@ -10,11 +10,14 @@ const cursorSchema = z.object({
   id: z.string().uuid(),
 });
 export async function lotTraceResponse(request: Request) {
-  if (!hasPreviewSession(request))
+  const auth = await authenticate(request);
+  if (!auth)
     return Response.json(
       { error: "Entre para consultar a rastreabilidade." },
       { status: 401, headers },
     );
+  if (!can(auth, "inventory.trace"))
+    return Response.json({ error: "Acesso negado." }, { status: 403, headers });
   if (request.method !== "GET")
     return Response.json(
       { error: "Método não permitido." },

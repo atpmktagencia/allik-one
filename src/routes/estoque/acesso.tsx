@@ -8,16 +8,16 @@ function InventoryAccess() {
   const [ready, setReady] = useState(false);
   useEffect(() => setReady(true), []);
   const [password, setPassword] = useState("");
+  const [email, setEmail] = useState("");
   const [error, setError] = useState("");
   const [pending, setPending] = useState(false);
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   return (
     <div className="mx-auto max-w-md rounded-xl border border-border bg-card p-7 shadow-soft">
-      <h1 className="font-display text-2xl font-semibold">Estoque Allik Fortaleza</h1>
+      <h1 className="font-display text-2xl font-semibold">Estoque Allik</h1>
       <p className="mt-2 text-sm text-muted-foreground">
-        Acesso ao Preview com dados sintéticos. Consulte o estoque, registre compras, recebimentos e
-        aplicações, e acompanhe o histórico de cada lote.
+        Entre com sua conta individual para acessar somente as unidades autorizadas.
       </p>
       <form
         className="mt-6 space-y-4"
@@ -29,7 +29,7 @@ function InventoryAccess() {
             const response = await fetch("/api/inventory-session", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ password }),
+              body: JSON.stringify({ email, password }),
             });
             const body = (await response.json()) as { error?: string };
             if (!response.ok) throw new Error(body.error ?? "Não foi possível entrar.");
@@ -43,8 +43,19 @@ function InventoryAccess() {
           }
         }}
       >
+        <label htmlFor="inventory-email" className="text-sm font-medium">
+          E-mail
+        </label>
+        <Input
+          id="inventory-email"
+          type="email"
+          autoComplete="username"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          disabled={!ready}
+        />
         <label htmlFor="inventory-password" className="text-sm font-medium">
-          Senha do Preview
+          Senha
         </label>
         <Input
           id="inventory-password"

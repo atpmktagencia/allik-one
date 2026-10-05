@@ -34,3 +34,30 @@ if (process.env.INVENTORY_PREPARE_PREVIEW === "true") {
     }
   }
 }
+
+if (process.env.INVENTORY_PREPARE_PILOT === "true") {
+  if (
+    process.env.VERCEL_ENV !== "production" ||
+    process.env.INVENTORY_ENVIRONMENT !== "production" ||
+    !process.env.DATABASE_URL
+  ) {
+    process.stderr.write(
+      "Pilot preparation denied: requires the isolated production Pilot database.\n",
+    );
+    process.exit(1);
+  }
+  for (const script of ["scripts/migrate.ts", "scripts/bootstrap-pilot.ts"]) {
+    const result = spawnSync(process.execPath, ["node_modules/tsx/dist/cli.mjs", script], {
+      encoding: "utf8",
+      env: process.env,
+    });
+    const output = `${result.stdout ?? ""}${result.stderr ?? ""}`
+      .replaceAll(process.env.DATABASE_URL, "[database credential hidden]")
+      .replace(/postgres(?:ql)?:\/\/[^\s"']+/gi, "[database credential hidden]");
+    process.stdout.write(output);
+    if (result.error || result.status !== 0) {
+      console.error("Pilot preparation failed; deployment stopped.");
+      process.exit(1);
+    }
+  }
+}

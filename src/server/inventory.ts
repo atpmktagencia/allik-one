@@ -1,23 +1,30 @@
 import "@tanstack/react-start/server-only";
 import { getPool } from "./db";
-import { hasPreviewSession } from "./auth";
+import { authenticate, can } from "./auth";
 import { z } from "zod";
 const filters = z.object({
   productId: z.string().uuid().optional(),
   locationId: z.string().uuid().optional(),
+  unitId: z.string().uuid().optional(),
   search: z.string().max(100).default(""),
 });
 export async function inventoryResponse(request: Request) {
   const headers = { "Cache-Control": "private, no-store", Vary: "Cookie" };
-  if (!hasPreviewSession(request))
+  const auth = await authenticate(request);
+  if (!auth)
     return Response.json(
       { error: "Entre para acessar o estoque de demonstração." },
       { status: 401, headers },
     );
+  if (!can(auth, "inventory.read"))
+    return Response.json({ error: "Acesso negado." }, { status: 403, headers });
   const url = new URL(request.url);
   const parsed = filters.safeParse(Object.fromEntries(url.searchParams));
   if (!parsed.success)
     return Response.json({ error: "Filtros inválidos." }, { status: 400, headers });
+  if (parsed.data.unitId && !can(auth, "inventory.read", parsed.data.unitId))
+    return Response.json({ error: "Unidade não autorizada." }, { status: 403, headers });
+  const allowedUnits = auth.preview || auth.role === "SUPER_ADMIN" ? null : auth.unitIds;
   const path = url.pathname.replace(/^\/api\/v1\/inventory\//, "").replace(/\/$/, "");
   const detailId = path.startsWith("products/") ? path.slice("products/".length) : undefined;
   if (detailId && !z.string().uuid().safeParse(detailId).success)
@@ -28,14 +35,16 @@ export async function inventoryResponse(request: Request) {
     const pool = getPool();
     if (path === "locations") {
       const result = await pool.query(
-        "SELECT id, name FROM inventory_locations WHERE active ORDER BY name",
+        `SELECT l.id,l.name,l.unit_id AS "unitId",u.name AS unit FROM inventory_locations l JOIN inventory_units u ON u.id=l.unit_id
+         WHERE l.active AND u.organization_id=$1 AND ($2::uuid IS NULL OR l.unit_id=$2) AND ($3::uuid[] IS NULL OR l.unit_id=ANY($3)) ORDER BY u.name,l.name`,
+        [auth.organizationId, parsed.data.unitId ?? null, allowedUnits],
       );
       return Response.json({ data: result.rows }, { headers });
     }
     if (path === "products" || detailId) {
       const result = await pool.query(
-        'SELECT id, name, sku, category, unit, active, stock_controlled AS "stockControlled", minimum::float8 AS minimum FROM inventory_products WHERE ($1::uuid IS NULL OR id = $1) AND name ILIKE $2 ORDER BY name',
-        [detailId ?? null, `%${parsed.data.search}%`],
+        'SELECT id, name, sku, category, unit, active, stock_controlled AS "stockControlled", minimum::float8 AS minimum FROM inventory_products WHERE organization_id=$1 AND ($2::uuid IS NULL OR id = $2) AND name ILIKE $3 ORDER BY name',
+        [auth.organizationId, detailId ?? null, `%${parsed.data.search}%`],
       );
       if (detailId && !result.rows.length)
         return Response.json({ error: "Produto não encontrado." }, { status: 404, headers });
@@ -45,6 +54,8 @@ export async function inventoryResponse(request: Request) {
       parsed.data.productId ?? null,
       parsed.data.locationId ?? null,
       `%${parsed.data.search}%`,
+      parsed.data.unitId ?? null,
+      allowedUnits,
     ];
     if (path === "movements") {
       const result = await pool.query(
@@ -56,6 +67,7 @@ export async function inventoryResponse(request: Request) {
         LEFT JOIN inventory_locations source ON source.id=o.source_id LEFT JOIN inventory_locations destination ON destination.id=o.destination_id
         LEFT JOIN inventory_application_movements am ON am.movement_id=m.id
         WHERE ($1::uuid IS NULL OR p.id=$1) AND ($2::uuid IS NULL OR loc.id=$2)
+        AND ($4::uuid IS NULL OR loc.unit_id=$4) AND ($5::uuid[] IS NULL OR loc.unit_id=ANY($5))
         AND (p.name ILIKE $3 OR l.number ILIKE $3 OR m.reference ILIKE $3 OR m.actor ILIKE $3 OR m.reason ILIKE $3)
         ORDER BY m.created_at DESC, m.id LIMIT 200`,
         params,
@@ -70,6 +82,7 @@ export async function inventoryResponse(request: Request) {
       (l.expires_on >= (NOW() AT TIME ZONE 'America/Fortaleza')::date AND l.expires_on <= (NOW() AT TIME ZONE 'America/Fortaleza')::date + 30) AS "expiringSoon"
       FROM inventory_balances b JOIN inventory_lots l ON l.id=b.lot_id JOIN inventory_products p ON p.id=l.product_id JOIN inventory_locations loc ON loc.id=b.location_id
       WHERE p.stock_controlled AND ($1::uuid IS NULL OR p.id=$1) AND ($2::uuid IS NULL OR loc.id=$2)
+      AND ($4::uuid IS NULL OR loc.unit_id=$4) AND ($5::uuid[] IS NULL OR loc.unit_id=ANY($5))
       AND (p.name ILIKE $3 OR l.number ILIKE $3 OR l.supplier ILIKE $3)
       ORDER BY p.name, l.expires_on, l.id, loc.name`,
       params,
