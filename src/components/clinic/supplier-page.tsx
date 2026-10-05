@@ -157,10 +157,10 @@ function SupplierCatalog({
         <>
           <div className="rounded-lg border bg-muted/30 p-4 text-sm leading-relaxed">
             Marque os itens e informe a quantidade de apresentações comerciais (box, frasco, kit ou
-            conjunto). O número de boxes físicos aparece quando informado na embalagem. Códigos ESS
-            são internos; preencha o SKU oficial ao confirmar com a Essentia. Preços importados da
-            edição 04.2026, sujeitos à confirmação. Itens com preço pendente precisam ser editados
-            antes da seleção.
+            conjunto). O número de boxes físicos aparece quando informado na embalagem. Códigos
+            importados são internos; preencha o SKU oficial ao confirmar com o fornecedor. Consulte
+            a edição e a fonte do preço em cada item. Valores sujeitos à confirmação. Itens com
+            preço pendente precisam ser editados antes da seleção.
           </div>
           <div className="flex flex-col gap-3 sm:flex-row">
             <label className="flex-1">
@@ -240,6 +240,9 @@ function SupplierCatalog({
                             : " · SKU oficial não informado"}
                         </p>
                         {!item.active && <Badge variant="secondary">Inativo</Badge>}
+                        {item.description.includes("Pendência de cadastro:") && (
+                          <Badge variant="secondary">Conferir cadastro</Badge>
+                        )}
                         <details className="mt-2 text-xs text-muted-foreground">
                           <summary className="cursor-pointer">Ver composição e fonte</summary>
                           <p className="mt-2 whitespace-pre-wrap break-words">{item.description}</p>

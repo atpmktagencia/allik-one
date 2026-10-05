@@ -17,6 +17,7 @@ if (process.env.INVENTORY_PREPARE_PREVIEW === "true") {
     "scripts/migrate.ts",
     "scripts/seed-inventory.ts",
     "scripts/import-essentia.ts",
+    "scripts/import-stin.ts",
   ]) {
     const result = spawnSync(process.execPath, ["node_modules/tsx/dist/cli.mjs", script], {
       encoding: "utf8",

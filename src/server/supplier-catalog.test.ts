@@ -396,4 +396,112 @@ describe("supplier catalog and immutable commercial orders", () => {
     const purchases = await purchasingResponse(request("purchases"), "purchases");
     expect(purchases.status).toBe(200);
   });
+  it("imports Stin boxes and the complete kit without merging vendors or entering physical stock", async () => {
+    const run = () =>
+      promisify(execFile)(process.execPath, ["--import", "tsx", "scripts/import-stin.ts"], {
+        env: { ...process.env, INVENTORY_ALLOW_SEED: "true" },
+        timeout: 15000,
+      });
+    const before = await ledger();
+    const essentiaBefore = (
+      await getPool().query(
+        "SELECT c.* FROM inventory_supplier_catalog c JOIN inventory_suppliers s ON s.id=c.supplier_id WHERE s.name='Essentia' ORDER BY c.id",
+      )
+    ).rows;
+    await Promise.all([run(), run()]);
+    const stin = ((await (await api("vendors")).json()).data as SupplierProfile[]).find(
+      (s) => s.name === "Stin Pharma",
+    )!;
+    expect(stin.phone).toBe("551120781800");
+    const catalog = (await (await api(`vendor-catalog?supplierId=${stin.id}`)).json())
+      .data as SupplierCatalogItem[];
+    expect(catalog).toHaveLength(116);
+    expect(catalog.filter((i) => i.kind === "PRODUCT")).toHaveLength(115);
+    expect(catalog.every((i) => i.productId === null && i.supplierSku === null)).toBe(true);
+    const first = catalog.find((i) => i.code === "STIN-P001")!,
+      kit = catalog.find((i) => i.code === "STIN-K001")!;
+    expect(first).toMatchObject({ price: "55.00", boxesPerPack: 1, packaging: "Box — 10 ampolas" });
+    expect(kit).toMatchObject({
+      price: "499.00",
+      boxesPerPack: null,
+      contents: "5 frascos + 1 ampola",
+    });
+    expect(kit.description).toContain("STIN-K001-F5");
+    expect(catalog.some((i) => i.code.startsWith("STIN-K001-F"))).toBe(false);
+    expect(catalog.find((i) => i.code === "STIN-P038")!.description).toContain(
+      "Pendência de cadastro:",
+    );
+    expect(await ledger()).toBe(before);
+    expect(
+      (
+        await getPool().query(
+          "SELECT c.* FROM inventory_supplier_catalog c JOIN inventory_suppliers s ON s.id=c.supplier_id WHERE s.name='Essentia' ORDER BY c.id",
+        )
+      ).rows,
+    ).toEqual(essentiaBefore);
+    const purchase = {
+      ...order(stin, first, 2),
+      freight: null,
+      items: [
+        { catalogItemId: first.id, quantity: 2, version: 0, expectedPrice: "55.00" },
+        { catalogItemId: kit.id, quantity: 1, version: 0, expectedPrice: "499.00" },
+      ],
+    };
+    const savedResponse = await api("vendor-orders", purchase);
+    expect(savedResponse.status).toBe(201);
+    expect((await savedResponse.json()).data.order).toMatchObject({
+      subtotal: "609.00",
+      total: "609.00",
+      items: [
+        { quantity: 2, boxes: 2, subtotal: "110.00" },
+        { quantity: 1, boxes: null, subtotal: "499.00" },
+      ],
+    });
+    expect(await ledger()).toBe(before);
+    expect((await api("vendor-catalog", edit(first, { price: "56.25" }))).status).toBe(200);
+    expect(
+      (
+        await api("vendors", {
+          action: "UPDATE",
+          operationId: randomUUID(),
+          id: stin.id,
+          name: "Stin Pharma revisada",
+          phone: "551120781801",
+          email: "",
+          active: true,
+          version: stin.version,
+          reason: "Contato sintético atualizado",
+        })
+      ).status,
+    ).toBe(200);
+    const historyBefore = (
+      await getPool().query(
+        "SELECT count(*)::int AS n FROM inventory_supplier_changes WHERE supplier_id=$1",
+        [stin.id],
+      )
+    ).rows[0].n;
+    await run();
+    const updated = (await (await api(`vendor-catalog?supplierId=${stin.id}`)).json())
+      .data as SupplierCatalogItem[];
+    expect(updated).toHaveLength(116);
+    expect(updated.find((i) => i.id === first.id)!.price).toBe("56.25");
+    expect(
+      ((await (await api("vendors")).json()).data as SupplierProfile[]).find(
+        (s) => s.id === stin.id,
+      )!.phone,
+    ).toBe("551120781801");
+    expect(
+      (
+        await getPool().query(
+          "SELECT count(*)::int AS n FROM inventory_supplier_changes WHERE supplier_id=$1",
+          [stin.id],
+        )
+      ).rows[0].n,
+    ).toBe(historyBefore);
+    expect(
+      ((await (await api("vendors")).json()).data as SupplierProfile[]).filter(
+        (s) => s.id === stin.id,
+      ),
+    ).toEqual([expect.objectContaining({ name: "Stin Pharma revisada", phone: "551120781801" })]);
+  });
 });

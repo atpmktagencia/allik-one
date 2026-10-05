@@ -130,6 +130,16 @@ GET `/api/v1/inventory/vendor-orders?id=<uuid>&format=csv|txt|html` exporta o sn
 
 Validação local desta etapa: build/typecheck/lint (apenas seis avisos preexistentes), 50 testes unitários/UI, 73 testes de integração PostgreSQL, sete fluxos de navegador e três proteções do Preview. Os fluxos verificam cadastro/edição/histórico, concorrência/reenvio/rollback, preços pendentes, custo por conjunto de boxes, exportação, contato WhatsApp, ausência de estoque antes da entrega e recebimento persistido.
 
+### Catálogo Stin Pharma
+
+`Cadastro_Stin_Produtos_Protocolos.md`, fornecido pelo usuário, origina `src/server/vendor-catalog/stin.json`: **115 produtos e um kit completo (116 apresentações)**. O contato informado para Stin Atendimento é `+55 11 2078-1800`. Todos os produtos individuais são boxes com 10 ampolas ou frascos; o preço comercial é o **preço da caixa**, conferido como dez vezes o unitário. Concentrações, volumes, vias, preço unitário, página e observações permanecem como dados transcritos. Códigos STIN são internos; nenhum SKU oficial foi inventado.
+
+O kit STIN-K001 custa **R$ 499,00 pelo conjunto de cinco fases**, contendo cinco frascos e uma ampola. Fases/composições e suas pendências ficam na descrição; não se criam cinco itens com custo artificial nem estoque paralelo dos componentes. O volume de reconstituição de NADH e unidades ambíguas permanecem sem inferência. Seis apresentações com observações de cadastro exibem “Conferir cadastro”, com o texto original em detalhes. Os preços são históricos, referência março/2026, sujeitos à confirmação.
+
+`import-supplier-catalog.ts` reúne a importação transacional/idempotente, utilizada por `import-essentia.ts` e `import-stin.ts`. Exige autorização/ambiente isolado e recusa produção; reimportações preservam preços, contato, identificadores e vínculos já editados. Stin e Essentia mantêm catálogos e produtos de estoque distintos. A preparação do Preview e o runner local importam ambos; o conteúdo da apresentação aparece também em CSV, lista, PDF e mensagem WhatsApp. A importação não cria compra, saldo, lote ou aplicação clínica.
+
+Validação desta ampliação: 52 testes unitários/UI, 74 de integração PostgreSQL, fluxo de navegador Stin e proteções de Preview. Pedido de teste com dois boxes STIN-P001 (R$ 55,00 cada) e um conjunto STIN-K001 (R$ 499,00) totaliza **R$ 609,00**, com frete a confirmar. Reimportação concorrente, preservação de edições, composição do kit e ausência de estoque foram verificadas.
+
 ### Testes com PostgreSQL descartável no Codex Cloud
 
 Com Docker local disponível, execute `npm run test:integration:local`. O comando cria um PostgreSQL 16 com banco `allik_test` e senha aleatória, aplica migrations pelos testes e remove o contêiner ao terminar. Não usa `DATABASE_URL` externa. O acesso ao socket local do Docker e a processos filhos deve estar permitido; o primeiro uso baixa `postgres:16-alpine`.
@@ -145,7 +155,7 @@ O projeto usa o adaptador Nitro/Vercel da configuração Lovable, com frontend e
 - `INVENTORY_PREVIEW_PASSWORD`: senha longa exclusiva do Preview.
 - `INVENTORY_SESSION_SECRET`: segredo aleatório exclusivo do Preview.
 
-Para branches Neon criadas por deployment, autorize a preparação somente na branch sintética de Preview: `INVENTORY_PREPARE_PREVIEW=true` e `INVENTORY_ALLOW_SEED=true`. O build aplica migrations, seed idempotente e importação Essentia antes de compilar, exigindo também `VERCEL_ENV=preview` e `INVENTORY_ENVIRONMENT=preview`. Sem opt-in, o build não acessa o banco; com opt-in em produção, ele falha antes de qualquer migration. O seed sintético nunca deve ser autorizado em bancos com dados reais. PRs simultâneos devem usar branches de banco isoladas. Execute `bun run test:preview-guard` para verificar as proteções.
+Para branches Neon criadas por deployment, autorize a preparação somente na branch sintética de Preview: `INVENTORY_PREPARE_PREVIEW=true` e `INVENTORY_ALLOW_SEED=true`. O build aplica migrations, seed idempotente e importações Essentia/Stin antes de compilar, exigindo também `VERCEL_ENV=preview` e `INVENTORY_ENVIRONMENT=preview`. Sem opt-in, o build não acessa o banco; com opt-in em produção, ele falha antes de qualquer migration. O seed sintético nunca deve ser autorizado em bancos com dados reais. PRs simultâneos devem usar branches de banco isoladas. Execute `bun run test:preview-guard` para verificar as proteções.
 
 O acesso por senha compartilhada é exclusivo de demonstração sintética. A API nega esse modo em `INVENTORY_ENVIRONMENT=production`; identidade individual, papéis e escopo de produção devem ser implementados antes de operar com dados reais. Proteção de deployment/rate limiting da Vercel pode complementar o Preview.
 
