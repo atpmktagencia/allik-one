@@ -64,6 +64,13 @@
       "when": 1791167933972,
       "tag": "0008_real_inventory",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1791172800000,
+      "tag": "0009_release_pending_lots",
+      "breakpoints": true
     }
   ]
 }

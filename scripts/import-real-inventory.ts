@@ -36,7 +36,7 @@ try {
       if (!item.expiresOn) throw new Error(`Validade ausente na linha ${item.sourceRow}.`);
       const lot = await client.query<{ id: string }>(
         `INSERT INTO inventory_lots(product_id,number,expires_on,supplier,unit_cost,status)
-         VALUES($1,$2,$3,$4,0,'QUARANTINED') RETURNING id`,
+         VALUES($1,$2,$3,$4,0,'AVAILABLE') RETURNING id`,
         [
           product.rows[0]!.id,
           `LOTE-PENDENTE-L${item.sourceRow}`,
