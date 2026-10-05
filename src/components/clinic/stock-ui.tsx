@@ -197,6 +197,9 @@ export function StockOverviewPage() {
         action={
           <div className="flex flex-wrap gap-2">
             <Button asChild variant="outline">
+              <Link to="/estoque/cadastros">Produtos e locais</Link>
+            </Button>
+            <Button asChild variant="outline">
               <Link to="/estoque/movimentacoes">
                 <ClipboardList />
                 Movimentações

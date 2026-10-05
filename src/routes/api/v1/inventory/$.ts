@@ -5,6 +5,16 @@ import { purchasingResponse } from "@/server/purchases";
 import { stockOperationResponse } from "@/server/stock-operations";
 import { applicationResponse } from "@/server/applications";
 import { lotTraceResponse } from "@/server/lot-trace";
+import { supplierCatalogResponse } from "@/server/supplier-catalog";
+import { catalogResponse } from "@/server/catalog";
+
+function catalogResource(request: Request) {
+  const path = new URL(request.url).pathname.replace(/\/$/, "");
+  if (path === "/api/v1/inventory/catalog/products") return "products";
+  if (path === "/api/v1/inventory/catalog/locations") return "locations";
+  if (path === "/api/v1/inventory/catalog/history") return "history";
+  return undefined;
+}
 
 function resource(request: Request) {
   const path = new URL(request.url).pathname.replace(/\/$/, "");
@@ -18,6 +28,14 @@ export const Route = createFileRoute("/api/v1/inventory/$")({
   server: {
     handlers: {
       GET: ({ request }) => {
+        if (
+          /\/inventory\/vendor(?:s|-catalog|-history|-orders)\/?$/.test(
+            new URL(request.url).pathname,
+          )
+        )
+          return supplierCatalogResponse(request);
+        const catalog = catalogResource(request);
+        if (catalog) return catalogResponse(request, catalog);
         if (new URL(request.url).pathname.startsWith("/api/v1/inventory/trace/"))
           return lotTraceResponse(request);
         if (new URL(request.url).pathname.replace(/\/$/, "") === "/api/v1/inventory/applications")
@@ -28,6 +46,14 @@ export const Route = createFileRoute("/api/v1/inventory/$")({
           : inventoryResponse(request);
       },
       POST: ({ request }) => {
+        if (
+          /\/inventory\/vendor(?:s|-catalog|-history|-orders)\/?$/.test(
+            new URL(request.url).pathname,
+          )
+        )
+          return supplierCatalogResponse(request);
+        const catalog = catalogResource(request);
+        if (catalog) return catalogResponse(request, catalog);
         const name = resource(request);
         if (name === "suppliers" || name === "purchases") return purchasingResponse(request, name);
         const path = new URL(request.url).pathname.replace(/\/$/, "");

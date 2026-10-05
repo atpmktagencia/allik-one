@@ -1,6 +1,6 @@
 # Estoque Allik Fortaleza
 
-Frontend existente em React/TanStack Start, sincronizado com Lovable. O Milestone 1 adiciona PostgreSQL para o inventário, preservando as telas.
+Aplicação em React/TanStack Start, sincronizada com Lovable. As cinco etapas do inventário persistem no PostgreSQL: consulta de estoque, compras e recebimentos, transferências e contagens, aplicações e rastreabilidade de lotes.
 
 ## Desenvolvimento
 
@@ -104,13 +104,37 @@ A consulta usa uma transação de leitura `REPEATABLE READ`: dados do lote, sald
 
 A migration `0005_colorful_susan_delgado.sql` adiciona vínculos imutáveis entre **todos** os recebimentos e seus movimentos, incluindo entradas sem pedido. Recebimentos anteriores são vinculados pela UUID na chave de operação, sem depender da referência textual, que pode se repetir. Entradas do seed e saídas não recebem vínculos artificiais. Novos vínculos são gravados na mesma transação do recebimento; esta etapa não reescreve movimentos, auditoria ou saldos existentes.
 
-Os testes exercitam o preenchimento de vínculos antigos, referências repetidas, UUID com letras maiúsculas, paginação de movimentos com o mesmo horário e histórico de lote vencido/zerado. O teste de navegador percorre fornecedor → pedido → duas entregas parciais → transferência → aplicação → contagem → rastreabilidade → recarga, conferindo recebimentos, pedido, paciente sintético, saldo e auditoria. O aceite remoto permanece pendente até validar esse fluxo no Preview autorizado da Vercel.
+Os testes exercitam o preenchimento de vínculos antigos, referências repetidas, UUID com letras maiúsculas, paginação de movimentos com o mesmo horário e histórico de lote vencido/zerado. O teste de navegador percorre fornecedor → pedido → duas entregas parciais → transferência → aplicação → contagem → rastreabilidade → recarga, conferindo recebimentos, pedido, paciente sintético, saldo e auditoria. Esse fluxo foi validado no Preview autorizado da Vercel com Neon em 4 de outubro de 2026, no commit `6647408`; os saldos persistiram após recarregar e as seis movimentações tinham auditoria. A evidência de aceite está no [PR #3](https://github.com/atpmktagencia/oi-companion/pull/3).
+
+### Cadastros de produtos e locais
+
+`/estoque/cadastros` lista registros ativos/inativos, inclusive produtos sem saldo. Cadastre nome, SKU, unidade, categoria e mínimo de reposição. Edições exigem motivo e versão consultada; SKU e unidade permanecem definidos na criação. Produtos com saldo físico (inclusive bloqueado/vencido) ou entregas pendentes não podem ser desativados; locais com saldo também não. Nome, mínimo e categoria podem mudar sem reescrever lotes ou movimentos.
+
+GET/POST `/api/v1/inventory/catalog/products` e `/catalog/locations`, e GET `/catalog/history?resource=PRODUCT|LOCATION&itemId=<uuid>` exigem sessão. A migration `0006_inventory_catalog.sql` adiciona versões, unicidade sem distinção de maiúsculas e auditoria imutável antes/depois. Cada envio usa UUID/hash; atualizações concorrentes retornam conflito e reenvios idênticos preservam o resultado original. O seed não recria locais renomeados nem redefine metadados editados.
+
+### Fornecedores, catálogos e pedidos comerciais
+
+`/estoque/fornecedores` permite cadastrar/editar fornecedores, contato WhatsApp/e-mail e apresentações de catálogo com código interno, SKU oficial opcional, embalagem, conteúdo, boxes por apresentação, preço e fonte da cotação. Edições exigem versão/motivo e ficam no histórico. A migration `0007_supplier_catalog.sql` usa o mesmo PostgreSQL; não cria outro banco externo.
+
+O arquivo `Cadastro_Essentia_Produtos_Protocolos.md` fornecido pelo usuário foi convertido em `src/server/vendor-catalog/essentia.json`: **178 produtos, 121 kits/protocolos comerciais e 89 adicionais (388 itens)**. Os sete preços com alternativas ambíguas permanecem nulos e bloqueados para seleção até confirmação. Códigos ESS são identificadores internos; o arquivo não fornece SKUs oficiais. Concentração, composição, apresentação, conteúdo, página, fonte/edição e hash do arquivo são preservados como dados do catálogo. As instruções clínicas do documento não executam fluxos nem definem aplicações.
+
+A Essentia usa o contato informado pelo usuário `+55 48 8802-9876`, preservando exatamente os dígitos. `scripts/import-essentia.ts` exige autorização explícita e ambiente isolado development/preview/test; recusa produção e não sobrescreve preços ou contatos já editados. Os preços correspondem à edição **04.2026** (arquivo indicado como Maio/2026), portanto são estimativas históricas sujeitas à confirmação.
+
+Selecione até 50 itens por checkbox, indique quantidade inteira de apresentações e revise o pedido. Cada preço é por apresentação completa: nos itens ESS-P037/ESS-P092, uma apresentação contém **dois boxes**, e quantidade 2 representa quatro boxes. Frascos/kits não recebem contagem fictícia de boxes. Frete vazio permanece a confirmar, não incluído no total. O servidor calcula subtotal/frete/total em centavos inteiros e reconfere preços/versões sob bloqueio; mudanças exigem nova revisão.
+
+GET/POST `/api/v1/inventory/vendors`, `/vendor-catalog?supplierId=<uuid>` e `/vendor-orders`, e GET `/vendor-history?supplierId=<uuid>` exigem sessão; POST exige a mesma origem. Ao salvar, pedido/itens, produtos vinculados e snapshot imutável de preços/apresentações/contato são confirmados juntos. Reenvio com a mesma UUID/hash não duplica a compra, mesmo após edições posteriores do catálogo. Uma apresentação já usada em pedido mantém código/embalagem/conteúdo; mudanças de embalagem requerem um novo item.
+
+O produto vinculado ao estoque usa unidade **apresentação**, preservando quantidades e custos comerciais; não converte automaticamente para ampolas/doses. O pedido fica disponível no recebimento existente, sem criar saldo antes da entrega. Status Pendente/Parcial/Recebido acompanha as quantidades recebidas. Fornecedor com entrega pendente não pode ser desativado.
+
+GET `/api/v1/inventory/vendor-orders?id=<uuid>&format=csv|txt|html` exporta o snapshot autorizado, com respostas privadas sem cache. CSV tem BOM UTF-8, separador ponto e vírgula, valores em BRL e proteção contra fórmulas de planilha; HTML escapa conteúdo e permite imprimir/salvar PDF. A mensagem pode ser copiada ou aberta no WhatsApp **para revisão e envio pelo usuário**; listas extensas usam cópia/arquivo em vez de URL gigante. Salvar/exportar não envia mensagens nem confirma uma compra com o fornecedor.
+
+Validação local desta etapa: build/typecheck/lint (apenas seis avisos preexistentes), 50 testes unitários/UI, 73 testes de integração PostgreSQL, sete fluxos de navegador e três proteções do Preview. Os fluxos verificam cadastro/edição/histórico, concorrência/reenvio/rollback, preços pendentes, custo por conjunto de boxes, exportação, contato WhatsApp, ausência de estoque antes da entrega e recebimento persistido.
 
 ### Testes com PostgreSQL descartável no Codex Cloud
 
 Com Docker local disponível, execute `npm run test:integration:local`. O comando cria um PostgreSQL 16 com banco `allik_test` e senha aleatória, aplica migrations pelos testes e remove o contêiner ao terminar. Não usa `DATABASE_URL` externa. O acesso ao socket local do Docker e a processos filhos deve estar permitido; o primeiro uso baixa `postgres:16-alpine`.
 
-Para testar no navegador, instale Chromium com `npx playwright install chromium` e execute `npm run test:e2e:local`. O runner também aplica o seed sintético, inicia o servidor na porta 4317 e remove o servidor/banco ao final. Em ambientes com diretório de usuário restrito, use `PLAYWRIGHT_BROWSERS_PATH=/tmp/oi-browser-cache` tanto na instalação como na execução. A porta 4317 precisa estar livre.
+Para testar no navegador, instale Chromium com `npx playwright install chromium` e execute `npm run test:e2e:local`. O runner também aplica o seed sintético e importa o catálogo Essentia em seu banco descartável, inicia o servidor na porta 4317 e remove o servidor/banco ao final. Em ambientes com diretório de usuário restrito, use `PLAYWRIGHT_BROWSERS_PATH=/tmp/oi-browser-cache` tanto na instalação como na execução. A porta 4317 precisa estar livre.
 
 ## Preview na Vercel
 
@@ -121,7 +145,7 @@ O projeto usa o adaptador Nitro/Vercel da configuração Lovable, com frontend e
 - `INVENTORY_PREVIEW_PASSWORD`: senha longa exclusiva do Preview.
 - `INVENTORY_SESSION_SECRET`: segredo aleatório exclusivo do Preview.
 
-Para branches Neon criadas por deployment, autorize a preparação somente na branch sintética de Preview: `INVENTORY_PREPARE_PREVIEW=true` e `INVENTORY_ALLOW_SEED=true`. O build aplica migrations e seed idempotente antes de compilar, exigindo também `VERCEL_ENV=preview` e `INVENTORY_ENVIRONMENT=preview`. Sem opt-in, o build não acessa o banco; com opt-in em produção, ele falha antes de qualquer migration. O seed sintético nunca deve ser autorizado em bancos com dados reais. PRs simultâneos devem usar branches de banco isoladas. Execute `bun run test:preview-guard` para verificar as proteções.
+Para branches Neon criadas por deployment, autorize a preparação somente na branch sintética de Preview: `INVENTORY_PREPARE_PREVIEW=true` e `INVENTORY_ALLOW_SEED=true`. O build aplica migrations, seed idempotente e importação Essentia antes de compilar, exigindo também `VERCEL_ENV=preview` e `INVENTORY_ENVIRONMENT=preview`. Sem opt-in, o build não acessa o banco; com opt-in em produção, ele falha antes de qualquer migration. O seed sintético nunca deve ser autorizado em bancos com dados reais. PRs simultâneos devem usar branches de banco isoladas. Execute `bun run test:preview-guard` para verificar as proteções.
 
 O acesso por senha compartilhada é exclusivo de demonstração sintética. A API nega esse modo em `INVENTORY_ENVIRONMENT=production`; identidade individual, papéis e escopo de produção devem ser implementados antes de operar com dados reais. Proteção de deployment/rate limiting da Vercel pode complementar o Preview.
 
@@ -132,6 +156,8 @@ O acesso por senha compartilhada é exclusivo de demonstração sintética. A AP
 3. Histórico, transferências e ajustes reais.
 4. Aplicação transacional com baixa, validade e recomendação FEFO.
 5. Rastreabilidade ponta a ponta e validação do fluxo completo.
+6. Cadastro e edição de produtos/locais com auditoria e proteção de saldo.
+7. Fornecedores, catálogo Essentia e pedidos com custo, exportação e WhatsApp.
 
 O Milestone 1 só é encerrado após validar o deployment com PostgreSQL na Vercel. Testes e build locais não substituem esse aceite.
 

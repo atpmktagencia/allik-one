@@ -23,13 +23,8 @@ try {
   ];
   for (const item of items)
     await client.query(
-      "INSERT INTO inventory_products(name,sku,category,unit,minimum) VALUES($1,$2,$3,$4,$5) ON CONFLICT(sku) DO NOTHING",
+      "INSERT INTO inventory_products(name,sku,category,unit,minimum) VALUES($1,$2,$3,$4,$5) ON CONFLICT DO NOTHING",
       item,
-    );
-  for (const name of ["Allik Fortaleza", "Sala de Procedimentos", "Almoxarifado"])
-    await client.query(
-      "INSERT INTO inventory_locations(name) VALUES($1) ON CONFLICT(name) DO NOTHING",
-      [name],
     );
   const positions = [
     ["ALLIK-001", "A-SEED-01", 180, "Essentia", "185", "86", "Allik Fortaleza", "AVAILABLE"],
@@ -70,8 +65,25 @@ try {
     ],
   ];
   for (const [sku, number, days, supplier, cost, quantity, location, status] of positions) {
-    const product = await client.query("SELECT id FROM inventory_products WHERE sku=$1", [sku]);
-    const loc = await client.query("SELECT id FROM inventory_locations WHERE name=$1", [location]);
+    const seedKey = `seed-m1:${number}`;
+    if (
+      (await client.query("SELECT id FROM inventory_movements WHERE operation_key=$1", [seedKey]))
+        .rowCount
+    )
+      continue;
+    // An existing seed movement identifies its original location even after a rename.
+    // Only create locations for missing initial entries; never recreate renamed seed locations.
+    await client.query("INSERT INTO inventory_locations(name) VALUES($1) ON CONFLICT DO NOTHING", [
+      location,
+    ]);
+    const product = await client.query(
+      "SELECT id FROM inventory_products WHERE lower(sku)=lower($1)",
+      [sku],
+    );
+    const loc = await client.query(
+      "SELECT id FROM inventory_locations WHERE lower(name)=lower($1)",
+      [location],
+    );
     const lot = await client.query(
       `INSERT INTO inventory_lots(product_id,number,expires_on,supplier,unit_cost,status)
       VALUES($1,$2,(NOW() AT TIME ZONE 'America/Fortaleza')::date + $3::integer,$4,$5,$6)
@@ -81,7 +93,7 @@ try {
     await client.query(
       `INSERT INTO inventory_movements(lot_id,location_id,type,delta,actor,reference,reason,operation_key)
       VALUES($1,$2,'IN',$3,'seed-synthetic','SEED-M1','Saldo inicial sintético do Preview',$4) ON CONFLICT(operation_key) DO NOTHING`,
-      [lot.rows[0].id, loc.rows[0].id, quantity, `seed-m1:${number}`],
+      [lot.rows[0].id, loc.rows[0].id, quantity, seedKey],
     );
   }
   await client.query("COMMIT");

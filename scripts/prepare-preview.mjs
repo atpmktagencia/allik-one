@@ -13,7 +13,11 @@ if (process.env.INVENTORY_PREPARE_PREVIEW === "true") {
     );
     process.exit(1);
   }
-  for (const script of ["scripts/migrate.ts", "scripts/seed-inventory.ts"]) {
+  for (const script of [
+    "scripts/migrate.ts",
+    "scripts/seed-inventory.ts",
+    "scripts/import-essentia.ts",
+  ]) {
     const result = spawnSync(process.execPath, ["node_modules/tsx/dist/cli.mjs", script], {
       encoding: "utf8",
       env: process.env,

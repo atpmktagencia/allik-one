@@ -25,6 +25,8 @@ import { Route as AplicacoesIndexRouteImport } from './routes/aplicacoes/index'
 import { Route as AplicacoesNovaRouteImport } from './routes/aplicacoes/nova'
 import { Route as EstoqueIndexRouteImport } from './routes/estoque/index'
 import { Route as EstoqueAcessoRouteImport } from './routes/estoque/acesso'
+import { Route as EstoqueCadastrosRouteImport } from './routes/estoque/cadastros'
+import { Route as EstoqueFornecedoresRouteImport } from './routes/estoque/fornecedores'
 import { Route as EstoqueMovimentacoesRouteImport } from './routes/estoque/movimentacoes'
 import { Route as EstoqueRecebimentoRouteImport } from './routes/estoque/recebimento'
 import { Route as PacientesPatientIdRouteImport } from './routes/pacientes.$patientId'
@@ -112,6 +114,16 @@ const EstoqueAcessoRoute = EstoqueAcessoRouteImport.update({
   path: '/acesso',
   getParentRoute: () => EstoqueRoute,
 } as any)
+const EstoqueCadastrosRoute = EstoqueCadastrosRouteImport.update({
+  id: '/cadastros',
+  path: '/cadastros',
+  getParentRoute: () => EstoqueRoute,
+} as any)
+const EstoqueFornecedoresRoute = EstoqueFornecedoresRouteImport.update({
+  id: '/fornecedores',
+  path: '/fornecedores',
+  getParentRoute: () => EstoqueRoute,
+} as any)
 const EstoqueMovimentacoesRoute = EstoqueMovimentacoesRouteImport.update({
   id: '/movimentacoes',
   path: '/movimentacoes',
@@ -159,6 +171,8 @@ export interface FileRoutesByFullPath {
   '/api/inventory-session': typeof ApiInventorySessionRoute
   '/aplicacoes/nova': typeof AplicacoesNovaRoute
   '/estoque/acesso': typeof EstoqueAcessoRoute
+  '/estoque/cadastros': typeof EstoqueCadastrosRoute
+  '/estoque/fornecedores': typeof EstoqueFornecedoresRoute
   '/estoque/movimentacoes': typeof EstoqueMovimentacoesRoute
   '/estoque/recebimento': typeof EstoqueRecebimentoRoute
   '/pacientes/$patientId': typeof PacientesPatientIdRoute
@@ -181,6 +195,8 @@ export interface FileRoutesByTo {
   '/api/inventory-session': typeof ApiInventorySessionRoute
   '/aplicacoes/nova': typeof AplicacoesNovaRoute
   '/estoque/acesso': typeof EstoqueAcessoRoute
+  '/estoque/cadastros': typeof EstoqueCadastrosRoute
+  '/estoque/fornecedores': typeof EstoqueFornecedoresRoute
   '/estoque/movimentacoes': typeof EstoqueMovimentacoesRoute
   '/estoque/recebimento': typeof EstoqueRecebimentoRoute
   '/pacientes/$patientId': typeof PacientesPatientIdRoute
@@ -206,6 +222,8 @@ export interface FileRoutesById {
   '/api/inventory-session': typeof ApiInventorySessionRoute
   '/aplicacoes/nova': typeof AplicacoesNovaRoute
   '/estoque/acesso': typeof EstoqueAcessoRoute
+  '/estoque/cadastros': typeof EstoqueCadastrosRoute
+  '/estoque/fornecedores': typeof EstoqueFornecedoresRoute
   '/estoque/movimentacoes': typeof EstoqueMovimentacoesRoute
   '/estoque/recebimento': typeof EstoqueRecebimentoRoute
   '/pacientes/$patientId': typeof PacientesPatientIdRoute
@@ -232,6 +250,8 @@ export interface FileRouteTypes {
     | '/api/inventory-session'
     | '/aplicacoes/nova'
     | '/estoque/acesso'
+    | '/estoque/cadastros'
+    | '/estoque/fornecedores'
     | '/estoque/movimentacoes'
     | '/estoque/recebimento'
     | '/pacientes/$patientId'
@@ -254,6 +274,8 @@ export interface FileRouteTypes {
     | '/api/inventory-session'
     | '/aplicacoes/nova'
     | '/estoque/acesso'
+    | '/estoque/cadastros'
+    | '/estoque/fornecedores'
     | '/estoque/movimentacoes'
     | '/estoque/recebimento'
     | '/pacientes/$patientId'
@@ -278,6 +300,8 @@ export interface FileRouteTypes {
     | '/api/inventory-session'
     | '/aplicacoes/nova'
     | '/estoque/acesso'
+    | '/estoque/cadastros'
+    | '/estoque/fornecedores'
     | '/estoque/movimentacoes'
     | '/estoque/recebimento'
     | '/pacientes/$patientId'
@@ -418,6 +442,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof EstoqueAcessoRouteImport
       parentRoute: typeof EstoqueRoute
     }
+    '/estoque/cadastros': {
+      id: '/estoque/cadastros'
+      path: '/cadastros'
+      fullPath: '/estoque/cadastros'
+      preLoaderRoute: typeof EstoqueCadastrosRouteImport
+      parentRoute: typeof EstoqueRoute
+    }
+    '/estoque/fornecedores': {
+      id: '/estoque/fornecedores'
+      path: '/fornecedores'
+      fullPath: '/estoque/fornecedores'
+      preLoaderRoute: typeof EstoqueFornecedoresRouteImport
+      parentRoute: typeof EstoqueRoute
+    }
     '/estoque/movimentacoes': {
       id: '/estoque/movimentacoes'
       path: '/movimentacoes'
@@ -479,6 +517,8 @@ const AplicacoesRouteWithChildren = AplicacoesRoute._addFileChildren(
 
 interface EstoqueRouteChildren {
   EstoqueAcessoRoute: typeof EstoqueAcessoRoute
+  EstoqueCadastrosRoute: typeof EstoqueCadastrosRoute
+  EstoqueFornecedoresRoute: typeof EstoqueFornecedoresRoute
   EstoqueMovimentacoesRoute: typeof EstoqueMovimentacoesRoute
   EstoqueRecebimentoRoute: typeof EstoqueRecebimentoRoute
   EstoqueIndexRoute: typeof EstoqueIndexRoute
@@ -488,6 +528,8 @@ interface EstoqueRouteChildren {
 
 const EstoqueRouteChildren: EstoqueRouteChildren = {
   EstoqueAcessoRoute: EstoqueAcessoRoute,
+  EstoqueCadastrosRoute: EstoqueCadastrosRoute,
+  EstoqueFornecedoresRoute: EstoqueFornecedoresRoute,
   EstoqueMovimentacoesRoute: EstoqueMovimentacoesRoute,
   EstoqueRecebimentoRoute: EstoqueRecebimentoRoute,
   EstoqueIndexRoute: EstoqueIndexRoute,

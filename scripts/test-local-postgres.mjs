@@ -119,6 +119,7 @@ try {
   } else {
     await run("npm", ["run", "db:migrate"], testEnv, true);
     await run("npm", ["run", "db:seed"], testEnv, true);
+    await run(process.execPath, ["--import", "tsx", "scripts/import-essentia.ts"], testEnv, true);
     const baseURL = "http://127.0.0.1:4317";
     server = spawn(
       "npm",

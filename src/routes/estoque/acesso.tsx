@@ -16,8 +16,8 @@ function InventoryAccess() {
     <div className="mx-auto max-w-md rounded-xl border border-border bg-card p-7 shadow-soft">
       <h1 className="font-display text-2xl font-semibold">Estoque Allik Fortaleza</h1>
       <p className="mt-2 text-sm text-muted-foreground">
-        Acesso ao Preview com dados sintéticos. Consulte o estoque, crie pedidos e registre
-        recebimentos. Aplicações serão habilitadas em uma próxima etapa.
+        Acesso ao Preview com dados sintéticos. Consulte o estoque, registre compras, recebimentos e
+        aplicações, e acompanhe o histórico de cada lote.
       </p>
       <form
         className="mt-6 space-y-4"

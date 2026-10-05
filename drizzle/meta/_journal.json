@@ -43,6 +43,20 @@
       "when": 1791153246510,
       "tag": "0005_colorful_susan_delgado",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1791156527862,
+      "tag": "0006_inventory_catalog",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1791157718634,
+      "tag": "0007_supplier_catalog",
+      "breakpoints": true
     }
   ]
 }
