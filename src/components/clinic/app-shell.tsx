@@ -254,17 +254,24 @@ export function AppShell({ children }: { children: ReactNode }) {
               </p>
             </div>
             <div className="min-w-0" />
-            <div className="text-right text-xs text-muted-foreground">Piloto operacional</div>
+            <div className="min-w-0 text-right">
+              {identity ? (
+                <>
+                  <p className="max-w-44 truncate text-sm font-medium text-foreground sm:max-w-none">
+                    {identity.user.name}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {roleLabels[identity.role] ?? identity.role} · Piloto operacional
+                  </p>
+                </>
+              ) : (
+                <p className="text-xs text-muted-foreground">Piloto operacional</p>
+              )}
+            </div>
           </div>
         </header>
         {path.startsWith("/estoque") && identity && (
-          <div className="flex flex-wrap items-center justify-between gap-3 border-b bg-muted/30 px-4 py-2 text-sm lg:px-7">
-            <div>
-              <span className="font-medium">{identity.user.name}</span>
-              <span className="ml-2 text-muted-foreground">
-                {roleLabels[identity.role] ?? identity.role}
-              </span>
-            </div>
+          <div className="flex flex-wrap items-center justify-end gap-3 border-b bg-muted/30 px-4 py-2 text-sm lg:px-7">
             <div className="flex items-center gap-2">
               <label htmlFor="inventory-unit" className="text-muted-foreground">
                 Unidade
