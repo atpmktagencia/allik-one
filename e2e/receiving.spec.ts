@@ -9,7 +9,7 @@ test("supplier, partial deliveries, transfer, application, count and complete lo
   const supplier = `Fornecedor E2E ${suffix}`;
   const reference = `PO-E2E-${suffix}`;
   await page.goto("/estoque/acesso");
-  await page.getByLabel("Senha do Preview").fill(process.env["INVENTORY_PREVIEW_PASSWORD"] ?? "");
+  await page.getByLabel("Senha").fill(process.env["INVENTORY_PREVIEW_PASSWORD"] ?? "");
   await page.getByRole("button", { name: "Acessar estoque", exact: true }).click();
   await page.goto("/estoque/recebimento");
   await page.getByText("Cadastrar fornecedor", { exact: true }).click();

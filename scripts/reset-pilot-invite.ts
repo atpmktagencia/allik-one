@@ -1,6 +1,12 @@
 import { getPool } from "../src/server/db";
 import { hashToken } from "../src/server/auth";
 
+if (
+  process.env["INVENTORY_ENVIRONMENT"] !== "production" ||
+  process.env["PILOT_RESET_INVITE"] !== "true"
+)
+  throw new Error("Pilot invite reset requires explicit production authorization.");
+
 const email = process.env["PILOT_RESET_EMAIL"]?.trim().toLowerCase();
 const inviteToken = process.env["PILOT_RESET_INVITE_TOKEN"];
 if (!email || !inviteToken || inviteToken.length < 40)

@@ -7,7 +7,7 @@ test("receive, recommend FEFO, apply multiple items and retain consumption histo
   const errors: string[] = [];
   page.on("pageerror", (error) => errors.push(error.message));
   await page.goto("/estoque/acesso");
-  await page.getByLabel("Senha do Preview").fill(process.env["INVENTORY_PREVIEW_PASSWORD"] ?? "");
+  await page.getByLabel("Senha").fill(process.env["INVENTORY_PREVIEW_PASSWORD"] ?? "");
   await page.getByRole("button", { name: "Acessar estoque", exact: true }).click();
   await expect(page).toHaveURL(/\/estoque$/);
   const origin = new URL(page.url()).origin;

@@ -150,6 +150,13 @@ try {
     }
     if (!serving)
       throw new Error(`Servidor não ficou pronto: ${serverLog.replaceAll(password, "[hidden]")}`);
+    const loginProbe = await fetch(`${baseURL}/api/inventory-session`, {
+      method: "POST",
+      headers: { origin: baseURL, "Content-Type": "application/json" },
+      body: JSON.stringify({ password: testEnv.INVENTORY_PREVIEW_PASSWORD }),
+    });
+    if (!loginProbe.ok)
+      throw new Error(`O login sintético do E2E respondeu HTTP ${loginProbe.status}.`);
     if (browserCheck) {
       console.log(await agent("open", `${baseURL}/estoque/acesso`));
       await agent("wait", "--load", "networkidle");

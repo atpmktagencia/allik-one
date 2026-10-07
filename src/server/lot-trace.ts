@@ -24,6 +24,12 @@ export async function lotTraceResponse(request: Request) {
       { status: 405, headers: { ...headers, Allow: "GET" } },
     );
   const url = new URL(request.url);
+  const selectedUnit = url.searchParams.get("unitId");
+  if (selectedUnit && !z.string().uuid().safeParse(selectedUnit).success)
+    return Response.json({ error: "Unidade inválida." }, { status: 400, headers });
+  if (selectedUnit && !can(auth, "inventory.trace", selectedUnit))
+    return Response.json({ error: "Unidade não autorizada." }, { status: 403, headers });
+  const allowedUnits = auth.preview || auth.role === "SUPER_ADMIN" ? null : auth.unitIds;
   const match = url.pathname.match(/^\/api\/v1\/inventory\/trace\/lots\/([^/]+)\/?$/);
   if (!match) return Response.json({ error: "Recurso não encontrado." }, { status: 404, headers });
   const lotId = match[1]!;
@@ -49,8 +55,16 @@ export async function lotTraceResponse(request: Request) {
       `SELECT l.id,l.number,l.expires_on::text AS expiry,l.supplier,l.unit_cost::text AS "unitCost",
       CASE WHEN l.expires_on < (NOW() AT TIME ZONE 'America/Fortaleza')::date THEN 'EXPIRED' ELSE l.status END AS status,
       p.id AS "productId",p.name AS product,p.unit,p.active AS "productActive"
-      FROM inventory_lots l JOIN inventory_products p ON p.id=l.product_id WHERE l.id=$1`,
-      [lotId],
+      FROM inventory_lots l JOIN inventory_products p ON p.id=l.product_id
+      WHERE l.id=$1 AND p.organization_id=$2
+        AND EXISTS (
+          SELECT 1 FROM inventory_movements visible_movement
+          JOIN inventory_locations visible_location ON visible_location.id=visible_movement.location_id
+          WHERE visible_movement.lot_id=l.id
+            AND ($3::uuid IS NULL OR visible_location.unit_id=$3)
+            AND ($4::uuid[] IS NULL OR visible_location.unit_id=ANY($4))
+        )`,
+      [lotId, auth.organizationId, selectedUnit, allowedUnits],
     );
     if (!lot.rowCount) {
       await client.query("COMMIT");
@@ -61,20 +75,34 @@ export async function lotTraceResponse(request: Request) {
       SELECT loc.id AS "locationId",loc.name AS location,loc.active,COALESCE(b.quantity,0)::text AS quantity,
       COALESCE(ledger.quantity,0)::text AS "ledgerQuantity",COALESCE(b.quantity,0)=COALESCE(ledger.quantity,0) AS matches
       FROM inventory_locations loc LEFT JOIN inventory_balances b ON b.location_id=loc.id AND b.lot_id=$1
-      LEFT JOIN ledger ON ledger.location_id=loc.id WHERE b.id IS NOT NULL OR ledger.location_id IS NOT NULL ORDER BY loc.name,loc.id`,
-      [lotId],
+      LEFT JOIN ledger ON ledger.location_id=loc.id
+      WHERE (b.id IS NOT NULL OR ledger.location_id IS NOT NULL)
+        AND ($2::uuid IS NULL OR loc.unit_id=$2)
+        AND ($3::uuid[] IS NULL OR loc.unit_id=ANY($3))
+      ORDER BY loc.name,loc.id`,
+      [lotId, selectedUnit, allowedUnits],
     );
     const summary = await client.query(
       `SELECT COALESCE(sum(m.delta) FILTER(WHERE m.type='IN'),0)::text AS received,
       COALESCE(sum(-m.delta) FILTER(WHERE am.application_id IS NOT NULL),0)::text AS consumed,
       COALESCE(sum(m.delta) FILTER(WHERE m.type='ADJUSTMENT'),0)::text AS adjusted,
       COALESCE(sum(m.delta),0)::text AS "ledgerQuantity",
-      (SELECT COALESCE(sum(quantity),0)::text FROM inventory_balances WHERE lot_id=$1) AS "balanceQuantity",
+      (SELECT COALESCE(sum(visible_balance.quantity),0)::text
+         FROM inventory_balances visible_balance
+         JOIN inventory_locations visible_balance_location ON visible_balance_location.id=visible_balance.location_id
+        WHERE visible_balance.lot_id=$1
+          AND ($2::uuid IS NULL OR visible_balance_location.unit_id=$2)
+          AND ($3::uuid[] IS NULL OR visible_balance_location.unit_id=ANY($3))) AS "balanceQuantity",
       count(m.id)::int AS "totalEvents",
       count(m.id) FILTER(WHERE EXISTS(SELECT 1 FROM inventory_audit a WHERE a.movement_id=m.id))::int AS "auditedEvents",
       COALESCE(sum((SELECT count(*) FROM inventory_audit a WHERE a.movement_id=m.id)),0)::int AS "auditEntries"
-      FROM inventory_movements m LEFT JOIN inventory_application_movements am ON am.movement_id=m.id WHERE m.lot_id=$1`,
-      [lotId],
+      FROM inventory_movements m
+      JOIN inventory_locations summary_location ON summary_location.id=m.location_id
+      LEFT JOIN inventory_application_movements am ON am.movement_id=m.id
+      WHERE m.lot_id=$1
+        AND ($2::uuid IS NULL OR summary_location.unit_id=$2)
+        AND ($3::uuid[] IS NULL OR summary_location.unit_id=ANY($3))`,
+      [lotId, selectedUnit, allowedUnits],
     );
     const events = await client.query(
       `SELECT m.id,to_char(m.created_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"') AS date,
@@ -89,9 +117,12 @@ export async function lotTraceResponse(request: Request) {
       LEFT JOIN inventory_operation_movements om ON om.movement_id=m.id LEFT JOIN inventory_operations o ON o.id=om.operation_id
       LEFT JOIN inventory_locations origin ON origin.id=o.source_id LEFT JOIN inventory_locations destination ON destination.id=o.destination_id
       LEFT JOIN inventory_application_movements am ON am.movement_id=m.id LEFT JOIN inventory_applications ap ON ap.id=am.application_id
-      WHERE m.lot_id=$1 AND ($2::timestamptz IS NULL OR (m.created_at,m.id)<($2::timestamptz,$3::uuid))
+      WHERE m.lot_id=$1
+        AND ($2::timestamptz IS NULL OR (m.created_at,m.id)<($2::timestamptz,$3::uuid))
+        AND ($4::uuid IS NULL OR loc.unit_id=$4)
+        AND ($5::uuid[] IS NULL OR loc.unit_id=ANY($5))
       ORDER BY m.created_at DESC,m.id DESC LIMIT 51`,
-      [lotId, cursor?.date ?? null, cursor?.id ?? null],
+      [lotId, cursor?.date ?? null, cursor?.id ?? null, selectedUnit, allowedUnits],
     );
     const hasMore = events.rows.length > 50;
     const visible = events.rows.slice(0, 50);

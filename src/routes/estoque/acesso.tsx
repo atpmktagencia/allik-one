@@ -2,6 +2,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { supportWhatsAppUrl } from "@/config/support";
 import { Input } from "@/components/ui/input";
 export const Route = createFileRoute("/estoque/acesso")({ component: InventoryAccess });
 function InventoryAccess() {
@@ -78,7 +79,7 @@ function InventoryAccess() {
           Enfrentando problemas no login?{" "}
           <a
             className="font-medium text-primary underline underline-offset-4"
-            href="https://wa.me/5585996146664"
+            href={supportWhatsAppUrl}
             target="_blank"
             rel="noreferrer"
           >

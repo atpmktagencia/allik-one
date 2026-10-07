@@ -3,6 +3,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   HeartPulse,
+  Syringe,
   Landmark,
   ListChecks,
   Menu,
@@ -30,7 +31,8 @@ const operationItems = [
   { label: "Movimentações e histórico", to: "/estoque/movimentacoes", icon: ListChecks },
   { label: "Produtos e sede", to: "/estoque/cadastros", icon: Warehouse },
   { label: "Fazer compra", to: "/estoque/fornecedores", icon: Landmark },
-  { label: "Vendas Realizadas", to: "/estoque/valores", icon: ListChecks },
+  { label: "Precificação", to: "/estoque/valores", icon: ListChecks },
+  { label: "Aplicações", to: "/aplicacoes", icon: Syringe },
 ] as const;
 
 const pageTitles: Record<string, string> = {
@@ -39,7 +41,9 @@ const pageTitles: Record<string, string> = {
   "/estoque/movimentacoes": "Movimentações e histórico",
   "/estoque/cadastros": "Produtos e sede",
   "/estoque/fornecedores": "Fazer compra",
-  "/estoque/valores": "Vendas Realizadas",
+  "/estoque/valores": "Precificação",
+  "/aplicacoes": "Aplicações",
+  "/aplicacoes/nova": "Registrar aplicação",
   "/estoque/usuarios": "Usuários",
   "/estoque/minha-conta": "Minha conta",
 };
@@ -71,7 +75,7 @@ function initials(name: string) {
 function ProductMark() {
   return (
     <Link
-      to="/"
+      to="/estoque"
       className="flex items-center gap-3 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring"
     >
       <span className="flex size-9 items-center justify-center rounded-md bg-sidebar-primary text-sidebar-primary-foreground">

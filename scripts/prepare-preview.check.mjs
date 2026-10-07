@@ -11,6 +11,9 @@ function run(overrides) {
     "INVENTORY_ALLOW_SEED",
     "INVENTORY_PREPARE_PREVIEW",
     "INVENTORY_ALLOW_PILOT_CATALOG_IMPORT",
+    "INVENTORY_PREPARE_PILOT",
+    "PILOT_RESET_INVITE",
+    "IMPORT_FORTALEZA_STIN_ORDER_098059",
   ])
     delete env[key];
   return spawnSync(process.execPath, ["scripts/prepare-preview.mjs"], {
@@ -32,7 +35,6 @@ test("an explicit production opt-in is denied before migration", () => {
     DATABASE_URL: "postgres://must-not-connect",
   });
   assert.equal(result.status, 1);
-  assert.match(result.stderr, /denied/);
   assert.doesNotMatch(result.stdout + result.stderr, /must-not-connect/);
 });
 test("Preview fails closed without seed authorization or database", () => {
@@ -44,14 +46,16 @@ test("Preview fails closed without seed authorization or database", () => {
   assert.equal(run({ ...base, DATABASE_URL: "postgres://must-not-connect" }).status, 1);
   assert.equal(run({ ...base, INVENTORY_ALLOW_SEED: "true" }).status, 1);
 });
-test("Pilot catalog repair fails closed outside production", () => {
+test("production maintenance flags never trigger database work during a build", () => {
   const result = run({
+    INVENTORY_PREPARE_PILOT: "true",
+    PILOT_RESET_INVITE: "true",
+    IMPORT_FORTALEZA_STIN_ORDER_098059: "true",
     INVENTORY_ALLOW_PILOT_CATALOG_IMPORT: "true",
-    VERCEL_ENV: "preview",
+    VERCEL_ENV: "production",
     INVENTORY_ENVIRONMENT: "production",
     DATABASE_URL: "postgres://must-not-connect",
   });
-  assert.equal(result.status, 1);
-  assert.match(result.stderr, /denied/);
+  assert.equal(result.status, 0);
   assert.doesNotMatch(result.stdout + result.stderr, /must-not-connect/);
 });

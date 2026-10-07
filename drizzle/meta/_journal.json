@@ -78,6 +78,13 @@
       "when": 1791230400000,
       "tag": "0010_pilot_identity_units",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1791340000000,
+      "tag": "0011_safe_inventory_writeoffs",
+      "breakpoints": true
     }
   ]
 }

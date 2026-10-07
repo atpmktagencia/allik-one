@@ -41,7 +41,8 @@ describe("Inventory navigation", () => {
       "Movimentações e histórico",
       "Produtos e sede",
       "Fazer compra",
-      "Vendas Realizadas",
+      "Precificação",
+      "Aplicações",
       "Minha conta",
     ])
       expect(within(desktopNavigation).getByRole("link", { name: item })).toBeInTheDocument();

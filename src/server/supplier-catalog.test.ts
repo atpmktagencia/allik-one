@@ -4,7 +4,7 @@ import { randomUUID } from "node:crypto";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { getDb, getPool } from "./db";
-import { previewLogin } from "./auth";
+import { hashToken, previewLogin } from "./auth";
 import { supplierCatalogResponse } from "./supplier-catalog";
 import { receivingResponse } from "./receiving";
 import { purchasingResponse } from "./purchases";
@@ -123,7 +123,50 @@ async function ledger() {
     .count;
 }
 
+async function scopedCookie(unitId: string) {
+  const token = randomUUID();
+  const user = await getPool().query<{ id: string }>(
+    "INSERT INTO inventory_users(name,email) VALUES($1,$2) RETURNING id",
+    ["Gestor de unidade", `${randomUUID()}@example.test`],
+  );
+  const membership = await getPool().query<{ id: string }>(
+    "INSERT INTO inventory_memberships(user_id,organization_id,role) VALUES($1,'a1100000-0000-4000-8000-000000000001','UNIT_MANAGER') RETURNING id",
+    [user.rows[0]!.id],
+  );
+  await getPool().query("INSERT INTO inventory_unit_access(membership_id,unit_id) VALUES($1,$2)", [
+    membership.rows[0]!.id,
+    unitId,
+  ]);
+  await getPool().query(
+    "INSERT INTO inventory_sessions(user_id,token_hash,session_version,expires_at) VALUES($1,$2,0,now()+interval '1 hour')",
+    [user.rows[0]!.id, hashToken(token)],
+  );
+  return `allik_inventory_session=${token}`;
+}
+
 describe("supplier catalog and immutable commercial orders", () => {
+  it("lists and exports orders only inside the authorized unit", async () => {
+    const s = await supplier();
+    const i = await entry(s);
+    const fortaleza = "a1100000-0000-4000-8000-000000000101";
+    const juazeiro = "a1100000-0000-4000-8000-000000000102";
+    const fortalezaOrder = order(s, i);
+    const juazeiroOrder = order(s, i);
+    expect((await api(`vendor-orders?unitId=${fortaleza}`, fortalezaOrder)).status).toBe(201);
+    expect((await api(`vendor-orders?unitId=${juazeiro}`, juazeiroOrder)).status).toBe(201);
+    const unitCookie = await scopedCookie(fortaleza);
+    const scopedRequest = (path: string) =>
+      supplierCatalogResponse(
+        new Request(`${origin}/api/v1/inventory/${path}`, { headers: { cookie: unitCookie } }),
+      );
+    const list = await scopedRequest("vendor-orders");
+    expect(list.status).toBe(200);
+    const ids = ((await list.json()).data as SupplierOrder[]).map((savedOrder) => savedOrder.id);
+    expect(ids).toContain(fortalezaOrder.operationId);
+    expect(ids).not.toContain(juazeiroOrder.operationId);
+    expect((await scopedRequest(`vendor-orders?id=${juazeiroOrder.operationId}`)).status).toBe(404);
+    expect((await scopedRequest(`vendor-orders?unitId=${juazeiro}`)).status).toBe(403);
+  });
   it("imports 388 entries without inventing official SKUs, prices or physical stock; preserves edits on reimport", async () => {
     const before = await ledger();
     await importer();

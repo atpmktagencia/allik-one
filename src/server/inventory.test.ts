@@ -3,13 +3,15 @@ import { migrate } from "drizzle-orm/node-postgres/migrator";
 import { randomUUID } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { getDb, getPool } from "./db";
-import { hasPreviewSession, previewLogin } from "./auth";
+import { hasPreviewSession, hashToken, previewLogin } from "./auth";
 import { inventoryResponse } from "./inventory";
 import { receivingResponse } from "./receiving";
 import { purchasingResponse } from "./purchases";
 import { stockOperationResponse } from "./stock-operations";
 import { applicationResponse } from "./applications";
 import { lotTraceResponse } from "./lot-trace";
+import { writeOffResponse } from "./write-offs";
+import { activationResponse, userAdminResponse } from "./user-admin";
 const origin = "http://localhost:4317";
 let cookie = "";
 beforeAll(async () => {
@@ -63,6 +65,27 @@ const receivingRequest = (body: unknown) =>
     headers: { cookie, origin, "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });
+
+async function scopedCookie(unitId: string, role = "VIEWER") {
+  const token = randomUUID();
+  const user = await getPool().query<{ id: string }>(
+    "INSERT INTO inventory_users(name,email) VALUES($1,$2) RETURNING id",
+    ["Usuário de escopo", `${randomUUID()}@example.test`],
+  );
+  const membership = await getPool().query<{ id: string }>(
+    "INSERT INTO inventory_memberships(user_id,organization_id,role) VALUES($1,'a1100000-0000-4000-8000-000000000001',$2) RETURNING id",
+    [user.rows[0]!.id, role],
+  );
+  await getPool().query("INSERT INTO inventory_unit_access(membership_id,unit_id) VALUES($1,$2)", [
+    membership.rows[0]!.id,
+    unitId,
+  ]);
+  await getPool().query(
+    "INSERT INTO inventory_sessions(user_id,token_hash,session_version,expires_at) VALUES($1,$2,0,now()+interval '1 hour')",
+    [user.rows[0]!.id, hashToken(token)],
+  );
+  return `allik_inventory_session=${token}`;
+}
 
 describe("PostgreSQL receiving", () => {
   async function receiptFixture() {
@@ -425,6 +448,40 @@ describe("PostgreSQL transfers and physical counts", () => {
     ).toBe(403);
   });
 });
+describe("Controlled inventory write-offs", () => {
+  it("records damage from a blocked lot without making the lot usable", async () => {
+    const f = await fixture("5");
+    await getPool().query("UPDATE inventory_lots SET status='BLOCKED' WHERE id=$1", [f.params[0]]);
+    const response = await writeOffResponse(
+      new Request(`${origin}/api/v1/inventory/write-offs`, {
+        method: "POST",
+        headers: { cookie, origin, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          operationId: randomUUID(),
+          type: "DAMAGE",
+          lotId: f.params[0],
+          locationId: f.params[1],
+          quantity: "2",
+          reference: "AVARIA-TESTE",
+          reason: "Avaria física confirmada durante a conferência.",
+        }),
+      }),
+    );
+    expect(response.status).toBe(201);
+    expect(
+      (
+        await getPool().query("SELECT quantity::text FROM inventory_balances WHERE lot_id=$1", [
+          f.params[0],
+        ])
+      ).rows[0].quantity,
+    ).toBe("3.000");
+    expect(
+      (await getPool().query("SELECT status FROM inventory_lots WHERE id=$1", [f.params[0]]))
+        .rows[0].status,
+    ).toBe("BLOCKED");
+  });
+});
+
 describe("PostgreSQL direct applications", () => {
   async function applicationFixture(days = 90) {
     const f = await fixture("10", days);
@@ -656,6 +713,33 @@ describe("PostgreSQL direct applications", () => {
   });
 });
 describe("Lot traceability", () => {
+  it("limits lot balances and events to authorized units and rejects a forged unit", async () => {
+    const f = await fixture("7");
+    const fortaleza = "a1100000-0000-4000-8000-000000000101";
+    const juazeiro = "a1100000-0000-4000-8000-000000000102";
+    const fortalezaLocation = await getPool().query<{ id: string }>(
+      "INSERT INTO inventory_locations(unit_id,name) VALUES($1,$2) RETURNING id",
+      [fortaleza, `Fortaleza ${randomUUID()}`],
+    );
+    await movement([f.params[0], fortalezaLocation.rows[0]!.id], "3", "IN");
+    const unitCookie = await scopedCookie(fortaleza);
+    const visible = await lotTraceResponse(
+      new Request(`${origin}/api/v1/inventory/trace/lots/${f.params[0]}`, {
+        headers: { cookie: unitCookie },
+      }),
+    );
+    expect(visible.status).toBe(200);
+    const body = (await visible.json()).data;
+    expect(body.balances).toHaveLength(1);
+    expect(body.balances[0].locationId).toBe(fortalezaLocation.rows[0]!.id);
+    expect(body.events).toHaveLength(1);
+    const forged = await lotTraceResponse(
+      new Request(`${origin}/api/v1/inventory/trace/lots/${f.params[0]}?unitId=${juazeiro}`, {
+        headers: { cookie: unitCookie },
+      }),
+    );
+    expect(forged.status).toBe(403);
+  });
   it("links two deliveries, a transfer, an application and a count to the same lot and reconciles every local", async () => {
     const f = await fixture();
     const supplierId = randomUUID();
@@ -966,6 +1050,40 @@ describe("Lot traceability", () => {
     expect((await lotTraceResponse(request(`trace/lots/${randomUUID()}`))).status).toBe(404);
   });
 });
+describe("Pilot invitation lifecycle", () => {
+  it("revokes pending invitations when a user is deactivated", async () => {
+    const fortaleza = "a1100000-0000-4000-8000-000000000101";
+    const adminCookie = await scopedCookie(fortaleza, "SUPER_ADMIN");
+    const adminRequest = (body: unknown) =>
+      userAdminResponse(
+        new Request(`${origin}/api/v1/inventory/users`, {
+          method: "POST",
+          headers: { cookie: adminCookie, origin, "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        }),
+      );
+    const created = await adminRequest({
+      action: "CREATE",
+      name: "Usuário convite",
+      email: `${randomUUID()}@example.test`,
+      role: "VIEWER",
+      unitIds: [fortaleza],
+    });
+    expect(created.status).toBe(201);
+    const createdData = (await created.json()).data;
+    const token = new URL(createdData.activationPath, origin).searchParams.get("token")!;
+    expect((await adminRequest({ action: "DEACTIVATE", userId: createdData.id })).status).toBe(200);
+    const activation = await activationResponse(
+      new Request(`${origin}/api/inventory-activation`, {
+        method: "POST",
+        headers: { origin, "Content-Type": "application/json" },
+        body: JSON.stringify({ token, password: "a-secure-test-password" }),
+      }),
+    );
+    expect(activation.status).toBe(410);
+  });
+});
+
 describe("Preview access", () => {
   it("denies unauthenticated inventory reads", async () => {
     expect((await inventoryResponse(new Request(`${origin}/api/v1/inventory/stock`))).status).toBe(

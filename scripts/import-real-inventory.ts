@@ -1,6 +1,16 @@
 import data from "../src/server/real-data/allik-oct-2026.json";
 import { getPool } from "../src/server/db";
 
+const environment = process.env["INVENTORY_ENVIRONMENT"] ?? "";
+if (
+  !["development", "preview", "test"].includes(environment) ||
+  process.env["VERCEL_ENV"] === "production" ||
+  process.env["INVENTORY_ALLOW_REAL_IMPORT"] !== "true"
+)
+  throw new Error(
+    "Real inventory import is destructive and requires an explicit non-production authorization.",
+  );
+
 const pool = getPool();
 const client = await pool.connect();
 

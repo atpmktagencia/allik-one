@@ -16,12 +16,10 @@ test("maintain suppliers/catalog and order grouped boxes with costs, exports, Wh
   const code = `MANUAL-${suffix}`;
   const reference = `PO-CATALOG-${suffix}`;
   await page.goto("/estoque/acesso");
-  await page.getByLabel("Senha do Preview").fill(process.env["INVENTORY_PREVIEW_PASSWORD"] ?? "");
+  await page.getByLabel("Senha").fill(process.env["INVENTORY_PREVIEW_PASSWORD"] ?? "");
   await page.getByRole("button", { name: "Acessar estoque", exact: true }).click();
-  await page.getByRole("link", { name: "Fornecedores e catálogos", exact: true }).click();
-  await expect(
-    page.getByRole("heading", { name: "Fornecedores e catálogos", exact: true }),
-  ).toBeVisible();
+  await page.getByRole("link", { name: "Fazer compra", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Fazer compra", exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Novo fornecedor", exact: true }).click();
   await page.getByLabel("Nome do fornecedor", { exact: true }).fill(vendor);
   await page.getByLabel("WhatsApp com código do país", { exact: true }).fill("+55 48 8802-9876");

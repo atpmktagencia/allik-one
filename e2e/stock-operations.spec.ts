@@ -5,7 +5,7 @@ test("transfer and physical count persist with paired history and reasons", asyn
   const errors: string[] = [];
   page.on("pageerror", (error) => errors.push(error.message));
   await page.goto("/estoque/acesso");
-  await page.getByLabel("Senha do Preview").fill(process.env["INVENTORY_PREVIEW_PASSWORD"] ?? "");
+  await page.getByLabel("Senha").fill(process.env["INVENTORY_PREVIEW_PASSWORD"] ?? "");
   await page.getByRole("button", { name: "Acessar estoque", exact: true }).click();
   await expect(page).toHaveURL(/\/estoque$/);
   const original = (await (await page.request.get("/api/v1/inventory/stock")).json())

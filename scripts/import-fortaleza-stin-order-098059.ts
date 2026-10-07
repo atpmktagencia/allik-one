@@ -2,6 +2,11 @@ import { createHash, randomUUID } from "node:crypto";
 import pg from "pg";
 
 const { Pool } = pg;
+if (
+  process.env.INVENTORY_ENVIRONMENT !== "production" ||
+  process.env.IMPORT_FORTALEZA_STIN_ORDER_098059 !== "true"
+)
+  throw new Error("Fortaleza order import requires explicit production authorization.");
 const databaseUrl = process.env.DATABASE_URL;
 if (!databaseUrl) throw new Error("DATABASE_URL is required");
 

@@ -1,6 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
 import { InventoryError } from "@/data/inventory-api";
+import { supportWhatsAppUrl } from "@/config/support";
 export function InventoryState({
   pending,
   error,
@@ -16,7 +17,11 @@ export function InventoryState({
       role={error ? "alert" : "status"}
     >
       <h2 className="font-semibold">
-        {pending ? "Carregando estoque…" : "Faça o login para liberar seu acesso."}
+        {pending
+          ? "Carregando estoque…"
+          : error instanceof InventoryError && error.status === 401
+            ? "Faça o login para liberar seu acesso."
+            : "Não foi possível carregar os dados."}
       </h2>
       {error && <p className="mt-2 text-sm text-muted-foreground">{error.message}</p>}
       {error instanceof InventoryError && error.status === 401 ? (
@@ -35,7 +40,7 @@ export function InventoryState({
           Enfrentando problemas no login?{" "}
           <a
             className="font-medium text-primary underline underline-offset-4"
-            href="https://wa.me/5585996146664"
+            href={supportWhatsAppUrl}
             target="_blank"
             rel="noreferrer"
           >

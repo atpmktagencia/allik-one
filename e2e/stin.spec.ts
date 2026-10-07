@@ -10,7 +10,7 @@ test("Stin catalog preserves boxes, complete kit, notes and vendor-specific cost
   const errors: string[] = [];
   page.on("pageerror", (e) => errors.push(e.message));
   await page.goto("/estoque/acesso");
-  await page.getByLabel("Senha do Preview").fill(process.env["INVENTORY_PREVIEW_PASSWORD"] ?? "");
+  await page.getByLabel("Senha").fill(process.env["INVENTORY_PREVIEW_PASSWORD"] ?? "");
   await page.getByRole("button", { name: "Acessar estoque", exact: true }).click();
   await page.goto("/estoque/fornecedores");
   await page

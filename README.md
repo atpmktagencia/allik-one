@@ -52,7 +52,7 @@ Para E2E, use um servidor local com migrations/seed e sessão configurados, inst
 
 ## API e dados
 
-GET `/api/v1/inventory/products`, `/products/:id`, `/locations`, `/lots`, `/stock` e `/movements`. Os filtros usam `productId`, `locationId` e `search`. As rotas HTTP e o driver do banco ficam no servidor; as telas usam TanStack Query. Uma sessão assinada do Preview é exigida na API.
+GET `/api/v1/inventory/products`, `/products/:id`, `/locations`, `/lots`, `/stock` e `/movements`. Os filtros usam `productId`, `locationId`, `unitId` e `search`. As rotas HTTP e o driver do banco ficam no servidor; as telas usam TanStack Query. Preview exige sessão assinada de demonstração; Pilot exige identidade individual e autorização por unidade no servidor.
 
 Product, Location, Lot e StockMovement persistem no PostgreSQL. StockBalance é uma projeção do ledger, atualizada por trigger na mesma transação. UPDATE/DELETE de movimentações e auditoria são rejeitados; alteração direta de saldo também é rejeitada. A constraint de saldo não negativo protege concorrência. Aplicações diretas de demonstração registram consumo transacional no Milestone 4.
 
@@ -157,19 +157,23 @@ O projeto usa o adaptador Nitro/Vercel da configuração Lovable, com frontend e
 
 Para branches Neon criadas por deployment, autorize a preparação somente na branch sintética de Preview: `INVENTORY_PREPARE_PREVIEW=true` e `INVENTORY_ALLOW_SEED=true`. O build aplica migrations, seed idempotente e importações Essentia/Stin antes de compilar, exigindo também `VERCEL_ENV=preview` e `INVENTORY_ENVIRONMENT=preview`. Sem opt-in, o build não acessa o banco; com opt-in em produção, ele falha antes de qualquer migration. O seed sintético nunca deve ser autorizado em bancos com dados reais. PRs simultâneos devem usar branches de banco isoladas. Execute `bun run test:preview-guard` para verificar as proteções.
 
-O acesso por senha compartilhada é exclusivo de demonstração sintética. A API nega esse modo em `INVENTORY_ENVIRONMENT=production`; identidade individual, papéis e escopo de produção devem ser implementados antes de operar com dados reais. Proteção de deployment/rate limiting da Vercel pode complementar o Preview.
+O acesso por senha compartilhada é exclusivo da demonstração sintética. A API nega esse modo em `INVENTORY_ENVIRONMENT=production`, onde o Pilot usa identidade individual, papéis e escopo por unidade. Proteção de deployment/rate limiting da Vercel pode complementar o Preview.
 
 ## Pilot multiusuário
 
 O Pilot usa um PostgreSQL Neon exclusivo, separado do Preview e de testes. Configure somente no
 ambiente `Production` da Vercel: `DATABASE_URL` pela integração Neon,
-`INVENTORY_ENVIRONMENT=production`, `INVENTORY_PREPARE_PILOT=true` no provisionamento inicial e
-`PILOT_SUPER_ADMIN_NAME`, `PILOT_SUPER_ADMIN_EMAIL` e `PILOT_SUPER_ADMIN_INVITE_TOKEN` como
-variáveis Sensitive.
+`INVENTORY_ENVIRONMENT=production` e `INVENTORY_SESSION_SECRET` como variáveis Sensitive.
 
-O build aplica migrations idempotentes e cria apenas a organização Allik, as unidades Fortaleza e
-Juazeiro do Norte e o primeiro superadministrador. Ele nunca executa seeds sintéticos no Pilot.
-Depois da ativação inicial, remova o token de bootstrap e desative `INVENTORY_PREPARE_PILOT`.
+O build de produção nunca executa migrations, bootstrap, redefinição de senha, importação ou
+reconciliação. Essas ações são comandos administrativos explícitos, executados com a autorização
+específica do respectivo script e retirados do ambiente logo após o uso. O bootstrap inicial cria
+somente a organização Allik, as unidades Fortaleza e Juazeiro do Norte e o primeiro
+superadministrador; seeds sintéticos são proibidos no Pilot.
+
+`scripts/import-real-inventory.ts` é destrutivo e aceita somente ambientes não produtivos com
+`INVENTORY_ALLOW_REAL_IMPORT=true`. O Preview normal usa `seed-inventory.ts`, sem dados operacionais
+reais. Nunca aponte scripts de seed ou importação para o banco do Pilot.
 
 Antes do uso operacional, confirme no console Neon a retenção disponível para o plano e faça um
 teste de restauração em uma branch separada. Em incidente: interrompa escritas, restaure em nova

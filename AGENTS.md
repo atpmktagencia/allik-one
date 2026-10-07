@@ -1,4 +1,5 @@
 <!-- LOVABLE:BEGIN -->
+
 > [!IMPORTANT]
 > This project is connected to [Lovable](https://lovable.dev). Avoid rewriting
 > published git history — force pushing, or rebasing/amending/squashing commits
@@ -7,11 +8,12 @@
 >
 > Commits you push to the connected branch sync back to Lovable and show up in
 > the editor, so keep the branch in a working state.
+
 <!-- LOVABLE:END -->
 
 - Keep demonstration records in `src/data/mock-clinic.ts` behind a local data boundary so `/api/v1/` can replace them without rewriting the UI.
-- Keep shared Clinic OS navigation and global search in the root application shell so every feature route has the same workspace context.
-- Keep the Clinic OS prototype frontend-only until a later phase explicitly introduces persistence, authentication, or integrations, so demonstrations remain isolated and safe.
-
-
-- Inventory milestone 1 introduces PostgreSQL persistence explicitly. Inventory API is server-only and denies access without a signed Preview session. Keep demo patients separate from persisted inventory. Preview shared access is not production identity or authorization.
+- Keep the Allik One inventory navigation focused on operational stock workflows. Do not expose unfinished Clinic OS prototype modules from the inventory shell.
+- Inventory persists in PostgreSQL and uses individual Pilot identities in production. Enforce organization, unit scope and permission on every server-side read and write; hiding UI is not authorization.
+- Keep demo patients separate from persisted inventory. Do not store real patient data in synthetic application fields.
+- Preview uses an isolated synthetic database and shared demonstration access only. Pilot, Preview and test databases must remain separate.
+- Production maintenance, bootstrap, migrations and one-time imports must be explicit administrative commands. Never mutate the Pilot database as a side effect of an application build.

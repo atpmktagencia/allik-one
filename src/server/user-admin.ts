@@ -125,7 +125,7 @@ export async function userAdminResponse(request: Request) {
     }
   }
   const target = await getPool().query(
-    "SELECT u.id FROM inventory_users u JOIN inventory_memberships m ON m.user_id=u.id WHERE u.id=$1 AND m.organization_id=$2 AND m.role<>'SUPER_ADMIN'",
+    "SELECT u.id,u.active FROM inventory_users u JOIN inventory_memberships m ON m.user_id=u.id WHERE u.id=$1 AND m.organization_id=$2 AND m.role<>'SUPER_ADMIN'",
     [input.userId, auth.organizationId],
   );
   if (!target.rowCount)
@@ -134,6 +134,11 @@ export async function userAdminResponse(request: Request) {
       { status: 404, headers },
     );
   if (input.action === "REINVITE") {
+    if (!target.rows[0].active)
+      return Response.json(
+        { error: "Ative o usuário antes de gerar um novo convite." },
+        { status: 409, headers },
+      );
     const token = await createInvite(input.userId, auth.organizationId, auth.user.id);
     return Response.json(
       { data: { activationPath: `/estoque/ativar?token=${token}` } },
@@ -142,7 +147,14 @@ export async function userAdminResponse(request: Request) {
   }
   const active = input.action === "ACTIVATE";
   await getPool().query(
-    `WITH changed AS (UPDATE inventory_users SET active=$2,session_version=session_version+1,updated_at=now() WHERE id=$1 RETURNING id)
+    `WITH changed AS (
+       UPDATE inventory_users SET active=$2,session_version=session_version+1,updated_at=now()
+       WHERE id=$1 RETURNING id
+     ), revoked_invites AS (
+       UPDATE inventory_invites SET revoked_at=now()
+       WHERE user_id=(SELECT id FROM changed) AND $2=false
+         AND used_at IS NULL AND revoked_at IS NULL
+     )
      INSERT INTO inventory_auth_events(user_id,event) SELECT id,$3 FROM changed`,
     [input.userId, active, active ? "USER_ACTIVATED" : "USER_DEACTIVATED"],
   );
@@ -172,7 +184,10 @@ export async function activationResponse(request: Request) {
   try {
     await client.query("BEGIN");
     const invite = await client.query(
-      "SELECT id,user_id FROM inventory_invites WHERE token_hash=$1 AND used_at IS NULL AND revoked_at IS NULL AND expires_at>now() FOR UPDATE",
+      `SELECT i.id,i.user_id FROM inventory_invites i
+       JOIN inventory_users u ON u.id=i.user_id AND u.active
+       WHERE i.token_hash=$1 AND i.used_at IS NULL AND i.revoked_at IS NULL AND i.expires_at>now()
+       FOR UPDATE OF i,u`,
       [hashToken(parsed.data.token)],
     );
     if (!invite.rowCount) {

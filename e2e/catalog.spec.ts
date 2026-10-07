@@ -14,15 +14,15 @@ test("create and edit catalog, reactivate empty records, receive and protect phy
   const renamedLocal = `${local} revisado`;
   const revisedName = `${name} revisado`;
   await page.goto("/estoque/acesso");
-  await page.getByLabel("Senha do Preview").fill(process.env["INVENTORY_PREVIEW_PASSWORD"] ?? "");
+  await page.getByLabel("Senha").fill(process.env["INVENTORY_PREVIEW_PASSWORD"] ?? "");
   await page.getByRole("button", { name: "Acessar estoque", exact: true }).click();
   await expect(page).toHaveURL(/\/estoque$/);
-  await page.getByRole("link", { name: "Produtos e locais", exact: true }).click();
+  await page.getByRole("link", { name: "Produtos e sede", exact: true }).click();
   await page.getByRole("button", { name: "Novo produto", exact: true }).click();
   await page.getByLabel("Nome do produto", { exact: true }).fill(name);
   await page.getByLabel("SKU", { exact: true }).fill(sku);
   await page.getByLabel("Categoria", { exact: true }).fill("Material sintético");
-  await page.getByLabel("Unidade", { exact: true }).fill("un");
+  await page.getByRole("textbox", { name: "Unidade", exact: true }).fill("un");
   await page.getByLabel("Estoque mínimo", { exact: true }).fill("1.125");
   await page.getByRole("button", { name: "Salvar produto", exact: true }).click();
   await expect(page.getByRole("status")).toContainText("Produto cadastrado.");
@@ -30,7 +30,9 @@ test("create and edit catalog, reactivate empty records, receive and protect phy
   await expect(page.getByRole("link", { name, exact: true })).toBeVisible();
   await page.getByRole("button", { name: `Editar produto ${name}`, exact: true }).click();
   await expect(page.getByLabel("SKU", { exact: true })).toHaveAttribute("readonly");
-  await expect(page.getByLabel("Unidade", { exact: true })).toHaveAttribute("readonly");
+  await expect(page.getByRole("textbox", { name: "Unidade", exact: true })).toHaveAttribute(
+    "readonly",
+  );
   await page.getByLabel("Estoque mínimo", { exact: true }).fill("3.25");
   await page.getByLabel("Motivo da alteração", { exact: true }).fill("Mínimo sintético revisado");
   await page.getByRole("button", { name: "Salvar produto", exact: true }).click();

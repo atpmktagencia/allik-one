@@ -335,6 +335,12 @@ export async function supplierCatalogResponse(request: Request) {
     return Response.json({ error: "Origem não autorizada." }, { status: 403, headers });
   const url = new URL(request.url);
   const resource = url.pathname.replace(/\/$/, "").split("/").at(-1);
+  const selectedUnit = url.searchParams.get("unitId");
+  if (selectedUnit && !z.string().uuid().safeParse(selectedUnit).success)
+    return Response.json({ error: "Unidade inválida." }, { status: 400, headers });
+  if (selectedUnit && !can(auth, "inventory.read", selectedUnit))
+    return Response.json({ error: "Unidade não autorizada." }, { status: 403, headers });
+  const allowedUnits = auth.preview || auth.role === "SUPER_ADMIN" ? null : auth.unitIds;
   let client: PoolClient | undefined;
   try {
     if (request.method === "GET") {
@@ -343,7 +349,8 @@ export async function supplierCatalogResponse(request: Request) {
           {
             data: (
               await getPool().query(
-                `SELECT ${supplierColumns} FROM inventory_suppliers ORDER BY name,id`,
+                `SELECT ${supplierColumns} FROM inventory_suppliers WHERE organization_id=$1 ORDER BY name,id`,
+                [auth.organizationId],
               )
             ).rows,
           },
@@ -359,12 +366,19 @@ export async function supplierCatalogResponse(request: Request) {
         const rows =
           resource === "vendor-catalog"
             ? await getPool().query(
-                `SELECT ${catalogColumns} FROM inventory_supplier_catalog WHERE supplier_id=$1 ORDER BY code,id`,
-                [supplierId.data],
+                `SELECT ${catalogColumns} FROM inventory_supplier_catalog
+                 WHERE supplier_id=$1 AND EXISTS (
+                   SELECT 1 FROM inventory_suppliers s WHERE s.id=supplier_id AND s.organization_id=$2
+                 ) ORDER BY code,id`,
+                [supplierId.data, auth.organizationId],
               )
             : await getPool().query(
-                `SELECT id,catalog_item_id AS "catalogItemId",action,actor,reason,created_at AS date,before_data AS before,after_data AS after FROM inventory_supplier_changes WHERE supplier_id=$1 ORDER BY created_at DESC,id DESC LIMIT 50`,
-                [supplierId.data],
+                `SELECT id,catalog_item_id AS "catalogItemId",action,actor,reason,created_at AS date,before_data AS before,after_data AS after
+                 FROM inventory_supplier_changes
+                 WHERE supplier_id=$1 AND EXISTS (
+                   SELECT 1 FROM inventory_suppliers s WHERE s.id=supplier_id AND s.organization_id=$2
+                 ) ORDER BY created_at DESC,id DESC LIMIT 50`,
+                [supplierId.data, auth.organizationId],
               );
         return Response.json({ data: rows.rows }, { headers });
       }
@@ -373,8 +387,15 @@ export async function supplierCatalogResponse(request: Request) {
         if (id && !z.string().uuid().safeParse(id).success)
           return Response.json({ error: "Pedido inválido." }, { status: 400, headers });
         const result = await getPool().query(
-          `SELECT ${orderColumns},(SELECT CASE WHEN bool_and(i.received=i.quantity) THEN 'RECEIVED' WHEN bool_or(i.received>0) THEN 'PARTIAL' ELSE 'OPEN' END FROM inventory_purchase_items i WHERE i.purchase_id=o.id) AS status FROM inventory_supplier_orders o JOIN inventory_purchases p ON p.id=o.id ${id ? "WHERE o.id=$1" : ""} ORDER BY o.created_at DESC,o.id LIMIT 100`,
-          id ? [id] : [],
+          `SELECT ${orderColumns},(SELECT CASE WHEN bool_and(i.received=i.quantity) THEN 'RECEIVED' WHEN bool_or(i.received>0) THEN 'PARTIAL' ELSE 'OPEN' END FROM inventory_purchase_items i WHERE i.purchase_id=o.id) AS status
+           FROM inventory_supplier_orders o
+           JOIN inventory_purchases p ON p.id=o.id
+           JOIN inventory_units u ON u.id=p.unit_id
+           WHERE ($1::uuid IS NULL OR o.id=$1) AND u.organization_id=$2
+             AND ($3::uuid IS NULL OR p.unit_id=$3)
+             AND ($4::uuid[] IS NULL OR p.unit_id=ANY($4))
+           ORDER BY o.created_at DESC,o.id LIMIT 100`,
+          [id, auth.organizationId, selectedUnit, allowedUnits],
         );
         if (id && !result.rowCount) throw new Missing("Pedido não encontrado.");
         const format = url.searchParams.get("format");
@@ -438,7 +459,7 @@ export async function supplierCatalogResponse(request: Request) {
       );
     const hash = hashOf({ resource, input: parsed.data });
     const selectedUnitId =
-      url.searchParams.get("unitId") ??
+      selectedUnit ??
       (auth.unitIds.length === 1
         ? auth.unitIds[0]
         : auth.preview
@@ -460,8 +481,8 @@ export async function supplierCatalogResponse(request: Request) {
     const previous =
       resource === "vendor-orders"
         ? await client.query(
-            `SELECT o.request_hash,${orderColumns} FROM inventory_supplier_orders o JOIN inventory_purchases p ON p.id=o.id WHERE o.id=$1`,
-            [parsed.data.operationId],
+            `SELECT o.request_hash,${orderColumns} FROM inventory_supplier_orders o JOIN inventory_purchases p ON p.id=o.id WHERE o.id=$1 AND p.unit_id=$2`,
+            [parsed.data.operationId, selectedUnitId],
           )
         : await client.query(
             "SELECT request_hash,after_data FROM inventory_supplier_changes WHERE id=$1",

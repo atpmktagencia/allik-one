@@ -2,8 +2,17 @@ import { randomUUID } from "node:crypto";
 import { getPool } from "../src/server/db";
 
 const LOCATION_NAME = "Fortaleza — Estoque Central";
-const ACTOR_EMAIL = "marcos326@gmail.com";
+const ACTOR_EMAIL = process.env["RECONCILE_FORTALEZA_ACTOR_EMAIL"]?.trim().toLowerCase();
 const REFERENCE = "CONTAGEM-FISICA-FORTALEZA-2026-10-06";
+
+if (
+  process.env["INVENTORY_ENVIRONMENT"] !== "production" ||
+  process.env["RECONCILE_FORTALEZA_PHYSICAL_STOCK"] !== "true" ||
+  !ACTOR_EMAIL
+)
+  throw new Error(
+    "Fortaleza reconciliation requires explicit production authorization and an actor email.",
+  );
 
 type Item = {
   key: string;
@@ -93,6 +102,11 @@ try {
   await client.query(
     "SELECT pg_advisory_xact_lock(hashtext('fortaleza-physical-stock-2026-10-06'))",
   );
+  const previous = await client.query(
+    "SELECT 1 FROM inventory_movements WHERE reference=$1 LIMIT 1",
+    [REFERENCE],
+  );
+  if (previous.rowCount) throw new Error("This physical reconciliation has already been applied.");
   const location = await client.query<{ id: string }>(
     `SELECT l.id FROM inventory_locations l
      JOIN inventory_units u ON u.id=l.unit_id

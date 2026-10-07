@@ -1,8 +1,8 @@
 import { test, expect } from "@playwright/test";
 test("database-backed stock, product details, movements and reload", async ({ page }) => {
   await page.goto("/estoque");
-  await page.getByRole("link", { name: "Acessar demonstração" }).click();
-  await page.getByLabel("Senha do Preview").fill(process.env["INVENTORY_PREVIEW_PASSWORD"] ?? "");
+  await page.getByRole("link", { name: "Fazer login" }).click();
+  await page.getByLabel("Senha").fill(process.env["INVENTORY_PREVIEW_PASSWORD"] ?? "");
   await page.getByRole("button", { name: "Acessar estoque", exact: true }).click();
   await expect(page.getByRole("link", { name: "Injetável A", exact: true })).toBeVisible();
   await expect(page.getByText("Dados persistidos no PostgreSQL")).toBeVisible();
@@ -26,7 +26,7 @@ test("database-backed stock, product details, movements and reload", async ({ pa
 });
 test("filters to empty and reports missing products", async ({ page }) => {
   await page.goto("/estoque/acesso");
-  await page.getByLabel("Senha do Preview").fill(process.env["INVENTORY_PREVIEW_PASSWORD"] ?? "");
+  await page.getByLabel("Senha").fill(process.env["INVENTORY_PREVIEW_PASSWORD"] ?? "");
   await page.getByRole("button", { name: "Acessar estoque", exact: true }).click();
   await page.getByLabel("Buscar estoque").fill("nenhum-produto");
   await expect(page.getByText("Nenhum produto encontrado para estes filtros.")).toBeVisible();

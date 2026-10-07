@@ -66,13 +66,33 @@ export async function writeOffResponse(request: Request) {
       );
     }
     const balance = await client.query(
-      "SELECT quantity::text FROM inventory_balances WHERE lot_id=$1 AND location_id=$2 FOR UPDATE",
+      `SELECT b.quantity::text,l.status,
+              l.expires_on < (NOW() AT TIME ZONE 'America/Fortaleza')::date AS expired
+         FROM inventory_balances b JOIN inventory_lots l ON l.id=b.lot_id
+        WHERE b.lot_id=$1 AND b.location_id=$2 FOR UPDATE OF b,l`,
       [input.lotId, input.locationId],
     );
     if (!balance.rowCount || Number(balance.rows[0].quantity) < Number(input.quantity)) {
       await client.query("ROLLBACK");
       return Response.json(
         { error: "Saldo insuficiente para esta baixa." },
+        { status: 409, headers },
+      );
+    }
+    if (
+      input.type === "CONSUMPTION" &&
+      (balance.rows[0].status !== "AVAILABLE" || balance.rows[0].expired)
+    ) {
+      await client.query("ROLLBACK");
+      return Response.json(
+        { error: "Lote bloqueado, em quarentena ou vencido não pode ser consumido." },
+        { status: 409, headers },
+      );
+    }
+    if (input.type === "EXPIRED" && !balance.rows[0].expired) {
+      await client.query("ROLLBACK");
+      return Response.json(
+        { error: "Use a baixa por vencimento somente para lotes vencidos." },
         { status: 409, headers },
       );
     }
