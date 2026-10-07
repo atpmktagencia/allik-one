@@ -29,7 +29,7 @@ const operationItems = [
   { label: "Pedidos e entradas", to: "/estoque/recebimento", icon: PackageCheck },
   { label: "Movimentações e histórico", to: "/estoque/movimentacoes", icon: ListChecks },
   { label: "Produtos e sede", to: "/estoque/cadastros", icon: Warehouse },
-  { label: "Nova compra", to: "/estoque/fornecedores", icon: Landmark },
+  { label: "Fazer compra", to: "/estoque/fornecedores", icon: Landmark },
   { label: "Vendas Realizadas", to: "/estoque/valores", icon: ListChecks },
 ] as const;
 
@@ -38,7 +38,7 @@ const pageTitles: Record<string, string> = {
   "/estoque/recebimento": "Pedidos e entradas",
   "/estoque/movimentacoes": "Movimentações e histórico",
   "/estoque/cadastros": "Produtos e sede",
-  "/estoque/fornecedores": "Nova compra",
+  "/estoque/fornecedores": "Fazer compra",
   "/estoque/valores": "Vendas Realizadas",
   "/estoque/usuarios": "Usuários",
   "/estoque/minha-conta": "Minha conta",

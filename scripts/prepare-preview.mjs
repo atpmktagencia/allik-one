@@ -113,3 +113,30 @@ if (process.env.IMPORT_FORTALEZA_STIN_ORDER_098059 === "true") {
     process.exit(1);
   }
 }
+
+if (process.env.INVENTORY_ALLOW_PILOT_CATALOG_IMPORT === "true") {
+  if (
+    process.env.VERCEL_ENV !== "production" ||
+    process.env.INVENTORY_ENVIRONMENT !== "production" ||
+    !process.env.DATABASE_URL
+  ) {
+    process.stderr.write(
+      "Pilot catalog repair denied outside the isolated production environment.\n",
+    );
+    process.exit(1);
+  }
+  for (const script of ["scripts/import-essentia.ts", "scripts/import-stin.ts"]) {
+    const result = spawnSync(process.execPath, ["node_modules/tsx/dist/cli.mjs", script], {
+      encoding: "utf8",
+      env: process.env,
+    });
+    const output = `${result.stdout ?? ""}${result.stderr ?? ""}`
+      .replaceAll(process.env.DATABASE_URL, "[database credential hidden]")
+      .replace(/postgres(?:ql)?:\/\/[^\s"']+/gi, "[database credential hidden]");
+    process.stdout.write(output);
+    if (result.error || result.status !== 0) {
+      console.error("Pilot catalog repair failed; deployment stopped.");
+      process.exit(1);
+    }
+  }
+}

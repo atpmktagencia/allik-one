@@ -40,7 +40,7 @@ describe("Inventory navigation", () => {
       "Pedidos e entradas",
       "Movimentações e histórico",
       "Produtos e sede",
-      "Nova compra",
+      "Fazer compra",
       "Vendas Realizadas",
       "Minha conta",
     ])

@@ -20,14 +20,18 @@ export type SupplierCatalogSource = {
   }>;
 };
 export async function importSupplierCatalog(catalog: SupplierCatalogSource) {
-  if (
-    !["development", "preview", "test"].includes(process.env["INVENTORY_ENVIRONMENT"] ?? "") ||
-    process.env["INVENTORY_ALLOW_SEED"] !== "true" ||
-    process.env["VERCEL_ENV"] === "production"
-  )
-    throw new Error(
-      "Importação de catálogo exige banco isolado de development/preview/test e autorização explícita.",
-    );
+  const environment = process.env["INVENTORY_ENVIRONMENT"] ?? "";
+  const previewAllowed =
+    ["development", "preview", "test"].includes(environment) &&
+    process.env["INVENTORY_ALLOW_SEED"] === "true" &&
+    process.env["VERCEL_ENV"] !== "production";
+  const pilotRepairAllowed =
+    environment === "production" &&
+    process.env["VERCEL_ENV"] === "production" &&
+    process.env["INVENTORY_ALLOW_PILOT_CATALOG_IMPORT"] === "true";
+  if (!previewAllowed && !pilotRepairAllowed)
+    throw new Error("Importação de catálogo exige ambiente e autorização explícita compatíveis.");
+  const actor = pilotRepairAllowed ? "catalog-repair" : "preview-operator";
   const client = await getPool().connect();
   try {
     await client.query("BEGIN");
@@ -55,12 +59,13 @@ export async function importSupplierCatalog(catalog: SupplierCatalogSource) {
     ).rows[0];
     if (saved.rowCount)
       await client.query(
-        "INSERT INTO inventory_supplier_changes(id,supplier_id,action,request_hash,after_data,actor,reason) VALUES($1,$2,'IMPORT',$3,$4::jsonb,'preview-operator',$5)",
+        "INSERT INTO inventory_supplier_changes(id,supplier_id,action,request_hash,after_data,actor,reason) VALUES($1,$2,'IMPORT',$3,$4::jsonb,$5,$6)",
         [
           randomUUID(),
           supplier.id,
           catalog.sourceSha256,
           JSON.stringify(supplier),
+          actor,
           `Fornecedor cadastrado a partir de ${catalog.sourceFile} e contato informado pelo usuário`,
         ],
       );
@@ -76,13 +81,14 @@ export async function importSupplierCatalog(catalog: SupplierCatalogSource) {
         ).rows[0],
       );
       await client.query(
-        "INSERT INTO inventory_supplier_changes(id,supplier_id,action,request_hash,before_data,after_data,actor,reason) VALUES($1,$2,'IMPORT',$3,$4::jsonb,$5::jsonb,'preview-operator',$6)",
+        "INSERT INTO inventory_supplier_changes(id,supplier_id,action,request_hash,before_data,after_data,actor,reason) VALUES($1,$2,'IMPORT',$3,$4::jsonb,$5::jsonb,$6,$7)",
         [
           randomUUID(),
           supplier.id,
           catalog.sourceSha256,
           JSON.stringify(before),
           JSON.stringify(supplier),
+          actor,
           `Contato informado pelo usuário para ${catalog.supplier.name}`,
         ],
       );
@@ -112,13 +118,14 @@ export async function importSupplierCatalog(catalog: SupplierCatalogSource) {
         inserted++;
         const row = result.rows[0];
         await client.query(
-          "INSERT INTO inventory_supplier_changes(id,supplier_id,catalog_item_id,action,request_hash,after_data,actor,reason) VALUES($1,$2,$3,'IMPORT',$4,$5::jsonb,'preview-operator',$6)",
+          "INSERT INTO inventory_supplier_changes(id,supplier_id,catalog_item_id,action,request_hash,after_data,actor,reason) VALUES($1,$2,$3,'IMPORT',$4,$5::jsonb,$6,$7)",
           [
             randomUUID(),
             supplier.id,
             row.id,
             catalog.sourceSha256,
             JSON.stringify(row),
+            actor,
             `Importação de ${catalog.sourceFile} fornecido pelo usuário`,
           ],
         );

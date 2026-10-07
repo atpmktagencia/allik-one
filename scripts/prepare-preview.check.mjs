@@ -10,6 +10,7 @@ function run(overrides) {
     "INVENTORY_ENVIRONMENT",
     "INVENTORY_ALLOW_SEED",
     "INVENTORY_PREPARE_PREVIEW",
+    "INVENTORY_ALLOW_PILOT_CATALOG_IMPORT",
   ])
     delete env[key];
   return spawnSync(process.execPath, ["scripts/prepare-preview.mjs"], {
@@ -42,4 +43,15 @@ test("Preview fails closed without seed authorization or database", () => {
   };
   assert.equal(run({ ...base, DATABASE_URL: "postgres://must-not-connect" }).status, 1);
   assert.equal(run({ ...base, INVENTORY_ALLOW_SEED: "true" }).status, 1);
+});
+test("Pilot catalog repair fails closed outside production", () => {
+  const result = run({
+    INVENTORY_ALLOW_PILOT_CATALOG_IMPORT: "true",
+    VERCEL_ENV: "preview",
+    INVENTORY_ENVIRONMENT: "production",
+    DATABASE_URL: "postgres://must-not-connect",
+  });
+  assert.equal(result.status, 1);
+  assert.match(result.stderr, /denied/);
+  assert.doesNotMatch(result.stdout + result.stderr, /must-not-connect/);
 });
