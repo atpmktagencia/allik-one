@@ -55,6 +55,7 @@ export type AuthContext = {
   role: Role;
   unitIds: string[];
   preview: boolean;
+  integration: { id: string; name: string; permissions: Permission[] } | null;
 };
 
 const allPermissions: Permission[] = [
@@ -232,6 +233,47 @@ export async function verifyPassword(password: string, encoded: string) {
 }
 
 export async function authenticate(request: Request): Promise<AuthContext | null> {
+  const authorization = request.headers.get("authorization");
+  if (authorization?.startsWith("Bearer allik_")) {
+    const token = authorization.slice("Bearer ".length);
+    const result = await getPool().query(
+      `WITH authenticated AS (
+         SELECT c.id,c.organization_id,c.name,c.permissions
+         FROM inventory_api_credentials c
+         JOIN inventory_organizations o ON o.id=c.organization_id AND o.active
+         WHERE c.token_hash=$1 AND c.revoked_at IS NULL AND c.expires_at>now()
+       ), used AS (
+         UPDATE inventory_api_credentials c SET last_used_at=now()
+         FROM authenticated a WHERE c.id=a.id RETURNING c.id
+       ), event AS (
+         INSERT INTO inventory_api_credential_events(credential_id,action,details)
+         SELECT id,'USE',jsonb_build_object('method',$2::text,'path',$3::text) FROM used
+       )
+       SELECT a.id,a.organization_id,a.name,a.permissions,
+         COALESCE(array_agg(u.id::text) FILTER (WHERE u.id IS NOT NULL),'{}') AS unit_ids
+       FROM authenticated a
+       LEFT JOIN inventory_units u ON u.organization_id=a.organization_id AND u.active
+       GROUP BY a.id,a.organization_id,a.name,a.permissions`,
+      [hashToken(token), request.method, new URL(request.url).pathname],
+    );
+    if (!result.rowCount) return null;
+    const row = result.rows[0] as {
+      id: string;
+      organization_id: string;
+      name: string;
+      permissions: Permission[];
+      unit_ids: string[];
+    };
+    return {
+      user: { id: null, name: `Integração: ${row.name}`, email: null },
+      membershipId: null,
+      organizationId: row.organization_id,
+      role: "SUPER_ADMIN",
+      unitIds: row.unit_ids,
+      preview: false,
+      integration: { id: row.id, name: row.name, permissions: row.permissions },
+    };
+  }
   if (hasPreviewSession(request))
     return {
       user: { id: null, name: "Operador do Preview", email: null },
@@ -240,6 +282,7 @@ export async function authenticate(request: Request): Promise<AuthContext | null
       role: "SUPER_ADMIN",
       unitIds: [],
       preview: true,
+      integration: null,
     };
   const rawToken = cookie(request);
   if (!rawToken || rawToken.includes(".")) return null;
@@ -271,10 +314,12 @@ export async function authenticate(request: Request): Promise<AuthContext | null
     role: row.role,
     unitIds: row.unit_ids,
     preview: false,
+    integration: null,
   };
 }
 
 export function can(context: AuthContext, permission: Permission, unitId?: string | null) {
+  if (context.integration && !context.integration.permissions.includes(permission)) return false;
   if (!permissions[context.role].has(permission)) return false;
   if (!unitId || context.preview || context.role === "SUPER_ADMIN") return true;
   return context.unitIds.includes(unitId);

@@ -85,6 +85,13 @@
       "when": 1791340000000,
       "tag": "0011_safe_inventory_writeoffs",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1791417600000,
+      "tag": "0012_revocable_integration_credentials",
+      "breakpoints": true
     }
   ]
 }

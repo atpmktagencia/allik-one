@@ -458,8 +458,8 @@ describe("supplier catalog and immutable commercial orders", () => {
     expect(stin.phone).toBe("551120781800");
     const catalog = (await (await api(`vendor-catalog?supplierId=${stin.id}`)).json())
       .data as SupplierCatalogItem[];
-    expect(catalog).toHaveLength(116);
-    expect(catalog.filter((i) => i.kind === "PRODUCT")).toHaveLength(115);
+    expect(catalog).toHaveLength(119);
+    expect(catalog.filter((i) => i.kind === "PRODUCT")).toHaveLength(118);
     expect(catalog.every((i) => i.productId === null && i.supplierSku === null)).toBe(true);
     const first = catalog.find((i) => i.code === "STIN-P001")!,
       kit = catalog.find((i) => i.code === "STIN-K001")!;
@@ -526,7 +526,7 @@ describe("supplier catalog and immutable commercial orders", () => {
     await run();
     const updated = (await (await api(`vendor-catalog?supplierId=${stin.id}`)).json())
       .data as SupplierCatalogItem[];
-    expect(updated).toHaveLength(116);
+    expect(updated).toHaveLength(119);
     expect(updated.find((i) => i.id === first.id)!.price).toBe("56.25");
     expect(
       ((await (await api("vendors")).json()).data as SupplierProfile[]).find(

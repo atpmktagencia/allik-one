@@ -5,6 +5,7 @@ import {
   HeartPulse,
   Syringe,
   Landmark,
+  KeyRound,
   ListChecks,
   Menu,
   Package,
@@ -45,6 +46,7 @@ const pageTitles: Record<string, string> = {
   "/aplicacoes": "Aplicações",
   "/aplicacoes/nova": "Registrar aplicação",
   "/estoque/usuarios": "Usuários",
+  "/estoque/integracoes": "Integrações",
   "/estoque/minha-conta": "Minha conta",
 };
 
@@ -131,14 +133,24 @@ function Navigation({
       </p>
       <div className="space-y-1">
         {identity?.role === "SUPER_ADMIN" && (
-          <Link
-            to="/estoque/usuarios"
-            onClick={onNavigate}
-            className="group flex h-10 items-center gap-3 rounded-md px-3 text-sm font-medium text-sidebar-muted transition-colors hover:bg-sidebar-accent/60 hover:text-sidebar-foreground"
-          >
-            <Users className="size-4" />
-            Usuários
-          </Link>
+          <>
+            <Link
+              to="/estoque/usuarios"
+              onClick={onNavigate}
+              className="group flex h-10 items-center gap-3 rounded-md px-3 text-sm font-medium text-sidebar-muted transition-colors hover:bg-sidebar-accent/60 hover:text-sidebar-foreground"
+            >
+              <Users className="size-4" />
+              Usuários
+            </Link>
+            <Link
+              to="/estoque/integracoes"
+              onClick={onNavigate}
+              className="group flex h-10 items-center gap-3 rounded-md px-3 text-sm font-medium text-sidebar-muted transition-colors hover:bg-sidebar-accent/60 hover:text-sidebar-foreground"
+            >
+              <KeyRound className="size-4" />
+              Integrações
+            </Link>
+          </>
         )}
         <Link
           to="/estoque/minha-conta"

@@ -29,6 +29,7 @@ import { Route as EstoqueAcessoRouteImport } from './routes/estoque/acesso'
 import { Route as EstoqueAtivarRouteImport } from './routes/estoque/ativar'
 import { Route as EstoqueCadastrosRouteImport } from './routes/estoque/cadastros'
 import { Route as EstoqueFornecedoresRouteImport } from './routes/estoque/fornecedores'
+import { Route as EstoqueIntegracoesRouteImport } from './routes/estoque/integracoes'
 import { Route as EstoqueMinhaContaRouteImport } from './routes/estoque/minha-conta'
 import { Route as EstoqueMovimentacoesRouteImport } from './routes/estoque/movimentacoes'
 import { Route as EstoqueRecebimentoRouteImport } from './routes/estoque/recebimento'
@@ -139,6 +140,11 @@ const EstoqueFornecedoresRoute = EstoqueFornecedoresRouteImport.update({
   path: '/fornecedores',
   getParentRoute: () => EstoqueRoute,
 } as any)
+const EstoqueIntegracoesRoute = EstoqueIntegracoesRouteImport.update({
+  id: '/integracoes',
+  path: '/integracoes',
+  getParentRoute: () => EstoqueRoute,
+} as any)
 const EstoqueMinhaContaRoute = EstoqueMinhaContaRouteImport.update({
   id: '/minha-conta',
   path: '/minha-conta',
@@ -205,6 +211,7 @@ export interface FileRoutesByFullPath {
   '/estoque/ativar': typeof EstoqueAtivarRoute
   '/estoque/cadastros': typeof EstoqueCadastrosRoute
   '/estoque/fornecedores': typeof EstoqueFornecedoresRoute
+  '/estoque/integracoes': typeof EstoqueIntegracoesRoute
   '/estoque/minha-conta': typeof EstoqueMinhaContaRoute
   '/estoque/movimentacoes': typeof EstoqueMovimentacoesRoute
   '/estoque/recebimento': typeof EstoqueRecebimentoRoute
@@ -234,6 +241,7 @@ export interface FileRoutesByTo {
   '/estoque/ativar': typeof EstoqueAtivarRoute
   '/estoque/cadastros': typeof EstoqueCadastrosRoute
   '/estoque/fornecedores': typeof EstoqueFornecedoresRoute
+  '/estoque/integracoes': typeof EstoqueIntegracoesRoute
   '/estoque/minha-conta': typeof EstoqueMinhaContaRoute
   '/estoque/movimentacoes': typeof EstoqueMovimentacoesRoute
   '/estoque/recebimento': typeof EstoqueRecebimentoRoute
@@ -266,6 +274,7 @@ export interface FileRoutesById {
   '/estoque/ativar': typeof EstoqueAtivarRoute
   '/estoque/cadastros': typeof EstoqueCadastrosRoute
   '/estoque/fornecedores': typeof EstoqueFornecedoresRoute
+  '/estoque/integracoes': typeof EstoqueIntegracoesRoute
   '/estoque/minha-conta': typeof EstoqueMinhaContaRoute
   '/estoque/movimentacoes': typeof EstoqueMovimentacoesRoute
   '/estoque/recebimento': typeof EstoqueRecebimentoRoute
@@ -299,6 +308,7 @@ export interface FileRouteTypes {
     | '/estoque/ativar'
     | '/estoque/cadastros'
     | '/estoque/fornecedores'
+    | '/estoque/integracoes'
     | '/estoque/minha-conta'
     | '/estoque/movimentacoes'
     | '/estoque/recebimento'
@@ -328,6 +338,7 @@ export interface FileRouteTypes {
     | '/estoque/ativar'
     | '/estoque/cadastros'
     | '/estoque/fornecedores'
+    | '/estoque/integracoes'
     | '/estoque/minha-conta'
     | '/estoque/movimentacoes'
     | '/estoque/recebimento'
@@ -359,6 +370,7 @@ export interface FileRouteTypes {
     | '/estoque/ativar'
     | '/estoque/cadastros'
     | '/estoque/fornecedores'
+    | '/estoque/integracoes'
     | '/estoque/minha-conta'
     | '/estoque/movimentacoes'
     | '/estoque/recebimento'
@@ -531,6 +543,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof EstoqueFornecedoresRouteImport
       parentRoute: typeof EstoqueRoute
     }
+    '/estoque/integracoes': {
+      id: '/estoque/integracoes'
+      path: '/integracoes'
+      fullPath: '/estoque/integracoes'
+      preLoaderRoute: typeof EstoqueIntegracoesRouteImport
+      parentRoute: typeof EstoqueRoute
+    }
     '/estoque/minha-conta': {
       id: '/estoque/minha-conta'
       path: '/minha-conta'
@@ -616,6 +635,7 @@ interface EstoqueRouteChildren {
   EstoqueAtivarRoute: typeof EstoqueAtivarRoute
   EstoqueCadastrosRoute: typeof EstoqueCadastrosRoute
   EstoqueFornecedoresRoute: typeof EstoqueFornecedoresRoute
+  EstoqueIntegracoesRoute: typeof EstoqueIntegracoesRoute
   EstoqueMinhaContaRoute: typeof EstoqueMinhaContaRoute
   EstoqueMovimentacoesRoute: typeof EstoqueMovimentacoesRoute
   EstoqueRecebimentoRoute: typeof EstoqueRecebimentoRoute
@@ -631,6 +651,7 @@ const EstoqueRouteChildren: EstoqueRouteChildren = {
   EstoqueAtivarRoute: EstoqueAtivarRoute,
   EstoqueCadastrosRoute: EstoqueCadastrosRoute,
   EstoqueFornecedoresRoute: EstoqueFornecedoresRoute,
+  EstoqueIntegracoesRoute: EstoqueIntegracoesRoute,
   EstoqueMinhaContaRoute: EstoqueMinhaContaRoute,
   EstoqueMovimentacoesRoute: EstoqueMovimentacoesRoute,
   EstoqueRecebimentoRoute: EstoqueRecebimentoRoute,

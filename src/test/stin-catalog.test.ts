@@ -2,14 +2,14 @@ import { describe, it, expect } from "vitest";
 import catalog from "../server/vendor-catalog/stin.json";
 import { cents } from "../data/order-export";
 describe("Stin source transcription", () => {
-  it("preserves 115 boxes of ten units and their verified acquisition price", () => {
+  it("preserves the 118 presentations and their verified acquisition price", () => {
     expect(catalog.supplier).toEqual({ name: "Stin Pharma", phone: "551120781800" });
     expect(catalog.edition).toBe("03.2026");
     expect(catalog.sourceSha256).toMatch(/^[a-f0-9]{64}$/);
     const products = catalog.items.filter((i) => i.kind === "PRODUCT");
-    expect(products).toHaveLength(115);
-    expect(new Set(catalog.items.map((i) => i.code)).size).toBe(116);
-    for (const [n, item] of products.entries()) {
+    expect(products).toHaveLength(118);
+    expect(new Set(catalog.items.map((i) => i.code)).size).toBe(119);
+    for (const [n, item] of products.slice(0, 115).entries()) {
       expect(item.code).toBe(`STIN-P${String(n + 1).padStart(3, "0")}`);
       expect(item.boxesPerPack).toBe(1);
       expect(item.supplierSku).toBeNull();
@@ -18,6 +18,11 @@ describe("Stin source transcription", () => {
       )![1]!;
       expect(cents(unit.replace(",", ".")) * 10n).toBe(cents(item.price));
     }
+    expect(products.slice(115).map((item) => item.code)).toEqual([
+      "STIN-TIRZ-20",
+      "STIN-TIRZ-60",
+      "STIN-TIRZ-93_6",
+    ]);
   });
   it("prices the kit once, retaining all five phase descriptions and source uncertainties", () => {
     const kit = catalog.items.find((i) => i.kind === "KIT")!;

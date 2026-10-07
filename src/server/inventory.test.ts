@@ -3,7 +3,7 @@ import { migrate } from "drizzle-orm/node-postgres/migrator";
 import { randomUUID } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { getDb, getPool } from "./db";
-import { hasPreviewSession, hashToken, previewLogin } from "./auth";
+import { authenticate, can, hasPreviewSession, hashToken, previewLogin } from "./auth";
 import { inventoryResponse } from "./inventory";
 import { receivingResponse } from "./receiving";
 import { purchasingResponse } from "./purchases";
@@ -12,6 +12,7 @@ import { applicationResponse } from "./applications";
 import { lotTraceResponse } from "./lot-trace";
 import { writeOffResponse } from "./write-offs";
 import { activationResponse, userAdminResponse } from "./user-admin";
+import { integrationCredentialResponse } from "./integration-credentials";
 const origin = "http://localhost:4317";
 let cookie = "";
 beforeAll(async () => {
@@ -86,6 +87,69 @@ async function scopedCookie(unitId: string, role = "VIEWER") {
   );
   return `allik_inventory_session=${token}`;
 }
+
+describe("revocable integration credentials", () => {
+  it("creates a scoped secret, audits its use and revokes it immediately", async () => {
+    const adminCookie = await scopedCookie("a1100000-0000-4000-8000-000000000101", "SUPER_ADMIN");
+    const createResponse = await integrationCredentialResponse(
+      new Request(`${origin}/api/v1/inventory/integration-credentials`, {
+        method: "POST",
+        headers: { cookie: adminCookie, origin, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "CREATE",
+          name: "Codex de teste",
+          expiresInDays: 30,
+          permissions: ["inventory.read", "inventory.catalog.manage"],
+        }),
+      }),
+    );
+    expect(createResponse.status).toBe(201);
+    const created = (await createResponse.json()).data as { id: string; token: string };
+    expect(created.token).toMatch(/^allik_[A-Za-z0-9_-]{43}$/);
+
+    const stored = await getPool().query(
+      "SELECT token_hash,permissions FROM inventory_api_credentials WHERE id=$1",
+      [created.id],
+    );
+    expect(stored.rows[0].token_hash).toBe(hashToken(created.token));
+    expect(stored.rows[0].token_hash).not.toContain(created.token);
+
+    const apiRequest = new Request(`${origin}/api/v1/inventory/catalog/products`, {
+      headers: { authorization: `Bearer ${created.token}` },
+    });
+    const integration = await authenticate(apiRequest);
+    expect(integration?.user.name).toBe("Integração: Codex de teste");
+    expect(integration && can(integration, "inventory.catalog.manage")).toBe(true);
+    expect(integration && can(integration, "inventory.adjust")).toBe(false);
+    expect(integration && can(integration, "users.manage")).toBe(false);
+    const uses = await getPool().query(
+      "SELECT details FROM inventory_api_credential_events WHERE credential_id=$1 AND action='USE'",
+      [created.id],
+    );
+    expect(uses.rows).toEqual([
+      { details: { method: "GET", path: "/api/v1/inventory/catalog/products" } },
+    ]);
+
+    const revokeResponse = await integrationCredentialResponse(
+      new Request(`${origin}/api/v1/inventory/integration-credentials`, {
+        method: "POST",
+        headers: { cookie: adminCookie, origin, "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "REVOKE", credentialId: created.id }),
+      }),
+    );
+    expect(revokeResponse.status).toBe(200);
+    await expect(authenticate(apiRequest)).resolves.toBeNull();
+  });
+
+  it("does not allow preview or integration identities to manage credentials", async () => {
+    const response = await integrationCredentialResponse(
+      new Request(`${origin}/api/v1/inventory/integration-credentials`, {
+        headers: { cookie },
+      }),
+    );
+    expect(response.status).toBe(403);
+  });
+});
 
 describe("PostgreSQL receiving", () => {
   async function receiptFixture() {

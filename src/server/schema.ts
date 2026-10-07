@@ -149,6 +149,42 @@ export const authEvents = pgTable("inventory_auth_events", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
+export const apiCredentials = pgTable(
+  "inventory_api_credentials",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id),
+    name: text("name").notNull(),
+    tokenHash: text("token_hash").notNull().unique(),
+    permissions: text("permissions").array().notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    revokedAt: timestamp("revoked_at", { withTimezone: true }),
+    lastUsedAt: timestamp("last_used_at", { withTimezone: true }),
+    createdByUserId: uuid("created_by_user_id")
+      .notNull()
+      .references(() => users.id),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("inventory_api_credential_organization").on(t.organizationId, t.createdAt)],
+);
+
+export const apiCredentialEvents = pgTable(
+  "inventory_api_credential_events",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    credentialId: uuid("credential_id")
+      .notNull()
+      .references(() => apiCredentials.id),
+    action: text("action").notNull(),
+    actorUserId: uuid("actor_user_id").references(() => users.id),
+    details: jsonb("details").notNull().default({}),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("inventory_api_credential_event_history").on(t.credentialId, t.createdAt)],
+);
+
 export const products = pgTable(
   "inventory_products",
   {

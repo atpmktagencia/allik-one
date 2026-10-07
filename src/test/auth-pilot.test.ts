@@ -9,6 +9,7 @@ const context = (role: AuthContext["role"], unitIds = ["unit-fortaleza"]): AuthC
   role,
   unitIds,
   preview: false,
+  integration: null,
 });
 
 describe("pilot authentication and authorization", () => {
@@ -26,5 +27,18 @@ describe("pilot authentication and authorization", () => {
     expect(can(context("FINANCE"), "inventory.adjust", "unit-fortaleza")).toBe(false);
     expect(can(context("VIEWER"), "inventory.receive", "unit-fortaleza")).toBe(false);
     expect(can(context("SUPER_ADMIN", []), "inventory.adjust", "unit-juazeiro")).toBe(true);
+  });
+  it("limits an integration even when its technical role is super admin", () => {
+    const integration = {
+      ...context("SUPER_ADMIN", []),
+      integration: {
+        id: "credential-1",
+        name: "Codex",
+        permissions: ["inventory.read", "inventory.catalog.manage"] as const,
+      },
+    } satisfies AuthContext;
+    expect(can(integration, "inventory.catalog.manage")).toBe(true);
+    expect(can(integration, "inventory.adjust")).toBe(false);
+    expect(can(integration, "users.manage")).toBe(false);
   });
 });
