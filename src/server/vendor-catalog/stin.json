@@ -1618,6 +1618,48 @@
       "sourcePage": 8
     },
     {
+      "code": "STIN-TIRZ-20",
+      "supplierSku": null,
+      "name": "Tirzepatida 20mg/0,8mL",
+      "kind": "PRODUCT",
+      "description": "Concentração: 25mg/mL. Apresentação e preço informados pelo administrador.",
+      "packaging": "1 ampola",
+      "contents": "1 ampola · 0,8mL · 20mg",
+      "boxesPerPack": 1,
+      "price": "591.40",
+      "pricingNote": "SKU oficial não informado; código interno Allik One.",
+      "priceSource": "Informado pelo administrador em 07/10/2026",
+      "sourcePage": null
+    },
+    {
+      "code": "STIN-TIRZ-60",
+      "supplierSku": null,
+      "name": "Tirzepatida 60mg/2,4mL",
+      "kind": "PRODUCT",
+      "description": "Concentração: 25mg/mL. Apresentação e preço informados pelo administrador.",
+      "packaging": "1 ampola",
+      "contents": "1 ampola · 2,4mL · 60mg",
+      "boxesPerPack": 1,
+      "price": "2000.00",
+      "pricingNote": "SKU oficial não informado; código interno Allik One.",
+      "priceSource": "Informado pelo administrador em 07/10/2026",
+      "sourcePage": null
+    },
+    {
+      "code": "STIN-TIRZ-93_6",
+      "supplierSku": null,
+      "name": "Tirzepatida 93,6mg/3,6mL",
+      "kind": "PRODUCT",
+      "description": "Concentração: 26mg/mL. Apresentação e preço informados pelo administrador.",
+      "packaging": "1 ampola",
+      "contents": "1 ampola · 3,6mL · 93,6mg",
+      "boxesPerPack": 1,
+      "price": "2687.91",
+      "pricingNote": "SKU oficial não informado; código interno Allik One.",
+      "priceSource": "Informado pelo administrador em 07/10/2026",
+      "sourcePage": null
+    },
+    {
       "code": "STIN-K001",
       "supplierSku": null,
       "name": "Protocolo Lipedema — conjunto com 5 fases",
