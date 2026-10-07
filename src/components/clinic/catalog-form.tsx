@@ -197,7 +197,7 @@ export function CatalogForm({
                   target="_blank"
                   rel="noopener noreferrer"
                 >
-                  Acessar demonstração
+                  Fazer login
                 </Link>
               )}
             </div>

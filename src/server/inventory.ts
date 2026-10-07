@@ -13,7 +13,7 @@ export async function inventoryResponse(request: Request) {
   const auth = await authenticate(request);
   if (!auth)
     return Response.json(
-      { error: "Entre para acessar o estoque de demonstração." },
+      { error: "Entre para acessar o estoque disponível." },
       { status: 401, headers },
     );
   if (!can(auth, "inventory.read"))

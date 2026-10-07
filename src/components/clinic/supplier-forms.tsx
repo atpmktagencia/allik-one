@@ -218,7 +218,7 @@ export function SupplierForm({
               {validation || write.error?.message}
               {write.error?.status === 401 && (
                 <Link to="/estoque/acesso" target="_blank" className="ml-2 underline">
-                  Acessar demonstração
+                  Fazer login
                 </Link>
               )}
             </div>

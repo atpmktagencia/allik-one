@@ -25,24 +25,22 @@ import { cn } from "@/lib/utils";
 import { selectedUnitId, setSelectedUnitId } from "@/data/unit-context";
 
 const operationItems = [
-  { label: "Estoque", to: "/estoque", icon: Package },
-  { label: "Compras e recebimentos", to: "/estoque/recebimento", icon: PackageCheck },
-  { label: "Movimentações", to: "/estoque/movimentacoes", icon: ListChecks },
-] as const;
-const registryItems = [
-  { label: "Produtos e locais", to: "/estoque/cadastros", icon: Warehouse },
-  { label: "Fornecedores e pedidos", to: "/estoque/fornecedores", icon: Landmark },
-  { label: "Valores de venda", to: "/estoque/valores", icon: ListChecks },
+  { label: "Estoque atual", to: "/estoque", icon: Package },
+  { label: "Pedidos e entradas", to: "/estoque/recebimento", icon: PackageCheck },
+  { label: "Movimentações e histórico", to: "/estoque/movimentacoes", icon: ListChecks },
+  { label: "Produtos e sede", to: "/estoque/cadastros", icon: Warehouse },
+  { label: "Nova compra", to: "/estoque/fornecedores", icon: Landmark },
+  { label: "Vendas Realizadas", to: "/estoque/valores", icon: ListChecks },
 ] as const;
 
 const pageTitles: Record<string, string> = {
-  "/estoque": "Estoque",
-  "/estoque/recebimento": "Compras e recebimentos",
-  "/estoque/movimentacoes": "Movimentações",
-  "/estoque/cadastros": "Produtos e locais",
-  "/estoque/fornecedores": "Fornecedores e pedidos",
-  "/estoque/valores": "Valores de venda",
-  "/estoque/usuarios": "Usuários do estoque",
+  "/estoque": "Estoque atual",
+  "/estoque/recebimento": "Pedidos e entradas",
+  "/estoque/movimentacoes": "Movimentações e histórico",
+  "/estoque/cadastros": "Produtos e sede",
+  "/estoque/fornecedores": "Nova compra",
+  "/estoque/valores": "Vendas Realizadas",
+  "/estoque/usuarios": "Usuários",
   "/estoque/minha-conta": "Minha conta",
 };
 
@@ -97,7 +95,7 @@ function Navigation({
   onNavigate?: (() => void) | undefined;
 }) {
   const path = useRouterState({ select: (state) => state.location.pathname });
-  const renderItems = (items: typeof operationItems | typeof registryItems) =>
+  const renderItems = (items: typeof operationItems) =>
     items.map((item) => {
       const active = item.to === "/estoque" ? path === "/estoque" : path.startsWith(item.to);
       return (
@@ -121,13 +119,9 @@ function Navigation({
   return (
     <nav className="flex flex-1 flex-col px-3 py-4">
       <p className="mb-2 px-3 text-[10px] font-semibold uppercase tracking-widest text-sidebar-muted">
-        Operação
+        Estoque
       </p>
       <div className="space-y-1">{renderItems(operationItems)}</div>
-      <p className="mb-2 mt-7 px-3 text-[10px] font-semibold uppercase tracking-widest text-sidebar-muted">
-        Cadastros
-      </p>
-      <div className="space-y-1">{renderItems(registryItems)}</div>
       <p className="mb-2 mt-7 px-3 text-[10px] font-semibold uppercase tracking-widest text-sidebar-muted">
         Administração
       </p>

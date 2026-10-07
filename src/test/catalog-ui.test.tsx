@@ -52,7 +52,7 @@ describe("Catalog UI", () => {
       ),
     );
     mount(<CatalogPage />);
-    expect(await screen.findByText("Acessar demonstração")).toBeInTheDocument();
+    expect(await screen.findByText("Fazer login")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Novo produto" })).not.toBeInTheDocument();
   });
   it("lists zero-stock and inactive products and filters by SKU or status", async () => {

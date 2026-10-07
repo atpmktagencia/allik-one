@@ -137,7 +137,7 @@ export function CatalogPage() {
     <div className="space-y-7">
       <SectionHeader
         eyebrow="Estoque · Cadastros"
-        title="Produtos e locais"
+        title="Produtos e sede"
         description="Cadastre itens e locais, mantenha o mínimo de reposição e acompanhe as alterações."
         action={
           <div className="flex flex-wrap gap-2">

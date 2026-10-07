@@ -88,7 +88,7 @@ function OperationForm({
           {write.error.message}
           {write.error.status === 401 && (
             <Link to="/estoque/acesso" className="ml-2 underline">
-              Acessar demonstração
+              Fazer login
             </Link>
           )}
           {write.error.status === 409 && (

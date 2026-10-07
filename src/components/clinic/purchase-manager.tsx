@@ -17,7 +17,7 @@ function WriteFeedback({ write }: { write: ReturnType<typeof useInventoryWrite> 
       {write.error.message}
       {write.error.status === 401 && (
         <Link to="/estoque/acesso" className="ml-2 underline">
-          Acessar demonstração
+          Fazer login
         </Link>
       )}
       {write.uncertain && <p>Reenvie os mesmos dados para confirmar o resultado.</p>}

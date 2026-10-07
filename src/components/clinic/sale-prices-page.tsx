@@ -19,7 +19,7 @@ export function SalePricesPage() {
     <div className="space-y-6">
       <PageHeader
         eyebrow="Comercial"
-        title="Valores de venda"
+        title="Vendas Realizadas"
         description="Tabela interna dos injetáveis mais utilizados pela clínica."
       />
       <Card>

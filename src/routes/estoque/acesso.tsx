@@ -74,6 +74,18 @@ function InventoryAccess() {
         <Button className="w-full" type="submit" disabled={pending || !ready}>
           {pending ? "Entrando…" : "Acessar estoque"}
         </Button>
+        <p className="text-center text-sm text-muted-foreground">
+          Enfrentando problemas no login?{" "}
+          <a
+            className="font-medium text-primary underline underline-offset-4"
+            href="https://wa.me/5585996146664"
+            target="_blank"
+            rel="noreferrer"
+          >
+            Entre em contato por aqui
+          </a>
+          .
+        </p>
       </form>
     </div>
   );

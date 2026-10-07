@@ -140,7 +140,7 @@ describe("Lot trace UI", () => {
       vi.fn(async () => Response.json({ error: "Entre para consultar" }, { status: 401 })),
     );
     mount();
-    expect(await screen.findByText("Acessar demonstração")).toBeInTheDocument();
+    expect(await screen.findByText("Fazer login")).toBeInTheDocument();
     expect(screen.queryByText("AP-TRACE")).not.toBeInTheDocument();
   });
   it("shows balance and missing audit divergences explicitly", async () => {

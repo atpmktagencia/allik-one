@@ -383,7 +383,7 @@ export function SupplierPage() {
     <div className="space-y-7">
       <SectionHeader
         eyebrow="Estoque · Compras"
-        title="Fornecedores e catálogos"
+        title="Nova compra"
         description="Selecione produtos, confira o custo e prepare o pedido ao fornecedor."
         action={<Button onClick={() => setEditing({ supplier: null })}>Novo fornecedor</Button>}
       />

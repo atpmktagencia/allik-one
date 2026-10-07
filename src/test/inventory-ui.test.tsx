@@ -54,7 +54,12 @@ describe("Inventory UI", () => {
       vi.fn(async () => Response.json({ error: "Entre para acessar" }, { status: 401 })),
     );
     mount();
-    expect(await screen.findByText("Acessar demonstração")).toBeInTheDocument();
+    expect(await screen.findByText("Fazer login")).toBeInTheDocument();
+    expect(screen.getByText("Faça o login para liberar seu acesso.")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Entre em contato por aqui" })).toHaveAttribute(
+      "href",
+      "https://wa.me/5585996146664",
+    );
   });
   it("excludes blocked and expired balances from available quantity", () => {
     const base = {
