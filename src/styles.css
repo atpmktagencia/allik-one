@@ -70,9 +70,11 @@
   --color-danger-foreground: var(--danger-foreground);
   --color-brand-strong: var(--brand-strong);
   --color-brand-on: var(--brand-on);
-  --shadow-soft: 0 1px 2px oklch(0.129 0.042 264.695 / 0.04), 0 8px 24px oklch(0.129 0.042 264.695 / 0.035);
+  --shadow-soft:
+    0 1px 2px oklch(0.129 0.042 264.695 / 0.04), 0 8px 24px oklch(0.129 0.042 264.695 / 0.035);
   --shadow-panel: 0 14px 36px oklch(0.129 0.042 264.695 / 0.12);
-  --font-display: ui-sans-serif, -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", sans-serif;
+  --font-display:
+    ui-sans-serif, -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", sans-serif;
   --font-sans: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
 

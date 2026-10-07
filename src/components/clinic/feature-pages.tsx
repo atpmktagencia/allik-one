@@ -1,34 +1,385 @@
 import { Link } from "@tanstack/react-router";
-import { CalendarDays, ChevronRight, CircleDollarSign, Clock3, FileText, Filter, FlaskConical, Package, Search, SlidersHorizontal, TrendingUp, Users, WalletCards } from "lucide-react";
+import {
+  CalendarDays,
+  ChevronRight,
+  CircleDollarSign,
+  Clock3,
+  FileText,
+  Filter,
+  FlaskConical,
+  Package,
+  Search,
+  SlidersHorizontal,
+  TrendingUp,
+  Users,
+  WalletCards,
+} from "lucide-react";
 import { patients, todaySchedule, financial, sales } from "@/data/mock-clinic";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { PageHeader, PreviewNotice, Section, MetricCard } from "./page-kit";
 import { StatusPill } from "./status-pill";
 
 function Tools({ placeholder = "Buscar" }: { placeholder?: string }) {
-  return <div className="flex flex-col gap-3 sm:flex-row"><div className="relative min-w-0 flex-1"><Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" /><Input className="h-10 bg-card pl-9" placeholder={placeholder} /></div><Button variant="outline"><Filter />Filtrar</Button></div>;
+  return (
+    <div className="flex flex-col gap-3 sm:flex-row">
+      <div className="relative min-w-0 flex-1">
+        <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+        <Input className="h-10 bg-card pl-9" placeholder={placeholder} />
+      </div>
+      <Button variant="outline">
+        <Filter />
+        Filtrar
+      </Button>
+    </div>
+  );
 }
 
 export function AgendaPage() {
-  return <div className="space-y-6"><PageHeader eyebrow="Operação clínica" title="Agenda" description="Consultas e procedimentos organizados por jornada de atendimento." action={<PreviewNotice />} /><div className="grid gap-4 md:grid-cols-3"><MetricCard label="Atendimentos hoje" value="12" detail="9 confirmados · 1 encaixe" icon={CalendarDays} /><MetricCard label="Em atendimento" value="2" detail="Tempo médio de 38 min" icon={Clock3} tone="warning" /><MetricCard label="Ocupação" value="84%" detail="4 profissionais em agenda" icon={TrendingUp} tone="success" /></div><Section title="Sábado, 3 de outubro" description="Agenda consolidada da equipe" action={<Button variant="outline" size="sm"><CalendarDays />Hoje</Button>}><div className="mb-5"><Tabs defaultValue="todos"><TabsList><TabsTrigger value="todos">Todos</TabsTrigger><TabsTrigger value="consultas">Consultas</TabsTrigger><TabsTrigger value="aplicacoes">Aplicações</TabsTrigger></TabsList></Tabs></div><div className="space-y-1">{todaySchedule.map((item) => <div key={`${item.time}-${item.patient}`} className="grid grid-cols-[60px_minmax(0,1fr)] items-center gap-3 rounded-md border-b border-border px-2 py-4 last:border-0 sm:grid-cols-[64px_minmax(0,1fr)_160px_130px]"><p className="font-display text-sm font-semibold">{item.time}</p><div className="min-w-0"><Link to="/pacientes/$patientId" params={{ patientId: item.patientId }} className="block truncate text-sm font-medium text-foreground hover:text-primary">{item.patient}</Link><p className="truncate text-xs text-muted-foreground">{item.type}</p></div><p className="hidden text-sm text-muted-foreground sm:block">{item.professional}</p><div className="hidden justify-self-end sm:block"><StatusPill label={item.status} /></div></div>)}</div></Section></div>;
+  return (
+    <div className="space-y-6">
+      <PageHeader
+        eyebrow="Operação clínica"
+        title="Agenda"
+        description="Consultas e procedimentos organizados por jornada de atendimento."
+        action={<PreviewNotice />}
+      />
+      <div className="grid gap-4 md:grid-cols-3">
+        <MetricCard
+          label="Atendimentos hoje"
+          value="12"
+          detail="9 confirmados · 1 encaixe"
+          icon={CalendarDays}
+        />
+        <MetricCard
+          label="Em atendimento"
+          value="2"
+          detail="Tempo médio de 38 min"
+          icon={Clock3}
+          tone="warning"
+        />
+        <MetricCard
+          label="Ocupação"
+          value="84%"
+          detail="4 profissionais em agenda"
+          icon={TrendingUp}
+          tone="success"
+        />
+      </div>
+      <Section
+        title="Sábado, 3 de outubro"
+        description="Agenda consolidada da equipe"
+        action={
+          <Button variant="outline" size="sm">
+            <CalendarDays />
+            Hoje
+          </Button>
+        }
+      >
+        <div className="mb-5">
+          <Tabs defaultValue="todos">
+            <TabsList>
+              <TabsTrigger value="todos">Todos</TabsTrigger>
+              <TabsTrigger value="consultas">Consultas</TabsTrigger>
+              <TabsTrigger value="aplicacoes">Aplicações</TabsTrigger>
+            </TabsList>
+          </Tabs>
+        </div>
+        <div className="space-y-1">
+          {todaySchedule.map((item) => (
+            <div
+              key={`${item.time}-${item.patient}`}
+              className="grid grid-cols-[60px_minmax(0,1fr)] items-center gap-3 rounded-md border-b border-border px-2 py-4 last:border-0 sm:grid-cols-[64px_minmax(0,1fr)_160px_130px]"
+            >
+              <p className="font-display text-sm font-semibold">{item.time}</p>
+              <div className="min-w-0">
+                <Link
+                  to="/pacientes/$patientId"
+                  params={{ patientId: item.patientId }}
+                  className="block truncate text-sm font-medium text-foreground hover:text-primary"
+                >
+                  {item.patient}
+                </Link>
+                <p className="truncate text-xs text-muted-foreground">{item.type}</p>
+              </div>
+              <p className="hidden text-sm text-muted-foreground sm:block">{item.professional}</p>
+              <div className="hidden justify-self-end sm:block">
+                <StatusPill label={item.status} />
+              </div>
+            </div>
+          ))}
+        </div>
+      </Section>
+    </div>
+  );
 }
 
 export function PatientsPage() {
-  return <div className="space-y-6"><PageHeader eyebrow="Base de cuidado" title="Pacientes" description="Uma visão única para toda a relação clínica e administrativa." action={<PreviewNotice />} /><Tools placeholder="Buscar por nome, CPF ou telefone" /><Section title="Pacientes ativos" description="Dados integralmente fictícios para demonstração"><Table><TableHeader><TableRow><TableHead>Paciente</TableHead><TableHead>Jornada</TableHead><TableHead>Última visita</TableHead><TableHead>Próximo passo</TableHead><TableHead>Status</TableHead><TableHead /></TableRow></TableHeader><TableBody>{patients.map((patient) => <TableRow key={patient.id}><TableCell><p className="font-medium">{patient.name}</p><p className="text-xs text-muted-foreground">{patient.cpf}</p></TableCell><TableCell>{patient.journey}</TableCell><TableCell>{patient.lastVisit}</TableCell><TableCell>{patient.nextVisit}</TableCell><TableCell><StatusPill label={patient.tag} /></TableCell><TableCell><Button asChild variant="ghost" size="icon" aria-label={`Abrir ${patient.name}`}><Link to="/pacientes/$patientId" params={{ patientId: patient.id }}><ChevronRight /></Link></Button></TableCell></TableRow>)}</TableBody></Table></Section></div>;
+  return (
+    <div className="space-y-6">
+      <PageHeader
+        eyebrow="Base de cuidado"
+        title="Pacientes"
+        description="Uma visão única para toda a relação clínica e administrativa."
+        action={<PreviewNotice />}
+      />
+      <Tools placeholder="Buscar por nome, CPF ou telefone" />
+      <Section
+        title="Pacientes ativos"
+        description="Dados integralmente fictícios para demonstração"
+      >
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Paciente</TableHead>
+              <TableHead>Jornada</TableHead>
+              <TableHead>Última visita</TableHead>
+              <TableHead>Próximo passo</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead />
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {patients.map((patient) => (
+              <TableRow key={patient.id}>
+                <TableCell>
+                  <p className="font-medium">{patient.name}</p>
+                  <p className="text-xs text-muted-foreground">{patient.cpf}</p>
+                </TableCell>
+                <TableCell>{patient.journey}</TableCell>
+                <TableCell>{patient.lastVisit}</TableCell>
+                <TableCell>{patient.nextVisit}</TableCell>
+                <TableCell>
+                  <StatusPill label={patient.tag} />
+                </TableCell>
+                <TableCell>
+                  <Button asChild variant="ghost" size="icon" aria-label={`Abrir ${patient.name}`}>
+                    <Link to="/pacientes/$patientId" params={{ patientId: patient.id }}>
+                      <ChevronRight />
+                    </Link>
+                  </Button>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </Section>
+    </div>
+  );
 }
 
 export function RecordsPage() {
-  return <div className="space-y-6"><PageHeader eyebrow="Cuidado longitudinal" title="Prontuário" description="Registros clínicos organizados por paciente, com separação clara das informações administrativas." action={<PreviewNotice />} /><Tools placeholder="Localizar registro clínico" /><div className="grid gap-5 lg:grid-cols-[1.2fr_.8fr]"><Section title="Registros recentes" description="Atividades fictícias da equipe">{patients.slice(0,3).map((patient, index) => <div key={patient.id} className="flex items-center gap-4 border-b border-border py-4 first:pt-0 last:border-0 last:pb-0"><div className="flex size-9 shrink-0 items-center justify-center rounded-md bg-info-soft text-info-foreground"><FileText className="size-4" /></div><div className="min-w-0 flex-1"><p className="truncate text-sm font-medium">{patient.name}</p><p className="text-xs text-muted-foreground">{index === 0 ? "Evolução registrada hoje, 09:12" : `Registro atualizado em ${patient.lastVisit}`}</p></div><Button asChild variant="ghost" size="sm"><Link to="/pacientes/$patientId" params={{ patientId: patient.id }}>Abrir</Link></Button></div>)}</Section><Section title="Pendências de registro" description="Fila assistencial"><div className="space-y-4"><div><div className="mb-2 flex justify-between text-sm"><span>Assinaturas pendentes</span><strong>3</strong></div><Progress value={35} /></div><div><div className="mb-2 flex justify-between text-sm"><span>Retornos a documentar</span><strong>2</strong></div><Progress value={24} /></div></div></Section></div></div>;
+  return (
+    <div className="space-y-6">
+      <PageHeader
+        eyebrow="Cuidado longitudinal"
+        title="Prontuário"
+        description="Registros clínicos organizados por paciente, com separação clara das informações administrativas."
+        action={<PreviewNotice />}
+      />
+      <Tools placeholder="Localizar registro clínico" />
+      <div className="grid gap-5 lg:grid-cols-[1.2fr_.8fr]">
+        <Section title="Registros recentes" description="Atividades fictícias da equipe">
+          {patients.slice(0, 3).map((patient, index) => (
+            <div
+              key={patient.id}
+              className="flex items-center gap-4 border-b border-border py-4 first:pt-0 last:border-0 last:pb-0"
+            >
+              <div className="flex size-9 shrink-0 items-center justify-center rounded-md bg-info-soft text-info-foreground">
+                <FileText className="size-4" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-medium">{patient.name}</p>
+                <p className="text-xs text-muted-foreground">
+                  {index === 0
+                    ? "Evolução registrada hoje, 09:12"
+                    : `Registro atualizado em ${patient.lastVisit}`}
+                </p>
+              </div>
+              <Button asChild variant="ghost" size="sm">
+                <Link to="/pacientes/$patientId" params={{ patientId: patient.id }}>
+                  Abrir
+                </Link>
+              </Button>
+            </div>
+          ))}
+        </Section>
+        <Section title="Pendências de registro" description="Fila assistencial">
+          <div className="space-y-4">
+            <div>
+              <div className="mb-2 flex justify-between text-sm">
+                <span>Assinaturas pendentes</span>
+                <strong>3</strong>
+              </div>
+              <Progress value={35} />
+            </div>
+            <div>
+              <div className="mb-2 flex justify-between text-sm">
+                <span>Retornos a documentar</span>
+                <strong>2</strong>
+              </div>
+              <Progress value={24} />
+            </div>
+          </div>
+        </Section>
+      </div>
+    </div>
+  );
 }
 
 export function SalesPage() {
-  return <div className="space-y-6"><PageHeader eyebrow="Comercial integrado" title="Vendas" description="Propostas, contratos e recebimentos vinculados à identidade do paciente." action={<PreviewNotice />} /><div className="grid gap-4 md:grid-cols-3"><MetricCard label="Vendas no mês" value="R$ 96.480" detail="+8,4% sobre setembro" icon={WalletCards} tone="success" /><MetricCard label="Conversão" value="42,8%" detail="Propostas em atendimento" icon={TrendingUp} /><MetricCard label="Ticket comercial" value="R$ 2.840" detail="Média dos últimos 30 dias" icon={CircleDollarSign} tone="neutral" /></div><Section title="Vendas recentes" description="Movimentações fictícias"><Table><TableHeader><TableRow><TableHead>Venda</TableHead><TableHead>Paciente</TableHead><TableHead>Descrição</TableHead><TableHead>Data</TableHead><TableHead>Valor</TableHead><TableHead>Status</TableHead></TableRow></TableHeader><TableBody>{sales.map((sale) => <TableRow key={sale.id}><TableCell className="font-medium">{sale.id}</TableCell><TableCell>{sale.patient}</TableCell><TableCell>{sale.item}</TableCell><TableCell>{sale.date}</TableCell><TableCell className="font-medium">{sale.value}</TableCell><TableCell><StatusPill label={sale.status} /></TableCell></TableRow>)}</TableBody></Table></Section></div>;
+  return (
+    <div className="space-y-6">
+      <PageHeader
+        eyebrow="Comercial integrado"
+        title="Vendas"
+        description="Propostas, contratos e recebimentos vinculados à identidade do paciente."
+        action={<PreviewNotice />}
+      />
+      <div className="grid gap-4 md:grid-cols-3">
+        <MetricCard
+          label="Vendas no mês"
+          value="R$ 96.480"
+          detail="+8,4% sobre setembro"
+          icon={WalletCards}
+          tone="success"
+        />
+        <MetricCard
+          label="Conversão"
+          value="42,8%"
+          detail="Propostas em atendimento"
+          icon={TrendingUp}
+        />
+        <MetricCard
+          label="Ticket comercial"
+          value="R$ 2.840"
+          detail="Média dos últimos 30 dias"
+          icon={CircleDollarSign}
+          tone="neutral"
+        />
+      </div>
+      <Section title="Vendas recentes" description="Movimentações fictícias">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Venda</TableHead>
+              <TableHead>Paciente</TableHead>
+              <TableHead>Descrição</TableHead>
+              <TableHead>Data</TableHead>
+              <TableHead>Valor</TableHead>
+              <TableHead>Status</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {sales.map((sale) => (
+              <TableRow key={sale.id}>
+                <TableCell className="font-medium">{sale.id}</TableCell>
+                <TableCell>{sale.patient}</TableCell>
+                <TableCell>{sale.item}</TableCell>
+                <TableCell>{sale.date}</TableCell>
+                <TableCell className="font-medium">{sale.value}</TableCell>
+                <TableCell>
+                  <StatusPill label={sale.status} />
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </Section>
+    </div>
+  );
 }
 
 export function FinancePage() {
-  return <div className="space-y-6"><PageHeader eyebrow="Saúde financeira" title="Financeiro" description="Visão consolidada da operação, sem perder o vínculo com a jornada do paciente." action={<PreviewNotice />} /><div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4"><MetricCard label="Receita realizada" value={financial.revenue} detail="Outubro de 2026" icon={TrendingUp} tone="success" /><MetricCard label="A receber" value={financial.receivable} detail="Próximos 30 dias" icon={WalletCards} /><MetricCard label="Custos" value={financial.costs} detail="Fixos e variáveis" icon={CircleDollarSign} tone="neutral" /><MetricCard label="Margem operacional" value={financial.margin} detail="Meta mensal: 58%" icon={TrendingUp} tone="warning" /></div><div className="grid gap-5 lg:grid-cols-[1.2fr_.8fr]"><Section title="Meta mensal" description="Realizado versus objetivo"><div className="flex items-end justify-between"><div><p className="font-display text-3xl font-semibold">{financial.revenue}</p><p className="mt-1 text-sm text-muted-foreground">de {financial.target}</p></div><p className="text-sm font-semibold text-success-foreground">{financial.targetProgress}%</p></div><Progress className="mt-5 h-2.5" value={financial.targetProgress} /><div className="mt-6 grid grid-cols-2 gap-4 border-t border-border pt-5"><div><p className="text-xs text-muted-foreground">Ticket médio</p><p className="mt-1 font-semibold">{financial.ticket}</p></div><div><p className="text-xs text-muted-foreground">Previsão de fechamento</p><p className="mt-1 font-semibold">R$ 248.600,00</p></div></div></Section><Section title="Composição da receita" description="Receita fictícia por frente"><div className="space-y-4">{[["Tratamentos", "52%"], ["Consultas", "28%"], ["Aplicações", "14%"], ["Exames", "6%"]].map(([label, value]) => <div key={label} className="flex items-center justify-between border-b border-border pb-3 last:border-0"><span className="text-sm text-muted-foreground">{label}</span><strong className="text-sm">{value}</strong></div>)}</div></Section></div></div>;
+  return (
+    <div className="space-y-6">
+      <PageHeader
+        eyebrow="Saúde financeira"
+        title="Financeiro"
+        description="Visão consolidada da operação, sem perder o vínculo com a jornada do paciente."
+        action={<PreviewNotice />}
+      />
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <MetricCard
+          label="Receita realizada"
+          value={financial.revenue}
+          detail="Outubro de 2026"
+          icon={TrendingUp}
+          tone="success"
+        />
+        <MetricCard
+          label="A receber"
+          value={financial.receivable}
+          detail="Próximos 30 dias"
+          icon={WalletCards}
+        />
+        <MetricCard
+          label="Custos"
+          value={financial.costs}
+          detail="Fixos e variáveis"
+          icon={CircleDollarSign}
+          tone="neutral"
+        />
+        <MetricCard
+          label="Margem operacional"
+          value={financial.margin}
+          detail="Meta mensal: 58%"
+          icon={TrendingUp}
+          tone="warning"
+        />
+      </div>
+      <div className="grid gap-5 lg:grid-cols-[1.2fr_.8fr]">
+        <Section title="Meta mensal" description="Realizado versus objetivo">
+          <div className="flex items-end justify-between">
+            <div>
+              <p className="font-display text-3xl font-semibold">{financial.revenue}</p>
+              <p className="mt-1 text-sm text-muted-foreground">de {financial.target}</p>
+            </div>
+            <p className="text-sm font-semibold text-success-foreground">
+              {financial.targetProgress}%
+            </p>
+          </div>
+          <Progress className="mt-5 h-2.5" value={financial.targetProgress} />
+          <div className="mt-6 grid grid-cols-2 gap-4 border-t border-border pt-5">
+            <div>
+              <p className="text-xs text-muted-foreground">Ticket médio</p>
+              <p className="mt-1 font-semibold">{financial.ticket}</p>
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground">Previsão de fechamento</p>
+              <p className="mt-1 font-semibold">R$ 248.600,00</p>
+            </div>
+          </div>
+        </Section>
+        <Section title="Composição da receita" description="Receita fictícia por frente">
+          <div className="space-y-4">
+            {[
+              ["Tratamentos", "52%"],
+              ["Consultas", "28%"],
+              ["Aplicações", "14%"],
+              ["Exames", "6%"],
+            ].map(([label, value]) => (
+              <div
+                key={label}
+                className="flex items-center justify-between border-b border-border pb-3 last:border-0"
+              >
+                <span className="text-sm text-muted-foreground">{label}</span>
+                <strong className="text-sm">{value}</strong>
+              </div>
+            ))}
+          </div>
+        </Section>
+      </div>
+    </div>
+  );
 }

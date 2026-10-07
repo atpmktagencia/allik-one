@@ -62,7 +62,9 @@ function ErrorComponent({ error, reset }: ErrorComponentProps) {
           >
             Tentar novamente
           </Button>
-          <Button asChild variant="outline"><Link to="/">Voltar à visão geral</Link></Button>
+          <Button asChild variant="outline">
+            <Link to="/">Voltar à visão geral</Link>
+          </Button>
         </div>
       </div>
     </div>
@@ -110,7 +112,9 @@ function RootComponent() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <AppShell><Outlet /></AppShell>
+      <AppShell>
+        <Outlet />
+      </AppShell>
     </QueryClientProvider>
   );
 }

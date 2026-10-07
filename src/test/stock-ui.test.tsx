@@ -54,7 +54,11 @@ describe("Stock UI", () => {
   it("shows empty states for a product without lots or movements", async () => {
     renderWithRouter(<ProductDetailPage productId="prod-005" />);
 
-    expect(await screen.findByText("Nenhum lote registrado para este produto.")).toBeInTheDocument();
-    expect(screen.getByText("Nenhuma movimentação registrada para este produto.")).toBeInTheDocument();
+    expect(
+      await screen.findByText("Nenhum lote registrado para este produto."),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("Nenhuma movimentação registrada para este produto."),
+    ).toBeInTheDocument();
   });
 });

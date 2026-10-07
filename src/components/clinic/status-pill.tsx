@@ -15,5 +15,14 @@ const styles: Record<string, string> = {
 };
 
 export function StatusPill({ label }: { label: string }) {
-  return <span className={cn("inline-flex whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-medium", styles[label] ?? "bg-muted text-muted-foreground")}>{label}</span>;
+  return (
+    <span
+      className={cn(
+        "inline-flex whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-medium",
+        styles[label] ?? "bg-muted text-muted-foreground",
+      )}
+    >
+      {label}
+    </span>
+  );
 }
