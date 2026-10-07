@@ -1,3 +1,2 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { ApplicationsPage } from "@/components/clinic/stock-ui";
-export const Route = createFileRoute("/aplicacoes")({ head: () => ({ meta: [{ title: "Aplicações — Clinic OS" }] }), component: ApplicationsPage });
+import { createFileRoute, Outlet } from "@tanstack/react-router";
+export const Route = createFileRoute("/aplicacoes")({ component: Outlet });

@@ -24,3 +24,21 @@ describe("App routing", () => {
     expect(matches.at(-1)?.params).toMatchObject({ patientId: "ana-beatriz" });
   });
 });
+
+// These nested routes must render through the parent layout's Outlet.
+describe("Inventory and applications routes", () => {
+  for (const path of [
+    "/estoque/recebimento",
+    "/estoque/movimentacoes",
+    "/estoque/produtos/00000000-0000-4000-8000-000000000001",
+    "/estoque/lotes/00000000-0000-4000-8000-000000000001",
+    "/aplicacoes/nova",
+  ]) {
+    it(`matches ${path}`, () => {
+      const router = createRouter({ routeTree, context: { queryClient: new QueryClient() } });
+      expect(router.matchRoutes(path).at(-1)?.routeId).not.toBe(rootRouteId);
+      expect(router.matchRoutes(path).at(-1)?.routeId).not.toBe("/estoque");
+      expect(router.matchRoutes(path).at(-1)?.routeId).not.toBe("/aplicacoes");
+    });
+  }
+});

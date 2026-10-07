@@ -62,7 +62,9 @@ function ErrorComponent({ error, reset }: ErrorComponentProps) {
           >
             Tentar novamente
           </Button>
-          <Button asChild variant="outline"><Link to="/">Voltar à visão geral</Link></Button>
+          <Button asChild variant="outline">
+            <Link to="/">Voltar à visão geral</Link>
+          </Button>
         </div>
       </div>
     </div>
@@ -74,8 +76,8 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { name: "application-name", content: "Clinic OS" },
-      { name: "author", content: "Clinic OS" },
+      { name: "application-name", content: "Allik One" },
+      { name: "author", content: "Allik One" },
     ],
     links: [
       {
@@ -110,7 +112,9 @@ function RootComponent() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <AppShell><Outlet /></AppShell>
+      <AppShell>
+        <Outlet />
+      </AppShell>
     </QueryClientProvider>
   );
 }
