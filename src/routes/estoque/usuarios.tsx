@@ -13,7 +13,7 @@ type User = {
   units: Unit[];
 };
 export const Route = createFileRoute("/estoque/usuarios")({ component: UserAdministration });
-function UserAdministration() {
+export function UserAdministration() {
   const [users, setUsers] = useState<User[]>([]);
   const [units, setUnits] = useState<Unit[]>([]);
   const [form, setForm] = useState({
@@ -22,7 +22,7 @@ function UserAdministration() {
     profession: "",
     title: "",
     role: "VIEWER",
-    unitId: "",
+    unitIds: [] as string[],
   });
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
@@ -58,7 +58,7 @@ function UserAdministration() {
           profession: form.profession || undefined,
           title: form.title || undefined,
           role: form.role,
-          unitIds: form.unitId ? [form.unitId] : [],
+          unitIds: form.unitIds,
         }),
       });
       const body = (await response.json()) as { error?: string; data?: { activationPath: string } };
@@ -67,7 +67,7 @@ function UserAdministration() {
       const link = `${window.location.origin}${body.data.activationPath}`;
       await navigator.clipboard.writeText(link);
       setMessage("Usuário criado. O link de ativação de uso único foi copiado.");
-      setForm({ name: "", email: "", profession: "", title: "", role: "VIEWER", unitId: "" });
+      setForm({ name: "", email: "", profession: "", title: "", role: "VIEWER", unitIds: [] });
       await load();
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Falha de conexão.");
@@ -123,19 +123,34 @@ function UserAdministration() {
             ),
           )}
         </select>
-        <select
-          aria-label="Unidade"
-          className="h-10 rounded-md border bg-background px-3"
-          value={form.unitId}
-          onChange={(event) => setForm({ ...form, unitId: event.target.value })}
-        >
-          <option value="">Sem unidade operacional</option>
-          {units.map((unit) => (
-            <option key={unit.id} value={unit.id}>
-              {unit.name}
-            </option>
-          ))}
-        </select>
+        <fieldset className="rounded-md border bg-background px-3 py-2">
+          <legend className="px-1 text-sm font-medium">Unidades permitidas</legend>
+          <div className="flex flex-wrap gap-x-5 gap-y-2">
+            {units.map((unit) => (
+              <label key={unit.id} className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  name="unitIds"
+                  value={unit.id}
+                  checked={form.unitIds.includes(unit.id)}
+                  onChange={(event) =>
+                    setForm({
+                      ...form,
+                      unitIds: event.target.checked
+                        ? [...form.unitIds, unit.id]
+                        : form.unitIds.filter((unitId) => unitId !== unit.id),
+                    })
+                  }
+                  className="size-4 accent-primary"
+                />
+                {unit.name}
+              </label>
+            ))}
+          </div>
+          <p className="mt-2 text-xs text-muted-foreground">
+            Marque uma ou mais unidades. Deixe vazio apenas para acesso sem operação local.
+          </p>
+        </fieldset>
         <Button disabled={pending}>{pending ? "Criando…" : "Criar e copiar convite"}</Button>
         {message && (
           <p role="status" className="text-sm">
