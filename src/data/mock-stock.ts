@@ -1,3 +1,5 @@
+// DEMONSTRATION DATA ONLY.
+// Temporary UI data boundary for stock and applications. Replace its exports with /api/v1/ adapters later.
 export type StockStatus = "Normal" | "Estoque baixo" | "Crítico" | "Próximo do vencimento" | "Bloqueado";
 
 export const stockLocations = ["Clínica Fortaleza", "Sala de Procedimentos", "Almoxarifado"];
@@ -20,11 +22,11 @@ export const stockLots = [
 ];
 
 export const stockMovements = [
-  { id: "mov-001", date: "03/10/2026 17:42", type: "Consumo do paciente", product: "Injetável A", lot: "A24F08", origin: "Sala de Procedimentos", destination: "Paciente", quantity: -2, location: "Sala de Procedimentos", responsible: "Enf. Ana Costa", reference: "APP-00182" },
-  { id: "mov-002", date: "03/10/2026 15:10", type: "Entrada de compra", product: "Injetável A", lot: "A24F08", origin: "Essentia", destination: "Clínica Fortaleza", quantity: 40, location: "Clínica Fortaleza", responsible: "Marcos Scorsafava", reference: "RCB-00031" },
-  { id: "mov-003", date: "03/10/2026 13:26", type: "Transferência", product: "Material C", lot: "MC-2601", origin: "Almoxarifado", destination: "Sala de Procedimentos", quantity: -20, location: "Almoxarifado", responsible: "João Silva", reference: "TRF-00018" },
-  { id: "mov-004", date: "02/10/2026 18:04", type: "Perda", product: "Injetável F", lot: "F25D19", origin: "Sala de Procedimentos", destination: "Perda", quantity: -1, location: "Sala de Procedimentos", responsible: "Enf. Ana Costa", reference: "AJU-00009" },
-  { id: "mov-005", date: "02/10/2026 10:18", type: "Ajuste", product: "Kit de aplicação D", lot: "KD-2512", origin: "Contagem", destination: "Sala de Procedimentos", quantity: 3, location: "Sala de Procedimentos", responsible: "João Silva", reference: "AJU-00008" },
+  { id: "mov-001", productId: "prod-001", date: "03/10/2026 17:42", type: "Consumo do paciente", product: "Injetável A", lot: "A24F08", origin: "Sala de Procedimentos", destination: "Paciente", quantity: -2, location: "Sala de Procedimentos", responsible: "Enf. Ana Costa", reference: "APP-00182" },
+  { id: "mov-002", productId: "prod-001", date: "03/10/2026 15:10", type: "Entrada de compra", product: "Injetável A", lot: "A24F08", origin: "Essentia", destination: "Clínica Fortaleza", quantity: 40, location: "Clínica Fortaleza", responsible: "Marcos Scorsafava", reference: "RCB-00031" },
+  { id: "mov-003", productId: "prod-003", date: "03/10/2026 13:26", type: "Transferência", product: "Material C", lot: "MC-2601", origin: "Almoxarifado", destination: "Sala de Procedimentos", quantity: -20, location: "Almoxarifado", responsible: "João Silva", reference: "TRF-00018" },
+  { id: "mov-004", productId: "prod-006", date: "02/10/2026 18:04", type: "Perda", product: "Injetável F", lot: "F25D19", origin: "Sala de Procedimentos", destination: "Perda", quantity: -1, location: "Sala de Procedimentos", responsible: "Enf. Ana Costa", reference: "AJU-00009" },
+  { id: "mov-005", productId: "prod-004", date: "02/10/2026 10:18", type: "Ajuste", product: "Kit de aplicação D", lot: "KD-2512", origin: "Contagem", destination: "Sala de Procedimentos", quantity: 3, location: "Sala de Procedimentos", responsible: "João Silva", reference: "AJU-00008" },
 ];
 
 export const applications = [

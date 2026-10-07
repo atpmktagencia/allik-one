@@ -38,13 +38,6 @@ export const financial = {
   ticket: "R$ 1.428,00",
 };
 
-export const inventoryItems = [
-  { item: "Insumo Alfa 50 ml", category: "Aplicações", stock: "8 un.", minimum: "12 un.", status: "Reposição" },
-  { item: "Kit de coleta", category: "Exames", stock: "34 un.", minimum: "20 un.", status: "Regular" },
-  { item: "Material Beta", category: "Procedimentos", stock: "18 un.", minimum: "10 un.", status: "Regular" },
-  { item: "Luvas descartáveis", category: "Uso clínico", stock: "6 cx.", minimum: "8 cx.", status: "Reposição" },
-];
-
 export const sales = [
   { id: "#V-1048", patient: "Marina Costa Alves", item: "Programa de acompanhamento", date: "03/10/2026", value: "R$ 3.600,00", status: "Pago" },
   { id: "#V-1047", patient: "Ana Beatriz Lima", item: "Protocolo demonstrativo", date: "03/10/2026", value: "R$ 2.450,00", status: "Parcelado" },

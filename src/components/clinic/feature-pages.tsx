@@ -1,6 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import { CalendarDays, ChevronRight, CircleDollarSign, Clock3, FileText, Filter, FlaskConical, Package, Search, SlidersHorizontal, TrendingUp, Users, WalletCards } from "lucide-react";
-import { patients, todaySchedule, financial, inventoryItems, sales } from "@/data/mock-clinic";
+import { patients, todaySchedule, financial, sales } from "@/data/mock-clinic";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
@@ -27,10 +27,6 @@ export function RecordsPage() {
 
 export function SalesPage() {
   return <div className="space-y-6"><PageHeader eyebrow="Comercial integrado" title="Vendas" description="Propostas, contratos e recebimentos vinculados à identidade do paciente." action={<PreviewNotice />} /><div className="grid gap-4 md:grid-cols-3"><MetricCard label="Vendas no mês" value="R$ 96.480" detail="+8,4% sobre setembro" icon={WalletCards} tone="success" /><MetricCard label="Conversão" value="42,8%" detail="Propostas em atendimento" icon={TrendingUp} /><MetricCard label="Ticket comercial" value="R$ 2.840" detail="Média dos últimos 30 dias" icon={CircleDollarSign} tone="neutral" /></div><Section title="Vendas recentes" description="Movimentações fictícias"><Table><TableHeader><TableRow><TableHead>Venda</TableHead><TableHead>Paciente</TableHead><TableHead>Descrição</TableHead><TableHead>Data</TableHead><TableHead>Valor</TableHead><TableHead>Status</TableHead></TableRow></TableHeader><TableBody>{sales.map((sale) => <TableRow key={sale.id}><TableCell className="font-medium">{sale.id}</TableCell><TableCell>{sale.patient}</TableCell><TableCell>{sale.item}</TableCell><TableCell>{sale.date}</TableCell><TableCell className="font-medium">{sale.value}</TableCell><TableCell><StatusPill label={sale.status} /></TableCell></TableRow>)}</TableBody></Table></Section></div>;
-}
-
-export function InventoryPage() {
-  return <div className="space-y-6"><PageHeader eyebrow="Suprimentos clínicos" title="Estoque" description="Controle de insumos com rastreabilidade preparada para aplicações e procedimentos." action={<PreviewNotice />} /><Tools placeholder="Buscar item ou categoria" /><Section title="Posição de estoque" description="Lotes e saldos demonstrativos"><Table><TableHeader><TableRow><TableHead>Item</TableHead><TableHead>Categoria</TableHead><TableHead>Saldo atual</TableHead><TableHead>Estoque mínimo</TableHead><TableHead>Status</TableHead></TableRow></TableHeader><TableBody>{inventoryItems.map((item) => <TableRow key={item.item}><TableCell className="font-medium">{item.item}</TableCell><TableCell>{item.category}</TableCell><TableCell>{item.stock}</TableCell><TableCell>{item.minimum}</TableCell><TableCell><StatusPill label={item.status} /></TableCell></TableRow>)}</TableBody></Table></Section></div>;
 }
 
 export function FinancePage() {
