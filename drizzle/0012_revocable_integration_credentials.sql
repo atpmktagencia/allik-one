@@ -27,9 +27,11 @@ CREATE TABLE "inventory_api_credentials" (
 );
 --> statement-breakpoint
 CREATE UNIQUE INDEX "inventory_api_credential_token_hash_unique" ON "inventory_api_credentials" USING btree ("token_hash");
+--> statement-breakpoint
 CREATE INDEX "inventory_api_credential_organization" ON "inventory_api_credentials" USING btree ("organization_id","created_at");
 --> statement-breakpoint
 ALTER TABLE "inventory_api_credentials" ADD CONSTRAINT "inventory_api_credentials_organization_id_fk" FOREIGN KEY ("organization_id") REFERENCES "inventory_organizations"("id");
+--> statement-breakpoint
 ALTER TABLE "inventory_api_credentials" ADD CONSTRAINT "inventory_api_credentials_created_by_user_id_fk" FOREIGN KEY ("created_by_user_id") REFERENCES "inventory_users"("id");
 --> statement-breakpoint
 CREATE TABLE "inventory_api_credential_events" (
@@ -43,6 +45,9 @@ CREATE TABLE "inventory_api_credential_events" (
 );
 --> statement-breakpoint
 CREATE INDEX "inventory_api_credential_event_history" ON "inventory_api_credential_events" USING btree ("credential_id","created_at");
+--> statement-breakpoint
 ALTER TABLE "inventory_api_credential_events" ADD CONSTRAINT "inventory_api_credential_events_credential_id_fk" FOREIGN KEY ("credential_id") REFERENCES "inventory_api_credentials"("id");
+--> statement-breakpoint
 ALTER TABLE "inventory_api_credential_events" ADD CONSTRAINT "inventory_api_credential_events_actor_user_id_fk" FOREIGN KEY ("actor_user_id") REFERENCES "inventory_users"("id");
+--> statement-breakpoint
 CREATE TRIGGER api_credential_event_immutable BEFORE UPDATE OR DELETE ON inventory_api_credential_events FOR EACH ROW EXECUTE FUNCTION inventory_reject_history_change();
