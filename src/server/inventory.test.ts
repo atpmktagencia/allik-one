@@ -3,7 +3,15 @@ import { migrate } from "drizzle-orm/node-postgres/migrator";
 import { randomUUID } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { getDb, getPool } from "./db";
-import { authenticate, can, hasPreviewSession, hashToken, previewLogin } from "./auth";
+import {
+  authenticate,
+  can,
+  hasPreviewSession,
+  hashPassword,
+  hashToken,
+  previewLogin,
+  sessionResponse,
+} from "./auth";
 import { inventoryResponse } from "./inventory";
 import { receivingResponse } from "./receiving";
 import { purchasingResponse } from "./purchases";
@@ -1264,6 +1272,26 @@ describe("Preview access", () => {
         )
       ).status,
     ).toBe(401);
+  });
+  it("uses individual authentication when Preview receives an email", async () => {
+    const email = `preview-${randomUUID()}@example.test`;
+    const password = "individual-preview-password";
+    await getPool().query(
+      `INSERT INTO inventory_users(name,email,password_hash)
+       VALUES('Usuário Preview',$1,$2)`,
+      [email, await hashPassword(password)],
+    );
+
+    const response = await sessionResponse(
+      new Request(`${origin}/api/inventory-session`, {
+        method: "POST",
+        headers: { origin, "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      }),
+    );
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("set-cookie")).toContain("inventory_session=");
   });
   it("validates session signature and expiry", () => {
     expect(hasPreviewSession(request("stock"))).toBe(true);

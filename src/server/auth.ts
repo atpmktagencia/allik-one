@@ -426,7 +426,20 @@ export async function sessionResponse(request: Request) {
       { headers: { "Cache-Control": "private, no-store" } },
     );
   }
-  return process.env["INVENTORY_ENVIRONMENT"] === "production"
-    ? pilotLogin(request)
-    : previewLogin(request);
+  if (process.env["INVENTORY_ENVIRONMENT"] === "production") return pilotLogin(request);
+
+  // Preview deployments can be backed by an isolated database branch copied
+  // from Pilot. Prefer individual authentication whenever the login form sends
+  // an email, while retaining the password-only synthetic flow for local tests.
+  const body = await request
+    .clone()
+    .json()
+    .catch(() => null);
+  const hasIndividualIdentity =
+    body !== null &&
+    typeof body === "object" &&
+    "email" in body &&
+    typeof body.email === "string" &&
+    body.email.trim().length > 0;
+  return hasIndividualIdentity ? pilotLogin(request) : previewLogin(request);
 }
