@@ -207,6 +207,91 @@ export const products = pgTable(
   ],
 );
 
+export const pricingPresentations = pgTable(
+  "inventory_pricing_presentations",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id),
+    productId: uuid("product_id").references(() => products.id),
+    name: text("name").notNull(),
+    baseUnit: text("base_unit").notNull(),
+    totalBaseQuantity: numeric("total_base_quantity", { precision: 18, scale: 6 }).notNull(),
+    totalVolumeMl: numeric("total_volume_ml", { precision: 18, scale: 6 }),
+    acquisitionCost: numeric("acquisition_cost", { precision: 14, scale: 4 }).notNull(),
+    technicalLossPercent: numeric("technical_loss_percent", { precision: 7, scale: 4 })
+      .notNull()
+      .default("0"),
+    additionalPresentationCost: numeric("additional_presentation_cost", {
+      precision: 14,
+      scale: 4,
+    })
+      .notNull()
+      .default("0"),
+    minimumMeasurableVolumeMl: numeric("minimum_measurable_volume_ml", {
+      precision: 12,
+      scale: 6,
+    }),
+    beyondUseHours: integer("beyond_use_hours"),
+    active: boolean("active").notNull().default(true),
+    version: integer("version").notNull().default(0),
+    createdByUserId: uuid("created_by_user_id").references(() => users.id),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("inventory_pricing_presentation_identity").on(
+      t.organizationId,
+      sql`lower(${t.name})`,
+    ),
+    index("inventory_pricing_presentation_product").on(t.productId),
+  ],
+);
+
+export const pricingDoses = pgTable(
+  "inventory_pricing_doses",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    presentationId: uuid("presentation_id")
+      .notNull()
+      .references(() => pricingPresentations.id),
+    name: text("name").notNull(),
+    doseQuantity: numeric("dose_quantity", { precision: 18, scale: 6 }).notNull(),
+    salePrice: numeric("sale_price", { precision: 14, scale: 2 }).notNull(),
+    materialCost: numeric("material_cost", { precision: 14, scale: 4 }).notNull().default("0"),
+    active: boolean("active").notNull().default(true),
+    version: integer("version").notNull().default(0),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("inventory_pricing_dose_identity").on(t.presentationId, sql`lower(${t.name})`),
+  ],
+);
+
+export const pricingChanges = pgTable(
+  "inventory_pricing_changes",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id),
+    presentationId: uuid("presentation_id")
+      .notNull()
+      .references(() => pricingPresentations.id),
+    doseId: uuid("dose_id").references(() => pricingDoses.id),
+    action: text("action").notNull(),
+    beforeData: jsonb("before_data"),
+    afterData: jsonb("after_data").notNull(),
+    reason: text("reason").notNull(),
+    actor: text("actor").notNull(),
+    actorUserId: uuid("actor_user_id").references(() => users.id),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("inventory_pricing_change_history").on(t.organizationId, t.createdAt)],
+);
+
 export const locations = pgTable(
   "inventory_locations",
   {

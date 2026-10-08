@@ -13,6 +13,7 @@ import { lotTraceResponse } from "./lot-trace";
 import { writeOffResponse } from "./write-offs";
 import { activationResponse, userAdminResponse } from "./user-admin";
 import { integrationCredentialResponse } from "./integration-credentials";
+import { pricingResponse } from "./pricing";
 const origin = "http://localhost:4317";
 let cookie = "";
 beforeAll(async () => {
@@ -145,6 +146,91 @@ describe("revocable integration credentials", () => {
     const response = await integrationCredentialResponse(
       new Request(`${origin}/api/v1/inventory/integration-credentials`, {
         headers: { cookie },
+      }),
+    );
+    expect(response.status).toBe(403);
+  });
+});
+
+describe("fractional presentation and dose pricing", () => {
+  it("persists audited Tirzepatide pricing and returns exact safety calculations", async () => {
+    const presentationId = randomUUID();
+    const presentationResponse = await pricingResponse(
+      new Request(`${origin}/api/v1/inventory/pricing`, {
+        method: "POST",
+        headers: { cookie, origin, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "CREATE_PRESENTATION",
+          id: presentationId,
+          productId: null,
+          name: `Tirzepatida teste ${presentationId}`,
+          baseUnit: "MG",
+          totalBaseQuantity: "20",
+          totalVolumeMl: "0.8",
+          acquisitionCost: "591.40",
+          technicalLossPercent: "0",
+          additionalPresentationCost: "0",
+          minimumMeasurableVolumeMl: "0.01",
+          beyondUseHours: 24,
+          active: true,
+          version: 0,
+          reason: "Validação integrada da apresentação.",
+        }),
+      }),
+    );
+    expect(presentationResponse.status).toBe(201);
+    const doseId = randomUUID();
+    const doseResponse = await pricingResponse(
+      new Request(`${origin}/api/v1/inventory/pricing`, {
+        method: "POST",
+        headers: { cookie, origin, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "CREATE_DOSE",
+          id: doseId,
+          presentationId,
+          name: "Dose 2,4 mg",
+          doseQuantity: "2.4",
+          salePrice: "250",
+          materialCost: "0",
+          active: true,
+          version: 0,
+          reason: "Validação integrada da dose comercial.",
+        }),
+      }),
+    );
+    expect(doseResponse.status).toBe(201);
+    const response = await pricingResponse(
+      new Request(`${origin}/api/v1/inventory/pricing`, { headers: { cookie } }),
+    );
+    const payload = (await response.json()).data;
+    const created = payload.presentations.find(
+      (presentation: { id: string }) => presentation.id === presentationId,
+    );
+    expect(created).toMatchObject({ concentrationPerMl: "25", beyondUseHours: 24 });
+    expect(created.doses[0]).toMatchObject({
+      id: doseId,
+      calculation: { doseVolumeMl: "0.096", measurable: false, dosesPerPresentation: 8 },
+    });
+    const changes = await getPool().query(
+      "SELECT action FROM inventory_pricing_changes WHERE presentation_id=$1 ORDER BY created_at",
+      [presentationId],
+    );
+    expect(changes.rows.map((row) => row.action)).toEqual(["CREATE_PRESENTATION", "CREATE_DOSE"]);
+    await expect(
+      getPool().query(
+        "UPDATE inventory_pricing_changes SET reason='alteração proibida' WHERE presentation_id=$1",
+        [presentationId],
+      ),
+    ).rejects.toThrow();
+  });
+
+  it("keeps write access server-side", async () => {
+    const viewerCookie = await scopedCookie("a1100000-0000-4000-8000-000000000101", "VIEWER");
+    const response = await pricingResponse(
+      new Request(`${origin}/api/v1/inventory/pricing`, {
+        method: "POST",
+        headers: { cookie: viewerCookie, origin, "Content-Type": "application/json" },
+        body: JSON.stringify({}),
       }),
     );
     expect(response.status).toBe(403);
