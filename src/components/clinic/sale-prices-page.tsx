@@ -456,6 +456,9 @@ export function SalePricesPage() {
                   </CardDescription>
                 </div>
                 <Badge variant="outline">Custo {money.format(number(item.acquisitionCost))}</Badge>
+                {(!item.minimumMeasurableVolumeMl || !item.beyondUseHours) && (
+                  <Badge variant="secondary">Simulação parcial</Badge>
+                )}
                 {data.canManage && (
                   <Button type="button" variant="outline" onClick={() => editPresentation(item)}>
                     Editar apresentação
@@ -464,6 +467,12 @@ export function SalePricesPage() {
               </div>
             </CardHeader>
             <CardContent className="space-y-4">
+              {(!item.minimumMeasurableVolumeMl || !item.beyondUseHours) && (
+                <p className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950">
+                  Resultado provisório: confirme o menor volume mensurável e o prazo de uso após
+                  abertura antes de usar esta simulação em uma decisão operacional.
+                </p>
+              )}
               <div className="grid gap-2 text-sm sm:grid-cols-3">
                 <p>
                   <span className="text-muted-foreground">Perda técnica:</span>{" "}
