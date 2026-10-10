@@ -1,5 +1,12 @@
 import { describe, expect, it, vi } from "vitest";
-import { can, hashPassword, verifyPassword, type AuthContext } from "@/server/auth";
+import {
+  authenticate,
+  can,
+  hashPassword,
+  isPreviewLoginDisabled,
+  verifyPassword,
+  type AuthContext,
+} from "@/server/auth";
 
 vi.mock("@tanstack/react-start/server-only", () => ({}));
 const context = (role: AuthContext["role"], unitIds = ["unit-fortaleza"]): AuthContext => ({
@@ -13,6 +20,33 @@ const context = (role: AuthContext["role"], unitIds = ["unit-fortaleza"]): AuthC
 });
 
 describe("pilot authentication and authorization", () => {
+  it("disables Preview login only inside a Vercel Preview deployment", () => {
+    vi.stubEnv("INVENTORY_DISABLE_PREVIEW_LOGIN", "true");
+    vi.stubEnv("INVENTORY_ENVIRONMENT", "preview");
+    vi.stubEnv("VERCEL_ENV", "preview");
+    expect(isPreviewLoginDisabled()).toBe(true);
+
+    vi.stubEnv("INVENTORY_ENVIRONMENT", "production");
+    expect(isPreviewLoginDisabled()).toBe(false);
+    vi.stubEnv("INVENTORY_ENVIRONMENT", "preview");
+    vi.stubEnv("VERCEL_ENV", "production");
+    expect(isPreviewLoginDisabled()).toBe(false);
+    vi.unstubAllEnvs();
+  });
+  it("grants the isolated Preview operator without an application cookie", async () => {
+    vi.stubEnv("INVENTORY_DISABLE_PREVIEW_LOGIN", "true");
+    vi.stubEnv("INVENTORY_ENVIRONMENT", "preview");
+    vi.stubEnv("VERCEL_ENV", "preview");
+
+    const authenticated = await authenticate(new Request("https://preview.example.test/api"));
+
+    expect(authenticated).toMatchObject({
+      user: { name: "Operador do Preview" },
+      role: "SUPER_ADMIN",
+      preview: true,
+    });
+    vi.unstubAllEnvs();
+  });
   it("hashes passwords with a random salt and verifies without storing plaintext", async () => {
     const first = await hashPassword("uma-senha-forte-123");
     const second = await hashPassword("uma-senha-forte-123");

@@ -117,6 +117,13 @@ function previewConfig() {
     return null;
   return { password, secret };
 }
+export function isPreviewLoginDisabled() {
+  return (
+    process.env["INVENTORY_DISABLE_PREVIEW_LOGIN"] === "true" &&
+    process.env["INVENTORY_ENVIRONMENT"] === "preview" &&
+    process.env["VERCEL_ENV"] === "preview"
+  );
+}
 function sign(value: string, secret: string) {
   return createHmac("sha256", secret).update(value).digest("base64url");
 }
@@ -274,7 +281,7 @@ export async function authenticate(request: Request): Promise<AuthContext | null
       integration: { id: row.id, name: row.name, permissions: row.permissions },
     };
   }
-  if (hasPreviewSession(request))
+  if (isPreviewLoginDisabled() || hasPreviewSession(request))
     return {
       user: { id: null, name: "Operador do Preview", email: null },
       membershipId: null,

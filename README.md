@@ -154,6 +154,10 @@ O projeto usa o adaptador Nitro/Vercel da configuração Lovable, com frontend e
 - `INVENTORY_ENVIRONMENT=preview`.
 - `INVENTORY_PREVIEW_PASSWORD`: senha longa exclusiva do Preview.
 - `INVENTORY_SESSION_SECRET`: segredo aleatório exclusivo do Preview.
+- `INVENTORY_DISABLE_PREVIEW_LOGIN=true`: opcional; dispensa a segunda tela de login somente em
+  deployments onde `INVENTORY_ENVIRONMENT=preview` e `VERCEL_ENV=preview`. Use apenas com a
+  Deployment Protection da Vercel ativa. O login por senha permanece implementado e volta a ser
+  exigido ao remover ou definir esta variável como `false`.
 
 Para branches Neon criadas por deployment, autorize a preparação somente na branch sintética de Preview: `INVENTORY_PREPARE_PREVIEW=true` e `INVENTORY_ALLOW_SEED=true`. O build aplica migrations, seed idempotente e importações Essentia/Stin antes de compilar, exigindo também `VERCEL_ENV=preview` e `INVENTORY_ENVIRONMENT=preview`. Sem opt-in, o build não acessa o banco; com opt-in em produção, ele falha antes de qualquer migration. O seed sintético nunca deve ser autorizado em bancos com dados reais. PRs simultâneos devem usar branches de banco isoladas. Execute `bun run test:preview-guard` para verificar as proteções.
 
