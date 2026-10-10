@@ -14,12 +14,16 @@ type Calculation = {
   measurable: boolean | null;
   costPerDose: string;
   marginPerDose: string;
+  grossResultPerPresentation: string;
 };
 type Dose = {
   id: string;
   name: string;
   doseQuantity: string;
   salePrice: string;
+  materialCost: string;
+  active: boolean;
+  version: number;
   calculation: Calculation;
 };
 type Presentation = {
@@ -31,8 +35,12 @@ type Presentation = {
   concentrationPerMl: string | null;
   acquisitionCost: string;
   technicalLossPercent: string;
+  additionalPresentationCost: string;
   minimumMeasurableVolumeMl: string | null;
   beyondUseHours: number | null;
+  productId: string | null;
+  active: boolean;
+  version: number;
   doses: Dose[];
 };
 type Payload = {
@@ -99,38 +107,87 @@ export function SalePricesPage() {
   const query = useInventory<Payload>("pricing");
   const [presentation, setPresentation] = useState(presentationBlank);
   const [dose, setDose] = useState(doseBlank);
+  const [editingPresentationId, setEditingPresentationId] = useState<string | null>(null);
+  const [editingDoseId, setEditingDoseId] = useState<string | null>(null);
   const writer = usePricingWrite(() => query.refetch());
   if (query.isPending || query.error)
     return (
       <InventoryState pending={query.isPending} error={query.error} retry={() => query.refetch()} />
     );
   const data = query.data!;
-  async function createPresentation(event: FormEvent) {
+  async function savePresentation(event: FormEvent) {
     event.preventDefault();
+    const current = data.presentations.find((item) => item.id === editingPresentationId);
     const saved = await writer.write({
-      action: "CREATE_PRESENTATION",
-      id: crypto.randomUUID(),
+      action: current ? "UPDATE_PRESENTATION" : "CREATE_PRESENTATION",
+      id: current?.id ?? crypto.randomUUID(),
       ...presentation,
       productId: presentation.productId || null,
       totalVolumeMl: presentation.totalVolumeMl || null,
       minimumMeasurableVolumeMl: presentation.minimumMeasurableVolumeMl || null,
       beyondUseHours: presentation.beyondUseHours ? Number(presentation.beyondUseHours) : null,
       active: true,
-      version: 0,
+      version: current?.version ?? 0,
     });
-    if (saved) setPresentation(presentationBlank);
+    if (saved) {
+      setPresentation(presentationBlank);
+      setEditingPresentationId(null);
+    }
   }
-  async function createDose(event: FormEvent) {
+  async function saveDose(event: FormEvent) {
     event.preventDefault();
+    const current = data.presentations
+      .flatMap((item) => item.doses)
+      .find((item) => item.id === editingDoseId);
     const saved = await writer.write({
-      action: "CREATE_DOSE",
-      id: crypto.randomUUID(),
+      action: current ? "UPDATE_DOSE" : "CREATE_DOSE",
+      id: current?.id ?? crypto.randomUUID(),
       ...dose,
       active: true,
-      version: 0,
+      version: current?.version ?? 0,
     });
-    if (saved) setDose(doseBlank);
+    if (saved) {
+      setDose(doseBlank);
+      setEditingDoseId(null);
+    }
   }
+  function editPresentation(item: Presentation) {
+    setEditingPresentationId(item.id);
+    setPresentation({
+      productId: item.productId ?? "",
+      name: item.name,
+      baseUnit: item.baseUnit,
+      totalBaseQuantity: item.totalBaseQuantity,
+      totalVolumeMl: item.totalVolumeMl ?? "",
+      acquisitionCost: item.acquisitionCost,
+      technicalLossPercent: item.technicalLossPercent,
+      additionalPresentationCost: item.additionalPresentationCost,
+      minimumMeasurableVolumeMl: item.minimumMeasurableVolumeMl ?? "",
+      beyondUseHours: item.beyondUseHours?.toString() ?? "",
+      reason: "Atualização conferida da apresentação comercial.",
+    });
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+  function editDose(item: Presentation, doseItem: Dose) {
+    setEditingDoseId(doseItem.id);
+    setDose({
+      presentationId: item.id,
+      name: doseItem.name,
+      doseQuantity: doseItem.doseQuantity,
+      salePrice: doseItem.salePrice,
+      materialCost: doseItem.materialCost,
+      reason: "Atualização conferida da dose comercializada.",
+    });
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+  const comparisons = data.presentations
+    .flatMap((item) => item.doses.map((doseItem) => ({ presentation: item, dose: doseItem })))
+    .sort(
+      (a, b) =>
+        a.presentation.baseUnit.localeCompare(b.presentation.baseUnit) ||
+        number(a.dose.doseQuantity) - number(b.dose.doseQuantity) ||
+        number(a.dose.calculation.costPerDose) - number(b.dose.calculation.costPerDose),
+    );
   return (
     <div className="space-y-6">
       <PageHeader
@@ -140,9 +197,11 @@ export function SalePricesPage() {
       />
       {data.canManage && (
         <div className="grid gap-5 xl:grid-cols-2">
-          <form onSubmit={createPresentation} className="space-y-4 rounded-xl border bg-card p-5">
+          <form onSubmit={savePresentation} className="space-y-4 rounded-xl border bg-card p-5">
             <div>
-              <h2 className="font-semibold">Nova apresentação</h2>
+              <h2 className="font-semibold">
+                {editingPresentationId ? "Editar apresentação" : "Nova apresentação"}
+              </h2>
               <p className="text-sm text-muted-foreground">Ex.: Tirzepatida 20 mg / 0,8 mL.</p>
             </div>
             <div className="grid gap-3 sm:grid-cols-2">
@@ -261,13 +320,33 @@ export function SalePricesPage() {
               value={presentation.reason}
               onChange={(event) => setPresentation({ ...presentation, reason: event.target.value })}
             />
-            <Button disabled={writer.pending}>
-              {writer.pending ? "Salvando…" : "Cadastrar apresentação"}
-            </Button>
+            <div className="flex flex-wrap gap-2">
+              <Button disabled={writer.pending}>
+                {writer.pending
+                  ? "Salvando…"
+                  : editingPresentationId
+                    ? "Salvar apresentação"
+                    : "Cadastrar apresentação"}
+              </Button>
+              {editingPresentationId && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    setEditingPresentationId(null);
+                    setPresentation(presentationBlank);
+                  }}
+                >
+                  Cancelar edição
+                </Button>
+              )}
+            </div>
           </form>
-          <form onSubmit={createDose} className="space-y-4 rounded-xl border bg-card p-5">
+          <form onSubmit={saveDose} className="space-y-4 rounded-xl border bg-card p-5">
             <div>
-              <h2 className="font-semibold">Nova dose comercializada</h2>
+              <h2 className="font-semibold">
+                {editingDoseId ? "Editar dose comercializada" : "Nova dose comercializada"}
+              </h2>
               <p className="text-sm text-muted-foreground">
                 A unidade da dose é herdada da apresentação.
               </p>
@@ -326,9 +405,23 @@ export function SalePricesPage() {
               value={dose.reason}
               onChange={(event) => setDose({ ...dose, reason: event.target.value })}
             />
-            <Button disabled={writer.pending || data.presentations.length === 0}>
-              {writer.pending ? "Salvando…" : "Cadastrar dose"}
-            </Button>
+            <div className="flex flex-wrap gap-2">
+              <Button disabled={writer.pending || data.presentations.length === 0}>
+                {writer.pending ? "Salvando…" : editingDoseId ? "Salvar dose" : "Cadastrar dose"}
+              </Button>
+              {editingDoseId && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    setEditingDoseId(null);
+                    setDose(doseBlank);
+                  }}
+                >
+                  Cancelar edição
+                </Button>
+              )}
+            </div>
           </form>
         </div>
       )}
@@ -363,6 +456,11 @@ export function SalePricesPage() {
                   </CardDescription>
                 </div>
                 <Badge variant="outline">Custo {money.format(number(item.acquisitionCost))}</Badge>
+                {data.canManage && (
+                  <Button type="button" variant="outline" onClick={() => editPresentation(item)}>
+                    Editar apresentação
+                  </Button>
+                )}
               </div>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -393,6 +491,7 @@ export function SalePricesPage() {
                       <th className="p-3">Venda</th>
                       <th className="p-3">Margem</th>
                       <th className="p-3">Medição</th>
+                      {data.canManage && <th className="p-3">Ação</th>}
                     </tr>
                   </thead>
                   <tbody>
@@ -433,11 +532,26 @@ export function SalePricesPage() {
                             <Badge variant="destructive">Não mensurável</Badge>
                           )}
                         </td>
+                        {data.canManage && (
+                          <td className="p-3">
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="outline"
+                              onClick={() => editDose(item, doseItem)}
+                            >
+                              Editar
+                            </Button>
+                          </td>
+                        )}
                       </tr>
                     ))}
                     {item.doses.length === 0 && (
                       <tr>
-                        <td colSpan={7} className="p-5 text-center text-muted-foreground">
+                        <td
+                          colSpan={data.canManage ? 8 : 7}
+                          className="p-5 text-center text-muted-foreground"
+                        >
                           Cadastre uma dose para calcular.
                         </td>
                       </tr>
@@ -454,6 +568,66 @@ export function SalePricesPage() {
           </p>
         )}
       </section>
+      <Card>
+        <CardHeader>
+          <CardTitle>Comparação por dose e apresentação</CardTitle>
+          <CardDescription>
+            Compare custo, margem, rendimento e sobra antes de escolher qual apresentação abrir.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="p-0">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="border-y bg-muted/50 text-left text-xs text-muted-foreground">
+                <tr>
+                  <th className="px-6 py-3">Dose</th>
+                  <th className="px-4 py-3">Apresentação</th>
+                  <th className="px-4 py-3">Volume</th>
+                  <th className="px-4 py-3">Rendimento</th>
+                  <th className="px-4 py-3">Custo/dose</th>
+                  <th className="px-4 py-3">Margem/dose</th>
+                  <th className="px-6 py-3">Resultado/apresentação</th>
+                </tr>
+              </thead>
+              <tbody>
+                {comparisons.map(({ presentation: item, dose: doseItem }) => (
+                  <tr key={doseItem.id} className="border-t">
+                    <td className="px-6 py-3 font-medium">
+                      {doseItem.doseQuantity} {item.baseUnit}
+                    </td>
+                    <td className="px-4 py-3">{item.name}</td>
+                    <td className="px-4 py-3">
+                      {doseItem.calculation.doseVolumeMl
+                        ? `${doseItem.calculation.doseVolumeMl} mL`
+                        : "—"}
+                    </td>
+                    <td className="px-4 py-3">
+                      {doseItem.calculation.dosesPerPresentation} doses · sobra{" "}
+                      {doseItem.calculation.probableRemainder} {item.baseUnit}
+                    </td>
+                    <td className="px-4 py-3">
+                      {money.format(number(doseItem.calculation.costPerDose))}
+                    </td>
+                    <td className="px-4 py-3 font-semibold">
+                      {money.format(number(doseItem.calculation.marginPerDose))}
+                    </td>
+                    <td className="px-6 py-3 font-semibold">
+                      {money.format(number(doseItem.calculation.grossResultPerPresentation))}
+                    </td>
+                  </tr>
+                ))}
+                {comparisons.length === 0 && (
+                  <tr>
+                    <td colSpan={7} className="p-6 text-center text-muted-foreground">
+                      Cadastre apresentações e doses para comparar.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </CardContent>
+      </Card>
       <Card>
         <CardHeader>
           <CardTitle>Tabela anterior</CardTitle>
