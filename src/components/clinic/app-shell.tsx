@@ -5,6 +5,7 @@ import {
   HeartPulse,
   Syringe,
   Landmark,
+  ShoppingCart,
   KeyRound,
   ListChecks,
   Menu,
@@ -36,6 +37,7 @@ const operationItems = [
   { label: "Movimentações e histórico", to: "/estoque/movimentacoes", icon: ListChecks },
   { label: "Produtos e sede", to: "/estoque/cadastros", icon: Warehouse },
   { label: "Fazer compra", to: "/estoque/fornecedores", icon: Landmark },
+  { label: "Necessidade de compra", to: "/estoque/necessidade-compras", icon: ShoppingCart },
   { label: "Precificação", to: "/estoque/valores", icon: ListChecks },
   { label: "Aplicações", to: "/aplicacoes", icon: Syringe },
 ] as const;
@@ -53,6 +55,7 @@ const pageTitles: Record<string, string> = {
   "/estoque/movimentacoes": "Movimentações e histórico",
   "/estoque/cadastros": "Produtos e sede",
   "/estoque/fornecedores": "Fazer compra",
+  "/estoque/necessidade-compras": "Necessidade de compra",
   "/estoque/valores": "Precificação",
   "/aplicacoes": "Aplicações",
   "/aplicacoes/nova": "Registrar aplicação",

@@ -839,18 +839,22 @@ export const supplierOrders = pgTable("inventory_supplier_orders", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
-export const purchases = pgTable("inventory_purchases", {
-  id: uuid("id").primaryKey(),
-  unitId: uuid("unit_id")
-    .notNull()
-    .references(() => units.id),
-  reference: text("reference").notNull().unique(),
-  supplierId: uuid("supplier_id")
-    .notNull()
-    .references(() => suppliers.id),
-  requestHash: text("request_hash").notNull(),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-});
+export const purchases = pgTable(
+  "inventory_purchases",
+  {
+    id: uuid("id").primaryKey(),
+    unitId: uuid("unit_id")
+      .notNull()
+      .references(() => units.id),
+    reference: text("reference").notNull().unique(),
+    supplierId: uuid("supplier_id")
+      .notNull()
+      .references(() => suppliers.id),
+    requestHash: text("request_hash").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("inventory_purchases_unit_created").on(t.unitId, t.createdAt)],
+);
 
 export const purchaseItems = pgTable(
   "inventory_purchase_items",
@@ -868,6 +872,9 @@ export const purchaseItems = pgTable(
   },
   (t) => [
     uniqueIndex("purchase_product_unique").on(t.purchaseId, t.productId),
+    index("inventory_purchase_items_product_pending")
+      .on(t.productId, t.purchaseId)
+      .where(sql`${t.received} < ${t.quantity}`),
     check("purchase_quantity_positive", sql`${t.quantity} > 0`),
     check("purchase_received_valid", sql`${t.received} >= 0 AND ${t.received} <= ${t.quantity}`),
     check("purchase_cost_nonnegative", sql`${t.unitCost} >= 0`),

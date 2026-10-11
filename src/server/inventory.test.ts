@@ -28,6 +28,7 @@ import { patientDemandResponse } from "./patient-demand";
 import { patientApplicationResponse } from "./patient-applications";
 import { openPresentationResponse } from "./open-presentations";
 import { patientScheduleResponse } from "./patient-schedule";
+import { patientPurchaseNeedsResponse } from "./patient-purchase-needs";
 vi.mock("@vercel/blob", () => ({
   put: vi.fn(async (pathname: string) => ({ pathname })),
   del: vi.fn(async () => undefined),
@@ -708,7 +709,39 @@ describe("operational patients", () => {
         ],
       }),
     );
+    const purchaseNeeds = await patientPurchaseNeedsResponse(
+      new Request(
+        `${origin}/api/v1/inventory/patient-purchase-needs?horizon=30&leadDays=7&unitId=${fortaleza}`,
+        { headers: { cookie: managerCookie } },
+      ),
+    );
+    expect(purchaseNeeds.status).toBe(200);
+    expect((await purchaseNeeds.json()).data).toEqual(
+      expect.objectContaining({
+        summary: expect.objectContaining({ needingPurchase: 1, estimatedCost: 200 }),
+        items: [
+          expect.objectContaining({
+            productId,
+            unitId: fortaleza,
+            requiredUnits: 4,
+            physicalUnits: 2,
+            recommendedUnits: 2,
+            netAfterPending: 2,
+            estimatedCost: 200,
+          }),
+        ],
+      }),
+    );
     const otherManager = await scopedCookie(juazeiro, "UNIT_MANAGER");
+    expect(
+      (
+        await patientPurchaseNeedsResponse(
+          new Request(`${origin}/api/v1/inventory/patient-purchase-needs?unitId=${fortaleza}`, {
+            headers: { cookie: otherManager },
+          }),
+        )
+      ).status,
+    ).toBe(403);
     expect(
       (
         await patientScheduleResponse(

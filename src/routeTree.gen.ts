@@ -32,6 +32,7 @@ import { Route as EstoqueFornecedoresRouteImport } from './routes/estoque/fornec
 import { Route as EstoqueIntegracoesRouteImport } from './routes/estoque/integracoes'
 import { Route as EstoqueMinhaContaRouteImport } from './routes/estoque/minha-conta'
 import { Route as EstoqueMovimentacoesRouteImport } from './routes/estoque/movimentacoes'
+import { Route as EstoqueNecessidadeComprasRouteImport } from './routes/estoque/necessidade-compras'
 import { Route as EstoqueRecebimentoRouteImport } from './routes/estoque/recebimento'
 import { Route as EstoqueUsuariosRouteImport } from './routes/estoque/usuarios'
 import { Route as EstoqueValoresRouteImport } from './routes/estoque/valores'
@@ -158,6 +159,12 @@ const EstoqueMovimentacoesRoute = EstoqueMovimentacoesRouteImport.update({
   path: '/movimentacoes',
   getParentRoute: () => EstoqueRoute,
 } as any)
+const EstoqueNecessidadeComprasRoute =
+  EstoqueNecessidadeComprasRouteImport.update({
+    id: '/necessidade-compras',
+    path: '/necessidade-compras',
+    getParentRoute: () => EstoqueRoute,
+  } as any)
 const EstoqueRecebimentoRoute = EstoqueRecebimentoRouteImport.update({
   id: '/recebimento',
   path: '/recebimento',
@@ -233,6 +240,7 @@ export interface FileRoutesByFullPath {
   '/estoque/integracoes': typeof EstoqueIntegracoesRoute
   '/estoque/minha-conta': typeof EstoqueMinhaContaRoute
   '/estoque/movimentacoes': typeof EstoqueMovimentacoesRoute
+  '/estoque/necessidade-compras': typeof EstoqueNecessidadeComprasRoute
   '/estoque/recebimento': typeof EstoqueRecebimentoRoute
   '/estoque/usuarios': typeof EstoqueUsuariosRoute
   '/estoque/valores': typeof EstoqueValoresRoute
@@ -266,6 +274,7 @@ export interface FileRoutesByTo {
   '/estoque/integracoes': typeof EstoqueIntegracoesRoute
   '/estoque/minha-conta': typeof EstoqueMinhaContaRoute
   '/estoque/movimentacoes': typeof EstoqueMovimentacoesRoute
+  '/estoque/necessidade-compras': typeof EstoqueNecessidadeComprasRoute
   '/estoque/recebimento': typeof EstoqueRecebimentoRoute
   '/estoque/usuarios': typeof EstoqueUsuariosRoute
   '/estoque/valores': typeof EstoqueValoresRoute
@@ -302,6 +311,7 @@ export interface FileRoutesById {
   '/estoque/integracoes': typeof EstoqueIntegracoesRoute
   '/estoque/minha-conta': typeof EstoqueMinhaContaRoute
   '/estoque/movimentacoes': typeof EstoqueMovimentacoesRoute
+  '/estoque/necessidade-compras': typeof EstoqueNecessidadeComprasRoute
   '/estoque/recebimento': typeof EstoqueRecebimentoRoute
   '/estoque/usuarios': typeof EstoqueUsuariosRoute
   '/estoque/valores': typeof EstoqueValoresRoute
@@ -339,6 +349,7 @@ export interface FileRouteTypes {
     | '/estoque/integracoes'
     | '/estoque/minha-conta'
     | '/estoque/movimentacoes'
+    | '/estoque/necessidade-compras'
     | '/estoque/recebimento'
     | '/estoque/usuarios'
     | '/estoque/valores'
@@ -372,6 +383,7 @@ export interface FileRouteTypes {
     | '/estoque/integracoes'
     | '/estoque/minha-conta'
     | '/estoque/movimentacoes'
+    | '/estoque/necessidade-compras'
     | '/estoque/recebimento'
     | '/estoque/usuarios'
     | '/estoque/valores'
@@ -407,6 +419,7 @@ export interface FileRouteTypes {
     | '/estoque/integracoes'
     | '/estoque/minha-conta'
     | '/estoque/movimentacoes'
+    | '/estoque/necessidade-compras'
     | '/estoque/recebimento'
     | '/estoque/usuarios'
     | '/estoque/valores'
@@ -602,6 +615,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof EstoqueMovimentacoesRouteImport
       parentRoute: typeof EstoqueRoute
     }
+    '/estoque/necessidade-compras': {
+      id: '/estoque/necessidade-compras'
+      path: '/necessidade-compras'
+      fullPath: '/estoque/necessidade-compras'
+      preLoaderRoute: typeof EstoqueNecessidadeComprasRouteImport
+      parentRoute: typeof EstoqueRoute
+    }
     '/estoque/recebimento': {
       id: '/estoque/recebimento'
       path: '/recebimento'
@@ -697,6 +717,7 @@ interface EstoqueRouteChildren {
   EstoqueIntegracoesRoute: typeof EstoqueIntegracoesRoute
   EstoqueMinhaContaRoute: typeof EstoqueMinhaContaRoute
   EstoqueMovimentacoesRoute: typeof EstoqueMovimentacoesRoute
+  EstoqueNecessidadeComprasRoute: typeof EstoqueNecessidadeComprasRoute
   EstoqueRecebimentoRoute: typeof EstoqueRecebimentoRoute
   EstoqueUsuariosRoute: typeof EstoqueUsuariosRoute
   EstoqueValoresRoute: typeof EstoqueValoresRoute
@@ -713,6 +734,7 @@ const EstoqueRouteChildren: EstoqueRouteChildren = {
   EstoqueIntegracoesRoute: EstoqueIntegracoesRoute,
   EstoqueMinhaContaRoute: EstoqueMinhaContaRoute,
   EstoqueMovimentacoesRoute: EstoqueMovimentacoesRoute,
+  EstoqueNecessidadeComprasRoute: EstoqueNecessidadeComprasRoute,
   EstoqueRecebimentoRoute: EstoqueRecebimentoRoute,
   EstoqueUsuariosRoute: EstoqueUsuariosRoute,
   EstoqueValoresRoute: EstoqueValoresRoute,
