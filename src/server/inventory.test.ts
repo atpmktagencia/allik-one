@@ -24,6 +24,7 @@ import { integrationCredentialResponse } from "./integration-credentials";
 import { pricingResponse } from "./pricing";
 import { patientsResponse } from "./patients";
 import { patientDetailResponse } from "./patient-treatments";
+import { patientDemandResponse } from "./patient-demand";
 vi.mock("@vercel/blob", () => ({
   put: vi.fn(async (pathname: string) => ({ pathname })),
   del: vi.fn(async () => undefined),
@@ -550,6 +551,101 @@ describe("operational patients", () => {
         await patientsResponse(
           new Request(`${origin}/api/v1/inventory/patients`, {
             headers: { cookie: financeCookie },
+          }),
+        )
+      ).status,
+    ).toBe(403);
+  });
+
+  it("consolidates future demand, stock coverage and unit authorization", async () => {
+    const fortaleza = "a1100000-0000-4000-8000-000000000101";
+    const juazeiro = "a1100000-0000-4000-8000-000000000102";
+    const managerCookie = await scopedCookie(fortaleza, "UNIT_MANAGER");
+    const patientId = randomUUID();
+    const productId = randomUUID();
+    const treatmentId = randomUUID();
+    const firstDate = new Date(Date.now() + 2 * 86_400_000).toISOString().slice(0, 10);
+    await getPool().query(
+      `INSERT INTO inventory_patients(id,organization_id,primary_unit_id,internal_code,full_name,created_by_user_id,updated_by_user_id)
+       VALUES($1,'a1100000-0000-4000-8000-000000000001',$2,$3,'Paciente Demanda Sintético',
+         (SELECT user_id FROM inventory_memberships WHERE organization_id='a1100000-0000-4000-8000-000000000001' AND role='UNIT_MANAGER' ORDER BY created_at DESC LIMIT 1),
+         (SELECT user_id FROM inventory_memberships WHERE organization_id='a1100000-0000-4000-8000-000000000001' AND role='UNIT_MANAGER' ORDER BY created_at DESC LIMIT 1))`,
+      [patientId, fortaleza, `DEM-${patientId.slice(0, 8)}`],
+    );
+    await getPool().query(
+      `INSERT INTO inventory_products(id,organization_id,name,sku,category,unit,minimum)
+       VALUES($1,'a1100000-0000-4000-8000-000000000001','Produto Previsão Sintético',$2,'Teste','UN',0)`,
+      [productId, `PREV-${patientId.slice(0, 8)}`],
+    );
+    await getPool().query(
+      `INSERT INTO inventory_pricing_presentations(organization_id,product_id,name,base_unit,total_base_quantity,total_volume_ml,acquisition_cost,technical_loss_percent,minimum_measurable_volume_ml,beyond_use_hours)
+       VALUES('a1100000-0000-4000-8000-000000000001',$1,$2,'MG',20,0.8,100,10,0.11,24)`,
+      [productId, `Apresentação demanda ${patientId}`],
+    );
+    const location = await getPool().query<{ id: string }>(
+      "INSERT INTO inventory_locations(unit_id,name) VALUES($1,$2) RETURNING id",
+      [fortaleza, `Local demanda ${patientId}`],
+    );
+    const lot = await getPool().query<{ id: string }>(
+      `INSERT INTO inventory_lots(product_id,number,expires_on,supplier,unit_cost)
+       VALUES($1,$2,current_date+180,'Fornecedor sintético',100) RETURNING id`,
+      [productId, `LOTE-${patientId.slice(0, 8)}`],
+    );
+    await movement([lot.rows[0]!.id, location.rows[0]!.id], "2", "IN");
+    const treatment = await patientDetailResponse(
+      new Request(`${origin}/api/v1/inventory/patient-detail?patientId=${patientId}`, {
+        method: "POST",
+        headers: { cookie: managerCookie, origin, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "CREATE_TREATMENT",
+          id: treatmentId,
+          patientId,
+          productId,
+          doseQuantity: 2.5,
+          doseUnit: "MG",
+          route: "SC",
+          frequencyEveryDays: 7,
+          firstScheduledOn: firstDate,
+          plannedAdministrations: 4,
+          status: "PLANNED",
+          version: 0,
+          reason: "Tratamento sintético para validar previsão consolidada.",
+        }),
+      }),
+    );
+    expect(treatment.status).toBe(201);
+
+    const response = await patientDemandResponse(
+      new Request(`${origin}/api/v1/inventory/patient-demand?horizon=30&unitId=${fortaleza}`, {
+        headers: { cookie: managerCookie },
+      }),
+    );
+    expect(response.status).toBe(200);
+    expect((await response.json()).data).toEqual(
+      expect.objectContaining({
+        horizon: 30,
+        summary: expect.objectContaining({ administrations: 4, patients: 1 }),
+        items: [
+          expect.objectContaining({
+            productId,
+            unitId: fortaleza,
+            demandQuantity: 10,
+            usablePerPresentation: 18,
+            requiredStockUnits: 4,
+            availableStockUnits: 2,
+            shortageStockUnits: 2,
+            doseVolumeMl: 0.1,
+            measurementWarning: true,
+          }),
+        ],
+      }),
+    );
+    const otherManager = await scopedCookie(juazeiro, "UNIT_MANAGER");
+    expect(
+      (
+        await patientDemandResponse(
+          new Request(`${origin}/api/v1/inventory/patient-demand?unitId=${fortaleza}`, {
+            headers: { cookie: otherManager },
           }),
         )
       ).status,

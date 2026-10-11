@@ -36,6 +36,7 @@ import { Route as EstoqueRecebimentoRouteImport } from './routes/estoque/recebim
 import { Route as EstoqueUsuariosRouteImport } from './routes/estoque/usuarios'
 import { Route as EstoqueValoresRouteImport } from './routes/estoque/valores'
 import { Route as PacientesPatientIdRouteImport } from './routes/pacientes.$patientId'
+import { Route as PacientesDemandaRouteImport } from './routes/pacientes.demanda'
 import { Route as EstoqueLotesLotIdRouteImport } from './routes/estoque/lotes/$lotId'
 import { Route as EstoqueProdutosProductIdRouteImport } from './routes/estoque/produtos/$productId'
 import { Route as ApiV1InventorySplatRouteImport } from './routes/api/v1/inventory/$'
@@ -176,6 +177,11 @@ const PacientesPatientIdRoute = PacientesPatientIdRouteImport.update({
   path: '/$patientId',
   getParentRoute: () => PacientesRoute,
 } as any)
+const PacientesDemandaRoute = PacientesDemandaRouteImport.update({
+  id: '/demanda',
+  path: '/demanda',
+  getParentRoute: () => PacientesRoute,
+} as any)
 const EstoqueLotesLotIdRoute = EstoqueLotesLotIdRouteImport.update({
   id: '/lotes/$lotId',
   path: '/lotes/$lotId',
@@ -225,6 +231,7 @@ export interface FileRoutesByFullPath {
   '/estoque/usuarios': typeof EstoqueUsuariosRoute
   '/estoque/valores': typeof EstoqueValoresRoute
   '/pacientes/$patientId': typeof PacientesPatientIdRoute
+  '/pacientes/demanda': typeof PacientesDemandaRoute
   '/aplicacoes/': typeof AplicacoesIndexRoute
   '/estoque/': typeof EstoqueIndexRoute
   '/estoque/lotes/$lotId': typeof EstoqueLotesLotIdRoute
@@ -256,6 +263,7 @@ export interface FileRoutesByTo {
   '/estoque/usuarios': typeof EstoqueUsuariosRoute
   '/estoque/valores': typeof EstoqueValoresRoute
   '/pacientes/$patientId': typeof PacientesPatientIdRoute
+  '/pacientes/demanda': typeof PacientesDemandaRoute
   '/aplicacoes': typeof AplicacoesIndexRoute
   '/estoque': typeof EstoqueIndexRoute
   '/estoque/lotes/$lotId': typeof EstoqueLotesLotIdRoute
@@ -290,6 +298,7 @@ export interface FileRoutesById {
   '/estoque/usuarios': typeof EstoqueUsuariosRoute
   '/estoque/valores': typeof EstoqueValoresRoute
   '/pacientes/$patientId': typeof PacientesPatientIdRoute
+  '/pacientes/demanda': typeof PacientesDemandaRoute
   '/aplicacoes/': typeof AplicacoesIndexRoute
   '/estoque/': typeof EstoqueIndexRoute
   '/estoque/lotes/$lotId': typeof EstoqueLotesLotIdRoute
@@ -325,6 +334,7 @@ export interface FileRouteTypes {
     | '/estoque/usuarios'
     | '/estoque/valores'
     | '/pacientes/$patientId'
+    | '/pacientes/demanda'
     | '/aplicacoes/'
     | '/estoque/'
     | '/estoque/lotes/$lotId'
@@ -356,6 +366,7 @@ export interface FileRouteTypes {
     | '/estoque/usuarios'
     | '/estoque/valores'
     | '/pacientes/$patientId'
+    | '/pacientes/demanda'
     | '/aplicacoes'
     | '/estoque'
     | '/estoque/lotes/$lotId'
@@ -389,6 +400,7 @@ export interface FileRouteTypes {
     | '/estoque/usuarios'
     | '/estoque/valores'
     | '/pacientes/$patientId'
+    | '/pacientes/demanda'
     | '/aplicacoes/'
     | '/estoque/'
     | '/estoque/lotes/$lotId'
@@ -606,6 +618,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PacientesPatientIdRouteImport
       parentRoute: typeof PacientesRoute
     }
+    '/pacientes/demanda': {
+      id: '/pacientes/demanda'
+      path: '/demanda'
+      fullPath: '/pacientes/demanda'
+      preLoaderRoute: typeof PacientesDemandaRouteImport
+      parentRoute: typeof PacientesRoute
+    }
     '/estoque/lotes/$lotId': {
       id: '/estoque/lotes/$lotId'
       path: '/lotes/$lotId'
@@ -688,10 +707,12 @@ const EstoqueRouteWithChildren =
 
 interface PacientesRouteChildren {
   PacientesPatientIdRoute: typeof PacientesPatientIdRoute
+  PacientesDemandaRoute: typeof PacientesDemandaRoute
 }
 
 const PacientesRouteChildren: PacientesRouteChildren = {
   PacientesPatientIdRoute: PacientesPatientIdRoute,
+  PacientesDemandaRoute: PacientesDemandaRoute,
 }
 
 const PacientesRouteWithChildren = PacientesRoute._addFileChildren(

@@ -10,6 +10,7 @@ import {
   Menu,
   Package,
   PackageCheck,
+  CalendarRange,
   UserRound,
   ShieldCheck,
   Users,
@@ -37,7 +38,10 @@ const operationItems = [
   { label: "Aplicações", to: "/aplicacoes", icon: Syringe },
 ] as const;
 
-const careItems = [{ label: "Pacientes", to: "/pacientes", icon: UserRound }] as const;
+const careItems = [
+  { label: "Pacientes", to: "/pacientes", icon: UserRound },
+  { label: "Demanda futura", to: "/pacientes/demanda", icon: CalendarRange },
+] as const;
 
 const pageTitles: Record<string, string> = {
   "/estoque": "Estoque atual",
@@ -49,6 +53,7 @@ const pageTitles: Record<string, string> = {
   "/aplicacoes": "Aplicações",
   "/aplicacoes/nova": "Registrar aplicação",
   "/pacientes": "Pacientes",
+  "/pacientes/demanda": "Demanda futura",
   "/estoque/usuarios": "Usuários",
   "/estoque/integracoes": "Integrações",
   "/estoque/minha-conta": "Minha conta",
@@ -109,7 +114,10 @@ function Navigation({
     items: ReadonlyArray<(typeof operationItems)[number] | (typeof careItems)[number]>,
   ) =>
     items.map((item) => {
-      const active = item.to === "/estoque" ? path === "/estoque" : path.startsWith(item.to);
+      const active =
+        item.to === "/estoque" || item.to === "/pacientes"
+          ? path === item.to
+          : path.startsWith(item.to);
       return (
         <Link
           key={item.to}
