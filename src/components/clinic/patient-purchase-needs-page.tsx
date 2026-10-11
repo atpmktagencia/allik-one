@@ -30,7 +30,10 @@ type PurchaseNeed = {
   suggestedOrderBy: string | null;
   estimatedCost: number | null;
   supplierName: string | null;
+  supplierId: string | null;
+  catalogItemId: string | null;
   catalogCode: string | null;
+  catalogPrice: string | null;
 };
 type Payload = {
   horizon: number;
@@ -206,6 +209,26 @@ export function PatientPurchaseNeedsPage() {
                       <p className="text-xs text-muted-foreground">
                         {item.catalogCode ?? item.presentationName ?? "Sem item de catálogo"}
                       </p>
+                      {item.netAfterPending !== null &&
+                      item.netAfterPending > 0 &&
+                      item.supplierId &&
+                      item.catalogItemId &&
+                      item.catalogPrice !== null ? (
+                        <Button asChild size="sm" variant="outline" className="mt-2">
+                          <Link
+                            to="/estoque/fornecedores"
+                            search={{
+                              supplierId: item.supplierId,
+                              catalogItemId: item.catalogItemId,
+                              quantity: Math.ceil(item.netAfterPending),
+                              unitId: item.unitId,
+                              unitName: item.unitName,
+                            }}
+                          >
+                            Preparar pedido
+                          </Link>
+                        </Button>
+                      ) : null}
                     </td>
                   </tr>
                 ))}

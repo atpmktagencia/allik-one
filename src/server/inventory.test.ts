@@ -607,6 +607,18 @@ describe("operational patients", () => {
        VALUES($1,'a1100000-0000-4000-8000-000000000001','Produto Previsão Sintético',$2,'Teste','UN',0)`,
       [productId, `PREV-${patientId.slice(0, 8)}`],
     );
+    const forecastSupplierId = randomUUID();
+    const forecastCatalogId = randomUUID();
+    await getPool().query(
+      `INSERT INTO inventory_suppliers(id,organization_id,name)
+       VALUES($1,'a1100000-0000-4000-8000-000000000001',$2)`,
+      [forecastSupplierId, `Fornecedor previsão ${patientId}`],
+    );
+    await getPool().query(
+      `INSERT INTO inventory_supplier_catalog(id,supplier_id,product_id,code,name,kind,description,packaging,contents,price,price_source)
+       VALUES($1,$2,$3,$4,'Apresentação previsão','PRODUCT','Item sintético','Frasco','1 frasco',100,'Teste integrado')`,
+      [forecastCatalogId, forecastSupplierId, productId, `PREV-CAT-${patientId.slice(0, 8)}`],
+    );
     await getPool().query(
       `INSERT INTO inventory_pricing_presentations(organization_id,product_id,name,base_unit,total_base_quantity,total_volume_ml,acquisition_cost,technical_loss_percent,minimum_measurable_volume_ml,beyond_use_hours)
        VALUES('a1100000-0000-4000-8000-000000000001',$1,$2,'MG',20,0.8,100,10,0.11,24)`,
@@ -728,6 +740,9 @@ describe("operational patients", () => {
             recommendedUnits: 2,
             netAfterPending: 2,
             estimatedCost: 200,
+            supplierId: forecastSupplierId,
+            catalogItemId: forecastCatalogId,
+            catalogPrice: "100.00",
           }),
         ],
       }),

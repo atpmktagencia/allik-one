@@ -116,11 +116,13 @@ export function SavedSupplierOrder({ id, onClose }: { id: string; onClose: () =>
 export function SupplierCheckout({
   supplier,
   selection,
+  unitId,
   onClose,
   onSaved,
 }: {
   supplier: SupplierProfile;
   selection: OrderSelection[];
+  unitId?: string;
   onClose: () => void;
   onSaved: (id: string) => void;
 }) {
@@ -143,6 +145,7 @@ export function SupplierCheckout({
     event.preventDefault();
     const parsed = supplierOrderInput.safeParse({
       operationId: operation.current,
+      unitId,
       reference,
       supplierId: supplier.id,
       supplierVersion: supplier.version,

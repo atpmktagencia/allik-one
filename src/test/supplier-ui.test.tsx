@@ -51,6 +51,35 @@ const mount = (child: React.ReactNode) =>
     </QueryClientProvider>,
   );
 describe("supplier order UI", () => {
+  it("prefills a forecast draft without saving it before explicit review", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) =>
+        Response.json({
+          data: url.includes("vendor-catalog") ? [item] : url.endsWith("vendors") ? [supplier] : [],
+        }),
+      ),
+    );
+    mount(
+      <SupplierPage
+        draft={{
+          supplierId: supplier.id,
+          catalogItemId: item.id,
+          quantity: 3,
+          unitId: "33333333-3333-4333-8333-333333333333",
+          unitName: "Fortaleza",
+        }}
+      />,
+    );
+    expect(await screen.findByRole("checkbox", { name: "Selecionar ESS-P092" })).toBeChecked();
+    expect(
+      screen.getByRole("spinbutton", { name: "Quantidade de apresentações ESS-P092" }),
+    ).toHaveValue(3);
+    expect(screen.getByRole("status")).toHaveTextContent("Rascunho gerado pela previsão");
+    expect(screen.getByRole("status")).toHaveTextContent("Fortaleza");
+    expect(screen.getByRole("button", { name: "Revisar pedido" })).toBeEnabled();
+  });
+
   it("keeps selected quantities across search and prevents unconfirmed prices from selection", async () => {
     vi.stubGlobal(
       "fetch",
@@ -101,6 +130,7 @@ describe("supplier order UI", () => {
       <SupplierCheckout
         supplier={supplier}
         selection={[{ item, quantity: 2 }]}
+        unitId="33333333-3333-4333-8333-333333333333"
         onClose={close}
         onSaved={saved}
       />,
@@ -118,6 +148,7 @@ describe("supplier order UI", () => {
       b = fetch.mock.calls[1]![1].body;
     expect(a).toBe(b);
     expect(JSON.parse(a)).toMatchObject({
+      unitId: "33333333-3333-4333-8333-333333333333",
       supplierVersion: 2,
       freight: "24.90",
       items: [{ catalogItemId: item.id, quantity: 2, version: 3, expectedPrice: "378.00" }],

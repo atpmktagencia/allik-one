@@ -126,7 +126,9 @@ export async function patientPurchaseNeedsResponse(request: Request) {
          pp.technical_loss_percent::text AS "technicalLossPercent",pp.beyond_use_hours AS "beyondUseHours",
          pp.acquisition_cost::text AS "acquisitionCost",COALESCE(ph.units,0)::text AS "physicalUnits",
          COALESCE(ph.lots,'[]'::jsonb) AS "physicalLots",
-         COALESCE(po.units,0)::text AS "pendingUnits",sc.name AS "supplierName",sc.code AS "catalogCode"
+         COALESCE(po.units,0)::text AS "pendingUnits",sc.name AS "supplierName",
+         sc.supplier_id AS "supplierId",sc.id AS "catalogItemId",sc.code AS "catalogCode",
+         sc.price::text AS "catalogPrice"
        FROM inventory_patient_treatment_schedule s
        JOIN inventory_units u ON u.id=s.unit_id JOIN inventory_products p ON p.id=s.product_id
        LEFT JOIN physical ph ON ph.unit_id=s.unit_id AND ph.product_id=s.product_id
@@ -138,9 +140,10 @@ export async function patientPurchaseNeedsResponse(request: Request) {
          ORDER BY pricing_status DESC,updated_at DESC LIMIT 1
        ) pp ON true
        LEFT JOIN LATERAL (
-         SELECT sup.name,cat.code FROM inventory_supplier_catalog cat
+         SELECT sup.name,cat.supplier_id,cat.id,cat.code,cat.price FROM inventory_supplier_catalog cat
          JOIN inventory_suppliers sup ON sup.id=cat.supplier_id
          WHERE cat.product_id=s.product_id AND cat.active AND sup.active
+           AND sup.organization_id=s.organization_id
          ORDER BY (cat.price IS NULL),cat.price,cat.code LIMIT 1
        ) sc ON true
        WHERE s.organization_id=$1 AND s.status IN ('PLANNED','RESERVED')
@@ -148,7 +151,7 @@ export async function patientPurchaseNeedsResponse(request: Request) {
          AND ($3::uuid IS NULL OR s.unit_id=$3) AND ($4::boolean OR s.unit_id=ANY($5::uuid[]))
        GROUP BY s.unit_id,u.name,s.product_id,p.name,p.sku,upper(s.dose_unit),pp.name,
          pp.total_base_quantity,pp.technical_loss_percent,pp.beyond_use_hours,pp.acquisition_cost,
-         ph.units,ph.lots,po.units,sc.name,sc.code
+         ph.units,ph.lots,po.units,sc.name,sc.supplier_id,sc.id,sc.code,sc.price
        ORDER BY u.name,lower(p.name),upper(s.dose_unit)`,
       [auth.organizationId, horizon, requestedUnit, unrestricted, auth.unitIds],
     ),

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -82,10 +82,12 @@ function SupplierHistory({ supplierId, onClose }: { supplierId: string; onClose:
 
 function SupplierCatalog({
   supplier,
+  draft,
   onEditSupplier,
   onSavedOrder,
 }: {
   supplier: SupplierProfile;
+  draft?: PurchaseDraft;
   onEditSupplier: () => void;
   onSavedOrder: (id: string) => void;
 }) {
@@ -96,6 +98,16 @@ function SupplierCatalog({
   const [editing, setEditing] = useState<{ item: SupplierCatalogItem | null } | null>(null);
   const [review, setReview] = useState<OrderSelection[] | null>(null);
   const [history, setHistory] = useState(false);
+  const draftApplied = useRef(false);
+  useEffect(() => {
+    if (draftApplied.current || !draft || !query.data) return;
+    const item = query.data.find(
+      (candidate) => candidate.id === draft.catalogItemId && candidate.active && candidate.price,
+    );
+    if (!item) return;
+    setSelected({ [item.id]: { item, quantity: draft.quantity } });
+    draftApplied.current = true;
+  }, [draft, query.data]);
   const selection = Object.values(selected);
   const subtotal = selection.reduce(
     (sum, { item, quantity }) => sum + cents(item.price!) * BigInt(quantity),
@@ -141,11 +153,19 @@ function SupplierCatalog({
         {supplier.email ? ` · ${supplier.email}` : ""}
         {!supplier.active ? " · Fornecedor inativo" : ""}
       </p>
+      {draft && (
+        <div role="status" className="rounded-lg border border-primary/30 bg-primary/5 p-4 text-sm">
+          Rascunho gerado pela previsão para <strong>{draft.unitName}</strong>. Confira a
+          apresentação, a quantidade e o preço; o pedido só será criado após a revisão e sua
+          confirmação.
+        </div>
+      )}
       {history && <SupplierHistory supplierId={supplier.id} onClose={() => setHistory(false)} />}
       {review ? (
         <SupplierCheckout
           supplier={supplier}
           selection={review}
+          {...(draft ? { unitId: draft.unitId } : {})}
           onClose={() => setReview(null)}
           onSaved={(id) => {
             setSelected({});
@@ -357,11 +377,19 @@ function SupplierCatalog({
   );
 }
 
-export function SupplierPage() {
+export type PurchaseDraft = {
+  supplierId: string;
+  catalogItemId: string;
+  quantity: number;
+  unitId: string;
+  unitName: string;
+};
+
+export function SupplierPage({ draft }: { draft?: PurchaseDraft }) {
   const suppliers = useInventory<SupplierProfile[]>("vendors");
   const orders =
     useInventory<(SupplierOrder & { status: "OPEN" | "PARTIAL" | "RECEIVED" })[]>("vendor-orders");
-  const [supplierId, setSupplierId] = useState("");
+  const [supplierId, setSupplierId] = useState(draft?.supplierId ?? "");
   const [editing, setEditing] = useState<{ supplier: SupplierProfile | null } | null>(null);
   const [savedId, setSavedId] = useState<string | null>(null);
   if (suppliers.isPending || orders.isPending) return <InventoryState pending />;
@@ -410,6 +438,7 @@ export function SupplierPage() {
         <SupplierCatalog
           key={supplier.id}
           supplier={supplier}
+          {...(supplier.id === draft?.supplierId ? { draft } : {})}
           onEditSupplier={() => setEditing({ supplier })}
           onSavedOrder={setSavedId}
         />

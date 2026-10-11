@@ -193,9 +193,10 @@ async function createOrder(
   unitId: string,
 ): Promise<SupplierOrder> {
   const supplier: SupplierProfile = (
-    await client.query(`SELECT ${supplierColumns} FROM inventory_suppliers WHERE id=$1 FOR SHARE`, [
-      input.supplierId,
-    ])
+    await client.query(
+      `SELECT ${supplierColumns} FROM inventory_suppliers WHERE id=$1 AND organization_id=$2 FOR SHARE`,
+      [input.supplierId, auth.organizationId],
+    )
   ).rows[0];
   if (!supplier?.active) throw new Conflict("Fornecedor indisponível.");
   if (supplier.version !== input.supplierVersion)
@@ -458,7 +459,10 @@ export async function supplierCatalogResponse(request: Request) {
         { status: 400, headers },
       );
     const hash = hashOf({ resource, input: parsed.data });
+    const orderUnitId =
+      resource === "vendor-orders" ? supplierOrderInput.parse(body).unitId : undefined;
     const selectedUnitId =
+      orderUnitId ??
       selectedUnit ??
       (auth.unitIds.length === 1
         ? auth.unitIds[0]

@@ -166,6 +166,18 @@ describe("supplier catalog and immutable commercial orders", () => {
     expect(ids).not.toContain(juazeiroOrder.operationId);
     expect((await scopedRequest(`vendor-orders?id=${juazeiroOrder.operationId}`)).status).toBe(404);
     expect((await scopedRequest(`vendor-orders?unitId=${juazeiro}`)).status).toBe(403);
+    const bodyScopedOrder = order(s, i);
+    expect(
+      (
+        await supplierCatalogResponse(
+          new Request(`${origin}/api/v1/inventory/vendor-orders`, {
+            method: "POST",
+            headers: { cookie: unitCookie, origin, "Content-Type": "application/json" },
+            body: JSON.stringify({ ...bodyScopedOrder, unitId: juazeiro }),
+          }),
+        )
+      ).status,
+    ).toBe(403);
   });
   it("imports 388 entries without inventing official SKUs, prices or physical stock; preserves edits on reimport", async () => {
     const before = await ledger();

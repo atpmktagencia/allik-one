@@ -65,7 +65,10 @@ describe("Patient purchase needs UI", () => {
                 suggestedOrderBy: "2026-10-18",
                 estimatedCost: 200,
                 supplierName: "Stin Pharma",
+                supplierId: "11111111-1111-4111-8111-111111111111",
+                catalogItemId: "22222222-2222-4222-8222-222222222222",
                 catalogCode: "STIN-P110",
+                catalogPrice: "100.00",
               },
             ],
           },
@@ -76,6 +79,7 @@ describe("Patient purchase needs UI", () => {
     expect(await screen.findByText("2 un.")).toBeInTheDocument();
     expect(screen.getByText("Comprar até 18/10/2026")).toBeInTheDocument();
     expect(screen.getAllByText(/R\$\s*200,00/).length).toBeGreaterThan(0);
+    expect(screen.getByRole("link", { name: "Preparar pedido" })).toBeInTheDocument();
     fireEvent.change(screen.getByLabelText("Prazo do fornecedor"), { target: { value: "14" } });
     await waitFor(() => expect(requests.some((url) => url.includes("leadDays=14"))).toBe(true));
     fireEvent.click(await screen.findByRole("button", { name: "60 dias" }));

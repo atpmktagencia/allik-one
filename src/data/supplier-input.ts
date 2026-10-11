@@ -43,6 +43,7 @@ export const supplierCatalogInput = z.discriminatedUnion("action", [
 export const supplierOrderInput = z
   .object({
     operationId: uuid,
+    unitId: uuid.optional(),
     reference: z.string().trim().min(1).max(100),
     supplierId: uuid,
     supplierVersion: z.number().int().nonnegative(),
