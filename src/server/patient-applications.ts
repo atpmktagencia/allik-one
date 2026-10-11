@@ -404,7 +404,8 @@ export async function patientApplicationResponse(request: Request) {
     }
     const updated = await client.query(
       `UPDATE inventory_patient_treatment_schedule
-       SET status='CONSUMED',version=version+1,updated_by_user_id=$2,updated_at=now()
+       SET status='CONSUMED',attendance_status='COMPLETED',version=version+1,
+         updated_by_user_id=$2,updated_at=now()
        WHERE id=$1 RETURNING *`,
       [schedule.id, auth.user.id],
     );

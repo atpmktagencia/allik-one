@@ -90,6 +90,10 @@ export const Route = createFileRoute("/api/v1/inventory/$")({
       },
       POST: ({ request }) => {
         if (
+          new URL(request.url).pathname.replace(/\/$/, "") === "/api/v1/inventory/patient-schedule"
+        )
+          return patientScheduleResponse(request);
+        if (
           new URL(request.url).pathname.replace(/\/$/, "") ===
           "/api/v1/inventory/open-presentations"
         )

@@ -1,9 +1,10 @@
 import { Link } from "@tanstack/react-router";
-import { useState } from "react";
+import { useState, type FormEvent } from "react";
 import { AlertTriangle, CalendarDays, CheckCircle2, Clock3, Syringe } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useInventory } from "@/data/inventory-api";
+import { useInventoryWrite } from "@/hooks/use-inventory-write";
 import { InventoryState } from "./inventory-state";
 import { PageHeader } from "./page-kit";
 
@@ -21,6 +22,8 @@ type ScheduleItem = {
   doseQuantity: number;
   doseUnit: string;
   status: string;
+  attendanceStatus: "SCHEDULED" | "CONFIRMED" | "COMPLETED" | "CANCELED" | "NO_SHOW";
+  version: number;
   hasPrescription: boolean;
   presentationName: string | null;
   physicalUnits: number;
@@ -47,6 +50,162 @@ const statusLabels: Record<string, string> = {
   CONSUMED: "Realizada",
   CANCELED: "Cancelada",
 };
+const attendanceLabels: Record<ScheduleItem["attendanceStatus"], string> = {
+  SCHEDULED: "A confirmar",
+  CONFIRMED: "Presença confirmada",
+  COMPLETED: "Realizada",
+  CANCELED: "Cancelada",
+  NO_SHOW: "Não compareceu",
+};
+
+type ScheduleAction = "CONFIRM" | "RESCHEDULE" | "CANCEL" | "NO_SHOW" | "RESERVE" | "RELEASE";
+
+function ScheduleActions({ item }: { item: ScheduleItem }) {
+  const scheduleWrite = useInventoryWrite("patient-schedule");
+  const reservationWrite = useInventoryWrite(`patient-detail?patientId=${item.patientId}`);
+  const [action, setAction] = useState<ScheduleAction | null>(null);
+  const [reason, setReason] = useState("");
+  const [scheduledOn, setScheduledOn] = useState(item.scheduledOn);
+  const busy =
+    scheduleWrite.pending ||
+    scheduleWrite.uncertain ||
+    reservationWrite.pending ||
+    reservationWrite.uncertain;
+  const uncertain = scheduleWrite.uncertain || reservationWrite.uncertain;
+  const error = scheduleWrite.error ?? reservationWrite.error;
+
+  async function submit(event: FormEvent) {
+    event.preventDefault();
+    if (!action) return;
+    const payload =
+      action === "RESERVE" || action === "RELEASE"
+        ? {
+            action: "UPDATE_SCHEDULE_STATUS",
+            patientId: item.patientId,
+            scheduleId: item.id,
+            status: action === "RESERVE" ? "RESERVED" : "PLANNED",
+            version: item.version,
+            reason,
+          }
+        : {
+            action,
+            scheduleId: item.id,
+            version: item.version,
+            reason,
+            ...(action === "RESCHEDULE" ? { scheduledOn } : {}),
+          };
+    const saved =
+      action === "RESERVE" || action === "RELEASE"
+        ? await reservationWrite.submit(payload)
+        : await scheduleWrite.submit(payload);
+    if (saved) {
+      setAction(null);
+      setReason("");
+    }
+  }
+
+  if (!action)
+    return (
+      <div className="flex max-w-64 flex-wrap gap-2">
+        {item.attendanceStatus === "SCHEDULED" ? (
+          <Button type="button" size="sm" onClick={() => setAction("CONFIRM")}>
+            Confirmar
+          </Button>
+        ) : null}
+        <Button type="button" size="sm" variant="outline" onClick={() => setAction("RESCHEDULE")}>
+          Reagendar
+        </Button>
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          onClick={() => setAction(item.status === "RESERVED" ? "RELEASE" : "RESERVE")}
+        >
+          {item.status === "RESERVED" ? "Liberar reserva" : "Reservar dose"}
+        </Button>
+        <Button type="button" size="sm" variant="ghost" onClick={() => setAction("CANCEL")}>
+          Cancelar
+        </Button>
+        {item.overdue ? (
+          <Button type="button" size="sm" variant="ghost" onClick={() => setAction("NO_SHOW")}>
+            Não compareceu
+          </Button>
+        ) : null}
+        <Button asChild size="sm" variant="outline">
+          <Link to="/pacientes/$patientId" params={{ patientId: item.patientId }}>
+            Abrir tratamento
+          </Link>
+        </Button>
+      </div>
+    );
+
+  return (
+    <form onSubmit={submit} className="w-64 space-y-2 rounded-md border p-3">
+      <p className="font-medium">
+        {
+          {
+            CONFIRM: "Confirmar presença",
+            RESCHEDULE: "Reagendar aplicação",
+            CANCEL: "Cancelar aplicação",
+            NO_SHOW: "Registrar falta",
+            RESERVE: "Reservar dose",
+            RELEASE: "Liberar reserva",
+          }[action]
+        }
+      </p>
+      {action === "RESCHEDULE" ? (
+        <label className="block text-xs">
+          Nova data
+          <input
+            className="mt-1 h-9 w-full rounded-md border bg-background px-2 text-sm"
+            type="date"
+            required
+            value={scheduledOn}
+            onChange={(event) => setScheduledOn(event.target.value)}
+          />
+        </label>
+      ) : null}
+      <label className="block text-xs">
+        Motivo
+        <textarea
+          className="mt-1 min-h-16 w-full rounded-md border bg-background p-2 text-sm"
+          required
+          minLength={10}
+          maxLength={500}
+          value={reason}
+          onChange={(event) => setReason(event.target.value)}
+        />
+      </label>
+      {error ? (
+        <p role="alert" className="text-xs text-destructive">
+          {error.message}
+        </p>
+      ) : null}
+      <div className="flex gap-2">
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          disabled={busy}
+          onClick={() => setAction(null)}
+        >
+          Voltar
+        </Button>
+        <Button
+          type="submit"
+          size="sm"
+          disabled={scheduleWrite.pending || reservationWrite.pending}
+        >
+          {scheduleWrite.pending || reservationWrite.pending
+            ? "Confirmando…"
+            : uncertain
+              ? "Tentar novamente"
+              : "Confirmar ação"}
+        </Button>
+      </div>
+    </form>
+  );
+}
 
 export function OperationalSchedulePage() {
   const [days, setDays] = useState<(typeof periods)[number]>(7);
@@ -141,6 +300,9 @@ export function OperationalSchedulePage() {
                       >
                         {item.overdue ? "Atrasada" : (statusLabels[item.status] ?? item.status)}
                       </Badge>
+                      <p className="mt-1 text-xs font-medium">
+                        {attendanceLabels[item.attendanceStatus]}
+                      </p>
                       <p className="mt-1 text-xs text-muted-foreground">{item.unitName}</p>
                     </td>
                     <td className="px-4 py-4 align-top">
@@ -186,11 +348,15 @@ export function OperationalSchedulePage() {
                       </p>
                     </td>
                     <td className="px-5 py-4 align-top">
-                      <Button asChild size="sm" variant="outline">
-                        <Link to="/pacientes/$patientId" params={{ patientId: item.patientId }}>
-                          Abrir tratamento
-                        </Link>
-                      </Button>
+                      {item.status === "PLANNED" || item.status === "RESERVED" ? (
+                        <ScheduleActions item={item} />
+                      ) : (
+                        <Button asChild size="sm" variant="outline">
+                          <Link to="/pacientes/$patientId" params={{ patientId: item.patientId }}>
+                            Abrir tratamento
+                          </Link>
+                        </Button>
+                      )}
                     </td>
                   </tr>
                 ))}

@@ -532,7 +532,9 @@ async function updatePatientSupply(
       }
     }
     const updated = await client.query(
-      "UPDATE inventory_patient_treatment_schedule SET status=$2,version=version+1,updated_by_user_id=$3,updated_at=now() WHERE id=$1 RETURNING *",
+      `UPDATE inventory_patient_treatment_schedule
+       SET status=$2,attendance_status=CASE WHEN $2='CANCELED' THEN 'CANCELED' ELSE attendance_status END,
+         version=version+1,updated_by_user_id=$3,updated_at=now() WHERE id=$1 RETURNING *`,
       [input.scheduleId, input.status, auth.user.id],
     );
     await client.query(

@@ -31,10 +31,15 @@ function mount() {
 describe("Operational schedule UI", () => {
   it("shows patient applications and reloads its operational filters", async () => {
     const requests: string[] = [];
+    const writes: unknown[] = [];
     vi.stubGlobal(
       "fetch",
-      vi.fn(async (input: string | URL | Request) => {
+      vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
         requests.push(String(input));
+        if (init?.method === "POST") {
+          writes.push(JSON.parse(String(init.body)));
+          return Response.json({ data: { id: "schedule-1" } });
+        }
         return Response.json({
           data: {
             days: 7,
@@ -55,6 +60,8 @@ describe("Operational schedule UI", () => {
                 doseQuantity: 2.5,
                 doseUnit: "MG",
                 status: "PLANNED",
+                attendanceStatus: "SCHEDULED",
+                version: 0,
                 hasPrescription: false,
                 presentationName: "Tirzepatida 20 mg",
                 physicalUnits: 0,
@@ -74,6 +81,17 @@ describe("Operational schedule UI", () => {
     expect(await screen.findByText("Paciente Sintético")).toBeInTheDocument();
     expect(screen.getByText("Estoque insuficiente")).toBeInTheDocument();
     expect(screen.getByText("Sem receita vinculada")).toBeInTheDocument();
+    expect(screen.getByText("A confirmar")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Confirmar" }));
+    fireEvent.change(screen.getByLabelText("Motivo"), {
+      target: { value: "Paciente confirmou presença para a aplicação." },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Confirmar ação" }));
+    await waitFor(() =>
+      expect(writes).toContainEqual(
+        expect.objectContaining({ action: "CONFIRM", scheduleId: "schedule-1", version: 0 }),
+      ),
+    );
     fireEvent.change(screen.getByLabelText("Situação"), { target: { value: "ALL" } });
     await waitFor(() => expect(requests.some((url) => url.includes("status=ALL"))).toBe(true));
     fireEvent.click(await screen.findByRole("button", { name: "14 dias" }));

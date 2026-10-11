@@ -595,6 +595,7 @@ describe("operational patients", () => {
     const productId = randomUUID();
     const treatmentId = randomUUID();
     const firstDate = new Date(Date.now() + 2 * 86_400_000).toISOString().slice(0, 10);
+    const rescheduledDate = new Date(Date.now() + 3 * 86_400_000).toISOString().slice(0, 10);
     await getPool().query(
       `INSERT INTO inventory_patients(id,organization_id,primary_unit_id,internal_code,full_name,created_by_user_id,updated_by_user_id)
        VALUES($1,'a1100000-0000-4000-8000-000000000001',$2,$3,'Paciente Demanda Sintético',
@@ -706,7 +707,8 @@ describe("operational patients", () => {
       }),
     );
     expect(scheduleResponse.status).toBe(200);
-    expect((await scheduleResponse.json()).data).toEqual(
+    const scheduleData = (await scheduleResponse.json()).data;
+    expect(scheduleData).toEqual(
       expect.objectContaining({
         summary: expect.objectContaining({ total: 1 }),
         items: [
@@ -716,10 +718,77 @@ describe("operational patients", () => {
             unitId: fortaleza,
             doseQuantity: 2.5,
             status: "PLANNED",
+            attendanceStatus: "SCHEDULED",
             presentationMissing: false,
           }),
         ],
       }),
+    );
+    const operationalSchedule = scheduleData.items[0];
+    expect(
+      (
+        await patientScheduleResponse(
+          new Request(`${origin}/api/v1/inventory/patient-schedule`, {
+            method: "POST",
+            headers: { cookie: managerCookie, origin, "Content-Type": "application/json" },
+            body: JSON.stringify({
+              action: "CONFIRM",
+              scheduleId: operationalSchedule.id,
+              version: operationalSchedule.version,
+              reason: "Paciente confirmou presença no atendimento sintético.",
+            }),
+          }),
+        )
+      ).status,
+    ).toBe(200);
+    expect(
+      (
+        await patientScheduleResponse(
+          new Request(`${origin}/api/v1/inventory/patient-schedule`, {
+            method: "POST",
+            headers: { cookie: managerCookie, origin, "Content-Type": "application/json" },
+            body: JSON.stringify({
+              action: "RESCHEDULE",
+              scheduleId: operationalSchedule.id,
+              version: operationalSchedule.version,
+              scheduledOn: firstDate,
+              reason: "Tentativa concorrente com versão antiga para validação.",
+            }),
+          }),
+        )
+      ).status,
+    ).toBe(409);
+    expect(
+      (
+        await patientScheduleResponse(
+          new Request(`${origin}/api/v1/inventory/patient-schedule`, {
+            method: "POST",
+            headers: { cookie: managerCookie, origin, "Content-Type": "application/json" },
+            body: JSON.stringify({
+              action: "RESCHEDULE",
+              scheduleId: operationalSchedule.id,
+              version: operationalSchedule.version + 1,
+              scheduledOn: rescheduledDate,
+              reason: "Paciente solicitou nova data para o atendimento sintético.",
+            }),
+          }),
+        )
+      ).status,
+    ).toBe(200);
+    const updatedSchedule = await patientScheduleResponse(
+      new Request(`${origin}/api/v1/inventory/patient-schedule?days=7&unitId=${fortaleza}`, {
+        headers: { cookie: managerCookie },
+      }),
+    );
+    expect((await updatedSchedule.json()).data.items).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: operationalSchedule.id,
+          scheduledOn: rescheduledDate,
+          attendanceStatus: "SCHEDULED",
+          version: operationalSchedule.version + 2,
+        }),
+      ]),
     );
     const purchaseNeeds = await patientPurchaseNeedsResponse(
       new Request(
@@ -790,13 +859,13 @@ describe("operational patients", () => {
     const applicationBody = {
       operationId,
       patientId,
-      scheduleId: (
-        await getPool().query<{ id: string }>(
-          "SELECT id FROM inventory_patient_treatment_schedule WHERE treatment_id=$1 ORDER BY sequence LIMIT 1",
+      ...(
+        await getPool().query<{ scheduleId: string; scheduleVersion: number }>(
+          `SELECT id AS "scheduleId",version AS "scheduleVersion"
+           FROM inventory_patient_treatment_schedule WHERE treatment_id=$1 ORDER BY sequence LIMIT 1`,
           [treatmentId],
         )
-      ).rows[0]!.id,
-      scheduleVersion: 0,
+      ).rows[0]!,
       locationId: location.rows[0]!.id,
       reference: `APL-${patientId.slice(0, 8)}`,
       professional: "Profissional Sintético",
@@ -838,7 +907,7 @@ describe("operational patients", () => {
     expect(state.rows).toEqual([
       expect.objectContaining({
         status: "CONSUMED",
-        version: 1,
+        version: applicationBody.scheduleVersion + 1,
         quantity: "0.000",
         applications: 1,
         movements: 1,
@@ -856,8 +925,8 @@ describe("operational patients", () => {
       }),
     );
     expect(duplicate.status).toBe(409);
-    const secondSchedule = await getPool().query<{ id: string }>(
-      "SELECT id FROM inventory_patient_treatment_schedule WHERE treatment_id=$1 AND sequence=2",
+    const secondSchedule = await getPool().query<{ id: string; version: number }>(
+      "SELECT id,version FROM inventory_patient_treatment_schedule WHERE treatment_id=$1 AND sequence=2",
       [treatmentId],
     );
     const reused = await patientApplicationResponse(
@@ -868,6 +937,7 @@ describe("operational patients", () => {
           ...applicationBody,
           operationId: randomUUID(),
           scheduleId: secondSchedule.rows[0]!.id,
+          scheduleVersion: secondSchedule.rows[0]!.version,
           reference: `APL2-${patientId.slice(0, 8)}`,
         }),
       }),
@@ -952,6 +1022,64 @@ describe("operational patients", () => {
       }),
     );
     expect(foreignAttempt.status).toBe(403);
+    const cancellable = (
+      await getPool().query<{ id: string; version: number }>(
+        "SELECT id,version FROM inventory_patient_treatment_schedule WHERE treatment_id=$1 AND sequence=4",
+        [treatmentId],
+      )
+    ).rows[0]!;
+    const scheduleOperation = (cookie: string, body: Record<string, unknown>) =>
+      patientScheduleResponse(
+        new Request(`${origin}/api/v1/inventory/patient-schedule`, {
+          method: "POST",
+          headers: { cookie, origin, "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        }),
+      );
+    expect(
+      (
+        await scheduleOperation(otherManager, {
+          action: "CANCEL",
+          scheduleId: cancellable.id,
+          version: cancellable.version,
+          reason: "Tentativa de cancelamento por outra unidade.",
+        })
+      ).status,
+    ).toBe(404);
+    expect(
+      (
+        await scheduleOperation(managerCookie, {
+          action: "NO_SHOW",
+          scheduleId: cancellable.id,
+          version: cancellable.version,
+          reason: "Tentativa de falta antes da data agendada.",
+        })
+      ).status,
+    ).toBe(409);
+    expect(
+      (
+        await scheduleOperation(managerCookie, {
+          action: "CANCEL",
+          scheduleId: cancellable.id,
+          version: cancellable.version,
+          reason: "Aplicação cancelada no encerramento do cenário sintético.",
+        })
+      ).status,
+    ).toBe(200);
+    const canceled = await getPool().query(
+      `SELECT status,attendance_status AS "attendanceStatus",version,
+        (SELECT count(*)::integer FROM inventory_patient_schedule_changes WHERE schedule_id=$1) AS changes
+       FROM inventory_patient_treatment_schedule WHERE id=$1`,
+      [cancellable.id],
+    );
+    expect(canceled.rows).toEqual([
+      expect.objectContaining({
+        status: "CANCELED",
+        attendanceStatus: "CANCELED",
+        version: cancellable.version + 1,
+        changes: 1,
+      }),
+    ]);
   });
 });
 

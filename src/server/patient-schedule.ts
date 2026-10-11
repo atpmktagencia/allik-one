@@ -1,6 +1,8 @@
 import "@tanstack/react-start/server-only";
-import { authenticate, can } from "./auth";
+import type { PoolClient } from "pg";
+import { actor, authenticate, can } from "./auth";
 import { getPool } from "./db";
+import { scheduleOperationInput } from "../data/schedule-operation-input";
 
 const headers = { "Cache-Control": "private, no-store", Vary: "Cookie, Authorization" };
 const allowedPeriods = new Set([7, 14, 30]);
@@ -19,12 +21,122 @@ function currentFortalezaDate() {
   return `${parts.get("year")}-${parts.get("month")}-${parts.get("day")}`;
 }
 
+function databaseDate(value: unknown) {
+  return value instanceof Date ? value.toISOString().slice(0, 10) : String(value).slice(0, 10);
+}
+
 export async function patientScheduleResponse(request: Request) {
   const auth = await authenticate(request);
   if (!auth)
     return Response.json({ error: "Entre para acessar a agenda." }, { status: 401, headers });
-  if (!can(auth, "patients.read"))
+  const permission = request.method === "GET" ? "patients.read" : "patients.manage";
+  if (!can(auth, permission))
     return Response.json({ error: "Acesso negado." }, { status: 403, headers });
+
+  if (request.method === "POST") {
+    if (request.headers.get("origin") !== new URL(request.url).origin)
+      return Response.json({ error: "Origem não autorizada." }, { status: 403, headers });
+    let body: unknown;
+    try {
+      body = await request.json();
+    } catch {
+      return Response.json({ error: "Requisição inválida." }, { status: 400, headers });
+    }
+    const parsed = scheduleOperationInput.safeParse(body);
+    if (!parsed.success)
+      return Response.json(
+        { error: "Confira a ação, a data e o motivo informado." },
+        { status: 400, headers },
+      );
+    let client: PoolClient | undefined;
+    try {
+      client = await getPool().connect();
+      await client.query("BEGIN");
+      const current = await client.query(
+        `SELECT * FROM inventory_patient_treatment_schedule
+         WHERE id=$1 AND organization_id=$2 FOR UPDATE`,
+        [parsed.data.scheduleId, auth.organizationId],
+      );
+      const schedule = current.rows[0];
+      if (!schedule || !can(auth, "patients.manage", schedule.unit_id)) {
+        await client.query("ROLLBACK");
+        return Response.json({ error: "Aplicação não encontrada." }, { status: 404, headers });
+      }
+      if (schedule.version !== parsed.data.version) {
+        await client.query("ROLLBACK");
+        return Response.json(
+          { error: "A agenda mudou. Atualize e tente novamente." },
+          { status: 409, headers },
+        );
+      }
+      if (["CONSUMED", "CANCELED"].includes(schedule.status)) {
+        await client.query("ROLLBACK");
+        return Response.json(
+          { error: "Uma aplicação finalizada não pode ser alterada." },
+          { status: 409, headers },
+        );
+      }
+      if (parsed.data.action === "RESCHEDULE" && parsed.data.scheduledOn < currentFortalezaDate()) {
+        await client.query("ROLLBACK");
+        return Response.json(
+          { error: "A nova data não pode estar no passado." },
+          { status: 400, headers },
+        );
+      }
+      if (
+        parsed.data.action === "NO_SHOW" &&
+        databaseDate(schedule.scheduled_on) > currentFortalezaDate()
+      ) {
+        await client.query("ROLLBACK");
+        return Response.json(
+          { error: "Não é possível registrar falta antes da data agendada." },
+          { status: 409, headers },
+        );
+      }
+      const next =
+        parsed.data.action === "CONFIRM"
+          ? { status: schedule.status, attendance: "CONFIRMED", date: schedule.scheduled_on }
+          : parsed.data.action === "RESCHEDULE"
+            ? { status: schedule.status, attendance: "SCHEDULED", date: parsed.data.scheduledOn }
+            : parsed.data.action === "NO_SHOW"
+              ? { status: "CANCELED", attendance: "NO_SHOW", date: schedule.scheduled_on }
+              : { status: "CANCELED", attendance: "CANCELED", date: schedule.scheduled_on };
+      const updated = await client.query(
+        `UPDATE inventory_patient_treatment_schedule
+         SET status=$2,attendance_status=$3,scheduled_on=$4,version=version+1,
+           updated_by_user_id=$5,updated_at=now() WHERE id=$1 RETURNING *`,
+        [schedule.id, next.status, next.attendance, next.date, auth.user.id],
+      );
+      await client.query(
+        `INSERT INTO inventory_patient_schedule_changes
+          (organization_id,schedule_id,before_data,after_data,reason,actor,actor_user_id)
+         VALUES($1,$2,$3,$4,$5,$6,$7)`,
+        [
+          auth.organizationId,
+          schedule.id,
+          schedule,
+          updated.rows[0],
+          parsed.data.reason,
+          actor(auth).name,
+          actor(auth).userId,
+        ],
+      );
+      await client.query("COMMIT");
+      return Response.json({ data: { id: schedule.id } }, { headers });
+    } catch (error) {
+      await client?.query("ROLLBACK").catch(() => {});
+      console.error(
+        "Patient schedule operation failed",
+        error instanceof Error ? error.name : "UnknownError",
+      );
+      return Response.json(
+        { error: "Não foi possível atualizar a agenda." },
+        { status: 503, headers },
+      );
+    } finally {
+      client?.release();
+    }
+  }
 
   const url = new URL(request.url);
   const requestedUnit = url.searchParams.get("unitId");
@@ -84,7 +196,8 @@ export async function patientScheduleResponse(request: Request) {
        unit_name AS "unitName",full_name AS "patientName",internal_code AS "internalCode",
        product_id AS "productId",product_name AS "productName",sku,route,sequence,
        scheduled_on::text AS "scheduledOn",dose_quantity::text AS "doseQuantity",
-       upper(dose_unit) AS "doseUnit",status,version,has_prescription AS "hasPrescription",
+       upper(dose_unit) AS "doseUnit",status,attendance_status AS "attendanceStatus",version,
+       has_prescription AS "hasPrescription",
        presentation_name AS "presentationName",physical_units::text AS "physicalUnits",
        open_quantity::text AS "openQuantity",
        CASE WHEN total_base_quantity IS NULL THEN NULL ELSE

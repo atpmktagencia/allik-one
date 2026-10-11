@@ -579,6 +579,7 @@ export const patientTreatmentSchedule = pgTable(
     doseQuantity: numeric("dose_quantity", { precision: 18, scale: 6 }).notNull(),
     doseUnit: text("dose_unit").notNull(),
     status: text("status").notNull().default("PLANNED"),
+    attendanceStatus: text("attendance_status").notNull().default("SCHEDULED"),
     version: integer("version").notNull().default(0),
     updatedByUserId: uuid("updated_by_user_id").references(() => users.id),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
@@ -604,6 +605,10 @@ export const patientTreatmentSchedule = pgTable(
     check(
       "patient_schedule_status_valid",
       sql`${t.status} IN ('PLANNED','RESERVED','CONSUMED','CANCELED')`,
+    ),
+    check(
+      "patient_schedule_attendance_status_valid",
+      sql`${t.attendanceStatus} IN ('SCHEDULED','CONFIRMED','COMPLETED','CANCELED','NO_SHOW')`,
     ),
     check("patient_schedule_version_nonnegative", sql`${t.version} >= 0`),
   ],
