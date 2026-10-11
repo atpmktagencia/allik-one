@@ -15,6 +15,7 @@ import { pricingResponse } from "@/server/pricing";
 import { patientsResponse } from "@/server/patients";
 import { patientDetailResponse } from "@/server/patient-treatments";
 import { patientDemandResponse } from "@/server/patient-demand";
+import { patientApplicationResponse } from "@/server/patient-applications";
 
 function catalogResource(request: Request) {
   const path = new URL(request.url).pathname.replace(/\/$/, "");
@@ -71,6 +72,11 @@ export const Route = createFileRoute("/api/v1/inventory/$")({
           : inventoryResponse(request);
       },
       POST: ({ request }) => {
+        if (
+          new URL(request.url).pathname.replace(/\/$/, "") ===
+          "/api/v1/inventory/patient-applications"
+        )
+          return patientApplicationResponse(request);
         if (new URL(request.url).pathname.replace(/\/$/, "") === "/api/v1/inventory/patient-detail")
           return patientDetailResponse(request);
         if (new URL(request.url).pathname.replace(/\/$/, "") === "/api/v1/inventory/patients")

@@ -58,7 +58,13 @@ type Payload = {
     doseUnit: string;
     status: string;
     version: number;
+    applicationId: string | null;
+    applicationReference: string | null;
+    applicationProfessional: string | null;
+    physicalQuantity: string | null;
+    administeredAt: string | null;
   }>;
+  locations: Array<{ id: string; name: string }>;
   supplySummaries: Array<{
     treatmentId: string;
     purchasedQuantity: number;
@@ -76,6 +82,7 @@ type Payload = {
     unitShortageUnits: number | null;
   }>;
   canManage: boolean;
+  canConsume: boolean;
 };
 const blank = {
   productId: "",
@@ -116,6 +123,16 @@ export function PatientTreatmentPage({ patientId }: { patientId: string }) {
     reference: "",
     purchasedOn: "",
     reason: "Registro da quantidade adquirida pelo paciente.",
+  });
+  const [application, setApplication] = useState({
+    operationId: "",
+    scheduleId: "",
+    scheduleVersion: 0,
+    locationId: "",
+    reference: "",
+    professional: "",
+    reason: "Aplicação realizada conforme programação e conferência operacional.",
+    confirmed: false,
   });
   if (query.isPending || query.error)
     return (
@@ -237,6 +254,52 @@ export function PatientTreatmentPage({ patientId }: { patientId: string }) {
         ? "Dose reservada sem movimentar o estoque físico."
         : "Planejamento atualizado e auditado.",
     );
+  }
+  function startApplication(item: Payload["schedule"][number]) {
+    setError("");
+    setMessage("");
+    setApplication({
+      operationId: crypto.randomUUID(),
+      scheduleId: item.id,
+      scheduleVersion: item.version,
+      locationId: data.locations.length === 1 ? data.locations[0]!.id : "",
+      reference: `APL-${data.patient.internalCode}-${String(item.scheduledOn).slice(0, 10).replaceAll("-", "")}-${item.sequence}`,
+      professional: "",
+      reason: "Aplicação realizada conforme programação e conferência operacional.",
+      confirmed: false,
+    });
+  }
+  async function consumeSchedule(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!application.confirmed) return;
+    setPending(true);
+    setError("");
+    try {
+      const response = await fetch("/api/v1/inventory/patient-applications", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "same-origin",
+        body: JSON.stringify({
+          operationId: application.operationId,
+          patientId,
+          scheduleId: application.scheduleId,
+          scheduleVersion: application.scheduleVersion,
+          locationId: application.locationId,
+          reference: application.reference,
+          professional: application.professional,
+          reason: application.reason,
+        }),
+      });
+      const result = (await response.json()) as { error?: string };
+      if (!response.ok) throw new Error(result.error ?? "Não foi possível registrar a aplicação.");
+      await query.refetch();
+      setApplication((current) => ({ ...current, operationId: "", scheduleId: "" }));
+      setMessage("Aplicação concluída: agenda, lote e estoque físico foram atualizados juntos.");
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Falha de conexão.");
+    } finally {
+      setPending(false);
+    }
   }
   return (
     <div className="space-y-6">
@@ -558,20 +621,28 @@ export function PatientTreatmentPage({ patientId }: { patientId: string }) {
                       {item.doseQuantity} {item.doseUnit} ·{" "}
                       {scheduleLabels[item.status] ?? item.status}
                     </p>
+                    {item.applicationId ? (
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        {item.applicationReference} · {item.applicationProfessional} · baixa de{" "}
+                        {item.physicalQuantity} un. físicas
+                      </p>
+                    ) : null}
                   </div>
-                  {data.canManage && item.status !== "CONSUMED" && (
+                  {(data.canManage || data.canConsume) && item.status !== "CONSUMED" && (
                     <div className="flex flex-wrap gap-2">
-                      {item.status !== "RESERVED" && item.status !== "CANCELED" && (
-                        <Button
-                          type="button"
-                          size="sm"
-                          disabled={pending}
-                          onClick={() => updateSchedule(item, "RESERVED")}
-                        >
-                          Reservar
-                        </Button>
-                      )}
-                      {item.status === "RESERVED" && (
+                      {data.canManage &&
+                        item.status !== "RESERVED" &&
+                        item.status !== "CANCELED" && (
+                          <Button
+                            type="button"
+                            size="sm"
+                            disabled={pending}
+                            onClick={() => updateSchedule(item, "RESERVED")}
+                          >
+                            Reservar
+                          </Button>
+                        )}
+                      {data.canManage && item.status === "RESERVED" && (
                         <Button
                           type="button"
                           size="sm"
@@ -582,7 +653,7 @@ export function PatientTreatmentPage({ patientId }: { patientId: string }) {
                           Liberar reserva
                         </Button>
                       )}
-                      {item.status !== "CANCELED" && (
+                      {data.canManage && item.status !== "CANCELED" && (
                         <Button
                           type="button"
                           size="sm"
@@ -591,6 +662,16 @@ export function PatientTreatmentPage({ patientId }: { patientId: string }) {
                           onClick={() => updateSchedule(item, "CANCELED")}
                         >
                           Cancelar
+                        </Button>
+                      )}
+                      {data.canConsume && item.status !== "CANCELED" && (
+                        <Button
+                          type="button"
+                          size="sm"
+                          disabled={pending}
+                          onClick={() => startApplication(item)}
+                        >
+                          Registrar aplicação
                         </Button>
                       )}
                     </div>
@@ -605,6 +686,97 @@ export function PatientTreatmentPage({ patientId }: { patientId: string }) {
           </p>
         )}
       </section>
+      {application.scheduleId && data.canConsume && (
+        <form onSubmit={consumeSchedule} className="space-y-4 rounded-xl border bg-card p-5">
+          <div>
+            <h2 className="font-semibold">Confirmar aplicação e baixa física</h2>
+            <p className="text-sm text-muted-foreground">
+              O servidor escolherá os lotes disponíveis por FEFO. A confirmação cria uma saída
+              imutável no ledger e não poderá ser simplesmente apagada.
+            </p>
+          </div>
+          <div className="grid gap-4 md:grid-cols-2">
+            <label className="space-y-1 text-sm font-medium">
+              Local do consumo
+              <select
+                required
+                className="h-10 w-full rounded-md border bg-background px-3"
+                value={application.locationId}
+                onChange={(event) =>
+                  setApplication({ ...application, locationId: event.target.value })
+                }
+              >
+                <option value="">Selecione</option>
+                {data.locations.map((location) => (
+                  <option key={location.id} value={location.id}>
+                    {location.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="space-y-1 text-sm font-medium">
+              Profissional executor
+              <Input
+                required
+                minLength={3}
+                maxLength={100}
+                value={application.professional}
+                onChange={(event) =>
+                  setApplication({ ...application, professional: event.target.value })
+                }
+              />
+            </label>
+            <label className="space-y-1 text-sm font-medium">
+              Referência
+              <Input
+                required
+                minLength={3}
+                maxLength={100}
+                value={application.reference}
+                onChange={(event) =>
+                  setApplication({ ...application, reference: event.target.value })
+                }
+              />
+            </label>
+            <label className="space-y-1 text-sm font-medium">
+              Justificativa operacional
+              <Input
+                required
+                minLength={10}
+                maxLength={500}
+                value={application.reason}
+                onChange={(event) => setApplication({ ...application, reason: event.target.value })}
+              />
+            </label>
+          </div>
+          <label className="flex items-start gap-2 text-sm">
+            <input
+              type="checkbox"
+              className="mt-1"
+              checked={application.confirmed}
+              onChange={(event) =>
+                setApplication({ ...application, confirmed: event.target.checked })
+              }
+            />
+            Conferi paciente, dose, produto, profissional e local. Confirmo a baixa física.
+          </label>
+          <div className="flex flex-wrap gap-3">
+            <Button disabled={pending || !application.confirmed}>
+              {pending ? "Confirmando…" : "Confirmar aplicação"}
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={pending}
+              onClick={() =>
+                setApplication((current) => ({ ...current, operationId: "", scheduleId: "" }))
+              }
+            >
+              Voltar sem registrar
+            </Button>
+          </div>
+        </form>
+      )}
       {data.canManage && data.treatments.length > 0 && (
         <form onSubmit={upload} className="space-y-4 rounded-xl border bg-card p-5">
           <div>

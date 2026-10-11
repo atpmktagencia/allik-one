@@ -951,6 +951,84 @@ export const applicationMovements = pgTable("inventory_application_movements", {
     .references(() => applications.id),
 });
 
+export const patientApplications = pgTable(
+  "inventory_patient_applications",
+  {
+    id: uuid("id").primaryKey(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id),
+    patientId: uuid("patient_id")
+      .notNull()
+      .references(() => patients.id),
+    treatmentId: uuid("treatment_id")
+      .notNull()
+      .references(() => patientTreatments.id),
+    scheduleId: uuid("schedule_id")
+      .notNull()
+      .unique()
+      .references(() => patientTreatmentSchedule.id),
+    unitId: uuid("unit_id")
+      .notNull()
+      .references(() => units.id),
+    locationId: uuid("location_id")
+      .notNull()
+      .references(() => locations.id),
+    productId: uuid("product_id")
+      .notNull()
+      .references(() => products.id),
+    presentationId: uuid("presentation_id")
+      .notNull()
+      .references(() => pricingPresentations.id),
+    requestHash: text("request_hash").notNull(),
+    reference: text("reference").notNull(),
+    professional: text("professional").notNull(),
+    doseQuantity: numeric("dose_quantity", { precision: 18, scale: 6 }).notNull(),
+    doseUnit: text("dose_unit").notNull(),
+    physicalQuantity: numeric("physical_quantity", { precision: 18, scale: 6 }).notNull(),
+    reason: text("reason").notNull(),
+    actor: text("actor").notNull(),
+    actorUserId: uuid("actor_user_id").references(() => users.id),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("inventory_patient_application_reference_unique").on(
+      t.organizationId,
+      sql`lower(${t.reference})`,
+    ),
+    index("inventory_patient_application_patient_date").on(t.patientId, t.createdAt),
+    index("inventory_patient_application_unit_date").on(t.unitId, t.createdAt),
+    check("patient_application_dose_positive", sql`${t.doseQuantity} > 0`),
+    check("patient_application_physical_positive", sql`${t.physicalQuantity} > 0`),
+    check("patient_application_unit_valid", sql`${t.doseUnit} IN ('MG','ML','UI','UNIT')`),
+    check(
+      "patient_application_reference_valid",
+      sql`char_length(trim(${t.reference})) BETWEEN 3 AND 100`,
+    ),
+    check(
+      "patient_application_professional_valid",
+      sql`char_length(trim(${t.professional})) BETWEEN 3 AND 100`,
+    ),
+    check(
+      "patient_application_reason_valid",
+      sql`char_length(trim(${t.reason})) BETWEEN 10 AND 500`,
+    ),
+  ],
+);
+
+export const patientApplicationMovements = pgTable(
+  "inventory_patient_application_movements",
+  {
+    movementId: uuid("movement_id")
+      .primaryKey()
+      .references(() => movements.id),
+    patientApplicationId: uuid("patient_application_id")
+      .notNull()
+      .references(() => patientApplications.id),
+  },
+  (t) => [index("inventory_patient_application_movement_application").on(t.patientApplicationId)],
+);
+
 export const writeOffs = pgTable("inventory_write_offs", {
   id: uuid("id").primaryKey(),
   movementId: uuid("movement_id")

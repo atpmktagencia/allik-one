@@ -25,6 +25,7 @@ import { pricingResponse } from "./pricing";
 import { patientsResponse } from "./patients";
 import { patientDetailResponse } from "./patient-treatments";
 import { patientDemandResponse } from "./patient-demand";
+import { patientApplicationResponse } from "./patient-applications";
 vi.mock("@vercel/blob", () => ({
   put: vi.fn(async (pathname: string) => ({ pathname })),
   del: vi.fn(async () => undefined),
@@ -650,6 +651,91 @@ describe("operational patients", () => {
         )
       ).status,
     ).toBe(403);
+
+    const earlierLot = await getPool().query<{ id: string }>(
+      `INSERT INTO inventory_lots(product_id,number,expires_on,supplier,unit_cost)
+       VALUES($1,$2,current_date+30,'Fornecedor FEFO sintético',100) RETURNING id`,
+      [productId, `FEFO-${patientId.slice(0, 8)}`],
+    );
+    await movement([earlierLot.rows[0]!.id, location.rows[0]!.id], "1", "IN");
+    const operationId = randomUUID();
+    const applicationBody = {
+      operationId,
+      patientId,
+      scheduleId: (
+        await getPool().query<{ id: string }>(
+          "SELECT id FROM inventory_patient_treatment_schedule WHERE treatment_id=$1 ORDER BY sequence LIMIT 1",
+          [treatmentId],
+        )
+      ).rows[0]!.id,
+      scheduleVersion: 0,
+      locationId: location.rows[0]!.id,
+      reference: `APL-${patientId.slice(0, 8)}`,
+      professional: "Profissional Sintético",
+      reason: "Aplicação sintética para validar baixa física e FEFO.",
+    };
+    const applicationRequest = () =>
+      new Request(`${origin}/api/v1/inventory/patient-applications`, {
+        method: "POST",
+        headers: { cookie: managerCookie, origin, "Content-Type": "application/json" },
+        body: JSON.stringify(applicationBody),
+      });
+    const concurrent = await Promise.all([
+      patientApplicationResponse(applicationRequest()),
+      patientApplicationResponse(applicationRequest()),
+    ]);
+    expect(concurrent.map((response) => response.status).sort()).toEqual([200, 201]);
+    const applied = concurrent.find((response) => response.status === 201)!;
+    const replayed = concurrent.find((response) => response.status === 200)!;
+    expect((await applied.json()).data).toEqual(
+      expect.objectContaining({
+        id: operationId,
+        replayed: false,
+        physicalQuantity: 1,
+        allocations: [expect.objectContaining({ lotId: earlierLot.rows[0]!.id, quantity: 1 })],
+      }),
+    );
+    expect((await replayed.json()).data.replayed).toBe(true);
+    const state = await getPool().query(
+      `SELECT s.status,s.version,b.quantity::text,
+        (SELECT count(*)::integer FROM inventory_patient_applications WHERE schedule_id=s.id) AS applications,
+        (SELECT count(*)::integer FROM inventory_patient_application_movements pam
+          JOIN inventory_patient_applications pa ON pa.id=pam.patient_application_id
+          WHERE pa.schedule_id=s.id) AS movements
+       FROM inventory_patient_treatment_schedule s
+       JOIN inventory_balances b ON b.lot_id=$2 AND b.location_id=$3
+       WHERE s.id=$1`,
+      [applicationBody.scheduleId, earlierLot.rows[0]!.id, location.rows[0]!.id],
+    );
+    expect(state.rows).toEqual([
+      expect.objectContaining({
+        status: "CONSUMED",
+        version: 1,
+        quantity: "0.000",
+        applications: 1,
+        movements: 1,
+      }),
+    ]);
+    const duplicate = await patientApplicationResponse(
+      new Request(`${origin}/api/v1/inventory/patient-applications`, {
+        method: "POST",
+        headers: { cookie: managerCookie, origin, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...applicationBody,
+          operationId: randomUUID(),
+          reference: `DUP-${patientId.slice(0, 8)}`,
+        }),
+      }),
+    );
+    expect(duplicate.status).toBe(409);
+    const foreignAttempt = await patientApplicationResponse(
+      new Request(`${origin}/api/v1/inventory/patient-applications`, {
+        method: "POST",
+        headers: { cookie: otherManager, origin, "Content-Type": "application/json" },
+        body: JSON.stringify({ ...applicationBody, operationId: randomUUID() }),
+      }),
+    );
+    expect(foreignAttempt.status).toBe(403);
   });
 });
 

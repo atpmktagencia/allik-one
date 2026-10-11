@@ -49,6 +49,7 @@ export async function patientDetailResponse(request: Request) {
       schedule,
       presentations,
       stock,
+      locations,
       unitDemand,
     ] = await Promise.all([
       getPool().query(
@@ -77,7 +78,14 @@ export async function patientDetailResponse(request: Request) {
         [patientId, auth.organizationId],
       ),
       getPool().query(
-        `SELECT id,treatment_id AS "treatmentId",sequence,scheduled_on::text AS "scheduledOn",dose_quantity AS "doseQuantity",dose_unit AS "doseUnit",status,version FROM inventory_patient_treatment_schedule WHERE patient_id=$1 AND organization_id=$2 ORDER BY scheduled_on,sequence`,
+        `SELECT s.id,s.treatment_id AS "treatmentId",s.sequence,s.scheduled_on::text AS "scheduledOn",
+          s.dose_quantity AS "doseQuantity",s.dose_unit AS "doseUnit",s.status,s.version,
+          a.id AS "applicationId",a.reference AS "applicationReference",
+          a.professional AS "applicationProfessional",a.physical_quantity AS "physicalQuantity",
+          a.created_at AS "administeredAt"
+         FROM inventory_patient_treatment_schedule s
+         LEFT JOIN inventory_patient_applications a ON a.schedule_id=s.id
+         WHERE s.patient_id=$1 AND s.organization_id=$2 ORDER BY s.scheduled_on,s.sequence`,
         [patientId, auth.organizationId],
       ),
       getPool().query(
@@ -86,6 +94,11 @@ export async function patientDetailResponse(request: Request) {
       ),
       getPool().query(
         `SELECT l.product_id AS "productId",COALESCE(sum(b.quantity),0) AS quantity FROM inventory_balances b JOIN inventory_lots l ON l.id=b.lot_id JOIN inventory_locations loc ON loc.id=b.location_id WHERE loc.unit_id=$1 AND l.status='AVAILABLE' AND l.expires_on>=current_date GROUP BY l.product_id`,
+        [patient.primaryUnitId],
+      ),
+      getPool().query(
+        `SELECT id,name FROM inventory_locations
+         WHERE unit_id=$1 AND active ORDER BY lower(name)`,
         [patient.primaryUnitId],
       ),
       getPool().query(
@@ -175,7 +188,11 @@ export async function patientDetailResponse(request: Request) {
           purchases: purchaseRows,
           schedule: scheduleRows,
           supplySummaries: summaries,
+          locations: locations.rows,
           canManage: can(auth, "patients.manage", String(patient.primaryUnitId)),
+          canConsume:
+            can(auth, "patients.read", String(patient.primaryUnitId)) &&
+            can(auth, "inventory.consume", String(patient.primaryUnitId)),
         },
       },
       { headers },
