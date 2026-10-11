@@ -371,6 +371,22 @@ describe("operational patients", () => {
        FROM inventory_patients WHERE id=$3`,
       [treatmentProductId, `TRAT-${patientId.slice(0, 8)}`, patientId],
     );
+    await getPool().query(
+      `INSERT INTO inventory_pricing_presentations(
+        organization_id,product_id,name,base_unit,total_base_quantity,acquisition_cost,technical_loss_percent
+       ) VALUES('a1100000-0000-4000-8000-000000000001',$1,$2,'MG',20,100,0)`,
+      [treatmentProductId, `Apresentação tratamento ${patientId}`],
+    );
+    const treatmentLocation = await getPool().query<{ id: string }>(
+      "INSERT INTO inventory_locations(unit_id,name) VALUES($1,$2) RETURNING id",
+      [fortaleza, `Local tratamento ${patientId}`],
+    );
+    const treatmentLot = await getPool().query<{ id: string }>(
+      `INSERT INTO inventory_lots(product_id,number,expires_on,supplier,unit_cost)
+       VALUES($1,$2,'2099-12-31','Fornecedor sintético',100) RETURNING id`,
+      [treatmentProductId, `TRAT-LOTE-${patientId.slice(0, 8)}`],
+    );
+    await movement([treatmentLot.rows[0]!.id, treatmentLocation.rows[0]!.id], "1", "IN");
     const treatmentId = randomUUID();
     const treatment = await patientDetailResponse(
       new Request(`${origin}/api/v1/inventory/patient-detail?patientId=${patientId}`, {
@@ -423,8 +439,8 @@ describe("operational patients", () => {
               id: purchaseId,
               patientId,
               treatmentId,
-              purchasedQuantity: 20,
-              totalValue: 1800,
+              purchasedQuantity: 2.5,
+              totalValue: 250,
               reference: "VENDA-TESTE-001",
               purchasedOn: "2099-01-01",
               reason: "Compra sintética para validar cobertura do tratamento.",
@@ -434,24 +450,31 @@ describe("operational patients", () => {
       ).status,
     ).toBe(201);
     const firstSchedule = detailBody.schedule[0];
-    expect(
-      (
-        await patientDetailResponse(
-          new Request(`${origin}/api/v1/inventory/patient-detail?patientId=${patientId}`, {
-            method: "POST",
-            headers: { cookie: managerCookie, origin, "Content-Type": "application/json" },
-            body: JSON.stringify({
-              action: "UPDATE_SCHEDULE_STATUS",
-              patientId,
-              scheduleId: firstSchedule.id,
-              status: "RESERVED",
-              version: firstSchedule.version,
-              reason: "Reserva sintética para validar previsão sem baixa física.",
-            }),
+    const secondScheduleForReservation = detailBody.schedule[1];
+    const reserve = (schedule: { id: string; version: number }) =>
+      patientDetailResponse(
+        new Request(`${origin}/api/v1/inventory/patient-detail?patientId=${patientId}`, {
+          method: "POST",
+          headers: { cookie: managerCookie, origin, "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action: "UPDATE_SCHEDULE_STATUS",
+            patientId,
+            scheduleId: schedule.id,
+            status: "RESERVED",
+            version: schedule.version,
+            reason: "Reserva sintética concorrente limitada pela quantidade comprada.",
           }),
-        )
-      ).status,
-    ).toBe(200);
+        }),
+      );
+    const concurrentReservations = await Promise.all([
+      reserve(firstSchedule),
+      reserve(secondScheduleForReservation),
+    ]);
+    expect(concurrentReservations.map((response) => response.status).sort()).toEqual([200, 409]);
+    const reservedScheduleId =
+      concurrentReservations[0]!.status === 200
+        ? firstSchedule.id
+        : secondScheduleForReservation.id;
     const movementCountAfter = await getPool().query(
       "SELECT count(*)::integer AS count FROM inventory_movements",
     );
@@ -463,16 +486,18 @@ describe("operational patients", () => {
     );
     expect((await supply.json()).data).toEqual(
       expect.objectContaining({
-        purchases: [expect.objectContaining({ id: purchaseId, purchasedQuantity: "20.000000" })],
+        purchases: [expect.objectContaining({ id: purchaseId, purchasedQuantity: "2.500000" })],
         schedule: expect.arrayContaining([
-          expect.objectContaining({ id: firstSchedule.id, status: "RESERVED" }),
+          expect.objectContaining({ id: reservedScheduleId, status: "RESERVED" }),
         ]),
         supplySummaries: [
           expect.objectContaining({
             treatmentId,
-            purchasedQuantity: 20,
+            purchasedQuantity: 2.5,
             reservedQuantity: 2.5,
             consumedQuantity: 0,
+            purchasedAvailableToReserve: 0,
+            physicalUnreservedDose: 17.5,
           }),
         ],
       }),
@@ -618,6 +643,24 @@ describe("operational patients", () => {
       }),
     );
     expect(treatment.status).toBe(201);
+    const demandPurchase = await patientDetailResponse(
+      new Request(`${origin}/api/v1/inventory/patient-detail?patientId=${patientId}`, {
+        method: "POST",
+        headers: { cookie: managerCookie, origin, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "CREATE_PURCHASE",
+          id: randomUUID(),
+          patientId,
+          treatmentId,
+          purchasedQuantity: 10,
+          totalValue: 1000,
+          reference: `VENDA-${patientId.slice(0, 8)}`,
+          purchasedOn: firstDate,
+          reason: "Compra sintética para validar aplicações e reservas.",
+        }),
+      }),
+    );
+    expect(demandPurchase.status).toBe(201);
 
     const response = await patientDemandResponse(
       new Request(`${origin}/api/v1/inventory/patient-demand?horizon=30&unitId=${fortaleza}`, {

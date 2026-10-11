@@ -90,6 +90,24 @@ export async function patientApplicationResponse(request: Request) {
       throw new PatientApplicationConflict("Esta aplicação não está disponível para consumo.");
     if (schedule.version !== input.scheduleVersion)
       throw new PatientApplicationConflict("A agenda mudou. Recarregue e tente novamente.");
+    await client.query("SELECT pg_advisory_xact_lock(hashtextextended($1,0))", [
+      `${schedule.unit_id}:${schedule.product_id}`,
+    ]);
+    const entitlement = await client.query(
+      `SELECT
+        COALESCE((SELECT sum(purchased_quantity) FROM inventory_patient_treatment_purchases
+          WHERE treatment_id=$1),0) AS purchased,
+        COALESCE((SELECT sum(dose_quantity) FROM inventory_patient_treatment_schedule
+          WHERE treatment_id=$1 AND status='CONSUMED'),0) AS consumed`,
+      [schedule.treatment_id],
+    );
+    if (
+      Number(entitlement.rows[0].purchased) - Number(entitlement.rows[0].consumed) + 0.0000001 <
+      Number(schedule.dose_quantity)
+    )
+      throw new PatientApplicationConflict(
+        "A quantidade comprada disponível não cobre esta aplicação.",
+      );
 
     const location = await client.query(
       "SELECT id FROM inventory_locations WHERE id=$1 AND unit_id=$2 AND active FOR SHARE",
@@ -125,6 +143,35 @@ export async function patientApplicationResponse(request: Request) {
     if (doseVolumeMl !== null && minimumVolumeMl !== null && doseVolumeMl < minimumVolumeMl)
       throw new PatientApplicationConflict(
         `Volume calculado de ${doseVolumeMl.toFixed(3)} mL abaixo do mínimo mensurável de ${minimumVolumeMl.toFixed(3)} mL.`,
+      );
+
+    const unitBalances = await client.query(
+      `SELECT b.quantity::text FROM inventory_balances b
+       JOIN inventory_lots l ON l.id=b.lot_id
+       JOIN inventory_locations loc ON loc.id=b.location_id
+       WHERE loc.unit_id=$1 AND l.product_id=$2 AND l.status='AVAILABLE'
+         AND l.expires_on>=current_date AND b.quantity>0 FOR UPDATE OF b`,
+      [schedule.unit_id, schedule.product_id],
+    );
+    const unitOpen = await client.query(
+      `SELECT remaining_base_quantity::text FROM inventory_open_presentations
+       WHERE unit_id=$1 AND product_id=$2 AND presentation_id=$3 AND status='OPEN'
+         AND usable_until>now() AND remaining_base_quantity>0 FOR UPDATE`,
+      [schedule.unit_id, schedule.product_id, presentationRow.id],
+    );
+    const otherReservations = await client.query(
+      `SELECT COALESCE(sum(dose_quantity),0)::text AS quantity
+       FROM inventory_patient_treatment_schedule
+       WHERE unit_id=$1 AND product_id=$2 AND upper(dose_unit)=upper($3)
+         AND status='RESERVED' AND id<>$4`,
+      [schedule.unit_id, schedule.product_id, schedule.dose_unit, schedule.id],
+    );
+    const unitCapacity =
+      unitOpen.rows.reduce((sum, row) => sum + Number(row.remaining_base_quantity), 0) +
+      unitBalances.rows.reduce((sum, row) => sum + Number(row.quantity), 0) * usablePerPresentation;
+    if (unitCapacity - doseQuantity + 0.0000001 < Number(otherReservations.rows[0].quantity))
+      throw new PatientApplicationConflict(
+        "Esta aplicação consumiria quantidade reservada para outro paciente.",
       );
 
     const expiredOpen = await client.query(

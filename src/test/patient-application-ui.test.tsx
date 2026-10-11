@@ -73,7 +73,29 @@ describe("Patient application UI", () => {
               },
             ],
             locations: [{ id: locationId, name: "Estoque Central" }],
-            supplySummaries: [],
+            supplySummaries: [
+              {
+                treatmentId: "44444444-4444-4444-8444-444444444444",
+                purchasedQuantity: 10,
+                reservedQuantity: 2.5,
+                consumedQuantity: 2.5,
+                plannedQuantity: 5,
+                purchasedRemaining: 7.5,
+                purchasedAvailableToReserve: 5,
+                presentationName: "Apresentação sintética",
+                usablePerPresentation: 20,
+                availableStockUnits: 1,
+                openQuantity: 7.5,
+                physicalAvailableDose: 27.5,
+                physicalUnreservedDose: 25,
+                requiredPresentationUnits: 1,
+                shortageUnits: 0,
+                unitDemandQuantity: 7.5,
+                unitReservedQuantity: 2.5,
+                unitRequiredPresentationUnits: 1,
+                unitShortageUnits: 0,
+              },
+            ],
             canManage: false,
             canConsume: true,
           },
@@ -87,6 +109,8 @@ describe("Patient application UI", () => {
         <PatientTreatmentPage patientId={patientId} />
       </QueryClientProvider>,
     );
+    expect(await screen.findByText(/Disponível para reservar:/)).toHaveTextContent("5 MG");
+    expect(screen.getByText(/Livre após reservas:/)).toHaveTextContent("25 MG");
     fireEvent.click(await screen.findByRole("button", { name: "Registrar aplicação" }));
     const confirmButton = screen.getByRole("button", { name: "Confirmar aplicação" });
     expect(confirmButton).toBeDisabled();

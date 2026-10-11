@@ -51,6 +51,7 @@ export async function patientDetailResponse(request: Request) {
       stock,
       locations,
       unitDemand,
+      openStock,
     ] = await Promise.all([
       getPool().query(
         `SELECT t.id,t.product_id AS "productId",p.name AS "productName",p.sku,
@@ -102,10 +103,19 @@ export async function patientDetailResponse(request: Request) {
         [patient.primaryUnitId],
       ),
       getPool().query(
-        `SELECT product_id AS "productId",upper(dose_unit) AS "doseUnit",sum(dose_quantity) AS quantity
+        `SELECT product_id AS "productId",upper(dose_unit) AS "doseUnit",sum(dose_quantity) AS quantity,
+           COALESCE(sum(dose_quantity) FILTER (WHERE status='RESERVED'),0) AS "reservedQuantity"
            FROM inventory_patient_treatment_schedule
-           WHERE unit_id=$1 AND status IN ('PLANNED','RESERVED') AND scheduled_on>=current_date
+           WHERE unit_id=$1 AND ((status='PLANNED' AND scheduled_on>=current_date) OR status='RESERVED')
            GROUP BY product_id,upper(dose_unit)`,
+        [patient.primaryUnitId],
+      ),
+      getPool().query(
+        `SELECT product_id AS "productId",upper(base_unit) AS "baseUnit",
+          COALESCE(sum(remaining_base_quantity),0) AS quantity
+         FROM inventory_open_presentations
+         WHERE unit_id=$1 AND status='OPEN' AND usable_until>now()
+         GROUP BY product_id,upper(base_unit)`,
         [patient.primaryUnitId],
       ),
     ]);
@@ -114,6 +124,7 @@ export async function patientDetailResponse(request: Request) {
     const presentationRows = presentations.rows as Array<Record<string, unknown>>;
     const stockRows = stock.rows as Array<Record<string, unknown>>;
     const unitDemandRows = unitDemand.rows as Array<Record<string, unknown>>;
+    const openStockRows = openStock.rows as Array<Record<string, unknown>>;
     const summaries = treatments.rows.map((treatment: Record<string, unknown>) => {
       const treatmentId = String(treatment["id"]);
       const doseUnit = String(treatment["doseUnit"]).toUpperCase();
@@ -142,6 +153,15 @@ export async function patientDetailResponse(request: Request) {
           (1 - Number(presentation["technicalLossPercent"]) / 100)
         : null;
       const demandQuantity = plannedQuantity + reservedQuantity;
+      const openQuantity = Number(
+        openStockRows.find(
+          (row) => row["productId"] === treatment["productId"] && row["baseUnit"] === doseUnit,
+        )?.["quantity"] ?? 0,
+      );
+      const physicalAvailableDose =
+        usablePerPresentation === null
+          ? null
+          : openQuantity + availableStockUnits * usablePerPresentation;
       const requiredPresentationUnits =
         usablePerPresentation && usablePerPresentation > 0
           ? Math.ceil(demandQuantity / usablePerPresentation)
@@ -150,6 +170,11 @@ export async function patientDetailResponse(request: Request) {
         unitDemandRows.find(
           (row) => row["productId"] === treatment["productId"] && row["doseUnit"] === doseUnit,
         )?.["quantity"] ?? 0,
+      );
+      const unitReservedQuantity = Number(
+        unitDemandRows.find(
+          (row) => row["productId"] === treatment["productId"] && row["doseUnit"] === doseUnit,
+        )?.["reservedQuantity"] ?? 0,
       );
       const unitRequiredPresentationUnits =
         usablePerPresentation && usablePerPresentation > 0
@@ -162,15 +187,26 @@ export async function patientDetailResponse(request: Request) {
         consumedQuantity,
         plannedQuantity,
         purchasedRemaining: Math.max(0, purchasedQuantity - consumedQuantity),
+        purchasedAvailableToReserve: Math.max(
+          0,
+          purchasedQuantity - consumedQuantity - reservedQuantity,
+        ),
         presentationName: presentation?.["name"] ?? null,
         usablePerPresentation,
         availableStockUnits,
+        openQuantity,
+        physicalAvailableDose,
+        physicalUnreservedDose:
+          physicalAvailableDose === null
+            ? null
+            : Math.max(0, physicalAvailableDose - unitReservedQuantity),
         requiredPresentationUnits,
         shortageUnits:
           requiredPresentationUnits === null
             ? null
             : Math.max(0, requiredPresentationUnits - availableStockUnits),
         unitDemandQuantity,
+        unitReservedQuantity,
         unitRequiredPresentationUnits,
         unitShortageUnits:
           unitRequiredPresentationUnits === null
@@ -409,6 +445,91 @@ async function updatePatientSupply(
         { error: "A reserva mudou. Recarregue e tente novamente." },
         { status: 409, headers },
       );
+    }
+    if (input.status === "RESERVED") {
+      const schedule = current.rows[0];
+      await client.query(
+        "SELECT id FROM inventory_patient_treatments WHERE id=$1 AND patient_id=$2 AND organization_id=$3 FOR UPDATE",
+        [schedule.treatment_id, patient["id"], auth.organizationId],
+      );
+      await client.query("SELECT pg_advisory_xact_lock(hashtextextended($1,0))", [
+        `${schedule.unit_id}:${schedule.product_id}`,
+      ]);
+      const entitlement = await client.query(
+        `SELECT
+          COALESCE((SELECT sum(purchased_quantity) FROM inventory_patient_treatment_purchases
+            WHERE treatment_id=$1),0) AS purchased,
+          COALESCE((SELECT sum(dose_quantity) FROM inventory_patient_treatment_schedule
+            WHERE treatment_id=$1 AND status='CONSUMED'),0) AS consumed,
+          COALESCE((SELECT sum(dose_quantity) FROM inventory_patient_treatment_schedule
+            WHERE treatment_id=$1 AND status='RESERVED' AND id<>$2),0) AS reserved`,
+        [schedule.treatment_id, schedule.id],
+      );
+      const availableToReserve =
+        Number(entitlement.rows[0].purchased) -
+        Number(entitlement.rows[0].consumed) -
+        Number(entitlement.rows[0].reserved);
+      if (availableToReserve + 0.0000001 < Number(schedule.dose_quantity)) {
+        await client.query("ROLLBACK");
+        return Response.json(
+          { error: "A quantidade comprada disponível não cobre esta dose." },
+          { status: 409, headers },
+        );
+      }
+      const presentation = await client.query(
+        `SELECT total_base_quantity::text,technical_loss_percent::text
+         FROM inventory_pricing_presentations
+         WHERE organization_id=$1 AND product_id=$2 AND active AND upper(base_unit)=upper($3)
+         ORDER BY pricing_status DESC,updated_at DESC LIMIT 1 FOR SHARE`,
+        [auth.organizationId, schedule.product_id, schedule.dose_unit],
+      );
+      if (!presentation.rowCount) {
+        await client.query("ROLLBACK");
+        return Response.json(
+          { error: "Cadastre a apresentação e a concentração antes de reservar." },
+          { status: 409, headers },
+        );
+      }
+      const balances = await client.query(
+        `SELECT b.quantity::text FROM inventory_balances b
+         JOIN inventory_lots l ON l.id=b.lot_id
+         JOIN inventory_locations loc ON loc.id=b.location_id
+         WHERE loc.unit_id=$1 AND l.product_id=$2 AND l.status='AVAILABLE'
+           AND l.expires_on>=current_date AND b.quantity>0 FOR UPDATE OF b`,
+        [schedule.unit_id, schedule.product_id],
+      );
+      const opened = await client.query(
+        `SELECT remaining_base_quantity::text FROM inventory_open_presentations
+         WHERE unit_id=$1 AND product_id=$2 AND upper(base_unit)=upper($3)
+           AND status='OPEN' AND usable_until>now() AND remaining_base_quantity>0 FOR UPDATE`,
+        [schedule.unit_id, schedule.product_id, schedule.dose_unit],
+      );
+      const unitReserved = await client.query(
+        `SELECT COALESCE(sum(dose_quantity),0)::text AS quantity
+         FROM inventory_patient_treatment_schedule
+         WHERE unit_id=$1 AND product_id=$2 AND upper(dose_unit)=upper($3)
+           AND status='RESERVED' AND id<>$4`,
+        [schedule.unit_id, schedule.product_id, schedule.dose_unit, schedule.id],
+      );
+      const usablePerUnit =
+        Number(presentation.rows[0].total_base_quantity) *
+        (1 - Number(presentation.rows[0].technical_loss_percent) / 100);
+      const physicalUnits = balances.rows.reduce((sum, row) => sum + Number(row.quantity), 0);
+      const openQuantity = opened.rows.reduce(
+        (sum, row) => sum + Number(row.remaining_base_quantity),
+        0,
+      );
+      const capacity = openQuantity + physicalUnits * usablePerUnit;
+      if (
+        Number(unitReserved.rows[0].quantity) + Number(schedule.dose_quantity) >
+        capacity + 0.0000001
+      ) {
+        await client.query("ROLLBACK");
+        return Response.json(
+          { error: "O estoque físico livre não cobre esta reserva." },
+          { status: 409, headers },
+        );
+      }
     }
     const updated = await client.query(
       "UPDATE inventory_patient_treatment_schedule SET status=$2,version=version+1,updated_by_user_id=$3,updated_at=now() WHERE id=$1 RETURNING *",

@@ -72,12 +72,17 @@ type Payload = {
     consumedQuantity: number;
     plannedQuantity: number;
     purchasedRemaining: number;
+    purchasedAvailableToReserve: number;
     presentationName: string | null;
     usablePerPresentation: number | null;
     availableStockUnits: number;
+    openQuantity: number;
+    physicalAvailableDose: number | null;
+    physicalUnreservedDose: number | null;
     requiredPresentationUnits: number | null;
     shortageUnits: number | null;
     unitDemandQuantity: number;
+    unitReservedQuantity: number;
     unitRequiredPresentationUnits: number | null;
     unitShortageUnits: number | null;
   }>;
@@ -463,7 +468,7 @@ export function PatientTreatmentPage({ patientId }: { patientId: string }) {
                     .map((s) => (
                       <div
                         key={s.treatmentId}
-                        className="mt-3 grid gap-2 text-xs text-muted-foreground sm:grid-cols-3"
+                        className="mt-3 grid gap-2 text-xs text-muted-foreground sm:grid-cols-4"
                       >
                         <span>
                           Comprado:{" "}
@@ -484,14 +489,34 @@ export function PatientTreatmentPage({ patientId }: { patientId: string }) {
                           </strong>
                         </span>
                         <span>
-                          Saldo comprado:{" "}
+                          Saldo comprado total:{" "}
                           <strong className="text-foreground">
                             {s.purchasedRemaining} {t.doseUnit}
                           </strong>
                         </span>
                         <span>
+                          Disponível para reservar:{" "}
+                          <strong className="text-foreground">
+                            {s.purchasedAvailableToReserve} {t.doseUnit}
+                          </strong>
+                        </span>
+                        <span>
                           Estoque físico:{" "}
                           <strong className="text-foreground">{s.availableStockUnits} un.</strong>
+                        </span>
+                        <span>
+                          Saldo aberto:{" "}
+                          <strong className="text-foreground">
+                            {s.openQuantity} {t.doseUnit}
+                          </strong>
+                        </span>
+                        <span>
+                          Livre após reservas:{" "}
+                          <strong className="text-foreground">
+                            {s.physicalUnreservedDose === null
+                              ? "não calculado"
+                              : `${s.physicalUnreservedDose} ${t.doseUnit}`}
+                          </strong>
                         </span>
                         <span>
                           {s.unitShortageUnits === null ? (
