@@ -16,13 +16,15 @@ async function hasConflict(
     endsAt: string;
     room: string;
     chair: number | null;
+    resourceName: string | null;
   },
 ) {
   const result = await client.query(
     `SELECT id FROM inventory_care_appointments
      WHERE id<>$1 AND unit_id=$2 AND status NOT IN ('CANCELED','NO_SHOW')
        AND starts_at<$4 AND ends_at>$3
-       AND (professional_user_id=$5 OR (lower(room)=lower($6) AND chair IS NOT DISTINCT FROM $7))
+       AND (professional_user_id=$5 OR (lower(room)=lower($6) AND
+         (($7::text IS NULL AND resource_name IS NULL) OR lower(resource_name)=lower($7))))
      LIMIT 1 FOR UPDATE`,
     [
       input.id,
@@ -31,7 +33,7 @@ async function hasConflict(
       input.endsAt,
       input.professionalUserId,
       input.room,
-      input.chair,
+      input.resourceName,
     ],
   );
   return Boolean(result.rowCount);
@@ -59,30 +61,31 @@ export async function careAppointmentsResponse(request: Request) {
     const unrestricted =
       auth.preview || auth.role === "SUPER_ADMIN" || auth.role === "PARTNER_ADMIN";
     const pool = getPool();
-    const [appointments, patients, professionals, units] = await Promise.all([
-      pool.query(
-        `SELECT a.id,a.unit_id AS "unitId",u.name AS "unitName",a.patient_id AS "patientId",
+    const [appointments, patients, professionals, units, careTypes, rooms, resources] =
+      await Promise.all([
+        pool.query(
+          `SELECT a.id,a.unit_id AS "unitId",u.name AS "unitName",a.patient_id AS "patientId",
           p.full_name AS "patientName",p.phone,a.professional_user_id AS "professionalUserId",
           usr.name AS "professionalName",a.care_type AS "careType",a.other_care_type AS "otherCareType",
-          a.starts_at AS "startsAt",a.ends_at AS "endsAt",a.room,a.chair,a.notes,a.status,a.version
+          a.starts_at AS "startsAt",a.ends_at AS "endsAt",a.room,a.chair,a.resource_name AS "resourceName",a.notes,a.status,a.version
          FROM inventory_care_appointments a
          JOIN inventory_units u ON u.id=a.unit_id JOIN inventory_patients p ON p.id=a.patient_id
          JOIN inventory_users usr ON usr.id=a.professional_user_id
          WHERE a.organization_id=$1 AND a.starts_at<$3 AND a.ends_at>$2
            AND ($4::uuid IS NULL OR a.unit_id=$4) AND ($5::boolean OR a.unit_id=ANY($6::uuid[]))
          ORDER BY a.starts_at,a.ends_at,lower(p.full_name) LIMIT 1000`,
-        [auth.organizationId, from, to, unitId, unrestricted, auth.unitIds],
-      ),
-      pool.query(
-        `SELECT id,primary_unit_id AS "unitId",full_name AS "fullName",phone,email,
+          [auth.organizationId, from, to, unitId, unrestricted, auth.unitIds],
+        ),
+        pool.query(
+          `SELECT id,primary_unit_id AS "unitId",full_name AS "fullName",phone,email,
           document_number AS "documentNumber",internal_code AS "internalCode"
          FROM inventory_patients WHERE organization_id=$1 AND active
            AND ($2::uuid IS NULL OR primary_unit_id=$2) AND ($3::boolean OR primary_unit_id=ANY($4::uuid[]))
          ORDER BY lower(full_name) LIMIT 1000`,
-        [auth.organizationId, unitId, unrestricted, auth.unitIds],
-      ),
-      pool.query(
-        `SELECT DISTINCT usr.id,usr.name,usr.profession,ua.unit_id AS "unitId"
+          [auth.organizationId, unitId, unrestricted, auth.unitIds],
+        ),
+        pool.query(
+          `SELECT DISTINCT usr.id,usr.name,usr.profession,ua.unit_id AS "unitId"
          FROM inventory_users usr JOIN inventory_memberships m ON m.user_id=usr.id
          LEFT JOIN inventory_unit_access ua ON ua.membership_id=m.id
          WHERE m.organization_id=$1 AND m.active AND usr.active
@@ -90,14 +93,26 @@ export async function careAppointmentsResponse(request: Request) {
            AND ($2::boolean OR ua.unit_id=ANY($3::uuid[]))
            AND ($4::uuid IS NULL OR m.role IN ('SUPER_ADMIN','PARTNER_ADMIN') OR ua.unit_id=$4)
          ORDER BY usr.name`,
-        [auth.organizationId, unrestricted, auth.unitIds, unitId],
-      ),
-      pool.query(
-        `SELECT id,name FROM inventory_units WHERE organization_id=$1 AND active
+          [auth.organizationId, unrestricted, auth.unitIds, unitId],
+        ),
+        pool.query(
+          `SELECT id,name FROM inventory_units WHERE organization_id=$1 AND active
           AND ($2::boolean OR id=ANY($3::uuid[])) ORDER BY name`,
-        [auth.organizationId, unrestricted, auth.unitIds],
-      ),
-    ]);
+          [auth.organizationId, unrestricted, auth.unitIds],
+        ),
+        pool.query(
+          `SELECT code,name FROM inventory_care_types WHERE organization_id=$1 AND active ORDER BY name`,
+          [auth.organizationId],
+        ),
+        pool.query(
+          `SELECT id,unit_id AS "unitId",name FROM inventory_care_rooms WHERE organization_id=$1 AND active AND ($2::boolean OR unit_id=ANY($3::uuid[])) ORDER BY name`,
+          [auth.organizationId, unrestricted, auth.unitIds],
+        ),
+        pool.query(
+          `SELECT id,unit_id AS "unitId",room_id AS "roomId",name FROM inventory_care_resources WHERE organization_id=$1 AND active AND ($2::boolean OR unit_id=ANY($3::uuid[])) ORDER BY name`,
+          [auth.organizationId, unrestricted, auth.unitIds],
+        ),
+      ]);
     return Response.json(
       {
         data: {
@@ -105,6 +120,9 @@ export async function careAppointmentsResponse(request: Request) {
           patients: patients.rows,
           professionals: professionals.rows,
           units: units.rows,
+          careTypes: careTypes.rows,
+          rooms: rooms.rows,
+          resources: resources.rows,
           canManage: can(auth, "patients.manage"),
         },
       },
@@ -148,14 +166,29 @@ export async function careAppointmentsResponse(request: Request) {
       [input.patientId, auth.organizationId, input.unitId, input.professionalUserId],
     );
     if (!scope.rowCount) throw new Error("INVALID_SCOPE");
+    const configuredType = await client.query(
+      "SELECT 1 FROM inventory_care_types WHERE organization_id=$1 AND code=$2 AND active FOR SHARE",
+      [auth.organizationId, input.careType],
+    );
+    if (!configuredType.rowCount) throw new Error("INVALID_TYPE");
+    const configuredRoom = await client.query(
+      `SELECT r.id FROM inventory_care_rooms r
+       WHERE r.organization_id=$1 AND r.unit_id=$2 AND r.active AND lower(r.name)=lower($3)
+         AND ($4::text IS NULL OR EXISTS(
+           SELECT 1 FROM inventory_care_resources cr
+           WHERE cr.room_id=r.id AND cr.unit_id=$2 AND cr.active AND lower(cr.name)=lower($4)
+         )) FOR SHARE`,
+      [auth.organizationId, input.unitId, input.room, input.resourceName],
+    );
+    if (!configuredRoom.rowCount) throw new Error("INVALID_ROOM");
     let before: unknown = null;
     let result;
     if (input.action === "CREATE") {
       if (await hasConflict(client, input)) throw new Error("CONFLICT");
       result = await client.query(
         `INSERT INTO inventory_care_appointments(id,organization_id,unit_id,patient_id,professional_user_id,
-          care_type,other_care_type,starts_at,ends_at,room,chair,notes,status,created_by_user_id,updated_by_user_id)
-         VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$14) RETURNING *`,
+          care_type,other_care_type,starts_at,ends_at,room,chair,resource_name,notes,status,created_by_user_id,updated_by_user_id)
+         VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$15) RETURNING *`,
         [
           input.id,
           auth.organizationId,
@@ -168,6 +201,7 @@ export async function careAppointmentsResponse(request: Request) {
           input.endsAt,
           input.room,
           input.chair,
+          input.resourceName,
           input.notes,
           input.status,
           auth.user.id,
@@ -216,8 +250,8 @@ export async function careAppointmentsResponse(request: Request) {
           ? ["O agendamento mudou. Recarregue e tente novamente.", 409]
           : message === "NOT_FOUND"
             ? ["Agendamento não encontrado.", 404]
-            : message === "INVALID_SCOPE"
-              ? ["Paciente ou profissional inválido para esta unidade.", 400]
+            : ["INVALID_SCOPE", "INVALID_TYPE", "INVALID_ROOM"].includes(message)
+              ? ["Paciente, profissional, tipo ou sala inválido para esta unidade.", 400]
               : ["Não foi possível salvar o agendamento.", 503];
     return Response.json({ error: response[0] }, { status: response[1] as number, headers });
   } finally {

@@ -7,12 +7,15 @@ export const patientInput = z
     action: z.enum(["CREATE", "UPDATE"]),
     id: z.string().uuid(),
     primaryUnitId: z.string().uuid(),
-    internalCode: z
-      .string()
-      .trim()
-      .min(3)
-      .max(40)
-      .regex(/^[A-Za-z0-9._-]+$/),
+    internalCode: z.union([
+      z
+        .string()
+        .trim()
+        .min(3)
+        .max(40)
+        .regex(/^[A-Za-z0-9._-]+$/),
+      z.literal(""),
+    ]),
     fullName: z.string().trim().min(3).max(180),
     phone: optionalText(z.string().trim().min(8).max(30)),
     phone2: optionalText(z.string().trim().min(8).max(30)),

@@ -193,6 +193,16 @@ export async function patientsResponse(request: Request) {
     const consentAt = input.consentStatus === "PENDING" ? null : new Date();
     const consentUser = input.consentStatus === "PENDING" ? null : auth.user.id;
     if (input.action === "CREATE") {
+      await client.query("SELECT pg_advisory_xact_lock(hashtextextended($1,0))", [
+        `patient-code:${auth.organizationId}`,
+      ]);
+      const nextCode = await client.query<{ code: string }>(
+        `SELECT 'PAC-' || lpad((COALESCE(max(
+          CASE WHEN internal_code ~ '^PAC-[0-9]{6}$' THEN substring(internal_code from 5)::integer END
+        ),0)+1)::text,6,'0') AS code FROM inventory_patients WHERE organization_id=$1`,
+        [auth.organizationId],
+      );
+      const internalCode = nextCode.rows[0]!.code;
       result = await client.query(
         `INSERT INTO inventory_patients(
           id,organization_id,primary_unit_id,internal_code,full_name,phone,phone2,email,
@@ -203,7 +213,7 @@ export async function patientsResponse(request: Request) {
           input.id,
           auth.organizationId,
           input.primaryUnitId,
-          input.internalCode,
+          internalCode,
           input.fullName,
           optional(input.phone),
           optional(input.phone2),

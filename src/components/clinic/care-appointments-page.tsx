@@ -1,3 +1,4 @@
+import { Link } from "@tanstack/react-router";
 import { useMemo, useState, type FormEvent } from "react";
 import { CalendarDays, ChevronLeft, ChevronRight, Plus, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -22,6 +23,7 @@ type Appointment = {
   endsAt: string;
   room: string;
   chair: number | null;
+  resourceName: string | null;
   notes: string;
   status: string;
   version: number;
@@ -44,16 +46,20 @@ type Payload = {
     unitId: string | null;
   }>;
   units: Array<{ id: string; name: string }>;
+  careTypes: Array<{ code: string; name: string }>;
+  rooms: Array<{ id: string; unitId: string; name: string }>;
+  resources: Array<{ id: string; unitId: string; roomId: string; name: string }>;
   canManage: boolean;
 };
 
-const types: Record<string, string> = {
+const fallbackTypes: Record<string, string> = {
   FIRST_VISIT: "Primeira consulta",
   FOLLOW_UP: "Retorno",
   CONSULTATION: "Consulta",
   TELECONSULTATION: "Teleconsulta",
   INJECTABLE: "Injetável",
-  OTHER: "Outro",
+  HORMONAL_IMPLANT: "Implante hormonal",
+  PROCEDURE: "Outro procedimento",
 };
 const statuses: Record<string, string> = {
   SCHEDULED: "Agendado",
@@ -111,7 +117,7 @@ export function CareAppointmentsPage() {
     date: localDate(new Date()),
     startsAt: "08:00",
     endsAt: "09:00",
-    room: "Sala 1",
+    room: "",
     chair: "",
     notes: "",
     reason: "Criação de agendamento solicitada pelo paciente.",
@@ -176,11 +182,12 @@ export function CareAppointmentsPage() {
           patientId: form.patientId,
           professionalUserId: form.professionalUserId,
           careType: form.careType,
-          otherCareType: form.careType === "OTHER" ? form.otherCareType : null,
+          otherCareType: null,
           startsAt,
           endsAt,
           room: form.room,
-          chair: form.chair ? Number(form.chair) : null,
+          chair: null,
+          resourceName: form.chair || null,
           notes: form.notes,
           status: "SCHEDULED",
           version: 0,
@@ -209,11 +216,18 @@ export function CareAppointmentsPage() {
         {formatTime(item.startsAt)}–{formatTime(item.endsAt)} · {item.patientName}
       </p>
       <p className="text-xs text-muted-foreground">
-        {types[item.careType] ?? item.otherCareType} · {item.professionalName}
+        {data.careTypes.find((type) => type.code === item.careType)?.name ??
+          fallbackTypes[item.careType] ??
+          item.otherCareType}{" "}
+        · {item.professionalName}
       </p>
       <p className="mt-1 text-xs text-muted-foreground">
         {item.unitName} · {item.room}
-        {item.chair ? ` · Poltrona ${item.chair}` : ""}
+        {item.resourceName
+          ? ` · ${item.resourceName}`
+          : item.chair
+            ? ` · Poltrona ${item.chair}`
+            : ""}
       </p>
       <span className="mt-2 inline-flex rounded-full bg-muted px-2 py-0.5 text-xs">
         {statuses[item.status] ?? item.status}
@@ -282,25 +296,13 @@ export function CareAppointmentsPage() {
                 value={form.careType}
                 onChange={(e) => setForm({ ...form, careType: e.target.value })}
               >
-                {Object.entries(types).map(([value, label]) => (
-                  <option key={value} value={value}>
-                    {label}
+                {data.careTypes.map((type) => (
+                  <option key={type.code} value={type.code}>
+                    {type.name}
                   </option>
                 ))}
               </select>
             </label>
-            {form.careType === "OTHER" && (
-              <label className="space-y-1 text-sm font-medium">
-                Outro tipo
-                <Input
-                  required
-                  minLength={2}
-                  maxLength={80}
-                  value={form.otherCareType}
-                  onChange={(e) => setForm({ ...form, otherCareType: e.target.value })}
-                />
-              </label>
-            )}
             <label className="space-y-1 text-sm font-medium">
               Profissional da saúde
               <select
@@ -345,6 +347,9 @@ export function CareAppointmentsPage() {
                   </option>
                 ))}
               </select>
+              <Button asChild type="button" variant="link" className="h-auto px-0 text-xs">
+                <Link to="/pacientes">Cadastrar novo paciente</Link>
+              </Button>
             </label>
             <label className="space-y-1 text-sm font-medium">
               Data
@@ -375,13 +380,21 @@ export function CareAppointmentsPage() {
             </label>
             <label className="space-y-1 text-sm font-medium">
               Sala de atendimento
-              <Input
+              <select
                 required
-                minLength={2}
-                maxLength={80}
+                className="h-10 w-full rounded-md border bg-background px-3"
                 value={form.room}
-                onChange={(e) => setForm({ ...form, room: e.target.value })}
-              />
+                onChange={(e) => setForm({ ...form, room: e.target.value, chair: "" })}
+              >
+                <option value="">Selecione</option>
+                {data.rooms
+                  .filter((room) => !form.unitId || room.unitId === form.unitId)
+                  .map((room) => (
+                    <option key={room.id} value={room.name}>
+                      {room.name}
+                    </option>
+                  ))}
+              </select>
             </label>
             <label className="space-y-1 text-sm font-medium">
               Leito/Poltrona
@@ -391,8 +404,16 @@ export function CareAppointmentsPage() {
                 onChange={(e) => setForm({ ...form, chair: e.target.value })}
               >
                 <option value="">Não se aplica</option>
-                <option value="1">1</option>
-                <option value="2">2</option>
+                {data.resources
+                  .filter(
+                    (resource) =>
+                      data.rooms.find((room) => room.id === resource.roomId)?.name === form.room,
+                  )
+                  .map((resource) => (
+                    <option key={resource.id} value={resource.name}>
+                      {resource.name}
+                    </option>
+                  ))}
               </select>
             </label>
             <label className="space-y-1 text-sm font-medium md:col-span-2">

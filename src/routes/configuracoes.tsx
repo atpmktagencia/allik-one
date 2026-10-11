@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { SettingsPage } from "@/components/clinic/management-pages";
+import { CareSettingsPage } from "@/components/clinic/care-settings-page";
 export const Route = createFileRoute("/configuracoes")({
   head: () => ({
     meta: [
@@ -11,5 +11,5 @@ export const Route = createFileRoute("/configuracoes")({
       { name: "twitter:card", content: "summary_large_image" },
     ],
   }),
-  component: SettingsPage,
+  component: CareSettingsPage,
 });

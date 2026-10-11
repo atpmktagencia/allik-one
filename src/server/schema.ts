@@ -442,6 +442,7 @@ export const careAppointments = pgTable(
     endsAt: timestamp("ends_at", { withTimezone: true }).notNull(),
     room: text("room").notNull(),
     chair: integer("chair"),
+    resourceName: text("resource_name"),
     notes: text("notes").notNull().default(""),
     status: text("status").notNull().default("SCHEDULED"),
     createdByUserId: uuid("created_by_user_id").references(() => users.id),
@@ -454,13 +455,10 @@ export const careAppointments = pgTable(
     index("care_appointment_unit_period").on(t.unitId, t.startsAt, t.endsAt),
     index("care_appointment_professional_period").on(t.professionalUserId, t.startsAt, t.endsAt),
     index("care_appointment_patient_period").on(t.patientId, t.startsAt),
-    check(
-      "care_appointment_type_valid",
-      sql`${t.careType} IN ('FIRST_VISIT','FOLLOW_UP','CONSULTATION','TELECONSULTATION','INJECTABLE','OTHER')`,
-    ),
+    check("care_appointment_type_valid", sql`${t.careType} ~ '^[A-Z0-9_]{2,40}$'`),
     check(
       "care_appointment_other_type_valid",
-      sql`(${t.careType}='OTHER' AND char_length(trim(${t.otherCareType})) BETWEEN 2 AND 80) OR (${t.careType}<>'OTHER' AND ${t.otherCareType} IS NULL)`,
+      sql`${t.otherCareType} IS NULL OR char_length(trim(${t.otherCareType})) BETWEEN 2 AND 80`,
     ),
     check(
       "care_appointment_period_valid",
@@ -468,6 +466,10 @@ export const careAppointments = pgTable(
     ),
     check("care_appointment_room_valid", sql`char_length(trim(${t.room})) BETWEEN 2 AND 80`),
     check("care_appointment_chair_valid", sql`${t.chair} IS NULL OR ${t.chair} IN (1,2)`),
+    check(
+      "care_appointment_resource_name_valid",
+      sql`${t.resourceName} IS NULL OR char_length(trim(${t.resourceName})) BETWEEN 1 AND 80`,
+    ),
     check("care_appointment_notes_valid", sql`char_length(${t.notes})<=1000`),
     check(
       "care_appointment_status_valid",
@@ -475,6 +477,61 @@ export const careAppointments = pgTable(
     ),
     check("care_appointment_version_nonnegative", sql`${t.version}>=0`),
   ],
+);
+
+export const careTypes = pgTable(
+  "inventory_care_types",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id),
+    code: text("code").notNull(),
+    name: text("name").notNull(),
+    active: boolean("active").notNull().default(true),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("care_type_org_code_unique").on(t.organizationId, t.code),
+    uniqueIndex("care_type_org_name_unique").on(t.organizationId, sql`lower(${t.name})`),
+  ],
+);
+
+export const careRooms = pgTable(
+  "inventory_care_rooms",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id),
+    unitId: uuid("unit_id")
+      .notNull()
+      .references(() => units.id),
+    name: text("name").notNull(),
+    active: boolean("active").notNull().default(true),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("care_room_unit_name_unique").on(t.unitId, sql`lower(${t.name})`)],
+);
+
+export const careResources = pgTable(
+  "inventory_care_resources",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id),
+    unitId: uuid("unit_id")
+      .notNull()
+      .references(() => units.id),
+    roomId: uuid("room_id")
+      .notNull()
+      .references(() => careRooms.id),
+    name: text("name").notNull(),
+    active: boolean("active").notNull().default(true),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("care_resource_room_name_unique").on(t.roomId, sql`lower(${t.name})`)],
 );
 
 export const careAppointmentChanges = pgTable(

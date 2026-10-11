@@ -69,7 +69,7 @@ type PatientForm = {
 
 const blankForm: PatientForm = {
   primaryUnitId: "",
-  internalCode: "",
+  internalCode: "Gerado automaticamente",
   fullName: "",
   phone: "",
   phone2: "",
@@ -212,6 +212,7 @@ export function PatientsPage() {
           action: editing ? "UPDATE" : "CREATE",
           id: editing?.id ?? crypto.randomUUID(),
           ...form,
+          internalCode: editing?.internalCode ?? "",
           phone: form.phone || null,
           phone2: form.phone2 || null,
           email: form.email || null,
@@ -335,13 +336,8 @@ export function PatientsPage() {
             <label className="space-y-1.5 text-sm font-medium">
               Código interno
               <Input
-                required
-                minLength={3}
-                maxLength={40}
-                pattern="[A-Za-z0-9._-]+"
-                placeholder="Ex.: PAC-0001"
-                value={form.internalCode}
-                onChange={(event) => setForm({ ...form, internalCode: event.target.value })}
+                readOnly
+                value={editing ? form.internalCode : "Gerado automaticamente ao salvar"}
               />
             </label>
             <label className="space-y-1.5 text-sm font-medium">

@@ -44,9 +44,7 @@ describe("Patients UI", () => {
     expect(await screen.findByText("Nenhum paciente cadastrado")).toBeInTheDocument();
     expect(screen.getByText(/não recebe dados sintéticos/i)).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: /novo paciente/i }));
-    fireEvent.change(screen.getByLabelText("Código interno"), {
-      target: { value: "PAC-0001" },
-    });
+    expect(screen.getByLabelText("Código interno")).toHaveValue("Gerado automaticamente ao salvar");
     fireEvent.change(screen.getByLabelText("Nome completo"), {
       target: { value: "Paciente de Teste" },
     });
@@ -64,7 +62,7 @@ describe("Patients UI", () => {
       expect.objectContaining({
         action: "CREATE",
         primaryUnitId: unitId,
-        internalCode: "PAC-0001",
+        internalCode: "",
         fullName: "Paciente de Teste",
         noDocument: true,
         phone: "+55 85 99999-0000",

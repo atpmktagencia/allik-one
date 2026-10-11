@@ -37,6 +37,7 @@ import { Route as EstoqueNecessidadeComprasRouteImport } from './routes/estoque/
 import { Route as EstoqueRecebimentoRouteImport } from './routes/estoque/recebimento'
 import { Route as EstoqueUsuariosRouteImport } from './routes/estoque/usuarios'
 import { Route as EstoqueValoresRouteImport } from './routes/estoque/valores'
+import { Route as PacientesIndexRouteImport } from './routes/pacientes.index'
 import { Route as PacientesPatientIdRouteImport } from './routes/pacientes.$patientId'
 import { Route as PacientesDemandaRouteImport } from './routes/pacientes.demanda'
 import { Route as PacientesFracionamentoRouteImport } from './routes/pacientes.fracionamento'
@@ -186,6 +187,11 @@ const EstoqueValoresRoute = EstoqueValoresRouteImport.update({
   path: '/valores',
   getParentRoute: () => EstoqueRoute,
 } as any)
+const PacientesIndexRoute = PacientesIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => PacientesRoute,
+} as any)
 const PacientesPatientIdRoute = PacientesPatientIdRouteImport.update({
   id: '/$patientId',
   path: '/$patientId',
@@ -256,6 +262,7 @@ export interface FileRoutesByFullPath {
   '/pacientes/fracionamento': typeof PacientesFracionamentoRoute
   '/aplicacoes/': typeof AplicacoesIndexRoute
   '/estoque/': typeof EstoqueIndexRoute
+  '/pacientes/': typeof PacientesIndexRoute
   '/estoque/lotes/$lotId': typeof EstoqueLotesLotIdRoute
   '/estoque/produtos/$productId': typeof EstoqueProdutosProductIdRoute
   '/api/v1/inventory/$': typeof ApiV1InventorySplatRoute
@@ -269,7 +276,6 @@ export interface FileRoutesByTo {
   '/crm': typeof CrmRoute
   '/exames': typeof ExamesRoute
   '/financeiro': typeof FinanceiroRoute
-  '/pacientes': typeof PacientesRouteWithChildren
   '/prontuario': typeof ProntuarioRoute
   '/vendas': typeof VendasRoute
   '/api/inventory-activation': typeof ApiInventoryActivationRoute
@@ -291,6 +297,7 @@ export interface FileRoutesByTo {
   '/pacientes/fracionamento': typeof PacientesFracionamentoRoute
   '/aplicacoes': typeof AplicacoesIndexRoute
   '/estoque': typeof EstoqueIndexRoute
+  '/pacientes': typeof PacientesIndexRoute
   '/estoque/lotes/$lotId': typeof EstoqueLotesLotIdRoute
   '/estoque/produtos/$productId': typeof EstoqueProdutosProductIdRoute
   '/api/v1/inventory/$': typeof ApiV1InventorySplatRoute
@@ -329,6 +336,7 @@ export interface FileRoutesById {
   '/pacientes/fracionamento': typeof PacientesFracionamentoRoute
   '/aplicacoes/': typeof AplicacoesIndexRoute
   '/estoque/': typeof EstoqueIndexRoute
+  '/pacientes/': typeof PacientesIndexRoute
   '/estoque/lotes/$lotId': typeof EstoqueLotesLotIdRoute
   '/estoque/produtos/$productId': typeof EstoqueProdutosProductIdRoute
   '/api/v1/inventory/$': typeof ApiV1InventorySplatRoute
@@ -368,6 +376,7 @@ export interface FileRouteTypes {
     | '/pacientes/fracionamento'
     | '/aplicacoes/'
     | '/estoque/'
+    | '/pacientes/'
     | '/estoque/lotes/$lotId'
     | '/estoque/produtos/$productId'
     | '/api/v1/inventory/$'
@@ -381,7 +390,6 @@ export interface FileRouteTypes {
     | '/crm'
     | '/exames'
     | '/financeiro'
-    | '/pacientes'
     | '/prontuario'
     | '/vendas'
     | '/api/inventory-activation'
@@ -403,6 +411,7 @@ export interface FileRouteTypes {
     | '/pacientes/fracionamento'
     | '/aplicacoes'
     | '/estoque'
+    | '/pacientes'
     | '/estoque/lotes/$lotId'
     | '/estoque/produtos/$productId'
     | '/api/v1/inventory/$'
@@ -440,6 +449,7 @@ export interface FileRouteTypes {
     | '/pacientes/fracionamento'
     | '/aplicacoes/'
     | '/estoque/'
+    | '/pacientes/'
     | '/estoque/lotes/$lotId'
     | '/estoque/produtos/$productId'
     | '/api/v1/inventory/$'
@@ -663,6 +673,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof EstoqueValoresRouteImport
       parentRoute: typeof EstoqueRoute
     }
+    '/pacientes/': {
+      id: '/pacientes/'
+      path: '/'
+      fullPath: '/pacientes/'
+      preLoaderRoute: typeof PacientesIndexRouteImport
+      parentRoute: typeof PacientesRoute
+    }
     '/pacientes/$patientId': {
       id: '/pacientes/$patientId'
       path: '/$patientId'
@@ -770,12 +787,14 @@ interface PacientesRouteChildren {
   PacientesPatientIdRoute: typeof PacientesPatientIdRoute
   PacientesDemandaRoute: typeof PacientesDemandaRoute
   PacientesFracionamentoRoute: typeof PacientesFracionamentoRoute
+  PacientesIndexRoute: typeof PacientesIndexRoute
 }
 
 const PacientesRouteChildren: PacientesRouteChildren = {
   PacientesPatientIdRoute: PacientesPatientIdRoute,
   PacientesDemandaRoute: PacientesDemandaRoute,
   PacientesFracionamentoRoute: PacientesFracionamentoRoute,
+  PacientesIndexRoute: PacientesIndexRoute,
 }
 
 const PacientesRouteWithChildren = PacientesRoute._addFileChildren(

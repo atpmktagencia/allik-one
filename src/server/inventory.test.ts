@@ -31,6 +31,7 @@ import { openPresentationResponse } from "./open-presentations";
 import { patientScheduleResponse } from "./patient-schedule";
 import { patientPurchaseNeedsResponse } from "./patient-purchase-needs";
 import { careAppointmentsResponse } from "./care-appointments";
+import { careSettingsResponse } from "./care-settings";
 vi.mock("@vercel/blob", () => ({
   put: vi.fn(async (pathname: string) => ({ pathname })),
   del: vi.fn(async () => undefined),
@@ -362,7 +363,13 @@ describe("operational patients", () => {
     );
     expect((await list.json()).data).toEqual(
       expect.objectContaining({
-        patients: [expect.objectContaining({ id: patientId, primaryUnitId: fortaleza })],
+        patients: [
+          expect.objectContaining({
+            id: patientId,
+            primaryUnitId: fortaleza,
+            internalCode: expect.stringMatching(/^PAC-\d{6}$/),
+          }),
+        ],
         units: [expect.objectContaining({ id: fortaleza })],
         canManage: true,
       }),
@@ -1622,6 +1629,57 @@ describe("Controlled inventory write-offs", () => {
 });
 
 describe("care appointments", () => {
+  it("creates configurable rooms, resources and appointment types", async () => {
+    const unitId = "a1100000-0000-4000-8000-000000000101";
+    const suffix = randomUUID().slice(0, 8);
+    const post = (body: unknown) =>
+      careSettingsResponse(
+        new Request(`${origin}/api/v1/inventory/care-settings`, {
+          method: "POST",
+          headers: { cookie, origin, "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        }),
+      );
+    const roomResponse = await post({
+      action: "CREATE_ROOM",
+      unitId,
+      name: `Sala ${suffix}`,
+    });
+    expect(roomResponse.status).toBe(201);
+    const roomId = (await roomResponse.json()).data.id;
+    expect(
+      (
+        await post({
+          action: "CREATE_RESOURCE",
+          unitId,
+          roomId,
+          name: "Poltrona 1",
+        })
+      ).status,
+    ).toBe(201);
+    expect(
+      (
+        await post({
+          action: "CREATE_TYPE",
+          name: `Procedimento ${suffix}`,
+        })
+      ).status,
+    ).toBe(201);
+
+    const listed = await careSettingsResponse(
+      new Request(`${origin}/api/v1/inventory/care-settings`, { headers: { cookie } }),
+    );
+    expect(listed.status).toBe(200);
+    const data = (await listed.json()).data;
+    expect(data.rooms).toEqual(expect.arrayContaining([expect.objectContaining({ id: roomId })]));
+    expect(data.resources).toEqual(
+      expect.arrayContaining([expect.objectContaining({ roomId, name: "Poltrona 1" })]),
+    );
+    expect(data.types).toEqual(
+      expect.arrayContaining([expect.objectContaining({ name: `Procedimento ${suffix}` })]),
+    );
+  });
+
   it("creates a unit-scoped appointment, rejects schedule conflicts and lists the audit-safe result", async () => {
     const unitId = "a1100000-0000-4000-8000-000000000101";
     const patientId = randomUUID();
@@ -1637,6 +1695,16 @@ describe("care appointments", () => {
        VALUES($1,'a1100000-0000-4000-8000-000000000001',$2,$3,'Paciente Agenda Sintético','+5585999999999','agenda@example.test')`,
       [patientId, unitId, `AGENDA-${patientId.slice(0, 8)}`],
     );
+    const room = await getPool().query<{ id: string }>(
+      `INSERT INTO inventory_care_rooms(organization_id,unit_id,name)
+       VALUES('a1100000-0000-4000-8000-000000000001',$1,$2) RETURNING id`,
+      [unitId, `Sala de Procedimentos ${patientId.slice(0, 8)}`],
+    );
+    await getPool().query(
+      `INSERT INTO inventory_care_resources(organization_id,unit_id,room_id,name)
+       VALUES('a1100000-0000-4000-8000-000000000001',$1,$2,'Poltrona 1')`,
+      [unitId, room.rows[0]!.id],
+    );
     const startsAt = "2026-10-20T12:00:00.000Z";
     const endsAt = "2026-10-20T13:00:00.000Z";
     const body = {
@@ -1649,8 +1717,9 @@ describe("care appointments", () => {
       otherCareType: null,
       startsAt,
       endsAt,
-      room: "Sala de Procedimentos",
-      chair: 1,
+      room: `Sala de Procedimentos ${patientId.slice(0, 8)}`,
+      chair: null,
+      resourceName: "Poltrona 1",
       notes: "Agendamento sintético.",
       status: "SCHEDULED",
       version: 0,
@@ -1678,7 +1747,7 @@ describe("care appointments", () => {
         id: body.id,
         patientName: "Paciente Agenda Sintético",
         careType: "INJECTABLE",
-        chair: 1,
+        resourceName: "Poltrona 1",
       }),
     ]);
     const audit = await getPool().query(

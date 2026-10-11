@@ -71,6 +71,7 @@ const pageTitles: Record<string, string> = {
   "/estoque/usuarios": "Usuários",
   "/estoque/integracoes": "Integrações",
   "/estoque/minha-conta": "Minha conta",
+  "/configuracoes": "Configurações da clínica",
 };
 
 type Identity = {
@@ -191,6 +192,14 @@ function Navigation({
           </>
         )}
         <Link
+          to="/configuracoes"
+          onClick={onNavigate}
+          className="group flex h-10 items-center gap-3 rounded-md px-3 text-sm font-medium text-sidebar-muted transition-colors hover:bg-sidebar-accent/60 hover:text-sidebar-foreground"
+        >
+          <Warehouse className="size-4" />
+          Configurações
+        </Link>
+        <Link
           to="/estoque/minha-conta"
           onClick={onNavigate}
           className="group flex h-10 items-center gap-3 rounded-md px-3 text-sm font-medium text-sidebar-muted transition-colors hover:bg-sidebar-accent/60 hover:text-sidebar-foreground"
@@ -253,7 +262,8 @@ export function AppShell({ children }: { children: ReactNode }) {
       !path.startsWith("/estoque") &&
       !path.startsWith("/pacientes") &&
       !path.startsWith("/agenda") &&
-      !path.startsWith("/aplicacoes")
+      !path.startsWith("/aplicacoes") &&
+      !path.startsWith("/configuracoes")
     )
       return;
     void fetch("/api/inventory-session", { credentials: "same-origin" })
@@ -309,51 +319,46 @@ export function AppShell({ children }: { children: ReactNode }) {
                 {title}
               </p>
             </div>
-            <div className="min-w-0" />
-            <div className="min-w-0 text-right">
+            <div className="flex min-w-0 justify-center">
+              {identity ? (
+                <label className="flex items-center gap-2 text-sm">
+                  <span className="hidden text-muted-foreground sm:inline">Unidade</span>
+                  <select
+                    id="inventory-unit"
+                    aria-label="Unidade atual"
+                    className="h-9 max-w-52 rounded-md border bg-background px-3"
+                    value={unitId}
+                    onChange={(event) => {
+                      const value = event.target.value;
+                      setUnitId(value);
+                      setSelectedUnitId(value);
+                      void queryClient.invalidateQueries({ queryKey: ["inventory"] });
+                    }}
+                  >
+                    {identity.units.length > 1 && <option value="">Todas as unidades</option>}
+                    {identity.units.map((unit) => (
+                      <option key={unit.id} value={unit.id}>
+                        {unit.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              ) : null}
+            </div>
+            <div className="flex min-w-0 items-center justify-end gap-3 text-right">
               {identity ? (
                 <>
-                  <p className="max-w-44 truncate text-sm font-medium text-foreground sm:max-w-none">
+                  <p className="hidden max-w-44 truncate text-sm font-medium text-foreground sm:block sm:max-w-none">
                     {identity.user.name}
                   </p>
-                  <p className="text-xs text-muted-foreground">
+                  <p className="hidden text-xs text-muted-foreground xl:block">
                     {roleLabels[identity.role] ?? identity.role} · Piloto operacional
                   </p>
                 </>
               ) : (
                 <p className="text-xs text-muted-foreground">Piloto operacional</p>
               )}
-            </div>
-          </div>
-        </header>
-        {(path.startsWith("/estoque") ||
-          path.startsWith("/pacientes") ||
-          path.startsWith("/agenda") ||
-          path.startsWith("/aplicacoes")) &&
-          identity && (
-            <div className="flex flex-wrap items-center justify-end gap-3 border-b bg-muted/30 px-4 py-2 text-sm lg:px-7">
-              <div className="flex items-center gap-2">
-                <label htmlFor="inventory-unit" className="text-muted-foreground">
-                  Unidade
-                </label>
-                <select
-                  id="inventory-unit"
-                  className="h-9 rounded-md border bg-background px-3"
-                  value={unitId}
-                  onChange={(event) => {
-                    const value = event.target.value;
-                    setUnitId(value);
-                    setSelectedUnitId(value);
-                    void queryClient.invalidateQueries({ queryKey: ["inventory"] });
-                  }}
-                >
-                  {identity.units.length > 1 && <option value="">Todas as unidades</option>}
-                  {identity.units.map((unit) => (
-                    <option key={unit.id} value={unit.id}>
-                      {unit.name}
-                    </option>
-                  ))}
-                </select>
+              {identity ? (
                 <Button
                   variant="outline"
                   size="sm"
@@ -368,9 +373,10 @@ export function AppShell({ children }: { children: ReactNode }) {
                 >
                   Sair
                 </Button>
-              </div>
+              ) : null}
             </div>
-          )}
+          </div>
+        </header>
         <main className="mx-auto w-full max-w-[1600px] p-4 sm:p-6 lg:p-8">{children}</main>
       </div>
     </div>
