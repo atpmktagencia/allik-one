@@ -20,6 +20,13 @@ export const presentationInput = z
     additionalPresentationCost: decimal(10, 4, false),
     minimumMeasurableVolumeMl: optionalDecimal(6, 6),
     beyondUseHours: z.union([z.number().int().positive().max(87600), z.null()]).optional(),
+    pricingStatus: z.enum(["DRAFT", "VALIDATED"]).default("DRAFT"),
+    costSource: z.union([z.string().trim().max(200), z.literal(""), z.null()]).optional(),
+    costValidOn: z
+      .union([z.string().regex(/^\d{4}-\d{2}-\d{2}$/), z.literal(""), z.null()])
+      .optional(),
+    assumptionsNotes: z.union([z.string().trim().max(1000), z.literal(""), z.null()]).optional(),
+    assumptionsConfirmed: z.boolean().default(false),
     active: z.boolean().default(true),
     version: z.number().int().nonnegative(),
     reason: z.string().trim().min(10).max(500),

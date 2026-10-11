@@ -234,6 +234,14 @@ export const pricingPresentations = pgTable(
       scale: 6,
     }),
     beyondUseHours: integer("beyond_use_hours"),
+    pricingStatus: text("pricing_status").notNull().default("DRAFT"),
+    costSource: text("cost_source"),
+    costValidOn: date("cost_valid_on"),
+    assumptionsNotes: text("assumptions_notes"),
+    assumptionsConfirmed: boolean("assumptions_confirmed").notNull().default(false),
+    validatedAt: timestamp("validated_at", { withTimezone: true }),
+    validatedByActor: text("validated_by_actor"),
+    validatedByUserId: uuid("validated_by_user_id").references(() => users.id),
     active: boolean("active").notNull().default(true),
     version: integer("version").notNull().default(0),
     createdByUserId: uuid("created_by_user_id").references(() => users.id),
@@ -246,6 +254,12 @@ export const pricingPresentations = pgTable(
       sql`lower(${t.name})`,
     ),
     index("inventory_pricing_presentation_product").on(t.productId),
+    index("pricing_presentations_status_idx").on(t.organizationId, t.pricingStatus),
+    check("pricing_presentation_status", sql`${t.pricingStatus} IN ('DRAFT','VALIDATED')`),
+    check(
+      "pricing_validation_requires_evidence",
+      sql`${t.pricingStatus} = 'DRAFT' OR (${t.costSource} IS NOT NULL AND length(trim(${t.costSource})) >= 3 AND ${t.costValidOn} IS NOT NULL AND ${t.minimumMeasurableVolumeMl} IS NOT NULL AND ${t.beyondUseHours} IS NOT NULL AND ${t.assumptionsConfirmed} AND ${t.validatedAt} IS NOT NULL AND ${t.validatedByActor} IS NOT NULL AND length(trim(${t.validatedByActor})) >= 3)`,
+    ),
   ],
 );
 

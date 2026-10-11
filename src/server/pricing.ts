@@ -19,6 +19,13 @@ type PresentationRow = {
   additionalPresentationCost: string;
   minimumMeasurableVolumeMl: string | null;
   beyondUseHours: number | null;
+  pricingStatus: "DRAFT" | "VALIDATED";
+  costSource: string | null;
+  costValidOn: string | null;
+  assumptionsNotes: string | null;
+  assumptionsConfirmed: boolean;
+  validatedAt: string | null;
+  validatedByActor: string | null;
   active: boolean;
   version: number;
 };
@@ -69,7 +76,10 @@ export async function pricingResponse(request: Request) {
           acquisition_cost::text AS "acquisitionCost",technical_loss_percent::text AS "technicalLossPercent",
           additional_presentation_cost::text AS "additionalPresentationCost",
           minimum_measurable_volume_ml::text AS "minimumMeasurableVolumeMl",
-          beyond_use_hours AS "beyondUseHours",active,version
+          beyond_use_hours AS "beyondUseHours",pricing_status AS "pricingStatus",
+          cost_source AS "costSource",cost_valid_on::text AS "costValidOn",
+          assumptions_notes AS "assumptionsNotes",assumptions_confirmed AS "assumptionsConfirmed",
+          validated_at::text AS "validatedAt",validated_by_actor AS "validatedByActor",active,version
          FROM inventory_pricing_presentations WHERE organization_id=$1 ORDER BY active DESC,name`,
         [auth.organizationId],
       ),
@@ -131,6 +141,36 @@ export async function pricingResponse(request: Request) {
     await client.query("BEGIN");
     if (parsed.success) {
       const input = parsed.data;
+      if (input.pricingStatus === "VALIDATED") {
+        if (
+          input.action === "CREATE_PRESENTATION" ||
+          !input.costSource ||
+          !input.costValidOn ||
+          !input.minimumMeasurableVolumeMl ||
+          !input.beyondUseHours ||
+          !input.assumptionsConfirmed
+        ) {
+          await client.query("ROLLBACK");
+          return Response.json(
+            {
+              error:
+                "Para validar, confirme fonte e data do custo, medição mínima, uso após abertura e premissas.",
+            },
+            { status: 400, headers },
+          );
+        }
+        const activeDoses = await client.query(
+          "SELECT 1 FROM inventory_pricing_doses WHERE presentation_id=$1 AND active LIMIT 1",
+          [input.id],
+        );
+        if (!activeDoses.rowCount) {
+          await client.query("ROLLBACK");
+          return Response.json(
+            { error: "Cadastre ao menos uma dose ativa antes de validar a apresentação." },
+            { status: 400, headers },
+          );
+        }
+      }
       if (input.productId) {
         const product = await client.query(
           "SELECT id FROM inventory_products WHERE id=$1 AND organization_id=$2 AND active",
@@ -155,6 +195,14 @@ export async function pricingResponse(request: Request) {
         input.additionalPresentationCost,
         optional(input.minimumMeasurableVolumeMl),
         input.beyondUseHours ?? null,
+        input.pricingStatus,
+        optional(input.costSource),
+        optional(input.costValidOn),
+        optional(input.assumptionsNotes),
+        input.assumptionsConfirmed,
+        input.pricingStatus === "VALIDATED" ? new Date() : null,
+        input.pricingStatus === "VALIDATED" ? actor(auth).name : null,
+        input.pricingStatus === "VALIDATED" ? actor(auth).userId : null,
         input.active,
       ];
       let before: unknown = null;
@@ -164,8 +212,10 @@ export async function pricingResponse(request: Request) {
           `INSERT INTO inventory_pricing_presentations(
              id,organization_id,product_id,name,base_unit,total_base_quantity,total_volume_ml,
              acquisition_cost,technical_loss_percent,additional_presentation_cost,
-             minimum_measurable_volume_ml,beyond_use_hours,active,created_by_user_id
-           ) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14) RETURNING *`,
+             minimum_measurable_volume_ml,beyond_use_hours,pricing_status,cost_source,cost_valid_on,
+             assumptions_notes,assumptions_confirmed,validated_at,validated_by_actor,
+             validated_by_user_id,active,created_by_user_id
+           ) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22) RETURNING *`,
           [input.id, auth.organizationId, ...values, auth.user.id],
         );
       } else {
@@ -185,7 +235,9 @@ export async function pricingResponse(request: Request) {
           `UPDATE inventory_pricing_presentations SET
              product_id=$3,name=$4,base_unit=$5,total_base_quantity=$6,total_volume_ml=$7,
              acquisition_cost=$8,technical_loss_percent=$9,additional_presentation_cost=$10,
-             minimum_measurable_volume_ml=$11,beyond_use_hours=$12,active=$13,
+             minimum_measurable_volume_ml=$11,beyond_use_hours=$12,pricing_status=$13,
+             cost_source=$14,cost_valid_on=$15,assumptions_notes=$16,assumptions_confirmed=$17,
+             validated_at=$18,validated_by_actor=$19,validated_by_user_id=$20,active=$21,
              version=version+1,updated_at=now()
            WHERE id=$1 AND organization_id=$2 RETURNING *`,
           [input.id, auth.organizationId, ...values],

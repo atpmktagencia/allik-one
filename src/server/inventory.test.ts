@@ -207,6 +207,64 @@ describe("fractional presentation and dose pricing", () => {
       }),
     );
     expect(doseResponse.status).toBe(201);
+    const incompleteValidation = await pricingResponse(
+      new Request(`${origin}/api/v1/inventory/pricing`, {
+        method: "POST",
+        headers: { cookie, origin, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "UPDATE_PRESENTATION",
+          id: presentationId,
+          productId: null,
+          name: `Tirzepatida teste ${presentationId}`,
+          baseUnit: "MG",
+          totalBaseQuantity: "20",
+          totalVolumeMl: "0.8",
+          acquisitionCost: "591.40",
+          technicalLossPercent: "0",
+          additionalPresentationCost: "0",
+          minimumMeasurableVolumeMl: null,
+          beyondUseHours: null,
+          pricingStatus: "VALIDATED",
+          costSource: "Cotação de teste",
+          costValidOn: "2026-10-11",
+          assumptionsNotes: "Premissas de teste ainda incompletas.",
+          assumptionsConfirmed: false,
+          active: true,
+          version: 0,
+          reason: "Tentativa incompleta de validar a apresentação.",
+        }),
+      }),
+    );
+    expect(incompleteValidation.status).toBe(400);
+    const validationResponse = await pricingResponse(
+      new Request(`${origin}/api/v1/inventory/pricing`, {
+        method: "POST",
+        headers: { cookie, origin, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "UPDATE_PRESENTATION",
+          id: presentationId,
+          productId: null,
+          name: `Tirzepatida teste ${presentationId}`,
+          baseUnit: "MG",
+          totalBaseQuantity: "20",
+          totalVolumeMl: "0.8",
+          acquisitionCost: "591.40",
+          technicalLossPercent: "0",
+          additionalPresentationCost: "0",
+          minimumMeasurableVolumeMl: "0.001",
+          beyondUseHours: 24,
+          pricingStatus: "VALIDATED",
+          costSource: "Cotação de teste",
+          costValidOn: "2026-10-11",
+          assumptionsNotes: "Premissas operacionais conferidas no teste.",
+          assumptionsConfirmed: true,
+          active: true,
+          version: 0,
+          reason: "Validação completa da apresentação no teste.",
+        }),
+      }),
+    );
+    expect(validationResponse.status).toBe(200);
     const response = await pricingResponse(
       new Request(`${origin}/api/v1/inventory/pricing`, { headers: { cookie } }),
     );
@@ -214,16 +272,26 @@ describe("fractional presentation and dose pricing", () => {
     const created = payload.presentations.find(
       (presentation: { id: string }) => presentation.id === presentationId,
     );
-    expect(created).toMatchObject({ concentrationPerMl: "25", beyondUseHours: 24 });
+    expect(created).toMatchObject({
+      concentrationPerMl: "25",
+      beyondUseHours: 24,
+      pricingStatus: "VALIDATED",
+      costSource: "Cotação de teste",
+      validatedByActor: "preview-operator",
+    });
     expect(created.doses[0]).toMatchObject({
       id: doseId,
-      calculation: { doseVolumeMl: "0.096", measurable: false, dosesPerPresentation: 8 },
+      calculation: { doseVolumeMl: "0.096", measurable: true, dosesPerPresentation: 8 },
     });
     const changes = await getPool().query(
       "SELECT action FROM inventory_pricing_changes WHERE presentation_id=$1 ORDER BY created_at",
       [presentationId],
     );
-    expect(changes.rows.map((row) => row.action)).toEqual(["CREATE_PRESENTATION", "CREATE_DOSE"]);
+    expect(changes.rows.map((row) => row.action)).toEqual([
+      "CREATE_PRESENTATION",
+      "CREATE_DOSE",
+      "UPDATE_PRESENTATION",
+    ]);
     await expect(
       getPool().query(
         "UPDATE inventory_pricing_changes SET reason='alteração proibida' WHERE presentation_id=$1",

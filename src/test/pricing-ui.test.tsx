@@ -33,6 +33,13 @@ const payload = {
       additionalPresentationCost: "0",
       minimumMeasurableVolumeMl: "0.01",
       beyondUseHours: 24,
+      pricingStatus: "DRAFT",
+      costSource: "Cotação de teste",
+      costValidOn: "2026-10-11",
+      assumptionsNotes: "Prazo após abertura ainda em revisão.",
+      assumptionsConfirmed: false,
+      validatedAt: null,
+      validatedByActor: null,
       active: true,
       version: 2,
       doses: [
@@ -71,6 +78,7 @@ describe("Pricing UI", () => {
     mount();
 
     expect(await screen.findByText("Comparação por dose e apresentação")).toBeInTheDocument();
+    expect(screen.getByText("Simulação parcial")).toBeInTheDocument();
     expect(screen.getAllByText("R$ 83,93").length).toBeGreaterThan(0);
     expect(screen.getByText("R$ 1.328,60")).toBeInTheDocument();
 

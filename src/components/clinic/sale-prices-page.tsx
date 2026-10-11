@@ -38,6 +38,13 @@ type Presentation = {
   additionalPresentationCost: string;
   minimumMeasurableVolumeMl: string | null;
   beyondUseHours: number | null;
+  pricingStatus: "DRAFT" | "VALIDATED";
+  costSource: string | null;
+  costValidOn: string | null;
+  assumptionsNotes: string | null;
+  assumptionsConfirmed: boolean;
+  validatedAt: string | null;
+  validatedByActor: string | null;
   productId: string | null;
   active: boolean;
   version: number;
@@ -63,6 +70,11 @@ const presentationBlank = {
   additionalPresentationCost: "0",
   minimumMeasurableVolumeMl: "",
   beyondUseHours: "",
+  pricingStatus: "DRAFT" as "DRAFT" | "VALIDATED",
+  costSource: "",
+  costValidOn: "",
+  assumptionsNotes: "",
+  assumptionsConfirmed: false,
   reason: "Cadastro inicial da apresentação comercial.",
 };
 const doseBlank = {
@@ -126,6 +138,9 @@ export function SalePricesPage() {
       totalVolumeMl: presentation.totalVolumeMl || null,
       minimumMeasurableVolumeMl: presentation.minimumMeasurableVolumeMl || null,
       beyondUseHours: presentation.beyondUseHours ? Number(presentation.beyondUseHours) : null,
+      costSource: presentation.costSource || null,
+      costValidOn: presentation.costValidOn || null,
+      assumptionsNotes: presentation.assumptionsNotes || null,
       active: true,
       version: current?.version ?? 0,
     });
@@ -164,6 +179,11 @@ export function SalePricesPage() {
       additionalPresentationCost: item.additionalPresentationCost,
       minimumMeasurableVolumeMl: item.minimumMeasurableVolumeMl ?? "",
       beyondUseHours: item.beyondUseHours?.toString() ?? "",
+      pricingStatus: item.pricingStatus,
+      costSource: item.costSource ?? "",
+      costValidOn: item.costValidOn ?? "",
+      assumptionsNotes: item.assumptionsNotes ?? "",
+      assumptionsConfirmed: item.assumptionsConfirmed,
       reason: "Atualização conferida da apresentação comercial.",
     });
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -312,7 +332,63 @@ export function SalePricesPage() {
                   setPresentation({ ...presentation, beyondUseHours: event.target.value })
                 }
               />
+              <Input
+                aria-label="Fonte do custo"
+                placeholder="Fonte do custo (nota, cotação, catálogo)"
+                value={presentation.costSource}
+                onChange={(event) =>
+                  setPresentation({ ...presentation, costSource: event.target.value })
+                }
+              />
+              <Input
+                aria-label="Data de referência do custo"
+                type="date"
+                value={presentation.costValidOn}
+                onChange={(event) =>
+                  setPresentation({ ...presentation, costValidOn: event.target.value })
+                }
+              />
+              {editingPresentationId && (
+                <select
+                  aria-label="Situação da precificação"
+                  className="h-10 rounded-md border bg-background px-3"
+                  value={presentation.pricingStatus}
+                  onChange={(event) =>
+                    setPresentation({
+                      ...presentation,
+                      pricingStatus: event.target.value as "DRAFT" | "VALIDATED",
+                    })
+                  }
+                >
+                  <option value="DRAFT">Rascunho</option>
+                  <option value="VALIDATED">Validada</option>
+                </select>
+              )}
             </div>
+            <Input
+              aria-label="Observações das premissas"
+              placeholder="Premissas pendentes ou evidências da validação"
+              value={presentation.assumptionsNotes}
+              onChange={(event) =>
+                setPresentation({ ...presentation, assumptionsNotes: event.target.value })
+              }
+            />
+            <label className="flex items-start gap-2 text-sm">
+              <input
+                className="mt-1"
+                type="checkbox"
+                checked={presentation.assumptionsConfirmed}
+                onChange={(event) =>
+                  setPresentation({
+                    ...presentation,
+                    assumptionsConfirmed: event.target.checked,
+                  })
+                }
+              />
+              <span>
+                Confirmo perda técnica, materiais, capacidade de medição e prazo após abertura.
+              </span>
+            </label>
             <Input
               aria-label="Motivo do cadastro da apresentação"
               required
@@ -456,9 +532,10 @@ export function SalePricesPage() {
                   </CardDescription>
                 </div>
                 <Badge variant="outline">Custo {money.format(number(item.acquisitionCost))}</Badge>
-                {(!item.minimumMeasurableVolumeMl || !item.beyondUseHours) && (
+                {item.pricingStatus === "DRAFT" && (
                   <Badge variant="secondary">Simulação parcial</Badge>
                 )}
+                {item.pricingStatus === "VALIDATED" && <Badge>Precificação validada</Badge>}
                 {data.canManage && (
                   <Button type="button" variant="outline" onClick={() => editPresentation(item)}>
                     Editar apresentação
@@ -467,10 +544,17 @@ export function SalePricesPage() {
               </div>
             </CardHeader>
             <CardContent className="space-y-4">
-              {(!item.minimumMeasurableVolumeMl || !item.beyondUseHours) && (
+              {item.pricingStatus === "DRAFT" && (
                 <p className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950">
-                  Resultado provisório: confirme o menor volume mensurável e o prazo de uso após
-                  abertura antes de usar esta simulação em uma decisão operacional.
+                  Resultado provisório: confirme fonte e data do custo, perda técnica, materiais,
+                  menor volume mensurável e prazo após abertura antes de usar esta simulação em uma
+                  decisão operacional.
+                </p>
+              )}
+              {item.pricingStatus === "VALIDATED" && (
+                <p className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-950">
+                  Validada por {item.validatedByActor} com custo de {item.costSource}, referência em{" "}
+                  {item.costValidOn}.
                 </p>
               )}
               <div className="grid gap-2 text-sm sm:grid-cols-3">
