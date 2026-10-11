@@ -56,7 +56,7 @@ export async function patientApplicationResponse(request: Request) {
     await client.query("BEGIN");
     const scheduleResult = await client.query(
       `SELECT s.*,p.primary_unit_id,p.active AS patient_active,t.status AS treatment_status,
-        pr.active AS product_active,pr.stock_controlled
+        pr.active AS product_active,pr.stock_controlled,t.route AS treatment_route
        FROM inventory_patient_treatment_schedule s
        JOIN inventory_patients p ON p.id=s.patient_id
        JOIN inventory_patient_treatments t ON t.id=s.treatment_id
@@ -91,15 +91,26 @@ export async function patientApplicationResponse(request: Request) {
     if (schedule.version !== input.scheduleVersion)
       throw new PatientApplicationConflict("A agenda mudou. Recarregue e tente novamente.");
     const prescription = await client.query(
-      `SELECT 1 FROM inventory_patient_prescriptions
+      `SELECT id FROM inventory_patient_prescriptions
        WHERE treatment_id=$1 AND patient_id=$2 AND organization_id=$3
          AND document_status='ACTIVE' AND issued_on<=current_date AND valid_until>=current_date
-       LIMIT 1 FOR SHARE`,
+       ORDER BY version DESC,uploaded_at DESC LIMIT 1 FOR SHARE`,
       [schedule.treatment_id, schedule.patient_id, auth.organizationId],
     );
     if (!prescription.rowCount)
       throw new PatientApplicationConflict(
         "Não há prescrição ativa e válida para realizar esta aplicação.",
+      );
+    if (Math.abs(input.administeredDoseQuantity - Number(schedule.dose_quantity)) > 0.000001)
+      throw new PatientApplicationConflict(
+        "A dose confirmada difere da programação. Atualize o tratamento antes de aplicar.",
+      );
+    if (
+      input.route.toLocaleUpperCase("pt-BR") !==
+      String(schedule.treatment_route).toLocaleUpperCase("pt-BR")
+    )
+      throw new PatientApplicationConflict(
+        "A via confirmada difere do tratamento. Atualize o tratamento antes de aplicar.",
       );
     await client.query("SELECT pg_advisory_xact_lock(hashtextextended($1,0))", [
       `${schedule.unit_id}:${schedule.product_id}`,
@@ -143,7 +154,7 @@ export async function patientApplicationResponse(request: Request) {
     const technicalLossQuantity =
       totalBaseQuantity * (Number(presentationRow.technical_loss_percent) / 100);
     const usablePerPresentation = totalBaseQuantity - technicalLossQuantity;
-    const doseQuantity = Number(schedule.dose_quantity);
+    const doseQuantity = input.administeredDoseQuantity;
     const totalVolumeMl = presentationRow.total_volume_ml
       ? Number(presentationRow.total_volume_ml)
       : null;
@@ -256,9 +267,9 @@ export async function patientApplicationResponse(request: Request) {
     await client.query(
       `INSERT INTO inventory_patient_applications(
         id,organization_id,patient_id,treatment_id,schedule_id,unit_id,location_id,product_id,
-        presentation_id,request_hash,reference,professional,dose_quantity,dose_unit,
-        physical_quantity,reason,actor,actor_user_id
-       ) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18)`,
+        presentation_id,prescription_id,request_hash,reference,professional,dose_quantity,dose_unit,
+        route,dose_volume_ml,physical_quantity,occurrence_notes,reason,actor,actor_user_id
+       ) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22)`,
       [
         input.operationId,
         auth.organizationId,
@@ -269,12 +280,16 @@ export async function patientApplicationResponse(request: Request) {
         input.locationId,
         schedule.product_id,
         presentation.rows[0].id,
+        prescription.rows[0].id,
         hash,
         input.reference,
         input.professional,
-        schedule.dose_quantity,
+        doseQuantity,
         schedule.dose_unit,
+        schedule.treatment_route,
+        doseVolumeMl,
         physicalQuantity,
+        input.occurrenceNotes,
         input.reason,
         actor(auth).name,
         actor(auth).userId,
@@ -441,6 +456,11 @@ export async function patientApplicationResponse(request: Request) {
           id: input.operationId,
           replayed: false,
           physicalQuantity,
+          doseQuantity,
+          doseUnit: schedule.dose_unit,
+          route: schedule.treatment_route,
+          doseVolumeMl,
+          prescriptionId: prescription.rows[0].id,
           allocations: openedLots.map((lot) => ({ ...lot, quantity: 1 })),
           containerUsages,
         },

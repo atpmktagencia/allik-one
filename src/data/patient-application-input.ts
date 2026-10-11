@@ -8,6 +8,9 @@ export const patientApplicationInput = z.object({
   locationId: z.string().uuid(),
   reference: z.string().trim().min(3).max(100),
   professional: z.string().trim().min(3).max(100),
+  administeredDoseQuantity: z.number().positive().max(1_000_000),
+  route: z.string().trim().min(2).max(40),
+  occurrenceNotes: z.string().trim().max(1000).default(""),
   reason: z.string().trim().min(10).max(500),
 });
 

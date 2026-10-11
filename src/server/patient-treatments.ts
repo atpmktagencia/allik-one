@@ -98,6 +98,8 @@ export async function patientDetailResponse(request: Request) {
           ) AS "hasValidPrescription",
           a.id AS "applicationId",a.reference AS "applicationReference",
           a.professional AS "applicationProfessional",a.physical_quantity AS "physicalQuantity",
+          a.route AS "applicationRoute",a.dose_volume_ml AS "applicationDoseVolumeMl",
+          a.occurrence_notes AS "applicationOccurrenceNotes",a.prescription_id AS "applicationPrescriptionId",
           a.created_at AS "administeredAt"
          FROM inventory_patient_treatment_schedule s
          LEFT JOIN inventory_patient_applications a ON a.schedule_id=s.id
@@ -105,7 +107,7 @@ export async function patientDetailResponse(request: Request) {
         [patientId, auth.organizationId],
       ),
       getPool().query(
-        `SELECT DISTINCT ON (product_id,upper(base_unit)) product_id AS "productId",upper(base_unit) AS "baseUnit",name,total_base_quantity AS "totalBaseQuantity",technical_loss_percent AS "technicalLossPercent" FROM inventory_pricing_presentations WHERE organization_id=$1 AND active AND product_id IS NOT NULL ORDER BY product_id,upper(base_unit),pricing_status DESC,updated_at DESC`,
+        `SELECT DISTINCT ON (product_id,upper(base_unit)) product_id AS "productId",upper(base_unit) AS "baseUnit",name,total_base_quantity AS "totalBaseQuantity",technical_loss_percent AS "technicalLossPercent",total_volume_ml AS "totalVolumeMl" FROM inventory_pricing_presentations WHERE organization_id=$1 AND active AND product_id IS NOT NULL ORDER BY product_id,upper(base_unit),pricing_status DESC,updated_at DESC`,
         [auth.organizationId],
       ),
       getPool().query(
@@ -167,6 +169,11 @@ export async function patientDetailResponse(request: Request) {
         ? Number(presentation["totalBaseQuantity"]) *
           (1 - Number(presentation["technicalLossPercent"]) / 100)
         : null;
+      const doseVolumeMl =
+        presentation?.["totalVolumeMl"] && Number(presentation["totalBaseQuantity"]) > 0
+          ? (Number(treatment["doseQuantity"]) / Number(presentation["totalBaseQuantity"])) *
+            Number(presentation["totalVolumeMl"])
+          : null;
       const demandQuantity = plannedQuantity + reservedQuantity;
       const openQuantity = Number(
         openStockRows.find(
@@ -207,6 +214,7 @@ export async function patientDetailResponse(request: Request) {
           purchasedQuantity - consumedQuantity - reservedQuantity,
         ),
         presentationName: presentation?.["name"] ?? null,
+        doseVolumeMl,
         usablePerPresentation,
         availableStockUnits,
         openQuantity,

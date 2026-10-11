@@ -1049,12 +1049,16 @@ export const patientApplications = pgTable(
     presentationId: uuid("presentation_id")
       .notNull()
       .references(() => pricingPresentations.id),
+    prescriptionId: uuid("prescription_id").references(() => patientPrescriptions.id),
     requestHash: text("request_hash").notNull(),
     reference: text("reference").notNull(),
     professional: text("professional").notNull(),
     doseQuantity: numeric("dose_quantity", { precision: 18, scale: 6 }).notNull(),
     doseUnit: text("dose_unit").notNull(),
+    route: text("route"),
+    doseVolumeMl: numeric("dose_volume_ml", { precision: 18, scale: 6 }),
     physicalQuantity: numeric("physical_quantity", { precision: 18, scale: 6 }).notNull(),
+    occurrenceNotes: text("occurrence_notes").notNull().default(""),
     reason: text("reason").notNull(),
     actor: text("actor").notNull(),
     actorUserId: uuid("actor_user_id").references(() => users.id),
@@ -1068,6 +1072,15 @@ export const patientApplications = pgTable(
     index("inventory_patient_application_patient_date").on(t.patientId, t.createdAt),
     index("inventory_patient_application_unit_date").on(t.unitId, t.createdAt),
     check("patient_application_dose_positive", sql`${t.doseQuantity} > 0`),
+    check(
+      "patient_application_volume_positive",
+      sql`${t.doseVolumeMl} IS NULL OR ${t.doseVolumeMl} > 0`,
+    ),
+    check(
+      "patient_application_route_valid",
+      sql`${t.route} IS NULL OR char_length(trim(${t.route})) BETWEEN 2 AND 40`,
+    ),
+    check("patient_application_occurrence_valid", sql`char_length(${t.occurrenceNotes}) <= 1000`),
     check("patient_application_physical_nonnegative", sql`${t.physicalQuantity} >= 0`),
     check("patient_application_unit_valid", sql`${t.doseUnit} IN ('MG','ML','UI','UNIT')`),
     check(

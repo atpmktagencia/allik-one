@@ -72,6 +72,10 @@ type Payload = {
     applicationId: string | null;
     applicationReference: string | null;
     applicationProfessional: string | null;
+    applicationRoute: string | null;
+    applicationDoseVolumeMl: string | null;
+    applicationOccurrenceNotes: string | null;
+    applicationPrescriptionId: string | null;
     physicalQuantity: string | null;
     administeredAt: string | null;
   }>;
@@ -85,6 +89,7 @@ type Payload = {
     purchasedRemaining: number;
     purchasedAvailableToReserve: number;
     presentationName: string | null;
+    doseVolumeMl: number | null;
     usablePerPresentation: number | null;
     availableStockUnits: number;
     openQuantity: number;
@@ -155,6 +160,11 @@ export function PatientTreatmentPage({ patientId }: { patientId: string }) {
     locationId: "",
     reference: "",
     professional: "",
+    administeredDoseQuantity: 0,
+    doseUnit: "",
+    route: "",
+    doseVolumeMl: null as number | null,
+    occurrenceNotes: "",
     reason: "Aplicação realizada conforme programação e conferência operacional.",
     confirmed: false,
   });
@@ -280,6 +290,10 @@ export function PatientTreatmentPage({ patientId }: { patientId: string }) {
     );
   }
   function startApplication(item: Payload["schedule"][number]) {
+    const treatment = data.treatments.find((candidate) => candidate.id === item.treatmentId);
+    const supply = data.supplySummaries.find(
+      (candidate) => candidate.treatmentId === item.treatmentId,
+    );
     setError("");
     setMessage("");
     setApplication({
@@ -289,6 +303,11 @@ export function PatientTreatmentPage({ patientId }: { patientId: string }) {
       locationId: data.locations.length === 1 ? data.locations[0]!.id : "",
       reference: `APL-${data.patient.internalCode}-${String(item.scheduledOn).slice(0, 10).replaceAll("-", "")}-${item.sequence}`,
       professional: "",
+      administeredDoseQuantity: Number(item.doseQuantity),
+      doseUnit: item.doseUnit,
+      route: treatment?.route ?? "",
+      doseVolumeMl: supply?.doseVolumeMl ?? null,
+      occurrenceNotes: "",
       reason: "Aplicação realizada conforme programação e conferência operacional.",
       confirmed: false,
     });
@@ -311,6 +330,9 @@ export function PatientTreatmentPage({ patientId }: { patientId: string }) {
           locationId: application.locationId,
           reference: application.reference,
           professional: application.professional,
+          administeredDoseQuantity: application.administeredDoseQuantity,
+          route: application.route,
+          occurrenceNotes: application.occurrenceNotes,
           reason: application.reason,
         }),
       });
@@ -668,7 +690,10 @@ export function PatientTreatmentPage({ patientId }: { patientId: string }) {
                     {item.applicationId ? (
                       <p className="mt-1 text-xs text-muted-foreground">
                         {item.applicationReference} · {item.applicationProfessional} · baixa de{" "}
-                        {item.physicalQuantity} un. físicas
+                        {item.physicalQuantity} un. físicas · {item.applicationRoute}
+                        {item.applicationDoseVolumeMl
+                          ? ` · ${Number(item.applicationDoseVolumeMl).toLocaleString("pt-BR", { maximumFractionDigits: 3 })} mL`
+                          : ""}
                       </p>
                     ) : null}
                     {!item.hasValidPrescription && item.status !== "CONSUMED" ? (
@@ -746,6 +771,33 @@ export function PatientTreatmentPage({ patientId }: { patientId: string }) {
           </div>
           <div className="grid gap-4 md:grid-cols-2">
             <label className="space-y-1 text-sm font-medium">
+              Dose efetivamente administrada
+              <Input
+                required
+                type="number"
+                min="0.000001"
+                step="0.000001"
+                value={application.administeredDoseQuantity}
+                onChange={(event) =>
+                  setApplication({
+                    ...application,
+                    administeredDoseQuantity: Number(event.target.value),
+                    confirmed: false,
+                  })
+                }
+              />
+              <span className="block text-xs text-muted-foreground">
+                {application.doseUnit}
+                {application.doseVolumeMl !== null
+                  ? ` · volume calculado: ${application.doseVolumeMl.toLocaleString("pt-BR", { maximumFractionDigits: 3 })} mL`
+                  : ""}
+              </span>
+            </label>
+            <label className="space-y-1 text-sm font-medium">
+              Via de administração
+              <Input required readOnly value={application.route} />
+            </label>
+            <label className="space-y-1 text-sm font-medium">
               Local do consumo
               <select
                 required
@@ -762,6 +814,17 @@ export function PatientTreatmentPage({ patientId }: { patientId: string }) {
                   </option>
                 ))}
               </select>
+            </label>
+            <label className="space-y-1 text-sm font-medium md:col-span-2">
+              Intercorrência operacional (opcional)
+              <Input
+                maxLength={1000}
+                placeholder="Sem intercorrências"
+                value={application.occurrenceNotes}
+                onChange={(event) =>
+                  setApplication({ ...application, occurrenceNotes: event.target.value })
+                }
+              />
             </label>
             <label className="space-y-1 text-sm font-medium">
               Profissional executor
@@ -807,7 +870,8 @@ export function PatientTreatmentPage({ patientId }: { patientId: string }) {
                 setApplication({ ...application, confirmed: event.target.checked })
               }
             />
-            Conferi paciente, dose, produto, profissional e local. Confirmo a baixa física.
+            Conferi paciente, prescrição válida, dose, via, produto, profissional e local. Confirmo
+            a aplicação e a baixa física.
           </label>
           <div className="flex flex-wrap gap-3">
             <Button disabled={pending || !application.confirmed}>

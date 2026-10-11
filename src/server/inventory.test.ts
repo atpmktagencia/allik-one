@@ -754,6 +754,9 @@ describe("operational patients", () => {
           locationId: location.rows[0]!.id,
           reference: `SEM-RECEITA-${patientId.slice(0, 8)}`,
           professional: "Profissional Sintético",
+          administeredDoseQuantity: 2.5,
+          route: "SC",
+          occurrenceNotes: "",
           reason: "Tentativa sintética sem prescrição válida deve ser bloqueada.",
         }),
       }),
@@ -980,6 +983,9 @@ describe("operational patients", () => {
       locationId: location.rows[0]!.id,
       reference: `APL-${patientId.slice(0, 8)}`,
       professional: "Profissional Sintético",
+      administeredDoseQuantity: 2.5,
+      route: "SC",
+      occurrenceNotes: "Sem intercorrências no teste integrado.",
       reason: "Aplicação sintética para validar baixa física e FEFO.",
     };
     const applicationRequest = () =>
@@ -988,6 +994,20 @@ describe("operational patients", () => {
         headers: { cookie: managerCookie, origin, "Content-Type": "application/json" },
         body: JSON.stringify(applicationBody),
       });
+    const changedDose = await patientApplicationResponse(
+      new Request(`${origin}/api/v1/inventory/patient-applications`, {
+        method: "POST",
+        headers: { cookie: managerCookie, origin, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...applicationBody,
+          operationId: randomUUID(),
+          reference: `DOSE-DIVERGENTE-${patientId.slice(0, 8)}`,
+          administeredDoseQuantity: 5,
+        }),
+      }),
+    );
+    expect(changedDose.status).toBe(409);
+    expect((await changedDose.json()).error).toContain("dose confirmada difere");
     const concurrent = await Promise.all([
       patientApplicationResponse(applicationRequest()),
       patientApplicationResponse(applicationRequest()),
@@ -1000,17 +1020,24 @@ describe("operational patients", () => {
         id: operationId,
         replayed: false,
         physicalQuantity: 1,
+        doseQuantity: 2.5,
+        doseUnit: "MG",
+        route: "SC",
+        doseVolumeMl: 0.1,
+        prescriptionId: expect.any(String),
         allocations: [expect.objectContaining({ lotId: earlierLot.rows[0]!.id, quantity: 1 })],
       }),
     );
     expect((await replayed.json()).data.replayed).toBe(true);
     const state = await getPool().query(
       `SELECT s.status,s.version,b.quantity::text,
+        pa.route,pa.dose_volume_ml::text,pa.occurrence_notes,pa.prescription_id,
         (SELECT count(*)::integer FROM inventory_patient_applications WHERE schedule_id=s.id) AS applications,
         (SELECT count(*)::integer FROM inventory_patient_application_movements pam
           JOIN inventory_patient_applications pa ON pa.id=pam.patient_application_id
           WHERE pa.schedule_id=s.id) AS movements
        FROM inventory_patient_treatment_schedule s
+       JOIN inventory_patient_applications pa ON pa.schedule_id=s.id
        JOIN inventory_balances b ON b.lot_id=$2 AND b.location_id=$3
        WHERE s.id=$1`,
       [applicationBody.scheduleId, earlierLot.rows[0]!.id, location.rows[0]!.id],
@@ -1022,6 +1049,10 @@ describe("operational patients", () => {
         quantity: "0.000",
         applications: 1,
         movements: 1,
+        route: "SC",
+        dose_volume_ml: "0.100000",
+        occurrence_notes: "Sem intercorrências no teste integrado.",
+        prescription_id: expect.any(String),
       }),
     ]);
     const duplicate = await patientApplicationResponse(

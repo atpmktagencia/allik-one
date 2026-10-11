@@ -176,6 +176,13 @@
       "when": 1792627200000,
       "tag": "0024_prescription_metadata",
       "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1792713600000,
+      "tag": "0025_application_clinical_snapshot",
+      "breakpoints": true
     }
   ]
 }

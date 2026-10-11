@@ -84,6 +84,7 @@ describe("Patient application UI", () => {
                 purchasedRemaining: 7.5,
                 purchasedAvailableToReserve: 5,
                 presentationName: "Apresentação sintética",
+                doseVolumeMl: 0.1,
                 usablePerPresentation: 20,
                 availableStockUnits: 1,
                 openQuantity: 7.5,
@@ -115,11 +116,14 @@ describe("Patient application UI", () => {
     fireEvent.click(await screen.findByRole("button", { name: "Registrar aplicação" }));
     const confirmButton = screen.getByRole("button", { name: "Confirmar aplicação" });
     expect(confirmButton).toBeDisabled();
+    expect(screen.getByLabelText(/Dose efetivamente administrada/)).toHaveValue(2.5);
+    expect(screen.getByLabelText("Via de administração")).toHaveValue("SC");
+    expect(screen.getByText(/volume calculado: 0,1 mL/)).toBeInTheDocument();
     fireEvent.change(screen.getByLabelText("Profissional executor"), {
       target: { value: "Profissional de Teste" },
     });
     fireEvent.click(
-      screen.getByLabelText(/conferi paciente, dose, produto, profissional e local/i),
+      screen.getByLabelText(/conferi paciente, prescrição válida, dose, via, produto/i),
     );
     fireEvent.click(confirmButton);
     await waitFor(() => expect(submitted).toBeDefined());
@@ -130,6 +134,9 @@ describe("Patient application UI", () => {
         scheduleVersion: 3,
         locationId,
         professional: "Profissional de Teste",
+        administeredDoseQuantity: 2.5,
+        route: "SC",
+        occurrenceNotes: "",
       }),
     );
   });
