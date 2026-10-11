@@ -999,7 +999,7 @@ export const patientApplications = pgTable(
     index("inventory_patient_application_patient_date").on(t.patientId, t.createdAt),
     index("inventory_patient_application_unit_date").on(t.unitId, t.createdAt),
     check("patient_application_dose_positive", sql`${t.doseQuantity} > 0`),
-    check("patient_application_physical_positive", sql`${t.physicalQuantity} > 0`),
+    check("patient_application_physical_nonnegative", sql`${t.physicalQuantity} >= 0`),
     check("patient_application_unit_valid", sql`${t.doseUnit} IN ('MG','ML','UI','UNIT')`),
     check(
       "patient_application_reference_valid",
@@ -1027,6 +1027,92 @@ export const patientApplicationMovements = pgTable(
       .references(() => patientApplications.id),
   },
   (t) => [index("inventory_patient_application_movement_application").on(t.patientApplicationId)],
+);
+
+export const openPresentations = pgTable(
+  "inventory_open_presentations",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id),
+    unitId: uuid("unit_id")
+      .notNull()
+      .references(() => units.id),
+    locationId: uuid("location_id")
+      .notNull()
+      .references(() => locations.id),
+    productId: uuid("product_id")
+      .notNull()
+      .references(() => products.id),
+    presentationId: uuid("presentation_id")
+      .notNull()
+      .references(() => pricingPresentations.id),
+    lotId: uuid("lot_id")
+      .notNull()
+      .references(() => lots.id),
+    baseUnit: text("base_unit").notNull(),
+    initialBaseQuantity: numeric("initial_base_quantity", { precision: 18, scale: 6 }).notNull(),
+    remainingBaseQuantity: numeric("remaining_base_quantity", {
+      precision: 18,
+      scale: 6,
+    }).notNull(),
+    openedAt: timestamp("opened_at", { withTimezone: true }).notNull().defaultNow(),
+    usableUntil: timestamp("usable_until", { withTimezone: true }).notNull(),
+    status: text("status").notNull().default("OPEN"),
+    version: integer("version").notNull().default(0),
+    openedByUserId: uuid("opened_by_user_id").references(() => users.id),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("inventory_open_presentation_available").on(
+      t.locationId,
+      t.productId,
+      t.presentationId,
+      t.status,
+      t.usableUntil,
+    ),
+    index("inventory_open_presentation_lot").on(t.lotId),
+    check("open_presentation_unit_valid", sql`${t.baseUnit} IN ('MG','MCG','G','ML','UI','UNIT')`),
+    check("open_presentation_initial_positive", sql`${t.initialBaseQuantity} > 0`),
+    check(
+      "open_presentation_remaining_valid",
+      sql`${t.remainingBaseQuantity} >= 0 AND ${t.remainingBaseQuantity} <= ${t.initialBaseQuantity}`,
+    ),
+    check("open_presentation_window_valid", sql`${t.usableUntil} >= ${t.openedAt}`),
+    check("open_presentation_status_valid", sql`${t.status} IN ('OPEN','DEPLETED','DISCARDED')`),
+    check("open_presentation_version_nonnegative", sql`${t.version} >= 0`),
+  ],
+);
+
+export const openPresentationEvents = pgTable(
+  "inventory_open_presentation_events",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    openPresentationId: uuid("open_presentation_id")
+      .notNull()
+      .references(() => openPresentations.id),
+    patientApplicationId: uuid("patient_application_id").references(() => patientApplications.id),
+    type: text("type").notNull(),
+    quantity: numeric("quantity", { precision: 18, scale: 6 }).notNull(),
+    reason: text("reason").notNull(),
+    actor: text("actor").notNull(),
+    actorUserId: uuid("actor_user_id").references(() => users.id),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("inventory_open_presentation_event_history").on(t.openPresentationId, t.createdAt),
+    index("inventory_open_presentation_event_application").on(t.patientApplicationId),
+    check(
+      "open_presentation_event_type_valid",
+      sql`${t.type} IN ('OPEN','CONSUME','TECHNICAL_LOSS','EXPIRED','DAMAGE','DISCARD')`,
+    ),
+    check("open_presentation_event_quantity_positive", sql`${t.quantity} > 0`),
+    check(
+      "open_presentation_event_reason_valid",
+      sql`char_length(trim(${t.reason})) BETWEEN 10 AND 500`,
+    ),
+  ],
 );
 
 export const writeOffs = pgTable("inventory_write_offs", {

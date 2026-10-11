@@ -98,7 +98,8 @@ export async function patientApplicationResponse(request: Request) {
     if (!location.rowCount)
       throw new PatientApplicationConflict("Local de estoque inválido para esta unidade.");
     const presentation = await client.query(
-      `SELECT id,total_base_quantity::text,technical_loss_percent::text
+      `SELECT id,total_base_quantity::text,technical_loss_percent::text,
+        total_volume_ml::text,minimum_measurable_volume_ml::text,beyond_use_hours
        FROM inventory_pricing_presentations
        WHERE organization_id=$1 AND product_id=$2 AND active AND upper(base_unit)=upper($3)
        ORDER BY pricing_status DESC,updated_at DESC LIMIT 1 FOR SHARE`,
@@ -108,15 +109,65 @@ export async function patientApplicationResponse(request: Request) {
       throw new PatientApplicationConflict(
         "Cadastre a apresentação e a concentração antes de consumir esta dose.",
       );
-    const physical = await client.query<{ quantity: string }>(
-      `SELECT ceil($1::numeric / ($2::numeric * (1-($3::numeric/100))))::text AS quantity`,
-      [
-        schedule.dose_quantity,
-        presentation.rows[0].total_base_quantity,
-        presentation.rows[0].technical_loss_percent,
-      ],
+    const presentationRow = presentation.rows[0];
+    const totalBaseQuantity = Number(presentationRow.total_base_quantity);
+    const technicalLossQuantity =
+      totalBaseQuantity * (Number(presentationRow.technical_loss_percent) / 100);
+    const usablePerPresentation = totalBaseQuantity - technicalLossQuantity;
+    const doseQuantity = Number(schedule.dose_quantity);
+    const totalVolumeMl = presentationRow.total_volume_ml
+      ? Number(presentationRow.total_volume_ml)
+      : null;
+    const minimumVolumeMl = presentationRow.minimum_measurable_volume_ml
+      ? Number(presentationRow.minimum_measurable_volume_ml)
+      : null;
+    const doseVolumeMl = totalVolumeMl ? (doseQuantity / totalBaseQuantity) * totalVolumeMl : null;
+    if (doseVolumeMl !== null && minimumVolumeMl !== null && doseVolumeMl < minimumVolumeMl)
+      throw new PatientApplicationConflict(
+        `Volume calculado de ${doseVolumeMl.toFixed(3)} mL abaixo do mínimo mensurável de ${minimumVolumeMl.toFixed(3)} mL.`,
+      );
+
+    const expiredOpen = await client.query(
+      `SELECT id,remaining_base_quantity::text FROM inventory_open_presentations
+       WHERE location_id=$1 AND product_id=$2 AND presentation_id=$3 AND status='OPEN'
+         AND usable_until<=now() ORDER BY id FOR UPDATE`,
+      [input.locationId, schedule.product_id, presentationRow.id],
     );
-    const physicalQuantity = Number(physical.rows[0]!.quantity);
+    for (const expired of expiredOpen.rows) {
+      const expiredQuantity = Number(expired.remaining_base_quantity);
+      await client.query(
+        `UPDATE inventory_open_presentations SET remaining_base_quantity=0,status='DISCARDED',
+          version=version+1,updated_at=now() WHERE id=$1`,
+        [expired.id],
+      );
+      if (expiredQuantity > 0)
+        await client.query(
+          `INSERT INTO inventory_open_presentation_events(
+            open_presentation_id,type,quantity,reason,actor,actor_user_id
+           ) VALUES($1,'EXPIRED',$2,$3,$4,$5)`,
+          [
+            expired.id,
+            expiredQuantity,
+            "Descarte automático após o prazo de uso da apresentação aberta.",
+            actor(auth).name,
+            actor(auth).userId,
+          ],
+        );
+    }
+    const openContainers = await client.query(
+      `SELECT id,remaining_base_quantity::text,usable_until
+       FROM inventory_open_presentations
+       WHERE location_id=$1 AND product_id=$2 AND presentation_id=$3 AND status='OPEN'
+         AND usable_until>now() AND remaining_base_quantity>0
+       ORDER BY usable_until,opened_at,id FOR UPDATE`,
+      [input.locationId, schedule.product_id, presentationRow.id],
+    );
+    const availableOpenQuantity = openContainers.rows.reduce(
+      (sum, container) => sum + Number(container.remaining_base_quantity),
+      0,
+    );
+    const uncoveredDose = Math.max(0, doseQuantity - availableOpenQuantity);
+    const physicalQuantity = Math.ceil(uncoveredDose / usablePerPresentation);
     const candidates = await client.query(
       `SELECT l.id AS lot_id,l.number,l.expires_on::text,b.quantity::text
        FROM inventory_balances b
@@ -126,20 +177,20 @@ export async function patientApplicationResponse(request: Request) {
        ORDER BY l.expires_on,l.id FOR UPDATE OF b`,
       [input.locationId, schedule.product_id],
     );
-    let remaining = physicalQuantity;
-    const allocations: Array<{ lotId: string; lot: string; quantity: number }> = [];
+    let presentationsToOpen = physicalQuantity;
+    const openedLots: Array<{ lotId: string; lot: string; expiresOn: string }> = [];
     for (const candidate of candidates.rows) {
-      if (remaining <= 0) break;
-      const allocated = Math.min(remaining, Number(candidate.quantity));
-      if (allocated > 0)
-        allocations.push({
+      if (presentationsToOpen <= 0) break;
+      const wholeUnits = Math.min(presentationsToOpen, Math.floor(Number(candidate.quantity)));
+      for (let index = 0; index < wholeUnits; index++)
+        openedLots.push({
           lotId: String(candidate.lot_id),
           lot: String(candidate.number),
-          quantity: allocated,
+          expiresOn: String(candidate.expires_on),
         });
-      remaining -= allocated;
+      presentationsToOpen -= wholeUnits;
     }
-    if (remaining > 0)
+    if (presentationsToOpen > 0)
       throw new PatientApplicationConflict(
         "Estoque disponível insuficiente para esta aplicação. Receba ou transfira o produto.",
       );
@@ -171,15 +222,21 @@ export async function patientApplicationResponse(request: Request) {
         actor(auth).userId,
       ],
     );
-    for (const [index, allocation] of allocations.entries()) {
+    const containers: Array<{ id: string; remaining: number; newlyOpened: boolean }> =
+      openContainers.rows.map((container) => ({
+        id: String(container.id),
+        remaining: Number(container.remaining_base_quantity),
+        newlyOpened: false,
+      }));
+    for (const [index, openedLot] of openedLots.entries()) {
       const movement = await client.query<{ id: string }>(
         `INSERT INTO inventory_movements(
           lot_id,location_id,type,delta,actor,actor_user_id,reference,reason,operation_key
          ) VALUES($1,$2,'OUT',$3,$4,$5,$6,$7,$8) RETURNING id`,
         [
-          allocation.lotId,
+          openedLot.lotId,
           input.locationId,
-          `-${allocation.quantity}`,
+          "-1",
           actor(auth).name,
           actor(auth).userId,
           input.reference,
@@ -192,6 +249,111 @@ export async function patientApplicationResponse(request: Request) {
          VALUES($1,$2)`,
         [movement.rows[0]!.id, input.operationId],
       );
+      const opened = await client.query<{ id: string }>(
+        `INSERT INTO inventory_open_presentations(
+          organization_id,unit_id,location_id,product_id,presentation_id,lot_id,base_unit,
+          initial_base_quantity,remaining_base_quantity,usable_until,opened_by_user_id
+         ) VALUES($1,$2,$3,$4,$5,$6,upper($7),$8,$9,
+           LEAST(($10::date+interval '1 day'-interval '1 second') AT TIME ZONE 'America/Fortaleza',
+             now()+COALESCE($11::integer,0)*interval '1 hour'),$12) RETURNING id`,
+        [
+          auth.organizationId,
+          schedule.unit_id,
+          input.locationId,
+          schedule.product_id,
+          presentationRow.id,
+          openedLot.lotId,
+          schedule.dose_unit,
+          totalBaseQuantity,
+          usablePerPresentation,
+          openedLot.expiresOn,
+          presentationRow.beyond_use_hours,
+          auth.user.id,
+        ],
+      );
+      const openId = opened.rows[0]!.id;
+      await client.query(
+        `INSERT INTO inventory_open_presentation_events(
+          open_presentation_id,patient_application_id,type,quantity,reason,actor,actor_user_id
+         ) VALUES($1,$2,'OPEN',$3,$4,$5,$6)`,
+        [
+          openId,
+          input.operationId,
+          totalBaseQuantity,
+          `Apresentação aberta para ${input.reference}.`,
+          actor(auth).name,
+          actor(auth).userId,
+        ],
+      );
+      if (technicalLossQuantity > 0)
+        await client.query(
+          `INSERT INTO inventory_open_presentation_events(
+            open_presentation_id,patient_application_id,type,quantity,reason,actor,actor_user_id
+           ) VALUES($1,$2,'TECHNICAL_LOSS',$3,$4,$5,$6)`,
+          [
+            openId,
+            input.operationId,
+            technicalLossQuantity,
+            "Perda técnica estimada cadastrada para a apresentação.",
+            actor(auth).name,
+            actor(auth).userId,
+          ],
+        );
+      containers.push({ id: openId, remaining: usablePerPresentation, newlyOpened: true });
+    }
+    let doseRemaining = doseQuantity;
+    const containerUsages: Array<{ openPresentationId: string; quantity: number }> = [];
+    for (const container of containers) {
+      if (doseRemaining <= 0) break;
+      const consumed = Math.min(doseRemaining, container.remaining);
+      if (consumed <= 0) continue;
+      container.remaining -= consumed;
+      doseRemaining -= consumed;
+      containerUsages.push({ openPresentationId: container.id, quantity: consumed });
+      await client.query(
+        `UPDATE inventory_open_presentations
+         SET remaining_base_quantity=$2,status=CASE WHEN $2::numeric=0 THEN 'DEPLETED' ELSE 'OPEN' END,
+           version=version+1,updated_at=now() WHERE id=$1`,
+        [container.id, container.remaining],
+      );
+      await client.query(
+        `INSERT INTO inventory_open_presentation_events(
+          open_presentation_id,patient_application_id,type,quantity,reason,actor,actor_user_id
+         ) VALUES($1,$2,'CONSUME',$3,$4,$5,$6)`,
+        [
+          container.id,
+          input.operationId,
+          consumed,
+          input.reason,
+          actor(auth).name,
+          actor(auth).userId,
+        ],
+      );
+    }
+    if (doseRemaining > 0.000001)
+      throw new PatientApplicationConflict("Não foi possível fechar a quantidade aplicada.");
+    if (!presentationRow.beyond_use_hours) {
+      for (const container of containers.filter((item) => item.newlyOpened && item.remaining > 0)) {
+        await client.query(
+          `UPDATE inventory_open_presentations SET remaining_base_quantity=0,status='DISCARDED',
+            version=version+1,updated_at=now() WHERE id=$1`,
+          [container.id],
+        );
+        await client.query(
+          `INSERT INTO inventory_open_presentation_events(
+            open_presentation_id,patient_application_id,type,quantity,reason,actor,actor_user_id
+           ) VALUES($1,$2,'DISCARD',$3,$4,$5,$6)`,
+          [
+            container.id,
+            input.operationId,
+            container.remaining,
+            "Apresentação sem prazo seguro de reutilização cadastrado.",
+            actor(auth).name,
+            actor(auth).userId,
+          ],
+        );
+        container.remaining = 0;
+      }
     }
     const updated = await client.query(
       `UPDATE inventory_patient_treatment_schedule
@@ -220,7 +382,8 @@ export async function patientApplicationResponse(request: Request) {
           id: input.operationId,
           replayed: false,
           physicalQuantity,
-          allocations,
+          allocations: openedLots.map((lot) => ({ ...lot, quantity: 1 })),
+          containerUsages,
         },
       },
       { status: 201, headers },

@@ -26,6 +26,7 @@ import { patientsResponse } from "./patients";
 import { patientDetailResponse } from "./patient-treatments";
 import { patientDemandResponse } from "./patient-demand";
 import { patientApplicationResponse } from "./patient-applications";
+import { openPresentationResponse } from "./open-presentations";
 vi.mock("@vercel/blob", () => ({
   put: vi.fn(async (pathname: string) => ({ pathname })),
   del: vi.fn(async () => undefined),
@@ -652,6 +653,10 @@ describe("operational patients", () => {
       ).status,
     ).toBe(403);
 
+    await getPool().query(
+      "UPDATE inventory_pricing_presentations SET minimum_measurable_volume_ml=0.05 WHERE product_id=$1",
+      [productId],
+    );
     const earlierLot = await getPool().query<{ id: string }>(
       `INSERT INTO inventory_lots(product_id,number,expires_on,supplier,unit_cost)
        VALUES($1,$2,current_date+30,'Fornecedor FEFO sintético',100) RETURNING id`,
@@ -728,6 +733,94 @@ describe("operational patients", () => {
       }),
     );
     expect(duplicate.status).toBe(409);
+    const secondSchedule = await getPool().query<{ id: string }>(
+      "SELECT id FROM inventory_patient_treatment_schedule WHERE treatment_id=$1 AND sequence=2",
+      [treatmentId],
+    );
+    const reused = await patientApplicationResponse(
+      new Request(`${origin}/api/v1/inventory/patient-applications`, {
+        method: "POST",
+        headers: { cookie: managerCookie, origin, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...applicationBody,
+          operationId: randomUUID(),
+          scheduleId: secondSchedule.rows[0]!.id,
+          reference: `APL2-${patientId.slice(0, 8)}`,
+        }),
+      }),
+    );
+    expect(reused.status).toBe(201);
+    expect((await reused.json()).data).toEqual(
+      expect.objectContaining({ physicalQuantity: 0, allocations: [] }),
+    );
+    const fraction = await getPool().query(
+      `SELECT op.initial_base_quantity::text,op.remaining_base_quantity::text,op.status,
+        COALESCE(sum(e.quantity) FILTER (WHERE e.type='TECHNICAL_LOSS'),0)::text AS technical_loss,
+        COALESCE(sum(e.quantity) FILTER (WHERE e.type='CONSUME'),0)::text AS consumed,
+        (SELECT count(*)::integer FROM inventory_patient_application_movements pam
+          JOIN inventory_patient_applications pa ON pa.id=pam.patient_application_id
+          WHERE pa.patient_id=$1) AS movements
+       FROM inventory_open_presentations op
+       JOIN inventory_open_presentation_events e ON e.open_presentation_id=op.id
+       WHERE op.product_id=$2
+       GROUP BY op.id`,
+      [patientId, productId],
+    );
+    expect(fraction.rows).toEqual([
+      expect.objectContaining({
+        initial_base_quantity: "20.000000",
+        remaining_base_quantity: "13.000000",
+        status: "OPEN",
+        technical_loss: "2.000000",
+        consumed: "5.000000",
+        movements: 1,
+      }),
+    ]);
+    const openList = await openPresentationResponse(
+      new Request(`${origin}/api/v1/inventory/open-presentations?unitId=${fortaleza}`, {
+        headers: { cookie: managerCookie },
+      }),
+    );
+    expect(openList.status).toBe(200);
+    const openData = (await openList.json()).data;
+    expect(openData.items).toEqual([
+      expect.objectContaining({
+        productId,
+        remainingQuantity: "13.000000",
+        consumedQuantity: "5.000000",
+        lossQuantity: "2.000000",
+        status: "OPEN",
+      }),
+    ]);
+    const listedPresentation = openData.items[0];
+    const discardBody = {
+      eventId: randomUUID(),
+      openPresentationId: listedPresentation.id,
+      version: listedPresentation.version,
+      type: "DAMAGE",
+      reason: "Avaria sintética conferida no teste de integração.",
+    };
+    const discardRequest = (authorizationCookie: string) =>
+      new Request(`${origin}/api/v1/inventory/open-presentations`, {
+        method: "POST",
+        headers: {
+          cookie: authorizationCookie,
+          origin,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(discardBody),
+      });
+    expect((await openPresentationResponse(discardRequest(otherManager))).status).toBe(403);
+    expect((await openPresentationResponse(discardRequest(managerCookie))).status).toBe(201);
+    expect((await openPresentationResponse(discardRequest(managerCookie))).status).toBe(200);
+    const discarded = await getPool().query(
+      `SELECT remaining_base_quantity::text,status,version FROM inventory_open_presentations
+       WHERE id=$1`,
+      [listedPresentation.id],
+    );
+    expect(discarded.rows).toEqual([
+      { remaining_base_quantity: "0.000000", status: "DISCARDED", version: 3 },
+    ]);
     const foreignAttempt = await patientApplicationResponse(
       new Request(`${origin}/api/v1/inventory/patient-applications`, {
         method: "POST",

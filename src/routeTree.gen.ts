@@ -37,6 +37,7 @@ import { Route as EstoqueUsuariosRouteImport } from './routes/estoque/usuarios'
 import { Route as EstoqueValoresRouteImport } from './routes/estoque/valores'
 import { Route as PacientesPatientIdRouteImport } from './routes/pacientes.$patientId'
 import { Route as PacientesDemandaRouteImport } from './routes/pacientes.demanda'
+import { Route as PacientesFracionamentoRouteImport } from './routes/pacientes.fracionamento'
 import { Route as EstoqueLotesLotIdRouteImport } from './routes/estoque/lotes/$lotId'
 import { Route as EstoqueProdutosProductIdRouteImport } from './routes/estoque/produtos/$productId'
 import { Route as ApiV1InventorySplatRouteImport } from './routes/api/v1/inventory/$'
@@ -182,6 +183,11 @@ const PacientesDemandaRoute = PacientesDemandaRouteImport.update({
   path: '/demanda',
   getParentRoute: () => PacientesRoute,
 } as any)
+const PacientesFracionamentoRoute = PacientesFracionamentoRouteImport.update({
+  id: '/fracionamento',
+  path: '/fracionamento',
+  getParentRoute: () => PacientesRoute,
+} as any)
 const EstoqueLotesLotIdRoute = EstoqueLotesLotIdRouteImport.update({
   id: '/lotes/$lotId',
   path: '/lotes/$lotId',
@@ -232,6 +238,7 @@ export interface FileRoutesByFullPath {
   '/estoque/valores': typeof EstoqueValoresRoute
   '/pacientes/$patientId': typeof PacientesPatientIdRoute
   '/pacientes/demanda': typeof PacientesDemandaRoute
+  '/pacientes/fracionamento': typeof PacientesFracionamentoRoute
   '/aplicacoes/': typeof AplicacoesIndexRoute
   '/estoque/': typeof EstoqueIndexRoute
   '/estoque/lotes/$lotId': typeof EstoqueLotesLotIdRoute
@@ -264,6 +271,7 @@ export interface FileRoutesByTo {
   '/estoque/valores': typeof EstoqueValoresRoute
   '/pacientes/$patientId': typeof PacientesPatientIdRoute
   '/pacientes/demanda': typeof PacientesDemandaRoute
+  '/pacientes/fracionamento': typeof PacientesFracionamentoRoute
   '/aplicacoes': typeof AplicacoesIndexRoute
   '/estoque': typeof EstoqueIndexRoute
   '/estoque/lotes/$lotId': typeof EstoqueLotesLotIdRoute
@@ -299,6 +307,7 @@ export interface FileRoutesById {
   '/estoque/valores': typeof EstoqueValoresRoute
   '/pacientes/$patientId': typeof PacientesPatientIdRoute
   '/pacientes/demanda': typeof PacientesDemandaRoute
+  '/pacientes/fracionamento': typeof PacientesFracionamentoRoute
   '/aplicacoes/': typeof AplicacoesIndexRoute
   '/estoque/': typeof EstoqueIndexRoute
   '/estoque/lotes/$lotId': typeof EstoqueLotesLotIdRoute
@@ -335,6 +344,7 @@ export interface FileRouteTypes {
     | '/estoque/valores'
     | '/pacientes/$patientId'
     | '/pacientes/demanda'
+    | '/pacientes/fracionamento'
     | '/aplicacoes/'
     | '/estoque/'
     | '/estoque/lotes/$lotId'
@@ -367,6 +377,7 @@ export interface FileRouteTypes {
     | '/estoque/valores'
     | '/pacientes/$patientId'
     | '/pacientes/demanda'
+    | '/pacientes/fracionamento'
     | '/aplicacoes'
     | '/estoque'
     | '/estoque/lotes/$lotId'
@@ -401,6 +412,7 @@ export interface FileRouteTypes {
     | '/estoque/valores'
     | '/pacientes/$patientId'
     | '/pacientes/demanda'
+    | '/pacientes/fracionamento'
     | '/aplicacoes/'
     | '/estoque/'
     | '/estoque/lotes/$lotId'
@@ -625,6 +637,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PacientesDemandaRouteImport
       parentRoute: typeof PacientesRoute
     }
+    '/pacientes/fracionamento': {
+      id: '/pacientes/fracionamento'
+      path: '/fracionamento'
+      fullPath: '/pacientes/fracionamento'
+      preLoaderRoute: typeof PacientesFracionamentoRouteImport
+      parentRoute: typeof PacientesRoute
+    }
     '/estoque/lotes/$lotId': {
       id: '/estoque/lotes/$lotId'
       path: '/lotes/$lotId'
@@ -708,11 +727,13 @@ const EstoqueRouteWithChildren =
 interface PacientesRouteChildren {
   PacientesPatientIdRoute: typeof PacientesPatientIdRoute
   PacientesDemandaRoute: typeof PacientesDemandaRoute
+  PacientesFracionamentoRoute: typeof PacientesFracionamentoRoute
 }
 
 const PacientesRouteChildren: PacientesRouteChildren = {
   PacientesPatientIdRoute: PacientesPatientIdRoute,
   PacientesDemandaRoute: PacientesDemandaRoute,
+  PacientesFracionamentoRoute: PacientesFracionamentoRoute,
 }
 
 const PacientesRouteWithChildren = PacientesRoute._addFileChildren(

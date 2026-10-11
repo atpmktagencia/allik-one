@@ -11,6 +11,7 @@ import {
   Package,
   PackageCheck,
   CalendarRange,
+  FlaskConical,
   UserRound,
   ShieldCheck,
   Users,
@@ -41,6 +42,7 @@ const operationItems = [
 const careItems = [
   { label: "Pacientes", to: "/pacientes", icon: UserRound },
   { label: "Demanda futura", to: "/pacientes/demanda", icon: CalendarRange },
+  { label: "Apresentações abertas", to: "/pacientes/fracionamento", icon: FlaskConical },
 ] as const;
 
 const pageTitles: Record<string, string> = {
@@ -54,6 +56,7 @@ const pageTitles: Record<string, string> = {
   "/aplicacoes/nova": "Registrar aplicação",
   "/pacientes": "Pacientes",
   "/pacientes/demanda": "Demanda futura",
+  "/pacientes/fracionamento": "Apresentações abertas",
   "/estoque/usuarios": "Usuários",
   "/estoque/integracoes": "Integrações",
   "/estoque/minha-conta": "Minha conta",

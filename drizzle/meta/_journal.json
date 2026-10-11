@@ -134,6 +134,13 @@
       "when": 1792108800000,
       "tag": "0018_patient_physical_applications",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1792195200000,
+      "tag": "0019_open_presentations",
+      "breakpoints": true
     }
   ]
 }
