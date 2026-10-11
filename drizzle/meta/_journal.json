@@ -169,6 +169,13 @@
       "when": 1792540800000,
       "tag": "0023_schedule_attendance",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1792627200000,
+      "tag": "0024_prescription_metadata",
+      "breakpoints": true
     }
   ]
 }

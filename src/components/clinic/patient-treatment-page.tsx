@@ -38,6 +38,16 @@ type Payload = {
     contentType: string;
     sizeBytes: number;
     uploadedAt: string;
+    prescriberName: string | null;
+    councilNumber: string | null;
+    councilRegion: string | null;
+    issuedOn: string | null;
+    validUntil: string | null;
+    documentStatus: "ACTIVE" | "SUPERSEDED" | "REVOKED";
+    effectiveStatus:
+      "VALID" | "EXPIRED" | "NOT_YET_VALID" | "SUPERSEDED" | "REVOKED" | "LEGACY_REVIEW";
+    version: number;
+    supersedesId: string | null;
   }>;
   products: Array<{ id: string; name: string; sku: string; unit: string }>;
   purchases: Array<{
@@ -58,6 +68,7 @@ type Payload = {
     doseUnit: string;
     status: string;
     version: number;
+    hasValidPrescription: boolean;
     applicationId: string | null;
     applicationReference: string | null;
     applicationProfessional: string | null;
@@ -112,6 +123,14 @@ const scheduleLabels: Record<string, string> = {
   RESERVED: "Reservada",
   CONSUMED: "Consumida",
   CANCELED: "Cancelada",
+};
+const prescriptionLabels: Record<string, string> = {
+  VALID: "Válida",
+  EXPIRED: "Vencida",
+  NOT_YET_VALID: "Ainda não vigente",
+  SUPERSEDED: "Substituída",
+  REVOKED: "Revogada",
+  LEGACY_REVIEW: "Metadados pendentes",
 };
 
 export function PatientTreatmentPage({ patientId }: { patientId: string }) {
@@ -652,6 +671,11 @@ export function PatientTreatmentPage({ patientId }: { patientId: string }) {
                         {item.physicalQuantity} un. físicas
                       </p>
                     ) : null}
+                    {!item.hasValidPrescription && item.status !== "CONSUMED" ? (
+                      <p className="mt-1 text-xs text-destructive">
+                        Sem prescrição válida para esta data
+                      </p>
+                    ) : null}
                   </div>
                   {(data.canManage || data.canConsume) && item.status !== "CONSUMED" && (
                     <div className="flex flex-wrap gap-2">
@@ -693,7 +717,7 @@ export function PatientTreatmentPage({ patientId }: { patientId: string }) {
                         <Button
                           type="button"
                           size="sm"
-                          disabled={pending}
+                          disabled={pending || !item.hasValidPrescription}
                           onClick={() => startApplication(item)}
                         >
                           Registrar aplicação
@@ -834,6 +858,48 @@ export function PatientTreatmentPage({ patientId }: { patientId: string }) {
                 accept="application/pdf,image/jpeg,image/png,image/heic,image/heif"
               />
             </label>
+            <label className="space-y-1 text-sm font-medium">
+              Nome do prescritor
+              <Input name="prescriberName" required minLength={2} maxLength={150} />
+            </label>
+            <label className="space-y-1 text-sm font-medium">
+              Conselho e número
+              <Input
+                name="councilNumber"
+                required
+                minLength={3}
+                maxLength={30}
+                placeholder="CRM 12345"
+              />
+            </label>
+            <label className="space-y-1 text-sm font-medium">
+              UF do conselho
+              <Input name="councilRegion" required minLength={2} maxLength={10} placeholder="CE" />
+            </label>
+            <label className="space-y-1 text-sm font-medium">
+              Data de emissão
+              <Input name="issuedOn" required type="date" />
+            </label>
+            <label className="space-y-1 text-sm font-medium">
+              Válida até
+              <Input name="validUntil" required type="date" />
+            </label>
+            <label className="space-y-1 text-sm font-medium">
+              Substitui uma prescrição? (opcional)
+              <select
+                name="supersedesId"
+                className="h-10 w-full rounded-md border bg-background px-3"
+              >
+                <option value="">Não, novo documento</option>
+                {data.prescriptions
+                  .filter((prescription) => prescription.documentStatus === "ACTIVE")
+                  .map((prescription) => (
+                    <option key={prescription.id} value={prescription.id}>
+                      {prescription.originalFilename} · versão {prescription.version}
+                    </option>
+                  ))}
+              </select>
+            </label>
             <label className="space-y-1 text-sm font-medium md:col-span-2">
               Motivo
               <Input
@@ -860,8 +926,20 @@ export function PatientTreatmentPage({ patientId }: { patientId: string }) {
                   <div>
                     <p className="font-medium">{p.originalFilename}</p>
                     <p className="text-xs text-muted-foreground">
-                      {Math.ceil(p.sizeBytes / 1024)} KB
+                      Versão {p.version} · {Math.ceil(p.sizeBytes / 1024)} KB ·{" "}
+                      {prescriptionLabels[p.effectiveStatus] ?? p.effectiveStatus}
                     </p>
+                    {p.prescriberName ? (
+                      <p className="text-xs text-muted-foreground">
+                        {p.prescriberName} · {p.councilNumber}/{p.councilRegion} · emissão{" "}
+                        {p.issuedOn?.split("-").reverse().join("/")} · validade{" "}
+                        {p.validUntil?.split("-").reverse().join("/")}
+                      </p>
+                    ) : (
+                      <p className="text-xs text-warning-foreground">
+                        Documento legado: metadados clínicos pendentes
+                      </p>
+                    )}
                   </div>
                 </div>
                 <Button asChild variant="outline" size="sm">

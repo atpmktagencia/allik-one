@@ -25,6 +25,7 @@ type ScheduleItem = {
   attendanceStatus: "SCHEDULED" | "CONFIRMED" | "COMPLETED" | "CANCELED" | "NO_SHOW";
   version: number;
   hasPrescription: boolean;
+  hasPrescriptionDocument: boolean;
   presentationName: string | null;
   physicalUnits: number;
   openQuantity: number;
@@ -318,6 +319,11 @@ export function OperationalSchedulePage() {
                         <p className="mt-1 text-xs text-success">
                           <CheckCircle2 className="mr-1 inline size-3" aria-hidden="true" />
                           Receita vinculada
+                        </p>
+                      ) : item.hasPrescriptionDocument ? (
+                        <p className="mt-1 text-xs text-warning-foreground">
+                          <AlertTriangle className="mr-1 inline size-3" aria-hidden="true" />
+                          Sem receita válida para esta data
                         </p>
                       ) : (
                         <p className="mt-1 text-xs text-warning-foreground">

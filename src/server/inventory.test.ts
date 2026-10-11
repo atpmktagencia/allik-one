@@ -2,6 +2,7 @@ import { beforeAll, afterAll, describe, it, expect, vi } from "vitest";
 import { migrate } from "drizzle-orm/node-postgres/migrator";
 import { randomUUID } from "node:crypto";
 import { readFile } from "node:fs/promises";
+import { get as getBlob } from "@vercel/blob";
 import { getDb, getPool } from "./db";
 import {
   authenticate,
@@ -23,7 +24,7 @@ import { activationResponse, userAdminResponse } from "./user-admin";
 import { integrationCredentialResponse } from "./integration-credentials";
 import { pricingResponse } from "./pricing";
 import { patientsResponse } from "./patients";
-import { patientDetailResponse } from "./patient-treatments";
+import { patientDetailResponse, prescriptionDownloadResponse } from "./patient-treatments";
 import { patientDemandResponse } from "./patient-demand";
 import { patientApplicationResponse } from "./patient-applications";
 import { openPresentationResponse } from "./open-presentations";
@@ -505,6 +506,12 @@ describe("operational patients", () => {
     );
     const prescription = new FormData();
     prescription.set("treatmentId", treatmentId);
+    prescription.set("prescriberName", "Dra. Prescritora Sintética");
+    prescription.set("councilNumber", "CRM 12345");
+    prescription.set("councilRegion", "CE");
+    prescription.set("issuedOn", new Date().toISOString().slice(0, 10));
+    prescription.set("validUntil", "2099-12-31");
+    prescription.set("supersedesId", "");
     prescription.set("reason", "Prescrição sintética para validar armazenamento privado.");
     prescription.set(
       "file",
@@ -518,17 +525,89 @@ describe("operational patients", () => {
       }),
     );
     expect(uploaded.status).toBe(201);
+    const uploadedId = (await uploaded.json()).data.id as string;
+    const replacement = new FormData();
+    replacement.set("treatmentId", treatmentId);
+    replacement.set("prescriberName", "Dra. Prescritora Sintética");
+    replacement.set("councilNumber", "CRM 12345");
+    replacement.set("councilRegion", "CE");
+    replacement.set("issuedOn", new Date().toISOString().slice(0, 10));
+    replacement.set("validUntil", "2099-12-31");
+    replacement.set("supersedesId", uploadedId);
+    replacement.set("reason", "Nova versão conferida para substituir a prescrição anterior.");
+    replacement.set(
+      "file",
+      new File(["%PDF-1.4 synthetic replacement"], "prescricao-atualizada.pdf", {
+        type: "application/pdf",
+      }),
+    );
+    const replaced = await patientDetailResponse(
+      new Request(`${origin}/api/v1/inventory/patient-detail?patientId=${patientId}`, {
+        method: "POST",
+        headers: { cookie: managerCookie, origin },
+        body: replacement,
+      }),
+    );
+    expect(replaced.status).toBe(201);
     const storedPrescription = await getPool().query(
-      "SELECT blob_pathname,original_filename FROM inventory_patient_prescriptions WHERE patient_id=$1",
+      `SELECT blob_pathname,original_filename,prescriber_name,document_status,version,
+        supersedes_id AS "supersedesId" FROM inventory_patient_prescriptions
+       WHERE patient_id=$1 ORDER BY version`,
       [patientId],
     );
     expect(storedPrescription.rows).toEqual([
-      expect.objectContaining({ original_filename: "prescricao-teste.pdf" }),
+      expect.objectContaining({
+        original_filename: "prescricao-teste.pdf",
+        prescriber_name: "Dra. Prescritora Sintética",
+        document_status: "SUPERSEDED",
+        version: 1,
+      }),
+      expect.objectContaining({
+        original_filename: "prescricao-atualizada.pdf",
+        document_status: "ACTIVE",
+        version: 2,
+        supersedesId: uploadedId,
+      }),
     ]);
     expect(storedPrescription.rows[0].blob_pathname).toMatch(
       new RegExp(`^prescriptions/.+/${patientId}/.+\\.pdf$`),
     );
     const juazeiroManager = await scopedCookie(juazeiro, "UNIT_MANAGER");
+    const activePrescriptionId = (await replaced.json()).data.id as string;
+    expect(
+      (
+        await prescriptionDownloadResponse(
+          new Request(`${origin}/api/v1/inventory/prescriptions/${activePrescriptionId}`, {
+            headers: { cookie: juazeiroManager },
+          }),
+          activePrescriptionId,
+        )
+      ).status,
+    ).toBe(404);
+    vi.mocked(getBlob).mockResolvedValueOnce({
+      statusCode: 200,
+      stream: new ReadableStream({
+        start(controller) {
+          controller.enqueue(new TextEncoder().encode("%PDF-1.4 synthetic replacement"));
+          controller.close();
+        },
+      }),
+    } as never);
+    const downloaded = await prescriptionDownloadResponse(
+      new Request(`${origin}/api/v1/inventory/prescriptions/${activePrescriptionId}`, {
+        headers: { cookie: managerCookie },
+      }),
+      activePrescriptionId,
+    );
+    expect(downloaded.status).toBe(200);
+    expect(
+      (
+        await getPool().query(
+          "SELECT count(*)::integer AS count FROM inventory_patient_prescription_access WHERE prescription_id=$1",
+          [activePrescriptionId],
+        )
+      ).rows[0].count,
+    ).toBe(1);
     expect(
       (
         await patientDetailResponse(
@@ -657,6 +736,38 @@ describe("operational patients", () => {
       }),
     );
     expect(treatment.status).toBe(201);
+    const unprescribedSchedule = (
+      await getPool().query<{ id: string; version: number }>(
+        "SELECT id,version FROM inventory_patient_treatment_schedule WHERE treatment_id=$1 ORDER BY sequence LIMIT 1",
+        [treatmentId],
+      )
+    ).rows[0]!;
+    const withoutPrescription = await patientApplicationResponse(
+      new Request(`${origin}/api/v1/inventory/patient-applications`, {
+        method: "POST",
+        headers: { cookie: managerCookie, origin, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          operationId: randomUUID(),
+          patientId,
+          scheduleId: unprescribedSchedule.id,
+          scheduleVersion: unprescribedSchedule.version,
+          locationId: location.rows[0]!.id,
+          reference: `SEM-RECEITA-${patientId.slice(0, 8)}`,
+          professional: "Profissional Sintético",
+          reason: "Tentativa sintética sem prescrição válida deve ser bloqueada.",
+        }),
+      }),
+    );
+    expect(withoutPrescription.status).toBe(409);
+    expect((await withoutPrescription.json()).error).toContain("prescrição ativa e válida");
+    await getPool().query(
+      `INSERT INTO inventory_patient_prescriptions(
+        organization_id,patient_id,treatment_id,blob_pathname,original_filename,content_type,
+        size_bytes,prescriber_name,council_number,council_region,issued_on,valid_until
+       ) VALUES('a1100000-0000-4000-8000-000000000001',$1,$2,$3,'receita-demanda.pdf',
+         'application/pdf',100,'Dr. Demanda Sintético','CRM 99999','CE',current_date,current_date+365)`,
+      [patientId, treatmentId, `prescriptions/test/${randomUUID()}.pdf`],
+    );
     const demandPurchase = await patientDetailResponse(
       new Request(`${origin}/api/v1/inventory/patient-detail?patientId=${patientId}`, {
         method: "POST",

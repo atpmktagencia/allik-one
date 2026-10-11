@@ -1,5 +1,6 @@
 import { sql } from "drizzle-orm";
 import {
+  type AnyPgColumn,
   boolean,
   check,
   date,
@@ -460,6 +461,14 @@ export const patientPrescriptions = pgTable(
     originalFilename: text("original_filename").notNull(),
     contentType: text("content_type").notNull(),
     sizeBytes: integer("size_bytes").notNull(),
+    prescriberName: text("prescriber_name"),
+    councilNumber: text("council_number"),
+    councilRegion: text("council_region"),
+    issuedOn: date("issued_on"),
+    validUntil: date("valid_until"),
+    documentStatus: text("document_status").notNull().default("ACTIVE"),
+    version: integer("version").notNull().default(1),
+    supersedesId: uuid("supersedes_id").references((): AnyPgColumn => patientPrescriptions.id),
     uploadedByUserId: uuid("uploaded_by_user_id").references(() => users.id),
     uploadedAt: timestamp("uploaded_at", { withTimezone: true }).notNull().defaultNow(),
   },
@@ -467,6 +476,12 @@ export const patientPrescriptions = pgTable(
     index("inventory_patient_prescription_patient").on(t.patientId, t.uploadedAt),
     index("inventory_patient_prescription_treatment").on(t.treatmentId),
     index("inventory_patient_prescription_organization").on(t.organizationId, t.uploadedAt),
+    index("inventory_patient_prescription_treatment_status_validity").on(
+      t.treatmentId,
+      t.documentStatus,
+      t.issuedOn,
+      t.validUntil,
+    ),
     check(
       "patient_prescription_filename_valid",
       sql`char_length(trim(${t.originalFilename})) BETWEEN 1 AND 180`,
@@ -476,6 +491,42 @@ export const patientPrescriptions = pgTable(
       sql`${t.contentType} IN ('application/pdf','image/jpeg','image/png','image/heic','image/heif')`,
     ),
     check("patient_prescription_size_valid", sql`${t.sizeBytes} BETWEEN 1 AND 10485760`),
+    check(
+      "patient_prescription_status_valid",
+      sql`${t.documentStatus} IN ('ACTIVE','SUPERSEDED','REVOKED')`,
+    ),
+    check("patient_prescription_version_positive", sql`${t.version} > 0`),
+    check(
+      "patient_prescription_dates_valid",
+      sql`${t.issuedOn} IS NULL OR (${t.validUntil} IS NOT NULL AND ${t.validUntil} >= ${t.issuedOn})`,
+    ),
+    check(
+      "patient_prescription_metadata_complete",
+      sql`(${t.prescriberName} IS NULL AND ${t.councilNumber} IS NULL AND ${t.councilRegion} IS NULL AND ${t.issuedOn} IS NULL AND ${t.validUntil} IS NULL) OR (${t.prescriberName} IS NOT NULL AND char_length(trim(${t.prescriberName})) BETWEEN 2 AND 150 AND ${t.councilNumber} IS NOT NULL AND char_length(trim(${t.councilNumber})) BETWEEN 3 AND 30 AND ${t.councilRegion} IS NOT NULL AND char_length(trim(${t.councilRegion})) BETWEEN 2 AND 10 AND ${t.issuedOn} IS NOT NULL AND ${t.validUntil} IS NOT NULL)`,
+    ),
+    check(
+      "patient_prescription_not_self_superseding",
+      sql`${t.supersedesId} IS NULL OR ${t.supersedesId} <> ${t.id}`,
+    ),
+  ],
+);
+
+export const patientPrescriptionAccess = pgTable(
+  "inventory_patient_prescription_access",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id),
+    prescriptionId: uuid("prescription_id")
+      .notNull()
+      .references(() => patientPrescriptions.id),
+    actor: text("actor").notNull(),
+    actorUserId: uuid("actor_user_id").references(() => users.id),
+    accessedAt: timestamp("accessed_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("inventory_patient_prescription_access_history").on(t.prescriptionId, t.accessedAt),
   ],
 );
 

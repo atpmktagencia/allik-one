@@ -4,6 +4,7 @@ import { actor, authenticate, can, type AuthContext } from "./auth";
 import { getPool } from "./db";
 import { treatmentInput } from "../data/treatment-input";
 import { patientSupplyInput, type PatientSupplyInput } from "../data/patient-supply-input";
+import { prescriptionMetadataInput } from "../data/prescription-input";
 
 const headers = { "Cache-Control": "private, no-store", Vary: "Cookie, Authorization" };
 const allowedTypes = new Set([
@@ -64,9 +65,19 @@ export async function patientDetailResponse(request: Request) {
       ),
       getPool().query(
         `SELECT id,treatment_id AS "treatmentId",original_filename AS "originalFilename",
-          content_type AS "contentType",size_bytes AS "sizeBytes",uploaded_at AS "uploadedAt"
+          content_type AS "contentType",size_bytes AS "sizeBytes",uploaded_at AS "uploadedAt",
+          prescriber_name AS "prescriberName",council_number AS "councilNumber",
+          council_region AS "councilRegion",issued_on::text AS "issuedOn",
+          valid_until::text AS "validUntil",document_status AS "documentStatus",version,
+          supersedes_id AS "supersedesId",
+          CASE WHEN document_status='ACTIVE' AND (issued_on IS NULL OR valid_until IS NULL)
+            THEN 'LEGACY_REVIEW'
+            WHEN document_status='ACTIVE' AND issued_on<=current_date AND valid_until>=current_date
+            THEN 'VALID' WHEN document_status='ACTIVE' AND valid_until<current_date THEN 'EXPIRED'
+            WHEN document_status='ACTIVE' AND issued_on>current_date THEN 'NOT_YET_VALID'
+            ELSE document_status END AS "effectiveStatus"
          FROM inventory_patient_prescriptions WHERE patient_id=$1 AND organization_id=$2
-         ORDER BY uploaded_at DESC`,
+         ORDER BY treatment_id,version DESC,uploaded_at DESC`,
         [patientId, auth.organizationId],
       ),
       getPool().query(
@@ -81,6 +92,10 @@ export async function patientDetailResponse(request: Request) {
       getPool().query(
         `SELECT s.id,s.treatment_id AS "treatmentId",s.sequence,s.scheduled_on::text AS "scheduledOn",
           s.dose_quantity AS "doseQuantity",s.dose_unit AS "doseUnit",s.status,s.version,
+          EXISTS(SELECT 1 FROM inventory_patient_prescriptions pr
+            WHERE pr.treatment_id=s.treatment_id AND pr.document_status='ACTIVE'
+              AND pr.issued_on<=s.scheduled_on AND pr.valid_until>=s.scheduled_on
+          ) AS "hasValidPrescription",
           a.id AS "applicationId",a.reference AS "applicationReference",
           a.professional AS "applicationProfessional",a.physical_quantity AS "physicalQuantity",
           a.created_at AS "administeredAt"
@@ -569,23 +584,34 @@ async function uploadPrescription(
 ) {
   const form = await request.formData();
   const file = form.get("file");
-  const treatmentId = String(form.get("treatmentId") ?? "");
-  const reason = String(form.get("reason") ?? "").trim();
+  const metadata = prescriptionMetadataInput.safeParse({
+    treatmentId: String(form.get("treatmentId") ?? ""),
+    prescriberName: String(form.get("prescriberName") ?? ""),
+    councilNumber: String(form.get("councilNumber") ?? ""),
+    councilRegion: String(form.get("councilRegion") ?? ""),
+    issuedOn: String(form.get("issuedOn") ?? ""),
+    validUntil: String(form.get("validUntil") ?? ""),
+    supersedesId: String(form.get("supersedesId") ?? ""),
+    reason: String(form.get("reason") ?? ""),
+  });
   if (
     !(file instanceof File) ||
     !allowedTypes.has(file.type) ||
     file.size < 1 ||
     file.size > 10 * 1024 * 1024 ||
-    reason.length < 10 ||
-    reason.length > 500
+    !metadata.success
   )
     return Response.json(
-      { error: "Envie PDF ou imagem de até 10 MB e informe o motivo." },
+      {
+        error:
+          "Envie PDF ou imagem de até 10 MB e confira prescritor, conselho, emissão, validade e motivo.",
+      },
       { status: 400, headers },
     );
+  const input = metadata.data;
   const treatment = await getPool().query(
     "SELECT id FROM inventory_patient_treatments WHERE id=$1 AND patient_id=$2 AND organization_id=$3",
-    [treatmentId, patient["id"], auth.organizationId],
+    [input.treatmentId, patient["id"], auth.organizationId],
   );
   if (!treatment.rowCount)
     return Response.json({ error: "Tratamento inválido." }, { status: 400, headers });
@@ -601,17 +627,50 @@ async function uploadPrescription(
   const client = await getPool().connect();
   try {
     await client.query("BEGIN");
+    let version = 1;
+    if (input.supersedesId) {
+      const previous = await client.query(
+        `SELECT id,version FROM inventory_patient_prescriptions
+         WHERE id=$1 AND patient_id=$2 AND treatment_id=$3 AND organization_id=$4
+           AND document_status='ACTIVE' FOR UPDATE`,
+        [input.supersedesId, patient["id"], input.treatmentId, auth.organizationId],
+      );
+      if (!previous.rowCount) {
+        await client.query("ROLLBACK");
+        await del(blob.pathname).catch(() => {});
+        return Response.json(
+          { error: "A prescrição substituída mudou. Atualize e confira novamente." },
+          { status: 409, headers },
+        );
+      }
+      version = Number(previous.rows[0].version) + 1;
+      await client.query(
+        "UPDATE inventory_patient_prescriptions SET document_status='SUPERSEDED' WHERE id=$1",
+        [input.supersedesId],
+      );
+    }
     await client.query(
-      `INSERT INTO inventory_patient_prescriptions(id,organization_id,patient_id,treatment_id,blob_pathname,original_filename,content_type,size_bytes,uploaded_by_user_id) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
+      `INSERT INTO inventory_patient_prescriptions(
+        id,organization_id,patient_id,treatment_id,blob_pathname,original_filename,content_type,
+        size_bytes,prescriber_name,council_number,council_region,issued_on,valid_until,
+        document_status,version,supersedes_id,uploaded_by_user_id
+       ) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,'ACTIVE',$14,$15,$16)`,
       [
         prescriptionId,
         auth.organizationId,
         patient["id"],
-        treatmentId,
+        input.treatmentId,
         blob.pathname,
         file.name.slice(0, 180),
         file.type,
         file.size,
+        input.prescriberName,
+        input.councilNumber,
+        input.councilRegion.toUpperCase(),
+        input.issuedOn,
+        input.validUntil,
+        version,
+        input.supersedesId || null,
         auth.user.id,
       ],
     );
@@ -619,9 +678,20 @@ async function uploadPrescription(
       `INSERT INTO inventory_patient_treatment_changes(organization_id,treatment_id,action,after_data,reason,actor,actor_user_id) VALUES($1,$2,'UPLOAD_PRESCRIPTION',$3,$4,$5,$6)`,
       [
         auth.organizationId,
-        treatmentId,
-        { prescriptionId, contentType: file.type, sizeBytes: file.size },
-        reason,
+        input.treatmentId,
+        {
+          prescriptionId,
+          contentType: file.type,
+          sizeBytes: file.size,
+          prescriberName: input.prescriberName,
+          councilNumber: input.councilNumber,
+          councilRegion: input.councilRegion.toUpperCase(),
+          issuedOn: input.issuedOn,
+          validUntil: input.validUntil,
+          version,
+          supersedesId: input.supersedesId || null,
+        },
+        input.reason,
         actor(auth).name,
         actor(auth).userId,
       ],
@@ -654,6 +724,11 @@ export async function prescriptionDownloadResponse(request: Request, prescriptio
   const blob = await get(String(document.blob_pathname), { access: "private" });
   if (!blob || blob.statusCode !== 200)
     return Response.json({ error: "Documento não encontrado." }, { status: 404, headers });
+  await getPool().query(
+    `INSERT INTO inventory_patient_prescription_access
+      (organization_id,prescription_id,actor,actor_user_id) VALUES($1,$2,$3,$4)`,
+    [auth.organizationId, prescriptionId, actor(auth).name, actor(auth).userId],
+  );
   const safeName = String(document.original_filename).replace(/["\\\r\n]/g, "_");
   return new Response(blob.stream, {
     headers: {

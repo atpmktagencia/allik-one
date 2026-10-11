@@ -90,6 +90,17 @@ export async function patientApplicationResponse(request: Request) {
       throw new PatientApplicationConflict("Esta aplicação não está disponível para consumo.");
     if (schedule.version !== input.scheduleVersion)
       throw new PatientApplicationConflict("A agenda mudou. Recarregue e tente novamente.");
+    const prescription = await client.query(
+      `SELECT 1 FROM inventory_patient_prescriptions
+       WHERE treatment_id=$1 AND patient_id=$2 AND organization_id=$3
+         AND document_status='ACTIVE' AND issued_on<=current_date AND valid_until>=current_date
+       LIMIT 1 FOR SHARE`,
+      [schedule.treatment_id, schedule.patient_id, auth.organizationId],
+    );
+    if (!prescription.rowCount)
+      throw new PatientApplicationConflict(
+        "Não há prescrição ativa e válida para realizar esta aplicação.",
+      );
     await client.query("SELECT pg_advisory_xact_lock(hashtextextended($1,0))", [
       `${schedule.unit_id}:${schedule.product_id}`,
     ]);

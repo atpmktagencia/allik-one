@@ -65,6 +65,7 @@ describe("Patient application UI", () => {
                 doseUnit: "MG",
                 status: "RESERVED",
                 version: 3,
+                hasValidPrescription: true,
                 applicationId: null,
                 applicationReference: null,
                 applicationProfessional: null,

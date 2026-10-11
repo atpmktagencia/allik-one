@@ -166,7 +166,10 @@ export async function patientScheduleResponse(request: Request) {
          t.route,
          pp.name AS presentation_name,pp.total_base_quantity,pp.technical_loss_percent,
          COALESCE(ps.units,0) AS physical_units,COALESCE(os.quantity,0) AS open_quantity,
-         count(pr.id) > 0 AS has_prescription
+         count(pr.id) > 0 AS has_prescription_document,
+         count(pr.id) FILTER (WHERE pr.document_status='ACTIVE'
+           AND pr.issued_on<=s.scheduled_on AND pr.valid_until>=s.scheduled_on) > 0
+           AS has_valid_prescription
        FROM inventory_patient_treatment_schedule s
        JOIN inventory_patients pat ON pat.id=s.patient_id
        JOIN inventory_patient_treatments t ON t.id=s.treatment_id
@@ -197,7 +200,8 @@ export async function patientScheduleResponse(request: Request) {
        product_id AS "productId",product_name AS "productName",sku,route,sequence,
        scheduled_on::text AS "scheduledOn",dose_quantity::text AS "doseQuantity",
        upper(dose_unit) AS "doseUnit",status,attendance_status AS "attendanceStatus",version,
-       has_prescription AS "hasPrescription",
+       has_prescription_document AS "hasPrescriptionDocument",
+       has_valid_prescription AS "hasPrescription",
        presentation_name AS "presentationName",physical_units::text AS "physicalUnits",
        open_quantity::text AS "openQuantity",
        CASE WHEN total_base_quantity IS NULL THEN NULL ELSE
