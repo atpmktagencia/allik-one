@@ -1,10 +1,101 @@
 import "@tanstack/react-start/server-only";
+import { del, put } from "@vercel/blob";
 import { actor, authenticate, can } from "./auth";
 import { getPool } from "./db";
 import { patientInput } from "../data/patient-input";
 
 const headers = { "Cache-Control": "private, no-store", Vary: "Cookie, Authorization" };
 const optional = (value: string | null | undefined) => (value?.trim() ? value.trim() : null);
+const patientPhotoTypes = new Set(["image/jpeg", "image/png", "image/heic", "image/heif"]);
+
+async function uploadPatientPhoto(
+  request: Request,
+  auth: Awaited<ReturnType<typeof authenticate>>,
+) {
+  if (!auth || !can(auth, "patients.manage"))
+    return Response.json(
+      { error: "Sem permissão para alterar pacientes." },
+      { status: 403, headers },
+    );
+  const form = await request.formData();
+  const patientId = String(form.get("patientId") ?? "");
+  const reason = String(form.get("reason") ?? "").trim();
+  const file = form.get("photo");
+  if (
+    !/^[0-9a-f-]{36}$/i.test(patientId) ||
+    reason.length < 10 ||
+    !(file instanceof File) ||
+    file.size < 1 ||
+    file.size > 5 * 1024 * 1024 ||
+    !patientPhotoTypes.has(file.type)
+  )
+    return Response.json(
+      { error: "Envie uma foto JPG, PNG ou HEIC de até 5 MB." },
+      { status: 400, headers },
+    );
+  const current = await getPool().query(
+    "SELECT * FROM inventory_patients WHERE id=$1 AND organization_id=$2",
+    [patientId, auth.organizationId],
+  );
+  const patient = current.rows[0];
+  if (!patient || !can(auth, "patients.manage", String(patient.primary_unit_id)))
+    return Response.json({ error: "Paciente não encontrado." }, { status: 404, headers });
+  const stored = await put(
+    `patients/${auth.organizationId}/${patientId}/photo-${file.name.replace(/[^A-Za-z0-9._-]/g, "_")}`,
+    file,
+    { access: "private", addRandomSuffix: true },
+  );
+  const client = await getPool().connect();
+  try {
+    await client.query("BEGIN");
+    const locked = await client.query(
+      "SELECT * FROM inventory_patients WHERE id=$1 AND organization_id=$2 FOR UPDATE",
+      [patientId, auth.organizationId],
+    );
+    const before = locked.rows[0];
+    if (!before || !can(auth, "patients.manage", String(before.primary_unit_id)))
+      throw new Error("SCOPE");
+    const updated = await client.query(
+      `UPDATE inventory_patients SET photo_blob_pathname=$3,photo_filename=$4,photo_content_type=$5,
+        updated_by_user_id=$6,version=version+1,updated_at=now()
+       WHERE id=$1 AND organization_id=$2 RETURNING *`,
+      [
+        patientId,
+        auth.organizationId,
+        stored.pathname,
+        file.name.slice(0, 180),
+        file.type,
+        auth.user.id,
+      ],
+    );
+    await client.query(
+      `INSERT INTO inventory_patient_changes(organization_id,patient_id,action,before_data,after_data,reason,actor,actor_user_id)
+       VALUES($1,$2,'UPDATE',$3,$4,$5,$6,$7)`,
+      [
+        auth.organizationId,
+        patientId,
+        before,
+        updated.rows[0],
+        reason,
+        actor(auth).name,
+        actor(auth).userId,
+      ],
+    );
+    await client.query("COMMIT");
+    if (before.photo_blob_pathname) await del(String(before.photo_blob_pathname)).catch(() => {});
+    return Response.json({ data: { id: patientId } }, { headers });
+  } catch (error) {
+    await client.query("ROLLBACK").catch(() => {});
+    await del(stored.pathname).catch(() => {});
+    console.error(
+      "Patient photo upload failed",
+      error instanceof Error ? error.name : "UnknownError",
+    );
+    return Response.json({ error: "Não foi possível salvar a foto." }, { status: 503, headers });
+  } finally {
+    client.release();
+  }
+}
 
 export async function patientsResponse(request: Request) {
   const auth = await authenticate(request);
@@ -23,7 +114,10 @@ export async function patientsResponse(request: Request) {
     const [result, availableUnits] = await Promise.all([
       pool.query(
         `SELECT p.id,p.primary_unit_id AS "primaryUnitId",u.name AS "unitName",
-        p.internal_code AS "internalCode",p.full_name AS "fullName",p.phone,p.email,p.active,
+        p.internal_code AS "internalCode",p.full_name AS "fullName",p.phone,p.phone2,p.email,
+        p.document_type AS "documentType",p.document_number AS "documentNumber",
+        p.no_document AS "noDocument",p.birth_date::text AS "birthDate",
+        p.insurance_data AS insurance,p.additional_data AS additional,p.private_data AS "privateData",p.active,
         p.consent_status AS "consentStatus",p.consent_recorded_at AS "consentRecordedAt",
         p.version,p.created_at AS "createdAt",p.updated_at AS "updatedAt"
        FROM inventory_patients p JOIN inventory_units u ON u.id=p.primary_unit_id
@@ -63,6 +157,9 @@ export async function patientsResponse(request: Request) {
       { status: 403, headers },
     );
 
+  if (request.headers.get("content-type")?.startsWith("multipart/form-data"))
+    return uploadPatientPhoto(request, auth);
+
   let body: unknown;
   try {
     body = await request.json();
@@ -98,9 +195,10 @@ export async function patientsResponse(request: Request) {
     if (input.action === "CREATE") {
       result = await client.query(
         `INSERT INTO inventory_patients(
-          id,organization_id,primary_unit_id,internal_code,full_name,phone,email,active,
+          id,organization_id,primary_unit_id,internal_code,full_name,phone,phone2,email,
+          document_type,document_number,no_document,birth_date,insurance_data,additional_data,private_data,active,
           consent_status,consent_recorded_at,consent_recorded_by_user_id,created_by_user_id,updated_by_user_id
-        ) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$12) RETURNING *`,
+        ) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$20) RETURNING *`,
         [
           input.id,
           auth.organizationId,
@@ -108,7 +206,15 @@ export async function patientsResponse(request: Request) {
           input.internalCode,
           input.fullName,
           optional(input.phone),
+          optional(input.phone2),
           optional(input.email)?.toLowerCase() ?? null,
+          input.noDocument ? null : (input.documentType ?? null),
+          input.noDocument ? null : optional(input.documentNumber),
+          input.noDocument,
+          optional(input.birthDate),
+          input.insurance,
+          input.additional,
+          input.privateData,
           input.active,
           input.consentStatus,
           consentAt,
@@ -140,8 +246,10 @@ export async function patientsResponse(request: Request) {
       before = current.rows[0];
       result = await client.query(
         `UPDATE inventory_patients SET primary_unit_id=$3,internal_code=$4,full_name=$5,
-          phone=$6,email=$7,active=$8,consent_status=$9,consent_recorded_at=$10,
-          consent_recorded_by_user_id=$11,updated_by_user_id=$12,version=version+1,updated_at=now()
+          phone=$6,phone2=$7,email=$8,document_type=$9,document_number=$10,no_document=$11,
+          birth_date=$12,insurance_data=$13,additional_data=$14,private_data=$15,active=$16,
+          consent_status=$17,consent_recorded_at=$18,consent_recorded_by_user_id=$19,
+          updated_by_user_id=$20,version=version+1,updated_at=now()
          WHERE id=$1 AND organization_id=$2 RETURNING *`,
         [
           input.id,
@@ -150,7 +258,15 @@ export async function patientsResponse(request: Request) {
           input.internalCode,
           input.fullName,
           optional(input.phone),
+          optional(input.phone2),
           optional(input.email)?.toLowerCase() ?? null,
+          input.noDocument ? null : (input.documentType ?? null),
+          input.noDocument ? null : optional(input.documentNumber),
+          input.noDocument,
+          optional(input.birthDate),
+          input.insurance,
+          input.additional,
+          input.privateData,
           input.active,
           input.consentStatus,
           consentAt,

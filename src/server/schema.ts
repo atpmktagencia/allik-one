@@ -320,7 +320,18 @@ export const patients = pgTable(
     internalCode: text("internal_code").notNull(),
     fullName: text("full_name").notNull(),
     phone: text("phone"),
+    phone2: text("phone2"),
     email: text("email"),
+    documentType: text("document_type"),
+    documentNumber: text("document_number"),
+    noDocument: boolean("no_document").notNull().default(false),
+    birthDate: date("birth_date"),
+    insuranceData: jsonb("insurance_data").notNull().default({}),
+    additionalData: jsonb("additional_data").notNull().default({}),
+    privateData: jsonb("private_data").notNull().default({}),
+    photoBlobPathname: text("photo_blob_pathname"),
+    photoFilename: text("photo_filename"),
+    photoContentType: text("photo_content_type"),
     active: boolean("active").notNull().default(true),
     consentStatus: text("consent_status").notNull().default("PENDING"),
     consentRecordedAt: timestamp("consent_recorded_at", { withTimezone: true }),
@@ -342,6 +353,10 @@ export const patients = pgTable(
       sql`lower(${t.fullName})`,
     ),
     index("inventory_patient_organization").on(t.organizationId, t.createdAt),
+    index("inventory_patient_document_search").on(
+      t.organizationId,
+      sql`lower(${t.documentNumber})`,
+    ),
     check(
       "patient_internal_code_valid",
       sql`char_length(trim(${t.internalCode})) BETWEEN 3 AND 40`,
@@ -354,6 +369,18 @@ export const patients = pgTable(
     check(
       "patient_email_valid",
       sql`${t.email} IS NULL OR char_length(trim(${t.email})) BETWEEN 5 AND 254`,
+    ),
+    check(
+      "patient_phone2_valid",
+      sql`${t.phone2} IS NULL OR char_length(trim(${t.phone2})) BETWEEN 8 AND 30`,
+    ),
+    check(
+      "patient_document_valid",
+      sql`(${t.noDocument} AND ${t.documentType} IS NULL AND ${t.documentNumber} IS NULL) OR (NOT ${t.noDocument} AND ${t.documentType} IN ('CPF','PASSPORT') AND char_length(trim(${t.documentNumber})) BETWEEN 5 AND 30) OR (NOT ${t.noDocument} AND ${t.documentType} IS NULL AND ${t.documentNumber} IS NULL)`,
+    ),
+    check(
+      "patient_photo_metadata_valid",
+      sql`(${t.photoBlobPathname} IS NULL AND ${t.photoFilename} IS NULL AND ${t.photoContentType} IS NULL) OR (${t.photoBlobPathname} IS NOT NULL AND char_length(trim(${t.photoFilename})) BETWEEN 1 AND 180 AND ${t.photoContentType} IN ('image/jpeg','image/png','image/heic','image/heif'))`,
     ),
     check(
       "patient_consent_status_valid",
@@ -391,6 +418,84 @@ export const patientChanges = pgTable(
     check("patient_change_action_valid", sql`${t.action} IN ('CREATE','UPDATE')`),
     check("patient_change_reason_valid", sql`char_length(trim(${t.reason})) BETWEEN 10 AND 500`),
   ],
+);
+
+export const careAppointments = pgTable(
+  "inventory_care_appointments",
+  {
+    id: uuid("id").primaryKey(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id),
+    unitId: uuid("unit_id")
+      .notNull()
+      .references(() => units.id),
+    patientId: uuid("patient_id")
+      .notNull()
+      .references(() => patients.id),
+    professionalUserId: uuid("professional_user_id")
+      .notNull()
+      .references(() => users.id),
+    careType: text("care_type").notNull(),
+    otherCareType: text("other_care_type"),
+    startsAt: timestamp("starts_at", { withTimezone: true }).notNull(),
+    endsAt: timestamp("ends_at", { withTimezone: true }).notNull(),
+    room: text("room").notNull(),
+    chair: integer("chair"),
+    notes: text("notes").notNull().default(""),
+    status: text("status").notNull().default("SCHEDULED"),
+    createdByUserId: uuid("created_by_user_id").references(() => users.id),
+    updatedByUserId: uuid("updated_by_user_id").references(() => users.id),
+    version: integer("version").notNull().default(0),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("care_appointment_unit_period").on(t.unitId, t.startsAt, t.endsAt),
+    index("care_appointment_professional_period").on(t.professionalUserId, t.startsAt, t.endsAt),
+    index("care_appointment_patient_period").on(t.patientId, t.startsAt),
+    check(
+      "care_appointment_type_valid",
+      sql`${t.careType} IN ('FIRST_VISIT','FOLLOW_UP','CONSULTATION','TELECONSULTATION','INJECTABLE','OTHER')`,
+    ),
+    check(
+      "care_appointment_other_type_valid",
+      sql`(${t.careType}='OTHER' AND char_length(trim(${t.otherCareType})) BETWEEN 2 AND 80) OR (${t.careType}<>'OTHER' AND ${t.otherCareType} IS NULL)`,
+    ),
+    check(
+      "care_appointment_period_valid",
+      sql`${t.endsAt}>${t.startsAt} AND ${t.endsAt}<=${t.startsAt}+interval '12 hours'`,
+    ),
+    check("care_appointment_room_valid", sql`char_length(trim(${t.room})) BETWEEN 2 AND 80`),
+    check("care_appointment_chair_valid", sql`${t.chair} IS NULL OR ${t.chair} IN (1,2)`),
+    check("care_appointment_notes_valid", sql`char_length(${t.notes})<=1000`),
+    check(
+      "care_appointment_status_valid",
+      sql`${t.status} IN ('SCHEDULED','CONFIRMED','IN_PROGRESS','COMPLETED','NO_SHOW','CANCELED')`,
+    ),
+    check("care_appointment_version_nonnegative", sql`${t.version}>=0`),
+  ],
+);
+
+export const careAppointmentChanges = pgTable(
+  "inventory_care_appointment_changes",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id),
+    appointmentId: uuid("appointment_id")
+      .notNull()
+      .references(() => careAppointments.id),
+    action: text("action").notNull(),
+    beforeData: jsonb("before_data"),
+    afterData: jsonb("after_data").notNull(),
+    reason: text("reason").notNull(),
+    actor: text("actor").notNull(),
+    actorUserId: uuid("actor_user_id").references(() => users.id),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("care_appointment_change_history").on(t.appointmentId, t.createdAt)],
 );
 
 export const patientTreatments = pgTable(

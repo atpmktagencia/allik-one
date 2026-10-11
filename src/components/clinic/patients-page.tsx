@@ -16,7 +16,15 @@ type Patient = {
   internalCode: string;
   fullName: string;
   phone: string | null;
+  phone2: string | null;
   email: string | null;
+  documentType: "CPF" | "PASSPORT" | null;
+  documentNumber: string | null;
+  noDocument: boolean;
+  birthDate: string | null;
+  insurance: { name?: string; plan?: string; memberNumber?: string; validUntil?: string };
+  additional: Record<string, string>;
+  privateData: { allergies?: string[]; vegan?: boolean | null; notes?: string };
   active: boolean;
   consentStatus: ConsentStatus;
   version: number;
@@ -31,7 +39,29 @@ type PatientForm = {
   internalCode: string;
   fullName: string;
   phone: string;
+  phone2: string;
   email: string;
+  documentType: "CPF" | "PASSPORT";
+  documentNumber: string;
+  noDocument: boolean;
+  birthDate: string;
+  insuranceName: string;
+  insurancePlan: string;
+  insuranceMemberNumber: string;
+  insuranceValidUntil: string;
+  rg: string;
+  profession: string;
+  motherName: string;
+  fatherName: string;
+  zipCode: string;
+  address: string;
+  complement: string;
+  district: string;
+  state: string;
+  city: string;
+  allergies: string;
+  vegan: "" | "yes" | "no";
+  privateNotes: string;
   active: boolean;
   consentStatus: ConsentStatus;
   reason: string;
@@ -42,7 +72,29 @@ const blankForm: PatientForm = {
   internalCode: "",
   fullName: "",
   phone: "",
+  phone2: "",
   email: "",
+  documentType: "CPF",
+  documentNumber: "",
+  noDocument: false,
+  birthDate: "",
+  insuranceName: "",
+  insurancePlan: "",
+  insuranceMemberNumber: "",
+  insuranceValidUntil: "",
+  rg: "",
+  profession: "",
+  motherName: "",
+  fatherName: "",
+  zipCode: "",
+  address: "",
+  complement: "",
+  district: "",
+  state: "",
+  city: "",
+  allergies: "",
+  vegan: "",
+  privateNotes: "",
   active: true,
   consentStatus: "PENDING",
   reason: "Cadastro operacional inicial do paciente.",
@@ -60,6 +112,7 @@ export function PatientsPage() {
   const deferredSearch = useDeferredValue(search);
   const [editing, setEditing] = useState<Patient | null>(null);
   const [formOpen, setFormOpen] = useState(false);
+  const [photo, setPhoto] = useState<File | null>(null);
   const [form, setForm] = useState<PatientForm>(blankForm);
   const [pending, setPending] = useState(false);
   const [message, setMessage] = useState("");
@@ -70,7 +123,14 @@ export function PatientsPage() {
     const term = deferredSearch.trim().toLocaleLowerCase("pt-BR");
     if (!term) return patients;
     return patients.filter((patient) =>
-      [patient.fullName, patient.internalCode, patient.phone, patient.email, patient.unitName]
+      [
+        patient.fullName,
+        patient.internalCode,
+        patient.documentNumber,
+        patient.phone,
+        patient.email,
+        patient.unitName,
+      ]
         .filter(Boolean)
         .some((value) => value!.toLocaleLowerCase("pt-BR").includes(term)),
     );
@@ -92,6 +152,7 @@ export function PatientsPage() {
     setError("");
     setMessage("");
     setFormOpen(true);
+    setPhoto(null);
   }
   function startEdit(patient: Patient) {
     setEditing(patient);
@@ -100,7 +161,34 @@ export function PatientsPage() {
       internalCode: patient.internalCode,
       fullName: patient.fullName,
       phone: patient.phone ?? "",
+      phone2: patient.phone2 ?? "",
       email: patient.email ?? "",
+      documentType: patient.documentType ?? "CPF",
+      documentNumber: patient.documentNumber ?? "",
+      noDocument: patient.noDocument,
+      birthDate: patient.birthDate ?? "",
+      insuranceName: patient.insurance.name ?? "",
+      insurancePlan: patient.insurance.plan ?? "",
+      insuranceMemberNumber: patient.insurance.memberNumber ?? "",
+      insuranceValidUntil: patient.insurance.validUntil ?? "",
+      rg: patient.additional["rg"] ?? "",
+      profession: patient.additional["profession"] ?? "",
+      motherName: patient.additional["motherName"] ?? "",
+      fatherName: patient.additional["fatherName"] ?? "",
+      zipCode: patient.additional["zipCode"] ?? "",
+      address: patient.additional["address"] ?? "",
+      complement: patient.additional["complement"] ?? "",
+      district: patient.additional["district"] ?? "",
+      state: patient.additional["state"] ?? "",
+      city: patient.additional["city"] ?? "",
+      allergies: (patient.privateData.allergies ?? []).join(", "),
+      vegan:
+        patient.privateData.vegan === true
+          ? "yes"
+          : patient.privateData.vegan === false
+            ? "no"
+            : "",
+      privateNotes: patient.privateData.notes ?? "",
       active: patient.active,
       consentStatus: patient.consentStatus,
       reason: "Atualização conferida do cadastro operacional.",
@@ -108,6 +196,7 @@ export function PatientsPage() {
     setError("");
     setMessage("");
     setFormOpen(true);
+    setPhoto(null);
   }
   async function save(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -124,12 +213,58 @@ export function PatientsPage() {
           id: editing?.id ?? crypto.randomUUID(),
           ...form,
           phone: form.phone || null,
+          phone2: form.phone2 || null,
           email: form.email || null,
+          documentType: form.noDocument ? null : form.documentType,
+          documentNumber: form.noDocument ? null : form.documentNumber || null,
+          noDocument: form.noDocument,
+          birthDate: form.birthDate || null,
+          insurance: {
+            name: form.insuranceName,
+            plan: form.insurancePlan,
+            memberNumber: form.insuranceMemberNumber,
+            validUntil: form.insuranceValidUntil,
+          },
+          additional: {
+            rg: form.rg,
+            profession: form.profession,
+            motherName: form.motherName,
+            fatherName: form.fatherName,
+            zipCode: form.zipCode,
+            address: form.address,
+            complement: form.complement,
+            district: form.district,
+            state: form.state,
+            city: form.city,
+          },
+          privateData: {
+            allergies: form.allergies
+              .split(/[,\n]/)
+              .map((item) => item.trim())
+              .filter(Boolean),
+            vegan: form.vegan === "yes" ? true : form.vegan === "no" ? false : null,
+            notes: form.privateNotes,
+          },
           version: editing?.version ?? 0,
         }),
       });
       const result = (await response.json()) as { error?: string };
       if (!response.ok) throw new Error(result.error ?? "Não foi possível salvar o paciente.");
+      const savedId = editing?.id ?? String((result as { data?: { id?: string } }).data?.id ?? "");
+      if (photo && savedId) {
+        const photoData = new FormData();
+        photoData.set("patientId", savedId);
+        photoData.set("reason", "Atualização da foto de identificação do paciente.");
+        photoData.set("photo", photo);
+        const photoResponse = await fetch("/api/v1/inventory/patients", {
+          method: "POST",
+          credentials: "same-origin",
+          body: photoData,
+        });
+        const photoResult = (await photoResponse.json()) as { error?: string };
+        if (!photoResponse.ok)
+          throw new Error(photoResult.error ?? "Paciente salvo, mas a foto não foi enviada.");
+      }
       await query.refetch();
       setMessage(editing ? "Cadastro atualizado e auditado." : "Paciente cadastrado e auditado.");
       setFormOpen(false);
@@ -177,7 +312,7 @@ export function PatientsPage() {
               {editing ? "Editar paciente" : "Cadastrar paciente"}
             </h2>
             <p className="text-sm text-muted-foreground">
-              Campos clínicos e documentos não fazem parte deste formulário.
+              Identificação, contato e dados privados com acesso restrito à unidade.
             </p>
           </div>
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
@@ -221,21 +356,247 @@ export function PatientsPage() {
               />
             </label>
             <label className="space-y-1.5 text-sm font-medium">
-              Telefone (opcional)
+              Tipo de documento
+              <select
+                className="h-10 w-full rounded-md border bg-background px-3"
+                disabled={form.noDocument}
+                value={form.documentType}
+                onChange={(event) =>
+                  setForm({ ...form, documentType: event.target.value as "CPF" | "PASSPORT" })
+                }
+              >
+                <option value="CPF">CPF</option>
+                <option value="PASSPORT">Passaporte</option>
+              </select>
+            </label>
+            <label className="space-y-1.5 text-sm font-medium">
+              Número do documento
               <Input
+                disabled={form.noDocument}
+                required={!form.noDocument}
+                minLength={5}
+                maxLength={30}
+                value={form.documentNumber}
+                onChange={(event) => setForm({ ...form, documentNumber: event.target.value })}
+              />
+            </label>
+            <label className="flex items-center gap-2 self-end pb-2 text-sm font-medium">
+              <input
+                type="checkbox"
+                checked={form.noDocument}
+                onChange={(event) =>
+                  setForm({
+                    ...form,
+                    noDocument: event.target.checked,
+                    documentNumber: event.target.checked ? "" : form.documentNumber,
+                  })
+                }
+              />
+              Não possui documento
+            </label>
+            <label className="space-y-1.5 text-sm font-medium">
+              Data de nascimento (opcional)
+              <Input
+                type="date"
+                value={form.birthDate}
+                onChange={(event) => setForm({ ...form, birthDate: event.target.value })}
+              />
+            </label>
+            <label className="space-y-1.5 text-sm font-medium">
+              Telefone principal
+              <Input
+                required
                 type="tel"
                 autoComplete="tel"
+                placeholder="+55 (99) 99999-9999"
                 value={form.phone}
                 onChange={(event) => setForm({ ...form, phone: event.target.value })}
               />
             </label>
             <label className="space-y-1.5 text-sm font-medium">
-              E-mail (opcional)
+              Telefone 2 (opcional)
               <Input
+                type="tel"
+                value={form.phone2}
+                onChange={(event) => setForm({ ...form, phone2: event.target.value })}
+              />
+            </label>
+            <label className="space-y-1.5 text-sm font-medium">
+              E-mail
+              <Input
+                required
                 type="email"
                 autoComplete="email"
                 value={form.email}
                 onChange={(event) => setForm({ ...form, email: event.target.value })}
+              />
+            </label>
+            <div className="md:col-span-2 xl:col-span-3 border-t pt-4">
+              <h3 className="font-semibold">Convênio</h3>
+            </div>
+            <label className="space-y-1.5 text-sm font-medium">
+              Convênio (vazio = não possui)
+              <Input
+                maxLength={100}
+                value={form.insuranceName}
+                onChange={(event) => setForm({ ...form, insuranceName: event.target.value })}
+              />
+            </label>
+            <label className="space-y-1.5 text-sm font-medium">
+              Plano
+              <Input
+                maxLength={100}
+                value={form.insurancePlan}
+                onChange={(event) => setForm({ ...form, insurancePlan: event.target.value })}
+              />
+            </label>
+            <label className="space-y-1.5 text-sm font-medium">
+              Nº de matrícula
+              <Input
+                maxLength={80}
+                value={form.insuranceMemberNumber}
+                onChange={(event) =>
+                  setForm({ ...form, insuranceMemberNumber: event.target.value })
+                }
+              />
+            </label>
+            <label className="space-y-1.5 text-sm font-medium">
+              Validade do convênio
+              <Input
+                type="date"
+                value={form.insuranceValidUntil}
+                onChange={(event) => setForm({ ...form, insuranceValidUntil: event.target.value })}
+              />
+            </label>
+            <div className="md:col-span-2 xl:col-span-3 border-t pt-4">
+              <h3 className="font-semibold">Informações adicionais</h3>
+            </div>
+            <label className="space-y-1.5 text-sm font-medium md:col-span-2">
+              Foto do paciente (opcional)
+              <Input
+                type="file"
+                accept="image/jpeg,image/png,image/heic,image/heif"
+                onChange={(event) => setPhoto(event.target.files?.[0] ?? null)}
+              />
+              <span className="block text-xs text-muted-foreground">
+                JPG, PNG ou HEIC, até 5 MB. Armazenamento privado.
+              </span>
+            </label>
+            <label className="space-y-1.5 text-sm font-medium">
+              RG
+              <Input
+                maxLength={30}
+                value={form.rg}
+                onChange={(event) => setForm({ ...form, rg: event.target.value })}
+              />
+            </label>
+            <label className="space-y-1.5 text-sm font-medium">
+              Profissão
+              <Input
+                maxLength={100}
+                value={form.profession}
+                onChange={(event) => setForm({ ...form, profession: event.target.value })}
+              />
+            </label>
+            <label className="space-y-1.5 text-sm font-medium">
+              Nome da mãe
+              <Input
+                maxLength={180}
+                value={form.motherName}
+                onChange={(event) => setForm({ ...form, motherName: event.target.value })}
+              />
+            </label>
+            <label className="space-y-1.5 text-sm font-medium">
+              Nome do pai
+              <Input
+                maxLength={180}
+                value={form.fatherName}
+                onChange={(event) => setForm({ ...form, fatherName: event.target.value })}
+              />
+            </label>
+            <label className="space-y-1.5 text-sm font-medium">
+              CEP
+              <Input
+                maxLength={12}
+                value={form.zipCode}
+                onChange={(event) => setForm({ ...form, zipCode: event.target.value })}
+              />
+            </label>
+            <label className="space-y-1.5 text-sm font-medium">
+              Endereço
+              <Input
+                maxLength={180}
+                value={form.address}
+                onChange={(event) => setForm({ ...form, address: event.target.value })}
+              />
+            </label>
+            <label className="space-y-1.5 text-sm font-medium">
+              Complemento
+              <Input
+                maxLength={100}
+                value={form.complement}
+                onChange={(event) => setForm({ ...form, complement: event.target.value })}
+              />
+            </label>
+            <label className="space-y-1.5 text-sm font-medium">
+              Bairro
+              <Input
+                maxLength={100}
+                value={form.district}
+                onChange={(event) => setForm({ ...form, district: event.target.value })}
+              />
+            </label>
+            <label className="space-y-1.5 text-sm font-medium">
+              Estado
+              <Input
+                maxLength={2}
+                value={form.state}
+                onChange={(event) => setForm({ ...form, state: event.target.value.toUpperCase() })}
+              />
+            </label>
+            <label className="space-y-1.5 text-sm font-medium">
+              Cidade
+              <Input
+                maxLength={100}
+                value={form.city}
+                onChange={(event) => setForm({ ...form, city: event.target.value })}
+              />
+            </label>
+            <div className="md:col-span-2 xl:col-span-3 border-t pt-4">
+              <h3 className="font-semibold">Informações privadas</h3>
+              <p className="text-xs text-muted-foreground">
+                Não substituem anamnese ou prontuário.
+              </p>
+            </div>
+            <label className="space-y-1.5 text-sm font-medium md:col-span-2">
+              Alergias
+              <Input
+                maxLength={1000}
+                placeholder="Separe por vírgula ou Enter"
+                value={form.allergies}
+                onChange={(event) => setForm({ ...form, allergies: event.target.value })}
+              />
+            </label>
+            <label className="space-y-1.5 text-sm font-medium">
+              Vegano
+              <select
+                className="h-10 w-full rounded-md border bg-background px-3"
+                value={form.vegan}
+                onChange={(event) =>
+                  setForm({ ...form, vegan: event.target.value as PatientForm["vegan"] })
+                }
+              >
+                <option value="">Não informado</option>
+                <option value="yes">Sim</option>
+                <option value="no">Não</option>
+              </select>
+            </label>
+            <label className="space-y-1.5 text-sm font-medium md:col-span-2 xl:col-span-3">
+              Observações privadas
+              <Input
+                maxLength={2000}
+                value={form.privateNotes}
+                onChange={(event) => setForm({ ...form, privateNotes: event.target.value })}
               />
             </label>
             <label className="space-y-1.5 text-sm font-medium">
@@ -302,7 +663,7 @@ export function PatientsPage() {
             <Input
               className="pl-9"
               type="search"
-              placeholder="Buscar por nome, código ou contato"
+              placeholder="Buscar por nome, CPF, código ou contato"
               value={search}
               onChange={(event) => setSearch(event.target.value)}
             />

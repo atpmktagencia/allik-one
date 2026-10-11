@@ -39,12 +39,16 @@ const operationItems = [
   { label: "Fazer compra", to: "/estoque/fornecedores", icon: Landmark },
   { label: "Necessidade de compra", to: "/estoque/necessidade-compras", icon: ShoppingCart },
   { label: "Precificação", to: "/estoque/valores", icon: ListChecks },
-  { label: "Aplicações", to: "/aplicacoes", icon: Syringe },
 ] as const;
 
 const careItems = [
-  { label: "Agenda operacional", to: "/agenda", icon: CalendarDays },
+  { label: "Agendamentos", to: "/agenda", icon: CalendarDays },
   { label: "Pacientes", to: "/pacientes", icon: UserRound },
+] as const;
+
+const procedureItems = [
+  { label: "Aplicações", to: "/aplicacoes", icon: Syringe },
+  { label: "Agenda de aplicações", to: "/agenda-aplicacoes", icon: CalendarDays },
   { label: "Demanda futura", to: "/pacientes/demanda", icon: CalendarRange },
   { label: "Apresentações abertas", to: "/pacientes/fracionamento", icon: FlaskConical },
 ] as const;
@@ -62,7 +66,8 @@ const pageTitles: Record<string, string> = {
   "/pacientes": "Pacientes",
   "/pacientes/demanda": "Demanda futura",
   "/pacientes/fracionamento": "Apresentações abertas",
-  "/agenda": "Agenda operacional",
+  "/agenda": "Agendamentos",
+  "/agenda-aplicacoes": "Agenda de aplicações",
   "/estoque/usuarios": "Usuários",
   "/estoque/integracoes": "Integrações",
   "/estoque/minha-conta": "Minha conta",
@@ -120,7 +125,9 @@ function Navigation({
 }) {
   const path = useRouterState({ select: (state) => state.location.pathname });
   const renderItems = (
-    items: ReadonlyArray<(typeof operationItems)[number] | (typeof careItems)[number]>,
+    items: ReadonlyArray<
+      (typeof operationItems)[number] | (typeof careItems)[number] | (typeof procedureItems)[number]
+    >,
   ) =>
     items.map((item) => {
       const active =
@@ -155,6 +162,10 @@ function Navigation({
         Atendimento
       </p>
       <div className="space-y-1">{renderItems(careItems)}</div>
+      <p className="mb-2 mt-7 px-3 text-[10px] font-semibold uppercase tracking-widest text-sidebar-muted">
+        Procedimentos
+      </p>
+      <div className="space-y-1">{renderItems(procedureItems)}</div>
       <p className="mb-2 mt-7 px-3 text-[10px] font-semibold uppercase tracking-widest text-sidebar-muted">
         Administração
       </p>
@@ -201,11 +212,13 @@ function SidebarContent({
 }) {
   const name = identity?.user.name ?? "Carregando conta…";
   return (
-    <div className="flex h-full flex-col bg-sidebar">
+    <div className="flex h-full min-h-0 flex-col bg-sidebar">
       <div className="border-b border-sidebar-border px-5 py-5">
         <ProductMark />
       </div>
-      <Navigation identity={identity} onNavigate={onNavigate} />
+      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+        <Navigation identity={identity} onNavigate={onNavigate} />
+      </div>
       <div className="border-t border-sidebar-border p-4">
         <div className="mb-4 flex items-center gap-2 rounded-md bg-sidebar-accent/50 px-3 py-2 text-[11px] text-sidebar-muted">
           <ShieldCheck className="size-4 text-sidebar-primary" />
@@ -236,7 +249,13 @@ export function AppShell({ children }: { children: ReactNode }) {
   const [unitId, setUnitId] = useState("");
   const queryClient = useQueryClient();
   useEffect(() => {
-    if (!path.startsWith("/estoque") && !path.startsWith("/pacientes")) return;
+    if (
+      !path.startsWith("/estoque") &&
+      !path.startsWith("/pacientes") &&
+      !path.startsWith("/agenda") &&
+      !path.startsWith("/aplicacoes")
+    )
+      return;
     void fetch("/api/inventory-session", { credentials: "same-origin" })
       .then(async (response) => {
         if (!response.ok) return;
@@ -307,47 +326,51 @@ export function AppShell({ children }: { children: ReactNode }) {
             </div>
           </div>
         </header>
-        {(path.startsWith("/estoque") || path.startsWith("/pacientes")) && identity && (
-          <div className="flex flex-wrap items-center justify-end gap-3 border-b bg-muted/30 px-4 py-2 text-sm lg:px-7">
-            <div className="flex items-center gap-2">
-              <label htmlFor="inventory-unit" className="text-muted-foreground">
-                Unidade
-              </label>
-              <select
-                id="inventory-unit"
-                className="h-9 rounded-md border bg-background px-3"
-                value={unitId}
-                onChange={(event) => {
-                  const value = event.target.value;
-                  setUnitId(value);
-                  setSelectedUnitId(value);
-                  void queryClient.invalidateQueries({ queryKey: ["inventory"] });
-                }}
-              >
-                {identity.units.length > 1 && <option value="">Todas as unidades</option>}
-                {identity.units.map((unit) => (
-                  <option key={unit.id} value={unit.id}>
-                    {unit.name}
-                  </option>
-                ))}
-              </select>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={async () => {
-                  await fetch("/api/inventory-session", {
-                    method: "DELETE",
-                    credentials: "same-origin",
-                  });
-                  setIdentity(null);
-                  window.location.assign("/estoque/acesso");
-                }}
-              >
-                Sair
-              </Button>
+        {(path.startsWith("/estoque") ||
+          path.startsWith("/pacientes") ||
+          path.startsWith("/agenda") ||
+          path.startsWith("/aplicacoes")) &&
+          identity && (
+            <div className="flex flex-wrap items-center justify-end gap-3 border-b bg-muted/30 px-4 py-2 text-sm lg:px-7">
+              <div className="flex items-center gap-2">
+                <label htmlFor="inventory-unit" className="text-muted-foreground">
+                  Unidade
+                </label>
+                <select
+                  id="inventory-unit"
+                  className="h-9 rounded-md border bg-background px-3"
+                  value={unitId}
+                  onChange={(event) => {
+                    const value = event.target.value;
+                    setUnitId(value);
+                    setSelectedUnitId(value);
+                    void queryClient.invalidateQueries({ queryKey: ["inventory"] });
+                  }}
+                >
+                  {identity.units.length > 1 && <option value="">Todas as unidades</option>}
+                  {identity.units.map((unit) => (
+                    <option key={unit.id} value={unit.id}>
+                      {unit.name}
+                    </option>
+                  ))}
+                </select>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={async () => {
+                    await fetch("/api/inventory-session", {
+                      method: "DELETE",
+                      credentials: "same-origin",
+                    });
+                    setIdentity(null);
+                    window.location.assign("/estoque/acesso");
+                  }}
+                >
+                  Sair
+                </Button>
+              </div>
             </div>
-          </div>
-        )}
+          )}
         <main className="mx-auto w-full max-w-[1600px] p-4 sm:p-6 lg:p-8">{children}</main>
       </div>
     </div>

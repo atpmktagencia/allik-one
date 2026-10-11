@@ -183,6 +183,20 @@
       "when": 1792713600000,
       "tag": "0025_application_clinical_snapshot",
       "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1792800000000,
+      "tag": "0026_care_appointments",
+      "breakpoints": true
+    },
+    {
+      "idx": 27,
+      "version": "7",
+      "when": 1792886400000,
+      "tag": "0027_patient_registration_profile",
+      "breakpoints": true
     }
   ]
 }

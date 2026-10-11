@@ -50,6 +50,13 @@ describe("Patients UI", () => {
     fireEvent.change(screen.getByLabelText("Nome completo"), {
       target: { value: "Paciente de Teste" },
     });
+    fireEvent.click(screen.getByLabelText("Não possui documento"));
+    fireEvent.change(screen.getByLabelText("Telefone principal"), {
+      target: { value: "+55 85 99999-0000" },
+    });
+    fireEvent.change(screen.getByLabelText("E-mail"), {
+      target: { value: "paciente@example.test" },
+    });
     fireEvent.click(screen.getByRole("button", { name: "Cadastrar paciente" }));
 
     await waitFor(() => expect(submitted).toBeDefined());
@@ -59,6 +66,9 @@ describe("Patients UI", () => {
         primaryUnitId: unitId,
         internalCode: "PAC-0001",
         fullName: "Paciente de Teste",
+        noDocument: true,
+        phone: "+55 85 99999-0000",
+        email: "paciente@example.test",
         consentStatus: "PENDING",
         version: 0,
       }),

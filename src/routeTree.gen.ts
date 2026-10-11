@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AgendaRouteImport } from './routes/agenda'
+import { Route as AgendaAplicacoesRouteImport } from './routes/agenda-aplicacoes'
 import { Route as AplicacoesRouteImport } from './routes/aplicacoes'
 import { Route as ConfiguracoesRouteImport } from './routes/configuracoes'
 import { Route as CrmRouteImport } from './routes/crm'
@@ -52,6 +53,11 @@ const IndexRoute = IndexRouteImport.update({
 const AgendaRoute = AgendaRouteImport.update({
   id: '/agenda',
   path: '/agenda',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AgendaAplicacoesRoute = AgendaAplicacoesRouteImport.update({
+  id: '/agenda-aplicacoes',
+  path: '/agenda-aplicacoes',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AplicacoesRoute = AplicacoesRouteImport.update({
@@ -221,6 +227,7 @@ const ApiV1InventoryPrescriptionsPrescriptionIdRoute =
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/agenda': typeof AgendaRoute
+  '/agenda-aplicacoes': typeof AgendaAplicacoesRoute
   '/aplicacoes': typeof AplicacoesRouteWithChildren
   '/configuracoes': typeof ConfiguracoesRoute
   '/crm': typeof CrmRoute
@@ -257,6 +264,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/agenda': typeof AgendaRoute
+  '/agenda-aplicacoes': typeof AgendaAplicacoesRoute
   '/configuracoes': typeof ConfiguracoesRoute
   '/crm': typeof CrmRoute
   '/exames': typeof ExamesRoute
@@ -292,6 +300,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/agenda': typeof AgendaRoute
+  '/agenda-aplicacoes': typeof AgendaAplicacoesRoute
   '/aplicacoes': typeof AplicacoesRouteWithChildren
   '/configuracoes': typeof ConfiguracoesRoute
   '/crm': typeof CrmRoute
@@ -330,6 +339,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/agenda'
+    | '/agenda-aplicacoes'
     | '/aplicacoes'
     | '/configuracoes'
     | '/crm'
@@ -366,6 +376,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/agenda'
+    | '/agenda-aplicacoes'
     | '/configuracoes'
     | '/crm'
     | '/exames'
@@ -400,6 +411,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/agenda'
+    | '/agenda-aplicacoes'
     | '/aplicacoes'
     | '/configuracoes'
     | '/crm'
@@ -437,6 +449,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AgendaRoute: typeof AgendaRoute
+  AgendaAplicacoesRoute: typeof AgendaAplicacoesRoute
   AplicacoesRoute: typeof AplicacoesRouteWithChildren
   ConfiguracoesRoute: typeof ConfiguracoesRoute
   CrmRoute: typeof CrmRoute
@@ -466,6 +479,13 @@ declare module '@tanstack/react-router' {
       path: '/agenda'
       fullPath: '/agenda'
       preLoaderRoute: typeof AgendaRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/agenda-aplicacoes': {
+      id: '/agenda-aplicacoes'
+      path: '/agenda-aplicacoes'
+      fullPath: '/agenda-aplicacoes'
+      preLoaderRoute: typeof AgendaAplicacoesRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/aplicacoes': {
@@ -765,6 +785,7 @@ const PacientesRouteWithChildren = PacientesRoute._addFileChildren(
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AgendaRoute: AgendaRoute,
+  AgendaAplicacoesRoute: AgendaAplicacoesRoute,
   AplicacoesRoute: AplicacoesRouteWithChildren,
   ConfiguracoesRoute: ConfiguracoesRoute,
   CrmRoute: CrmRoute,

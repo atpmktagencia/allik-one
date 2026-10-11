@@ -30,6 +30,7 @@ import { patientApplicationResponse } from "./patient-applications";
 import { openPresentationResponse } from "./open-presentations";
 import { patientScheduleResponse } from "./patient-schedule";
 import { patientPurchaseNeedsResponse } from "./patient-purchase-needs";
+import { careAppointmentsResponse } from "./care-appointments";
 vi.mock("@vercel/blob", () => ({
   put: vi.fn(async (pathname: string) => ({ pathname })),
   del: vi.fn(async () => undefined),
@@ -1617,6 +1618,74 @@ describe("Controlled inventory write-offs", () => {
       (await getPool().query("SELECT status FROM inventory_lots WHERE id=$1", [f.params[0]]))
         .rows[0].status,
     ).toBe("BLOCKED");
+  });
+});
+
+describe("care appointments", () => {
+  it("creates a unit-scoped appointment, rejects schedule conflicts and lists the audit-safe result", async () => {
+    const unitId = "a1100000-0000-4000-8000-000000000101";
+    const patientId = randomUUID();
+    const professional = await getPool().query<{ id: string }>(
+      `SELECT u.id FROM inventory_users u JOIN inventory_memberships m ON m.user_id=u.id
+       WHERE m.organization_id='a1100000-0000-4000-8000-000000000001' AND u.active AND m.active
+         AND (m.role IN ('SUPER_ADMIN','PARTNER_ADMIN') OR EXISTS(
+           SELECT 1 FROM inventory_unit_access ua WHERE ua.membership_id=m.id AND ua.unit_id='a1100000-0000-4000-8000-000000000101'))
+       LIMIT 1`,
+    );
+    await getPool().query(
+      `INSERT INTO inventory_patients(id,organization_id,primary_unit_id,internal_code,full_name,phone,email)
+       VALUES($1,'a1100000-0000-4000-8000-000000000001',$2,$3,'Paciente Agenda Sintético','+5585999999999','agenda@example.test')`,
+      [patientId, unitId, `AGENDA-${patientId.slice(0, 8)}`],
+    );
+    const startsAt = "2026-10-20T12:00:00.000Z";
+    const endsAt = "2026-10-20T13:00:00.000Z";
+    const body = {
+      action: "CREATE",
+      id: randomUUID(),
+      unitId,
+      patientId,
+      professionalUserId: professional.rows[0]!.id,
+      careType: "INJECTABLE",
+      otherCareType: null,
+      startsAt,
+      endsAt,
+      room: "Sala de Procedimentos",
+      chair: 1,
+      notes: "Agendamento sintético.",
+      status: "SCHEDULED",
+      version: 0,
+      reason: "Agendamento criado para teste integrado.",
+    };
+    const send = (value: unknown) =>
+      careAppointmentsResponse(
+        new Request(`${origin}/api/v1/inventory/care-appointments`, {
+          method: "POST",
+          headers: { cookie, origin, "Content-Type": "application/json" },
+          body: JSON.stringify(value),
+        }),
+      );
+    expect((await send(body)).status).toBe(201);
+    expect((await send({ ...body, id: randomUUID() })).status).toBe(409);
+    const listed = await careAppointmentsResponse(
+      new Request(
+        `${origin}/api/v1/inventory/care-appointments?unitId=${unitId}&from=2026-10-20T00:00:00.000Z&to=2026-10-21T00:00:00.000Z`,
+        { headers: { cookie } },
+      ),
+    );
+    expect(listed.status).toBe(200);
+    expect((await listed.json()).data.appointments).toEqual([
+      expect.objectContaining({
+        id: body.id,
+        patientName: "Paciente Agenda Sintético",
+        careType: "INJECTABLE",
+        chair: 1,
+      }),
+    ]);
+    const audit = await getPool().query(
+      "SELECT action,actor FROM inventory_care_appointment_changes WHERE appointment_id=$1",
+      [body.id],
+    );
+    expect(audit.rows).toEqual([expect.objectContaining({ action: "CREATE" })]);
   });
 });
 
