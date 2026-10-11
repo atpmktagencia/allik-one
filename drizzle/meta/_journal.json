@@ -141,6 +141,13 @@
       "when": 1792195200000,
       "tag": "0019_open_presentations",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1792281600000,
+      "tag": "0020_operational_schedule_index",
+      "breakpoints": true
     }
   ]
 }

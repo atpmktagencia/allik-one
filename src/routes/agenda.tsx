@@ -1,18 +1,11 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { AgendaPage } from "@/components/clinic/feature-pages";
+import { OperationalSchedulePage } from "@/components/clinic/operational-schedule-page";
 export const Route = createFileRoute("/agenda")({
   head: () => ({
     meta: [
-      { title: "Agenda — Estoque Allik Fortaleza" },
-      { name: "description", content: "Agenda clínica integrada por paciente e profissional." },
-      { property: "og:title", content: "Agenda — Estoque Allik Fortaleza" },
-      {
-        property: "og:description",
-        content: "Agenda clínica integrada por paciente e profissional.",
-      },
-      { property: "og:type", content: "website" },
-      { name: "twitter:card", content: "summary_large_image" },
+      { title: "Agenda operacional — Allik One" },
+      { name: "description", content: "Aplicações previstas por paciente e unidade." },
     ],
   }),
-  component: AgendaPage,
+  component: OperationalSchedulePage,
 });

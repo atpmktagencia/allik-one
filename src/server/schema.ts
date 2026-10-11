@@ -592,6 +592,9 @@ export const patientTreatmentSchedule = pgTable(
     index("inventory_patient_schedule_unit_date_status").on(t.unitId, t.scheduledOn, t.status),
     index("inventory_patient_schedule_product_date").on(t.productId, t.scheduledOn),
     index("inventory_patient_schedule_patient").on(t.patientId, t.scheduledOn),
+    index("inventory_patient_schedule_organization_date_active")
+      .on(t.organizationId, t.scheduledOn, t.unitId, t.productId)
+      .where(sql`${t.status} IN ('PLANNED','RESERVED')`),
     check("patient_schedule_sequence_positive", sql`${t.sequence} > 0`),
     check("patient_schedule_dose_positive", sql`${t.doseQuantity} > 0`),
     check("patient_schedule_unit_valid", sql`${t.doseUnit} IN ('MG','ML','UI','UNIT')`),
