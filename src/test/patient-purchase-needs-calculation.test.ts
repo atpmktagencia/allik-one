@@ -1,8 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  presentationsForDemand,
-  shortagesForOpenings,
-} from "@/server/patient-purchase-needs";
+import { presentationsForDemand, shortagesForOpenings } from "@/server/patient-purchase-needs";
 
 describe("patient purchase need calculation", () => {
   it("shares one presentation on the same day but not beyond a 24-hour safety window", () => {
@@ -40,9 +37,7 @@ describe("patient purchase need calculation", () => {
     );
     expect(calculation.presentations).toBe(1);
     expect(
-      shortagesForOpenings(calculation.cumulative, [
-        { quantity: "1", expiresOn: "2026-10-26" },
-      ]),
+      shortagesForOpenings(calculation.cumulative, [{ quantity: "1", expiresOn: "2026-10-26" }]),
     ).toEqual({ shortageUnits: 1, firstShortageOn: "2026-10-27" });
   });
 });
