@@ -120,6 +120,13 @@
       "when": 1791936000000,
       "tag": "0016_patient_treatments",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1792022400000,
+      "tag": "0017_patient_demand_reservations",
+      "breakpoints": true
     }
   ]
 }

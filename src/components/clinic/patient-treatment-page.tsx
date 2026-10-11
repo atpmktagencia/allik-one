@@ -40,6 +40,41 @@ type Payload = {
     uploadedAt: string;
   }>;
   products: Array<{ id: string; name: string; sku: string; unit: string }>;
+  purchases: Array<{
+    id: string;
+    treatmentId: string;
+    purchasedQuantity: string;
+    quantityUnit: string;
+    totalValue: string | null;
+    reference: string;
+    purchasedOn: string;
+  }>;
+  schedule: Array<{
+    id: string;
+    treatmentId: string;
+    sequence: number;
+    scheduledOn: string;
+    doseQuantity: string;
+    doseUnit: string;
+    status: string;
+    version: number;
+  }>;
+  supplySummaries: Array<{
+    treatmentId: string;
+    purchasedQuantity: number;
+    reservedQuantity: number;
+    consumedQuantity: number;
+    plannedQuantity: number;
+    purchasedRemaining: number;
+    presentationName: string | null;
+    usablePerPresentation: number | null;
+    availableStockUnits: number;
+    requiredPresentationUnits: number | null;
+    shortageUnits: number | null;
+    unitDemandQuantity: number;
+    unitRequiredPresentationUnits: number | null;
+    unitShortageUnits: number | null;
+  }>;
   canManage: boolean;
 };
 const blank = {
@@ -60,6 +95,12 @@ const statusLabels: Record<string, string> = {
   COMPLETED: "Concluído",
   CANCELED: "Cancelado",
 };
+const scheduleLabels: Record<string, string> = {
+  PLANNED: "Planejada",
+  RESERVED: "Reservada",
+  CONSUMED: "Consumida",
+  CANCELED: "Cancelada",
+};
 
 export function PatientTreatmentPage({ patientId }: { patientId: string }) {
   const query = useInventory<Payload>(`patient-detail?patientId=${patientId}`);
@@ -68,6 +109,14 @@ export function PatientTreatmentPage({ patientId }: { patientId: string }) {
   const [pending, setPending] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [purchase, setPurchase] = useState({
+    treatmentId: "",
+    purchasedQuantity: "",
+    totalValue: "",
+    reference: "",
+    purchasedOn: "",
+    reason: "Registro da quantidade adquirida pelo paciente.",
+  });
   if (query.isPending || query.error)
     return (
       <InventoryState pending={query.isPending} error={query.error} retry={() => query.refetch()} />
@@ -128,6 +177,66 @@ export function PatientTreatmentPage({ patientId }: { patientId: string }) {
     } finally {
       setPending(false);
     }
+  }
+  async function writeSupply(body: unknown, success: string) {
+    setPending(true);
+    setError("");
+    try {
+      const response = await fetch(`/api/v1/inventory/patient-detail?patientId=${patientId}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "same-origin",
+        body: JSON.stringify(body),
+      });
+      const result = (await response.json()) as { error?: string };
+      if (!response.ok) throw new Error(result.error ?? "Não foi possível salvar.");
+      await query.refetch();
+      setMessage(success);
+      return true;
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Falha de conexão.");
+      return false;
+    } finally {
+      setPending(false);
+    }
+  }
+  async function savePurchase(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const saved = await writeSupply(
+      {
+        action: "CREATE_PURCHASE",
+        id: crypto.randomUUID(),
+        patientId,
+        ...purchase,
+        purchasedQuantity: Number(purchase.purchasedQuantity),
+        totalValue: purchase.totalValue ? Number(purchase.totalValue) : null,
+      },
+      "Compra do paciente registrada e auditada.",
+    );
+    if (saved) setPurchase({ ...purchase, purchasedQuantity: "", totalValue: "", reference: "" });
+  }
+  async function updateSchedule(
+    item: Payload["schedule"][number],
+    status: "PLANNED" | "RESERVED" | "CANCELED",
+  ) {
+    await writeSupply(
+      {
+        action: "UPDATE_SCHEDULE_STATUS",
+        patientId,
+        scheduleId: item.id,
+        status,
+        version: item.version,
+        reason:
+          status === "RESERVED"
+            ? "Dose reservada para a aplicação programada."
+            : status === "PLANNED"
+              ? "Reserva liberada e aplicação mantida no planejamento."
+              : "Aplicação prevista cancelada com justificativa operacional.",
+      },
+      status === "RESERVED"
+        ? "Dose reservada sem movimentar o estoque físico."
+        : "Planejamento atualizado e auditado.",
+    );
   }
   return (
     <div className="space-y-6">
@@ -286,6 +395,56 @@ export function PatientTreatmentPage({ patientId }: { patientId: string }) {
                     {t.doseQuantity} {t.doseUnit} · {t.route} · a cada {t.frequencyEveryDays} dias ·
                     início {String(t.firstScheduledOn).slice(0, 10).split("-").reverse().join("/")}
                   </p>
+                  {data.supplySummaries
+                    .filter((s) => s.treatmentId === t.id)
+                    .map((s) => (
+                      <div
+                        key={s.treatmentId}
+                        className="mt-3 grid gap-2 text-xs text-muted-foreground sm:grid-cols-3"
+                      >
+                        <span>
+                          Comprado:{" "}
+                          <strong className="text-foreground">
+                            {s.purchasedQuantity} {t.doseUnit}
+                          </strong>
+                        </span>
+                        <span>
+                          Reservado:{" "}
+                          <strong className="text-foreground">
+                            {s.reservedQuantity} {t.doseUnit}
+                          </strong>
+                        </span>
+                        <span>
+                          Consumido:{" "}
+                          <strong className="text-foreground">
+                            {s.consumedQuantity} {t.doseUnit}
+                          </strong>
+                        </span>
+                        <span>
+                          Saldo comprado:{" "}
+                          <strong className="text-foreground">
+                            {s.purchasedRemaining} {t.doseUnit}
+                          </strong>
+                        </span>
+                        <span>
+                          Estoque físico:{" "}
+                          <strong className="text-foreground">{s.availableStockUnits} un.</strong>
+                        </span>
+                        <span>
+                          {s.unitShortageUnits === null ? (
+                            "Apresentação/concentração ainda não vinculada"
+                          ) : s.unitShortageUnits > 0 ? (
+                            <strong className="text-destructive">
+                              Faltam {s.unitShortageUnits} un. para a demanda da unidade
+                            </strong>
+                          ) : (
+                            <strong className="text-success-foreground">
+                              Cobertura física suficiente
+                            </strong>
+                          )}
+                        </span>
+                      </div>
+                    ))}
                 </div>
                 <Badge>{statusLabels[t.status] ?? t.status}</Badge>
               </div>
@@ -294,6 +453,155 @@ export function PatientTreatmentPage({ patientId }: { patientId: string }) {
         ) : (
           <p className="p-8 text-center text-sm text-muted-foreground">
             Nenhum tratamento cadastrado.
+          </p>
+        )}
+      </section>
+      {data.canManage && data.treatments.length > 0 && (
+        <form onSubmit={savePurchase} className="space-y-4 rounded-xl border bg-card p-5">
+          <div>
+            <h2 className="font-semibold">Registrar compra do paciente</h2>
+            <p className="text-sm text-muted-foreground">
+              Registra o direito adquirido pelo paciente. Não altera o estoque físico.
+            </p>
+          </div>
+          <div className="grid gap-4 md:grid-cols-3">
+            <label className="space-y-1 text-sm font-medium">
+              Tratamento
+              <select
+                required
+                className="h-10 w-full rounded-md border bg-background px-3"
+                value={purchase.treatmentId}
+                onChange={(e) => setPurchase({ ...purchase, treatmentId: e.target.value })}
+              >
+                <option value="">Selecione</option>
+                {data.treatments.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.productName} · {t.doseQuantity} {t.doseUnit}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="space-y-1 text-sm font-medium">
+              Quantidade comprada
+              <Input
+                required
+                type="number"
+                min="0.000001"
+                step="0.000001"
+                value={purchase.purchasedQuantity}
+                onChange={(e) => setPurchase({ ...purchase, purchasedQuantity: e.target.value })}
+              />
+            </label>
+            <label className="space-y-1 text-sm font-medium">
+              Valor total (opcional)
+              <Input
+                type="number"
+                min="0"
+                step="0.01"
+                value={purchase.totalValue}
+                onChange={(e) => setPurchase({ ...purchase, totalValue: e.target.value })}
+              />
+            </label>
+            <label className="space-y-1 text-sm font-medium">
+              Referência da venda
+              <Input
+                required
+                minLength={3}
+                value={purchase.reference}
+                onChange={(e) => setPurchase({ ...purchase, reference: e.target.value })}
+              />
+            </label>
+            <label className="space-y-1 text-sm font-medium">
+              Data da compra
+              <Input
+                required
+                type="date"
+                value={purchase.purchasedOn}
+                onChange={(e) => setPurchase({ ...purchase, purchasedOn: e.target.value })}
+              />
+            </label>
+            <label className="space-y-1 text-sm font-medium">
+              Motivo
+              <Input
+                required
+                minLength={10}
+                value={purchase.reason}
+                onChange={(e) => setPurchase({ ...purchase, reason: e.target.value })}
+              />
+            </label>
+          </div>
+          <Button disabled={pending}>{pending ? "Salvando…" : "Registrar compra"}</Button>
+        </form>
+      )}
+      <section className="rounded-xl border bg-card">
+        <div className="border-b p-5">
+          <h2 className="font-semibold">Agenda e reservas</h2>
+          <p className="text-sm text-muted-foreground">
+            Reservar sinaliza compromisso futuro; a baixa física acontecerá somente na aplicação.
+          </p>
+        </div>
+        {data.schedule.length ? (
+          <div className="divide-y">
+            {data.schedule.map((item) => {
+              const treatment = data.treatments.find((t) => t.id === item.treatmentId);
+              return (
+                <div
+                  key={item.id}
+                  className="flex flex-col justify-between gap-3 p-5 sm:flex-row sm:items-center"
+                >
+                  <div>
+                    <p className="font-medium">
+                      {String(item.scheduledOn).slice(0, 10).split("-").reverse().join("/")} ·{" "}
+                      {treatment?.productName}
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      {item.doseQuantity} {item.doseUnit} ·{" "}
+                      {scheduleLabels[item.status] ?? item.status}
+                    </p>
+                  </div>
+                  {data.canManage && item.status !== "CONSUMED" && (
+                    <div className="flex flex-wrap gap-2">
+                      {item.status !== "RESERVED" && item.status !== "CANCELED" && (
+                        <Button
+                          type="button"
+                          size="sm"
+                          disabled={pending}
+                          onClick={() => updateSchedule(item, "RESERVED")}
+                        >
+                          Reservar
+                        </Button>
+                      )}
+                      {item.status === "RESERVED" && (
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          disabled={pending}
+                          onClick={() => updateSchedule(item, "PLANNED")}
+                        >
+                          Liberar reserva
+                        </Button>
+                      )}
+                      {item.status !== "CANCELED" && (
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          disabled={pending}
+                          onClick={() => updateSchedule(item, "CANCELED")}
+                        >
+                          Cancelar
+                        </Button>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <p className="p-8 text-center text-sm text-muted-foreground">
+            Informe a quantidade de aplicações ao criar o tratamento para gerar a agenda.
           </p>
         )}
       </section>

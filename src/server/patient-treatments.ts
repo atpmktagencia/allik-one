@@ -3,6 +3,7 @@ import { del, get, put } from "@vercel/blob";
 import { actor, authenticate, can, type AuthContext } from "./auth";
 import { getPool } from "./db";
 import { treatmentInput } from "../data/treatment-input";
+import { patientSupplyInput, type PatientSupplyInput } from "../data/patient-supply-input";
 
 const headers = { "Cache-Control": "private, no-store", Vary: "Cookie, Authorization" };
 const allowedTypes = new Set([
@@ -40,7 +41,16 @@ export async function patientDetailResponse(request: Request) {
     return Response.json({ error: "Paciente não encontrado." }, { status: 404, headers });
 
   if (request.method === "GET") {
-    const [treatments, prescriptions, products] = await Promise.all([
+    const [
+      treatments,
+      prescriptions,
+      products,
+      purchases,
+      schedule,
+      presentations,
+      stock,
+      unitDemand,
+    ] = await Promise.all([
       getPool().query(
         `SELECT t.id,t.product_id AS "productId",p.name AS "productName",p.sku,
           t.dose_quantity AS "doseQuantity",t.dose_unit AS "doseUnit",t.route,
@@ -62,7 +72,99 @@ export async function patientDetailResponse(request: Request) {
          WHERE organization_id=$1 AND active AND stock_controlled ORDER BY lower(name)`,
         [auth.organizationId],
       ),
+      getPool().query(
+        `SELECT id,treatment_id AS "treatmentId",purchased_quantity AS "purchasedQuantity",quantity_unit AS "quantityUnit",total_value AS "totalValue",reference,purchased_on::text AS "purchasedOn",created_at AS "createdAt" FROM inventory_patient_treatment_purchases WHERE patient_id=$1 AND organization_id=$2 ORDER BY purchased_on,created_at`,
+        [patientId, auth.organizationId],
+      ),
+      getPool().query(
+        `SELECT id,treatment_id AS "treatmentId",sequence,scheduled_on::text AS "scheduledOn",dose_quantity AS "doseQuantity",dose_unit AS "doseUnit",status,version FROM inventory_patient_treatment_schedule WHERE patient_id=$1 AND organization_id=$2 ORDER BY scheduled_on,sequence`,
+        [patientId, auth.organizationId],
+      ),
+      getPool().query(
+        `SELECT DISTINCT ON (product_id,upper(base_unit)) product_id AS "productId",upper(base_unit) AS "baseUnit",name,total_base_quantity AS "totalBaseQuantity",technical_loss_percent AS "technicalLossPercent" FROM inventory_pricing_presentations WHERE organization_id=$1 AND active AND product_id IS NOT NULL ORDER BY product_id,upper(base_unit),pricing_status DESC,updated_at DESC`,
+        [auth.organizationId],
+      ),
+      getPool().query(
+        `SELECT l.product_id AS "productId",COALESCE(sum(b.quantity),0) AS quantity FROM inventory_balances b JOIN inventory_lots l ON l.id=b.lot_id JOIN inventory_locations loc ON loc.id=b.location_id WHERE loc.unit_id=$1 AND l.status='AVAILABLE' AND l.expires_on>=current_date GROUP BY l.product_id`,
+        [patient.primaryUnitId],
+      ),
+      getPool().query(
+        `SELECT product_id AS "productId",upper(dose_unit) AS "doseUnit",sum(dose_quantity) AS quantity
+           FROM inventory_patient_treatment_schedule
+           WHERE unit_id=$1 AND status IN ('PLANNED','RESERVED') AND scheduled_on>=current_date
+           GROUP BY product_id,upper(dose_unit)`,
+        [patient.primaryUnitId],
+      ),
     ]);
+    const purchaseRows = purchases.rows as Array<Record<string, unknown>>;
+    const scheduleRows = schedule.rows as Array<Record<string, unknown>>;
+    const presentationRows = presentations.rows as Array<Record<string, unknown>>;
+    const stockRows = stock.rows as Array<Record<string, unknown>>;
+    const unitDemandRows = unitDemand.rows as Array<Record<string, unknown>>;
+    const summaries = treatments.rows.map((treatment: Record<string, unknown>) => {
+      const treatmentId = String(treatment["id"]);
+      const doseUnit = String(treatment["doseUnit"]).toUpperCase();
+      const treatmentSchedule = scheduleRows.filter((row) => row["treatmentId"] === treatmentId);
+      const activeSchedule = treatmentSchedule.filter((row) => row["status"] !== "CANCELED");
+      const purchasedQuantity = purchaseRows
+        .filter((row) => row["treatmentId"] === treatmentId)
+        .reduce((sum, row) => sum + Number(row["purchasedQuantity"]), 0);
+      const reservedQuantity = activeSchedule
+        .filter((row) => row["status"] === "RESERVED")
+        .reduce((sum, row) => sum + Number(row["doseQuantity"]), 0);
+      const consumedQuantity = activeSchedule
+        .filter((row) => row["status"] === "CONSUMED")
+        .reduce((sum, row) => sum + Number(row["doseQuantity"]), 0);
+      const plannedQuantity = activeSchedule
+        .filter((row) => row["status"] === "PLANNED")
+        .reduce((sum, row) => sum + Number(row["doseQuantity"]), 0);
+      const presentation = presentationRows.find(
+        (row) => row["productId"] === treatment["productId"] && row["baseUnit"] === doseUnit,
+      );
+      const availableStockUnits = Number(
+        stockRows.find((row) => row["productId"] === treatment["productId"])?.["quantity"] ?? 0,
+      );
+      const usablePerPresentation = presentation
+        ? Number(presentation["totalBaseQuantity"]) *
+          (1 - Number(presentation["technicalLossPercent"]) / 100)
+        : null;
+      const demandQuantity = plannedQuantity + reservedQuantity;
+      const requiredPresentationUnits =
+        usablePerPresentation && usablePerPresentation > 0
+          ? Math.ceil(demandQuantity / usablePerPresentation)
+          : null;
+      const unitDemandQuantity = Number(
+        unitDemandRows.find(
+          (row) => row["productId"] === treatment["productId"] && row["doseUnit"] === doseUnit,
+        )?.["quantity"] ?? 0,
+      );
+      const unitRequiredPresentationUnits =
+        usablePerPresentation && usablePerPresentation > 0
+          ? Math.ceil(unitDemandQuantity / usablePerPresentation)
+          : null;
+      return {
+        treatmentId,
+        purchasedQuantity,
+        reservedQuantity,
+        consumedQuantity,
+        plannedQuantity,
+        purchasedRemaining: Math.max(0, purchasedQuantity - consumedQuantity),
+        presentationName: presentation?.["name"] ?? null,
+        usablePerPresentation,
+        availableStockUnits,
+        requiredPresentationUnits,
+        shortageUnits:
+          requiredPresentationUnits === null
+            ? null
+            : Math.max(0, requiredPresentationUnits - availableStockUnits),
+        unitDemandQuantity,
+        unitRequiredPresentationUnits,
+        unitShortageUnits:
+          unitRequiredPresentationUnits === null
+            ? null
+            : Math.max(0, unitRequiredPresentationUnits - availableStockUnits),
+      };
+    });
     return Response.json(
       {
         data: {
@@ -70,6 +172,9 @@ export async function patientDetailResponse(request: Request) {
           treatments: treatments.rows,
           prescriptions: prescriptions.rows,
           products: products.rows,
+          purchases: purchaseRows,
+          schedule: scheduleRows,
+          supplySummaries: summaries,
           canManage: can(auth, "patients.manage", String(patient.primaryUnitId)),
         },
       },
@@ -96,9 +201,18 @@ export async function patientDetailResponse(request: Request) {
   } catch {
     return Response.json({ error: "Requisição inválida." }, { status: 400, headers });
   }
+  const supplyParsed = patientSupplyInput.safeParse(body);
+  if (supplyParsed.success) {
+    if (supplyParsed.data.patientId !== patientId)
+      return Response.json({ error: "Paciente inválido." }, { status: 400, headers });
+    return updatePatientSupply(auth, patient, supplyParsed.data);
+  }
   const parsed = treatmentInput.safeParse(body);
   if (!parsed.success || parsed.data.patientId !== patientId)
-    return Response.json({ error: "Confira os dados do tratamento." }, { status: 400, headers });
+    return Response.json(
+      { error: "Confira os dados do tratamento ou da compra." },
+      { status: 400, headers },
+    );
   const input = parsed.data;
   const client = await getPool().connect();
   try {
@@ -133,6 +247,24 @@ export async function patientDetailResponse(request: Request) {
           auth.user.id,
         ],
       );
+      if (input.plannedAdministrations)
+        await client.query(
+          `INSERT INTO inventory_patient_treatment_schedule(organization_id,patient_id,treatment_id,unit_id,product_id,sequence,scheduled_on,dose_quantity,dose_unit,updated_by_user_id)
+         SELECT $1,$2,$3,$4,$5,g,($6::date + (($7::numeric * (g-1)) * interval '1 day'))::date,$8,$9,$10 FROM generate_series(1,$11::integer) g`,
+          [
+            auth.organizationId,
+            patientId,
+            input.id,
+            patient.primaryUnitId,
+            input.productId,
+            input.firstScheduledOn,
+            input.frequencyEveryDays,
+            input.doseQuantity,
+            input.doseUnit,
+            auth.user.id,
+            input.plannedAdministrations,
+          ],
+        );
     } else {
       const current = await client.query(
         "SELECT * FROM inventory_patient_treatments WHERE id=$1 AND patient_id=$2 AND organization_id=$3 FOR UPDATE",
@@ -191,6 +323,98 @@ export async function patientDetailResponse(request: Request) {
     await client.query("ROLLBACK").catch(() => {});
     return Response.json(
       { error: "Não foi possível salvar o tratamento." },
+      { status: 503, headers },
+    );
+  } finally {
+    client.release();
+  }
+}
+
+async function updatePatientSupply(
+  auth: AuthContext,
+  patient: Record<string, unknown>,
+  input: PatientSupplyInput,
+) {
+  const client = await getPool().connect();
+  try {
+    await client.query("BEGIN");
+    if (input.action === "CREATE_PURCHASE") {
+      const treatment = await client.query(
+        "SELECT id,dose_unit FROM inventory_patient_treatments WHERE id=$1 AND patient_id=$2 AND organization_id=$3 FOR SHARE",
+        [input.treatmentId, patient["id"], auth.organizationId],
+      );
+      if (!treatment.rowCount) {
+        await client.query("ROLLBACK");
+        return Response.json({ error: "Tratamento inválido." }, { status: 400, headers });
+      }
+      await client.query(
+        `INSERT INTO inventory_patient_treatment_purchases(id,organization_id,patient_id,treatment_id,unit_id,purchased_quantity,quantity_unit,total_value,reference,purchased_on,reason,actor,actor_user_id) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)`,
+        [
+          input.id,
+          auth.organizationId,
+          patient["id"],
+          input.treatmentId,
+          patient["primaryUnitId"],
+          input.purchasedQuantity,
+          treatment.rows[0].dose_unit,
+          input.totalValue,
+          input.reference,
+          input.purchasedOn,
+          input.reason,
+          actor(auth).name,
+          actor(auth).userId,
+        ],
+      );
+      await client.query("COMMIT");
+      return Response.json({ data: { id: input.id } }, { status: 201, headers });
+    }
+    const current = await client.query(
+      "SELECT * FROM inventory_patient_treatment_schedule WHERE id=$1 AND patient_id=$2 AND organization_id=$3 FOR UPDATE",
+      [input.scheduleId, patient["id"], auth.organizationId],
+    );
+    if (!current.rowCount) {
+      await client.query("ROLLBACK");
+      return Response.json(
+        { error: "Aplicação prevista não encontrada." },
+        { status: 404, headers },
+      );
+    }
+    if (current.rows[0].status === "CONSUMED") {
+      await client.query("ROLLBACK");
+      return Response.json(
+        { error: "Uma aplicação consumida não pode ser alterada por este fluxo." },
+        { status: 409, headers },
+      );
+    }
+    if (current.rows[0].version !== input.version) {
+      await client.query("ROLLBACK");
+      return Response.json(
+        { error: "A reserva mudou. Recarregue e tente novamente." },
+        { status: 409, headers },
+      );
+    }
+    const updated = await client.query(
+      "UPDATE inventory_patient_treatment_schedule SET status=$2,version=version+1,updated_by_user_id=$3,updated_at=now() WHERE id=$1 RETURNING *",
+      [input.scheduleId, input.status, auth.user.id],
+    );
+    await client.query(
+      `INSERT INTO inventory_patient_schedule_changes(organization_id,schedule_id,before_data,after_data,reason,actor,actor_user_id) VALUES($1,$2,$3,$4,$5,$6,$7)`,
+      [
+        auth.organizationId,
+        input.scheduleId,
+        current.rows[0],
+        updated.rows[0],
+        input.reason,
+        actor(auth).name,
+        actor(auth).userId,
+      ],
+    );
+    await client.query("COMMIT");
+    return Response.json({ data: { id: input.scheduleId } }, { headers });
+  } catch {
+    await client.query("ROLLBACK").catch(() => {});
+    return Response.json(
+      { error: "Não foi possível atualizar a previsão do paciente." },
       { status: 503, headers },
     );
   } finally {

@@ -1,4 +1,4 @@
-import { beforeAll, afterAll, describe, it, expect } from "vitest";
+import { beforeAll, afterAll, describe, it, expect, vi } from "vitest";
 import { migrate } from "drizzle-orm/node-postgres/migrator";
 import { randomUUID } from "node:crypto";
 import { readFile } from "node:fs/promises";
@@ -24,6 +24,11 @@ import { integrationCredentialResponse } from "./integration-credentials";
 import { pricingResponse } from "./pricing";
 import { patientsResponse } from "./patients";
 import { patientDetailResponse } from "./patient-treatments";
+vi.mock("@vercel/blob", () => ({
+  put: vi.fn(async (pathname: string) => ({ pathname })),
+  del: vi.fn(async () => undefined),
+  get: vi.fn(async () => null),
+}));
 const origin = "http://localhost:4317";
 let cookie = "";
 beforeAll(async () => {
@@ -355,9 +360,12 @@ describe("operational patients", () => {
         canManage: true,
       }),
     );
-    const product = await getPool().query(
-      "SELECT id FROM inventory_products WHERE organization_id=(SELECT organization_id FROM inventory_patients WHERE id=$1) LIMIT 1",
-      [patientId],
+    const treatmentProductId = randomUUID();
+    await getPool().query(
+      `INSERT INTO inventory_products(id,organization_id,name,sku,category,unit,minimum)
+       SELECT $1,organization_id,'Produto Tratamento Sintético',$2,'Teste','UN',0
+       FROM inventory_patients WHERE id=$3`,
+      [treatmentProductId, `TRAT-${patientId.slice(0, 8)}`, patientId],
     );
     const treatmentId = randomUUID();
     const treatment = await patientDetailResponse(
@@ -368,7 +376,7 @@ describe("operational patients", () => {
           action: "CREATE_TREATMENT",
           id: treatmentId,
           patientId,
-          productId: product.rows[0].id,
+          productId: treatmentProductId,
           doseQuantity: 2.5,
           doseUnit: "MG",
           route: "SC",
@@ -387,9 +395,108 @@ describe("operational patients", () => {
         headers: { cookie: managerCookie },
       }),
     );
-    expect((await detail.json()).data.treatments).toEqual([
+    const detailBody = (await detail.json()).data;
+    expect(detailBody.treatments).toEqual([
       expect.objectContaining({ id: treatmentId, frequencyEveryDays: "7.00" }),
     ]);
+    expect(detailBody.schedule).toHaveLength(8);
+    expect(detailBody.schedule[1]).toEqual(
+      expect.objectContaining({ sequence: 2, scheduledOn: "2099-01-17", status: "PLANNED" }),
+    );
+    const movementCount = await getPool().query(
+      "SELECT count(*)::integer AS count FROM inventory_movements",
+    );
+    const purchaseId = randomUUID();
+    expect(
+      (
+        await patientDetailResponse(
+          new Request(`${origin}/api/v1/inventory/patient-detail?patientId=${patientId}`, {
+            method: "POST",
+            headers: { cookie: managerCookie, origin, "Content-Type": "application/json" },
+            body: JSON.stringify({
+              action: "CREATE_PURCHASE",
+              id: purchaseId,
+              patientId,
+              treatmentId,
+              purchasedQuantity: 20,
+              totalValue: 1800,
+              reference: "VENDA-TESTE-001",
+              purchasedOn: "2099-01-01",
+              reason: "Compra sintética para validar cobertura do tratamento.",
+            }),
+          }),
+        )
+      ).status,
+    ).toBe(201);
+    const firstSchedule = detailBody.schedule[0];
+    expect(
+      (
+        await patientDetailResponse(
+          new Request(`${origin}/api/v1/inventory/patient-detail?patientId=${patientId}`, {
+            method: "POST",
+            headers: { cookie: managerCookie, origin, "Content-Type": "application/json" },
+            body: JSON.stringify({
+              action: "UPDATE_SCHEDULE_STATUS",
+              patientId,
+              scheduleId: firstSchedule.id,
+              status: "RESERVED",
+              version: firstSchedule.version,
+              reason: "Reserva sintética para validar previsão sem baixa física.",
+            }),
+          }),
+        )
+      ).status,
+    ).toBe(200);
+    const movementCountAfter = await getPool().query(
+      "SELECT count(*)::integer AS count FROM inventory_movements",
+    );
+    expect(movementCountAfter.rows[0].count).toBe(movementCount.rows[0].count);
+    const supply = await patientDetailResponse(
+      new Request(`${origin}/api/v1/inventory/patient-detail?patientId=${patientId}`, {
+        headers: { cookie: managerCookie },
+      }),
+    );
+    expect((await supply.json()).data).toEqual(
+      expect.objectContaining({
+        purchases: [expect.objectContaining({ id: purchaseId, purchasedQuantity: "20.000000" })],
+        schedule: expect.arrayContaining([
+          expect.objectContaining({ id: firstSchedule.id, status: "RESERVED" }),
+        ]),
+        supplySummaries: [
+          expect.objectContaining({
+            treatmentId,
+            purchasedQuantity: 20,
+            reservedQuantity: 2.5,
+            consumedQuantity: 0,
+          }),
+        ],
+      }),
+    );
+    const prescription = new FormData();
+    prescription.set("treatmentId", treatmentId);
+    prescription.set("reason", "Prescrição sintética para validar armazenamento privado.");
+    prescription.set(
+      "file",
+      new File(["%PDF-1.4 synthetic"], "prescricao-teste.pdf", { type: "application/pdf" }),
+    );
+    const uploaded = await patientDetailResponse(
+      new Request(`${origin}/api/v1/inventory/patient-detail?patientId=${patientId}`, {
+        method: "POST",
+        headers: { cookie: managerCookie, origin },
+        body: prescription,
+      }),
+    );
+    expect(uploaded.status).toBe(201);
+    const storedPrescription = await getPool().query(
+      "SELECT blob_pathname,original_filename FROM inventory_patient_prescriptions WHERE patient_id=$1",
+      [patientId],
+    );
+    expect(storedPrescription.rows).toEqual([
+      expect.objectContaining({ original_filename: "prescricao-teste.pdf" }),
+    ]);
+    expect(storedPrescription.rows[0].blob_pathname).toMatch(
+      new RegExp(`^prescriptions/.+/${patientId}/.+\\.pdf$`),
+    );
     const juazeiroManager = await scopedCookie(juazeiro, "UNIT_MANAGER");
     expect(
       (

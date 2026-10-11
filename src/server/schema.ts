@@ -511,6 +511,124 @@ export const patientTreatmentChanges = pgTable(
   ],
 );
 
+export const patientTreatmentPurchases = pgTable(
+  "inventory_patient_treatment_purchases",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id),
+    patientId: uuid("patient_id")
+      .notNull()
+      .references(() => patients.id),
+    treatmentId: uuid("treatment_id")
+      .notNull()
+      .references(() => patientTreatments.id),
+    unitId: uuid("unit_id")
+      .notNull()
+      .references(() => units.id),
+    purchasedQuantity: numeric("purchased_quantity", { precision: 18, scale: 6 }).notNull(),
+    quantityUnit: text("quantity_unit").notNull(),
+    totalValue: numeric("total_value", { precision: 14, scale: 2 }),
+    reference: text("reference").notNull(),
+    purchasedOn: date("purchased_on").notNull(),
+    reason: text("reason").notNull(),
+    actor: text("actor").notNull(),
+    actorUserId: uuid("actor_user_id").references(() => users.id),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("inventory_patient_purchase_treatment_date").on(t.treatmentId, t.purchasedOn),
+    index("inventory_patient_purchase_patient").on(t.patientId, t.createdAt),
+    index("inventory_patient_purchase_organization").on(t.organizationId, t.createdAt),
+    check("patient_purchase_quantity_positive", sql`${t.purchasedQuantity} > 0`),
+    check("patient_purchase_unit_valid", sql`${t.quantityUnit} IN ('MG','ML','UI','UNIT')`),
+    check(
+      "patient_purchase_value_nonnegative",
+      sql`${t.totalValue} IS NULL OR ${t.totalValue} >= 0`,
+    ),
+    check(
+      "patient_purchase_reference_valid",
+      sql`char_length(trim(${t.reference})) BETWEEN 3 AND 100`,
+    ),
+    check("patient_purchase_reason_valid", sql`char_length(trim(${t.reason})) BETWEEN 10 AND 500`),
+  ],
+);
+
+export const patientTreatmentSchedule = pgTable(
+  "inventory_patient_treatment_schedule",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id),
+    patientId: uuid("patient_id")
+      .notNull()
+      .references(() => patients.id),
+    treatmentId: uuid("treatment_id")
+      .notNull()
+      .references(() => patientTreatments.id),
+    unitId: uuid("unit_id")
+      .notNull()
+      .references(() => units.id),
+    productId: uuid("product_id")
+      .notNull()
+      .references(() => products.id),
+    sequence: integer("sequence").notNull(),
+    scheduledOn: date("scheduled_on").notNull(),
+    doseQuantity: numeric("dose_quantity", { precision: 18, scale: 6 }).notNull(),
+    doseUnit: text("dose_unit").notNull(),
+    status: text("status").notNull().default("PLANNED"),
+    version: integer("version").notNull().default(0),
+    updatedByUserId: uuid("updated_by_user_id").references(() => users.id),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("inventory_patient_schedule_treatment_sequence_unique").on(
+      t.treatmentId,
+      t.sequence,
+    ),
+    index("inventory_patient_schedule_unit_date_status").on(t.unitId, t.scheduledOn, t.status),
+    index("inventory_patient_schedule_product_date").on(t.productId, t.scheduledOn),
+    index("inventory_patient_schedule_patient").on(t.patientId, t.scheduledOn),
+    check("patient_schedule_sequence_positive", sql`${t.sequence} > 0`),
+    check("patient_schedule_dose_positive", sql`${t.doseQuantity} > 0`),
+    check("patient_schedule_unit_valid", sql`${t.doseUnit} IN ('MG','ML','UI','UNIT')`),
+    check(
+      "patient_schedule_status_valid",
+      sql`${t.status} IN ('PLANNED','RESERVED','CONSUMED','CANCELED')`,
+    ),
+    check("patient_schedule_version_nonnegative", sql`${t.version} >= 0`),
+  ],
+);
+
+export const patientScheduleChanges = pgTable(
+  "inventory_patient_schedule_changes",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id),
+    scheduleId: uuid("schedule_id")
+      .notNull()
+      .references(() => patientTreatmentSchedule.id),
+    beforeData: jsonb("before_data").notNull(),
+    afterData: jsonb("after_data").notNull(),
+    reason: text("reason").notNull(),
+    actor: text("actor").notNull(),
+    actorUserId: uuid("actor_user_id").references(() => users.id),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("inventory_patient_schedule_change_history").on(t.scheduleId, t.createdAt),
+    check(
+      "patient_schedule_change_reason_valid",
+      sql`char_length(trim(${t.reason})) BETWEEN 10 AND 500`,
+    ),
+  ],
+);
+
 export const locations = pgTable(
   "inventory_locations",
   {
