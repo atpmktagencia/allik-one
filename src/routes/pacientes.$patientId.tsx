@@ -1,22 +1,6 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { PatientDetailPage } from "@/components/clinic/patient-detail";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 export const Route = createFileRoute("/pacientes/$patientId")({
-  head: () => ({
-    meta: [
-      { title: "Patient 360 — Estoque Allik Fortaleza" },
-      { name: "description", content: "Visão integrada e fictícia da jornada de um paciente." },
-      { property: "og:title", content: "Patient 360 — Estoque Allik Fortaleza" },
-      {
-        property: "og:description",
-        content: "Visão integrada e fictícia da jornada de um paciente.",
-      },
-      { property: "og:type", content: "website" },
-      { name: "twitter:card", content: "summary_large_image" },
-    ],
-  }),
-  component: PatientRoute,
+  beforeLoad: () => {
+    throw redirect({ to: "/pacientes" });
+  },
 });
-function PatientRoute() {
-  const { patientId } = Route.useParams();
-  return <PatientDetailPage patientId={patientId} />;
-}

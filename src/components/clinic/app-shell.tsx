@@ -10,6 +10,7 @@ import {
   Menu,
   Package,
   PackageCheck,
+  UserRound,
   ShieldCheck,
   Users,
   Warehouse,
@@ -36,6 +37,8 @@ const operationItems = [
   { label: "Aplicações", to: "/aplicacoes", icon: Syringe },
 ] as const;
 
+const careItems = [{ label: "Pacientes", to: "/pacientes", icon: UserRound }] as const;
+
 const pageTitles: Record<string, string> = {
   "/estoque": "Estoque atual",
   "/estoque/recebimento": "Pedidos e entradas",
@@ -45,6 +48,7 @@ const pageTitles: Record<string, string> = {
   "/estoque/valores": "Precificação",
   "/aplicacoes": "Aplicações",
   "/aplicacoes/nova": "Registrar aplicação",
+  "/pacientes": "Pacientes",
   "/estoque/usuarios": "Usuários",
   "/estoque/integracoes": "Integrações",
   "/estoque/minha-conta": "Minha conta",
@@ -101,7 +105,9 @@ function Navigation({
   onNavigate?: (() => void) | undefined;
 }) {
   const path = useRouterState({ select: (state) => state.location.pathname });
-  const renderItems = (items: typeof operationItems) =>
+  const renderItems = (
+    items: ReadonlyArray<(typeof operationItems)[number] | (typeof careItems)[number]>,
+  ) =>
     items.map((item) => {
       const active = item.to === "/estoque" ? path === "/estoque" : path.startsWith(item.to);
       return (
@@ -128,6 +134,10 @@ function Navigation({
         Estoque
       </p>
       <div className="space-y-1">{renderItems(operationItems)}</div>
+      <p className="mb-2 mt-7 px-3 text-[10px] font-semibold uppercase tracking-widest text-sidebar-muted">
+        Atendimento
+      </p>
+      <div className="space-y-1">{renderItems(careItems)}</div>
       <p className="mb-2 mt-7 px-3 text-[10px] font-semibold uppercase tracking-widest text-sidebar-muted">
         Administração
       </p>
@@ -209,7 +219,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const [unitId, setUnitId] = useState("");
   const queryClient = useQueryClient();
   useEffect(() => {
-    if (!path.startsWith("/estoque")) return;
+    if (!path.startsWith("/estoque") && !path.startsWith("/pacientes")) return;
     void fetch("/api/inventory-session", { credentials: "same-origin" })
       .then(async (response) => {
         if (!response.ok) return;
@@ -280,7 +290,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             </div>
           </div>
         </header>
-        {path.startsWith("/estoque") && identity && (
+        {(path.startsWith("/estoque") || path.startsWith("/pacientes")) && identity && (
           <div className="flex flex-wrap items-center justify-end gap-3 border-b bg-muted/30 px-4 py-2 text-sm lg:px-7">
             <div className="flex items-center gap-2">
               <label htmlFor="inventory-unit" className="text-muted-foreground">

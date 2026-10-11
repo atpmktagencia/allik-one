@@ -22,6 +22,7 @@ import { writeOffResponse } from "./write-offs";
 import { activationResponse, userAdminResponse } from "./user-admin";
 import { integrationCredentialResponse } from "./integration-credentials";
 import { pricingResponse } from "./pricing";
+import { patientsResponse } from "./patients";
 const origin = "http://localhost:4317";
 let cookie = "";
 beforeAll(async () => {
@@ -310,6 +311,96 @@ describe("fractional presentation and dose pricing", () => {
       }),
     );
     expect(response.status).toBe(403);
+  });
+});
+
+describe("operational patients", () => {
+  it("creates an audited patient and enforces unit scope on reads and writes", async () => {
+    const fortaleza = "a1100000-0000-4000-8000-000000000101";
+    const juazeiro = "a1100000-0000-4000-8000-000000000102";
+    const managerCookie = await scopedCookie(fortaleza, "UNIT_MANAGER");
+    const patientId = randomUUID();
+    const body = {
+      action: "CREATE",
+      id: patientId,
+      primaryUnitId: fortaleza,
+      internalCode: `PAC-${patientId.slice(0, 8)}`,
+      fullName: "Paciente Operacional Sintético",
+      phone: "85999990000",
+      email: "paciente@example.test",
+      active: true,
+      consentStatus: "PENDING",
+      version: 0,
+      reason: "Cadastro sintético para validar o escopo por unidade.",
+    };
+    const created = await patientsResponse(
+      new Request(`${origin}/api/v1/inventory/patients`, {
+        method: "POST",
+        headers: { cookie: managerCookie, origin, "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      }),
+    );
+    expect(created.status).toBe(201);
+
+    const list = await patientsResponse(
+      new Request(`${origin}/api/v1/inventory/patients?unitId=${fortaleza}`, {
+        headers: { cookie: managerCookie },
+      }),
+    );
+    expect((await list.json()).data).toEqual(
+      expect.objectContaining({
+        patients: [expect.objectContaining({ id: patientId, primaryUnitId: fortaleza })],
+        units: [expect.objectContaining({ id: fortaleza })],
+        canManage: true,
+      }),
+    );
+    expect(
+      (
+        await patientsResponse(
+          new Request(`${origin}/api/v1/inventory/patients?unitId=${juazeiro}`, {
+            headers: { cookie: managerCookie },
+          }),
+        )
+      ).status,
+    ).toBe(403);
+    expect(
+      (
+        await patientsResponse(
+          new Request(`${origin}/api/v1/inventory/patients`, {
+            method: "POST",
+            headers: { cookie: managerCookie, origin, "Content-Type": "application/json" },
+            body: JSON.stringify({ ...body, id: randomUUID(), primaryUnitId: juazeiro }),
+          }),
+        )
+      ).status,
+    ).toBe(403);
+
+    const changes = await getPool().query(
+      "SELECT action,actor_user_id FROM inventory_patient_changes WHERE patient_id=$1",
+      [patientId],
+    );
+    expect(changes.rows).toEqual([
+      expect.objectContaining({ action: "CREATE", actor_user_id: expect.any(String) }),
+    ]);
+    await expect(
+      getPool().query(
+        "UPDATE inventory_patient_changes SET reason='alteração proibida' WHERE patient_id=$1",
+        [patientId],
+      ),
+    ).rejects.toThrow();
+  });
+
+  it("does not expose patient identity to finance", async () => {
+    const financeCookie = await scopedCookie("a1100000-0000-4000-8000-000000000101", "FINANCE");
+    expect(
+      (
+        await patientsResponse(
+          new Request(`${origin}/api/v1/inventory/patients`, {
+            headers: { cookie: financeCookie },
+          }),
+        )
+      ).status,
+    ).toBe(403);
   });
 });
 

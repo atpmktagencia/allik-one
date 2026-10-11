@@ -46,6 +46,8 @@ export type Permission =
   | "inventory.trace"
   | "inventory.audit.read"
   | "inventory.loss.record"
+  | "patients.read"
+  | "patients.manage"
   | "users.manage"
   | "organization.read";
 export type AuthContext = {
@@ -71,13 +73,19 @@ const allPermissions: Permission[] = [
   "inventory.trace",
   "inventory.audit.read",
   "inventory.loss.record",
+  "patients.read",
+  "patients.manage",
   "users.manage",
   "organization.read",
 ];
 const permissions: Record<Role, ReadonlySet<Permission>> = {
   SUPER_ADMIN: new Set(allPermissions),
   PARTNER_ADMIN: new Set(allPermissions.filter((permission) => permission !== "users.manage")),
-  INVENTORY_MANAGER: new Set(allPermissions.filter((permission) => permission !== "users.manage")),
+  INVENTORY_MANAGER: new Set(
+    allPermissions.filter(
+      (permission) => permission !== "users.manage" && permission !== "patients.manage",
+    ),
+  ),
   UNIT_MANAGER: new Set([
     "inventory.read",
     "inventory.catalog.manage",
@@ -91,6 +99,8 @@ const permissions: Record<Role, ReadonlySet<Permission>> = {
     "inventory.trace",
     "inventory.audit.read",
     "inventory.loss.record",
+    "patients.read",
+    "patients.manage",
     "organization.read",
   ]),
   FINANCE: new Set([

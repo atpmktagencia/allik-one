@@ -1,12 +1,12 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { PatientsPage } from "@/components/clinic/feature-pages";
+import { PatientsPage } from "@/components/clinic/patients-page";
 export const Route = createFileRoute("/pacientes")({
   head: () => ({
     meta: [
-      { title: "Pacientes — Estoque Allik Fortaleza" },
-      { name: "description", content: "Base única de pacientes e jornadas de cuidado." },
-      { property: "og:title", content: "Pacientes — Estoque Allik Fortaleza" },
-      { property: "og:description", content: "Base única de pacientes e jornadas de cuidado." },
+      { title: "Pacientes — Allik One" },
+      { name: "description", content: "Cadastro operacional de pacientes por unidade." },
+      { property: "og:title", content: "Pacientes — Allik One" },
+      { property: "og:description", content: "Cadastro operacional de pacientes por unidade." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
     ],

@@ -306,6 +306,92 @@ export const pricingChanges = pgTable(
   (t) => [index("inventory_pricing_change_history").on(t.organizationId, t.createdAt)],
 );
 
+export const patients = pgTable(
+  "inventory_patients",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id),
+    primaryUnitId: uuid("primary_unit_id")
+      .notNull()
+      .references(() => units.id),
+    internalCode: text("internal_code").notNull(),
+    fullName: text("full_name").notNull(),
+    phone: text("phone"),
+    email: text("email"),
+    active: boolean("active").notNull().default(true),
+    consentStatus: text("consent_status").notNull().default("PENDING"),
+    consentRecordedAt: timestamp("consent_recorded_at", { withTimezone: true }),
+    consentRecordedByUserId: uuid("consent_recorded_by_user_id").references(() => users.id),
+    createdByUserId: uuid("created_by_user_id").references(() => users.id),
+    updatedByUserId: uuid("updated_by_user_id").references(() => users.id),
+    version: integer("version").notNull().default(0),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("inventory_patient_internal_code_unique").on(
+      t.organizationId,
+      sql`lower(${t.internalCode})`,
+    ),
+    index("inventory_patient_unit_active_name").on(
+      t.primaryUnitId,
+      t.active,
+      sql`lower(${t.fullName})`,
+    ),
+    index("inventory_patient_organization").on(t.organizationId, t.createdAt),
+    check(
+      "patient_internal_code_valid",
+      sql`char_length(trim(${t.internalCode})) BETWEEN 3 AND 40`,
+    ),
+    check("patient_name_valid", sql`char_length(trim(${t.fullName})) BETWEEN 3 AND 180`),
+    check(
+      "patient_phone_valid",
+      sql`${t.phone} IS NULL OR char_length(trim(${t.phone})) BETWEEN 8 AND 30`,
+    ),
+    check(
+      "patient_email_valid",
+      sql`${t.email} IS NULL OR char_length(trim(${t.email})) BETWEEN 5 AND 254`,
+    ),
+    check(
+      "patient_consent_status_valid",
+      sql`${t.consentStatus} IN ('PENDING','RECORDED','REVOKED')`,
+    ),
+    check(
+      "patient_consent_evidence_valid",
+      sql`(${t.consentStatus} = 'PENDING' AND ${t.consentRecordedAt} IS NULL AND ${t.consentRecordedByUserId} IS NULL) OR (${t.consentStatus} IN ('RECORDED','REVOKED') AND ${t.consentRecordedAt} IS NOT NULL)`,
+    ),
+    check("patient_version_nonnegative", sql`${t.version} >= 0`),
+  ],
+);
+
+export const patientChanges = pgTable(
+  "inventory_patient_changes",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id),
+    patientId: uuid("patient_id")
+      .notNull()
+      .references(() => patients.id),
+    action: text("action").notNull(),
+    beforeData: jsonb("before_data"),
+    afterData: jsonb("after_data").notNull(),
+    reason: text("reason").notNull(),
+    actor: text("actor").notNull(),
+    actorUserId: uuid("actor_user_id").references(() => users.id),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("inventory_patient_change_history").on(t.patientId, t.createdAt),
+    index("inventory_patient_change_organization").on(t.organizationId, t.createdAt),
+    check("patient_change_action_valid", sql`${t.action} IN ('CREATE','UPDATE')`),
+    check("patient_change_reason_valid", sql`char_length(trim(${t.reason})) BETWEEN 10 AND 500`),
+  ],
+);
+
 export const locations = pgTable(
   "inventory_locations",
   {
