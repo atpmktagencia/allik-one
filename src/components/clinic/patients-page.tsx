@@ -1,4 +1,5 @@
 import { useDeferredValue, useMemo, useState, type FormEvent } from "react";
+import { Link } from "@tanstack/react-router";
 import { Pencil, Plus, Search, UserRound } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -324,7 +325,13 @@ export function PatientsPage() {
                 {filteredPatients.map((patient) => (
                   <tr key={patient.id}>
                     <td className="px-5 py-4">
-                      <p className="font-medium">{patient.fullName}</p>
+                      <Link
+                        to="/pacientes/$patientId"
+                        params={{ patientId: patient.id }}
+                        className="font-medium text-primary underline-offset-4 hover:underline"
+                      >
+                        {patient.fullName}
+                      </Link>
                       <p className="text-xs text-muted-foreground">{patient.internalCode}</p>
                     </td>
                     <td className="px-5 py-4">{patient.unitName}</td>

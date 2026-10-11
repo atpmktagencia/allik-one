@@ -39,6 +39,7 @@ import { Route as PacientesPatientIdRouteImport } from './routes/pacientes.$pati
 import { Route as EstoqueLotesLotIdRouteImport } from './routes/estoque/lotes/$lotId'
 import { Route as EstoqueProdutosProductIdRouteImport } from './routes/estoque/produtos/$productId'
 import { Route as ApiV1InventorySplatRouteImport } from './routes/api/v1/inventory/$'
+import { Route as ApiV1InventoryPrescriptionsPrescriptionIdRouteImport } from './routes/api/v1/inventory/prescriptions.$prescriptionId'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -191,6 +192,12 @@ const ApiV1InventorySplatRoute = ApiV1InventorySplatRouteImport.update({
   path: '/api/v1/inventory/$',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiV1InventoryPrescriptionsPrescriptionIdRoute =
+  ApiV1InventoryPrescriptionsPrescriptionIdRouteImport.update({
+    id: '/api/v1/inventory/prescriptions/$prescriptionId',
+    path: '/api/v1/inventory/prescriptions/$prescriptionId',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -223,6 +230,7 @@ export interface FileRoutesByFullPath {
   '/estoque/lotes/$lotId': typeof EstoqueLotesLotIdRoute
   '/estoque/produtos/$productId': typeof EstoqueProdutosProductIdRoute
   '/api/v1/inventory/$': typeof ApiV1InventorySplatRoute
+  '/api/v1/inventory/prescriptions/$prescriptionId': typeof ApiV1InventoryPrescriptionsPrescriptionIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -253,6 +261,7 @@ export interface FileRoutesByTo {
   '/estoque/lotes/$lotId': typeof EstoqueLotesLotIdRoute
   '/estoque/produtos/$productId': typeof EstoqueProdutosProductIdRoute
   '/api/v1/inventory/$': typeof ApiV1InventorySplatRoute
+  '/api/v1/inventory/prescriptions/$prescriptionId': typeof ApiV1InventoryPrescriptionsPrescriptionIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -286,6 +295,7 @@ export interface FileRoutesById {
   '/estoque/lotes/$lotId': typeof EstoqueLotesLotIdRoute
   '/estoque/produtos/$productId': typeof EstoqueProdutosProductIdRoute
   '/api/v1/inventory/$': typeof ApiV1InventorySplatRoute
+  '/api/v1/inventory/prescriptions/$prescriptionId': typeof ApiV1InventoryPrescriptionsPrescriptionIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -320,6 +330,7 @@ export interface FileRouteTypes {
     | '/estoque/lotes/$lotId'
     | '/estoque/produtos/$productId'
     | '/api/v1/inventory/$'
+    | '/api/v1/inventory/prescriptions/$prescriptionId'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -350,6 +361,7 @@ export interface FileRouteTypes {
     | '/estoque/lotes/$lotId'
     | '/estoque/produtos/$productId'
     | '/api/v1/inventory/$'
+    | '/api/v1/inventory/prescriptions/$prescriptionId'
   id:
     | '__root__'
     | '/'
@@ -382,6 +394,7 @@ export interface FileRouteTypes {
     | '/estoque/lotes/$lotId'
     | '/estoque/produtos/$productId'
     | '/api/v1/inventory/$'
+    | '/api/v1/inventory/prescriptions/$prescriptionId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -399,6 +412,7 @@ export interface RootRouteChildren {
   ApiInventoryActivationRoute: typeof ApiInventoryActivationRoute
   ApiInventorySessionRoute: typeof ApiInventorySessionRoute
   ApiV1InventorySplatRoute: typeof ApiV1InventorySplatRoute
+  ApiV1InventoryPrescriptionsPrescriptionIdRoute: typeof ApiV1InventoryPrescriptionsPrescriptionIdRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -613,6 +627,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiV1InventorySplatRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/v1/inventory/prescriptions/$prescriptionId': {
+      id: '/api/v1/inventory/prescriptions/$prescriptionId'
+      path: '/api/v1/inventory/prescriptions/$prescriptionId'
+      fullPath: '/api/v1/inventory/prescriptions/$prescriptionId'
+      preLoaderRoute: typeof ApiV1InventoryPrescriptionsPrescriptionIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -692,6 +713,8 @@ const rootRouteChildren: RootRouteChildren = {
   ApiInventoryActivationRoute: ApiInventoryActivationRoute,
   ApiInventorySessionRoute: ApiInventorySessionRoute,
   ApiV1InventorySplatRoute: ApiV1InventorySplatRoute,
+  ApiV1InventoryPrescriptionsPrescriptionIdRoute:
+    ApiV1InventoryPrescriptionsPrescriptionIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

@@ -23,6 +23,7 @@ import { activationResponse, userAdminResponse } from "./user-admin";
 import { integrationCredentialResponse } from "./integration-credentials";
 import { pricingResponse } from "./pricing";
 import { patientsResponse } from "./patients";
+import { patientDetailResponse } from "./patient-treatments";
 const origin = "http://localhost:4317";
 let cookie = "";
 beforeAll(async () => {
@@ -354,6 +355,51 @@ describe("operational patients", () => {
         canManage: true,
       }),
     );
+    const product = await getPool().query(
+      "SELECT id FROM inventory_products WHERE organization_id=(SELECT organization_id FROM inventory_patients WHERE id=$1) LIMIT 1",
+      [patientId],
+    );
+    const treatmentId = randomUUID();
+    const treatment = await patientDetailResponse(
+      new Request(`${origin}/api/v1/inventory/patient-detail?patientId=${patientId}`, {
+        method: "POST",
+        headers: { cookie: managerCookie, origin, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "CREATE_TREATMENT",
+          id: treatmentId,
+          patientId,
+          productId: product.rows[0].id,
+          doseQuantity: 2.5,
+          doseUnit: "MG",
+          route: "SC",
+          frequencyEveryDays: 7,
+          firstScheduledOn: "2099-01-10",
+          plannedAdministrations: 8,
+          status: "PLANNED",
+          version: 0,
+          reason: "Tratamento sintético para validar frequência e auditoria.",
+        }),
+      }),
+    );
+    expect(treatment.status).toBe(201);
+    const detail = await patientDetailResponse(
+      new Request(`${origin}/api/v1/inventory/patient-detail?patientId=${patientId}`, {
+        headers: { cookie: managerCookie },
+      }),
+    );
+    expect((await detail.json()).data.treatments).toEqual([
+      expect.objectContaining({ id: treatmentId, frequencyEveryDays: "7.00" }),
+    ]);
+    const juazeiroManager = await scopedCookie(juazeiro, "UNIT_MANAGER");
+    expect(
+      (
+        await patientDetailResponse(
+          new Request(`${origin}/api/v1/inventory/patient-detail?patientId=${patientId}`, {
+            headers: { cookie: juazeiroManager },
+          }),
+        )
+      ).status,
+    ).toBe(404);
     expect(
       (
         await patientsResponse(

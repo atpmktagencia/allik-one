@@ -113,6 +113,13 @@
       "when": 1791849600000,
       "tag": "0015_operational_patients",
       "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1791936000000,
+      "tag": "0016_patient_treatments",
+      "breakpoints": true
     }
   ]
 }

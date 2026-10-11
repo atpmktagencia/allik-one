@@ -392,6 +392,125 @@ export const patientChanges = pgTable(
   ],
 );
 
+export const patientTreatments = pgTable(
+  "inventory_patient_treatments",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id),
+    patientId: uuid("patient_id")
+      .notNull()
+      .references(() => patients.id),
+    unitId: uuid("unit_id")
+      .notNull()
+      .references(() => units.id),
+    productId: uuid("product_id")
+      .notNull()
+      .references(() => products.id),
+    doseQuantity: numeric("dose_quantity", { precision: 18, scale: 6 }).notNull(),
+    doseUnit: text("dose_unit").notNull(),
+    route: text("route").notNull(),
+    frequencyEveryDays: numeric("frequency_every_days", { precision: 10, scale: 2 }).notNull(),
+    firstScheduledOn: date("first_scheduled_on").notNull(),
+    plannedAdministrations: integer("planned_administrations"),
+    status: text("status").notNull().default("PLANNED"),
+    version: integer("version").notNull().default(0),
+    createdByUserId: uuid("created_by_user_id").references(() => users.id),
+    updatedByUserId: uuid("updated_by_user_id").references(() => users.id),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("inventory_patient_treatment_patient_status").on(
+      t.patientId,
+      t.status,
+      t.firstScheduledOn,
+    ),
+    index("inventory_patient_treatment_unit_product").on(t.unitId, t.productId),
+    index("inventory_patient_treatment_organization").on(t.organizationId, t.createdAt),
+    check("patient_treatment_dose_positive", sql`${t.doseQuantity} > 0`),
+    check("patient_treatment_unit_valid", sql`${t.doseUnit} IN ('MG','ML','UI','UNIT')`),
+    check("patient_treatment_route_valid", sql`char_length(trim(${t.route})) BETWEEN 2 AND 40`),
+    check("patient_treatment_frequency_positive", sql`${t.frequencyEveryDays} > 0`),
+    check(
+      "patient_treatment_count_positive",
+      sql`${t.plannedAdministrations} IS NULL OR ${t.plannedAdministrations} > 0`,
+    ),
+    check(
+      "patient_treatment_status_valid",
+      sql`${t.status} IN ('PLANNED','ACTIVE','PAUSED','COMPLETED','CANCELED')`,
+    ),
+    check("patient_treatment_version_nonnegative", sql`${t.version} >= 0`),
+  ],
+);
+
+export const patientPrescriptions = pgTable(
+  "inventory_patient_prescriptions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id),
+    patientId: uuid("patient_id")
+      .notNull()
+      .references(() => patients.id),
+    treatmentId: uuid("treatment_id").references(() => patientTreatments.id),
+    blobPathname: text("blob_pathname").notNull().unique(),
+    originalFilename: text("original_filename").notNull(),
+    contentType: text("content_type").notNull(),
+    sizeBytes: integer("size_bytes").notNull(),
+    uploadedByUserId: uuid("uploaded_by_user_id").references(() => users.id),
+    uploadedAt: timestamp("uploaded_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("inventory_patient_prescription_patient").on(t.patientId, t.uploadedAt),
+    index("inventory_patient_prescription_treatment").on(t.treatmentId),
+    index("inventory_patient_prescription_organization").on(t.organizationId, t.uploadedAt),
+    check(
+      "patient_prescription_filename_valid",
+      sql`char_length(trim(${t.originalFilename})) BETWEEN 1 AND 180`,
+    ),
+    check(
+      "patient_prescription_type_valid",
+      sql`${t.contentType} IN ('application/pdf','image/jpeg','image/png','image/heic','image/heif')`,
+    ),
+    check("patient_prescription_size_valid", sql`${t.sizeBytes} BETWEEN 1 AND 10485760`),
+  ],
+);
+
+export const patientTreatmentChanges = pgTable(
+  "inventory_patient_treatment_changes",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id),
+    treatmentId: uuid("treatment_id")
+      .notNull()
+      .references(() => patientTreatments.id),
+    action: text("action").notNull(),
+    beforeData: jsonb("before_data"),
+    afterData: jsonb("after_data").notNull(),
+    reason: text("reason").notNull(),
+    actor: text("actor").notNull(),
+    actorUserId: uuid("actor_user_id").references(() => users.id),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("inventory_patient_treatment_change_history").on(t.treatmentId, t.createdAt),
+    index("inventory_patient_treatment_change_organization").on(t.organizationId, t.createdAt),
+    check(
+      "patient_treatment_change_action_valid",
+      sql`${t.action} IN ('CREATE','UPDATE','UPLOAD_PRESCRIPTION')`,
+    ),
+    check(
+      "patient_treatment_change_reason_valid",
+      sql`char_length(trim(${t.reason})) BETWEEN 10 AND 500`,
+    ),
+  ],
+);
+
 export const locations = pgTable(
   "inventory_locations",
   {
