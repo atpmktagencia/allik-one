@@ -80,9 +80,7 @@ export async function applicationResponse(request: Request) {
     await client.query("BEGIN");
     // Serialize identical operation IDs before PostgreSQL evaluates the independent
     // reference constraint, so a concurrent retry is always recognized as a replay.
-    await client.query("SELECT pg_advisory_xact_lock(hashtextextended($1,0))", [
-      input.operationId,
-    ]);
+    await client.query("SELECT pg_advisory_xact_lock(hashtextextended($1,0))", [input.operationId]);
     const inserted = await client.query(
       "INSERT INTO inventory_applications(id,request_hash,reference,patient_ref,service,professional,location_id) VALUES($1,$2,$3,$4,$5,$6,$7) ON CONFLICT(id) DO NOTHING RETURNING id",
       [
