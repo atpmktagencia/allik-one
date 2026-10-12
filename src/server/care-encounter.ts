@@ -160,8 +160,8 @@ export async function careEncounterResponse(request: Request) {
     !auth.integration &&
     hasClinicalPermission &&
     !isAssignedProfessional &&
-    !clinicalNote.rows[0] &&
-    !["COMPLETED", "NO_SHOW", "CANCELED"].includes(String(appointment["status"]));
+    clinicalNote.rows[0]?.status !== "FINAL" &&
+    !["NO_SHOW", "CANCELED"].includes(String(appointment["status"]));
 
   return Response.json(
     {
@@ -438,8 +438,7 @@ async function claimAppointment(
       throw new Error("NOT_FOUND");
     if (Number(appointment.version) !== input.version) throw new Error("STALE");
     if (appointment.professional_user_id === auth.user.id) throw new Error("ALREADY_ASSIGNED");
-    if (["COMPLETED", "NO_SHOW", "CANCELED"].includes(appointment.status))
-      throw new Error("TERMINAL");
+    if (["NO_SHOW", "CANCELED"].includes(appointment.status)) throw new Error("TERMINAL");
     await client.query("SELECT pg_advisory_xact_lock(hashtextextended($1,0))", [
       `care-professional:${auth.organizationId}:${auth.user.id}`,
     ]);
@@ -455,11 +454,12 @@ async function claimAppointment(
       !professional.council_region
     )
       throw new Error("INCOMPLETE_COUNCIL");
-    const existingNote = await client.query(
-      "SELECT 1 FROM inventory_clinical_notes WHERE appointment_id=$1 FOR SHARE",
+    const existingNoteResult = await client.query(
+      "SELECT * FROM inventory_clinical_notes WHERE appointment_id=$1 FOR UPDATE",
       [input.appointmentId],
     );
-    if (existingNote.rowCount) throw new Error("NOTE_EXISTS");
+    const existingNote = existingNoteResult.rows[0];
+    if (existingNote?.status === "FINAL") throw new Error("NOTE_FINAL");
     const conflict = await client.query(
       `SELECT 1 FROM inventory_care_appointments
        WHERE organization_id=$1 AND professional_user_id=$2 AND id<>$3
@@ -479,6 +479,27 @@ async function claimAppointment(
        version=version+1,updated_at=now() WHERE id=$1 RETURNING *`,
       [input.appointmentId, auth.user.id],
     );
+    if (existingNote) {
+      const reassignedNote = await client.query(
+        `UPDATE inventory_clinical_notes SET author_user_id=$2,author_name=$3,
+         professional_council=$4,council_number=$5,council_region=$6,
+         version=version+1,updated_at=now() WHERE id=$1 RETURNING *`,
+        [
+          existingNote.id,
+          auth.user.id,
+          professional.name,
+          professional.professional_council,
+          professional.council_number,
+          professional.council_region,
+        ],
+      );
+      await client.query(
+        `INSERT INTO inventory_clinical_note_changes
+         (organization_id,clinical_note_id,action,before_data,after_data,actor_user_id)
+         VALUES($1,$2,'REASSIGN',$3,$4,$5)`,
+        [auth.organizationId, existingNote.id, existingNote, reassignedNote.rows[0], auth.user.id],
+      );
+    }
     const acting = actor(auth);
     await client.query(
       `INSERT INTO inventory_care_appointment_changes
@@ -506,12 +527,12 @@ async function claimAppointment(
           ? ["O atendimento mudou. Atualize a página e tente novamente.", 409]
           : reason === "INCOMPLETE_COUNCIL"
             ? ["Complete seu conselho profissional antes de assumir o atendimento.", 409]
-            : reason === "NOTE_EXISTS"
-              ? ["Este atendimento já possui evolução e não pode trocar de responsável.", 409]
+            : reason === "NOTE_FINAL"
+              ? ["A evolução finalizada é imutável e não pode trocar de responsável.", 409]
               : reason === "CONFLICT"
                 ? ["Você já possui outro atendimento neste horário.", 409]
                 : reason === "TERMINAL"
-                  ? ["Atendimentos encerrados não podem trocar de responsável.", 409]
+                  ? ["Atendimentos cancelados ou com falta não podem trocar de responsável.", 409]
                   : reason === "ALREADY_ASSIGNED"
                     ? ["Este atendimento já está atribuído a você.", 409]
                     : ["Não foi possível assumir o atendimento.", 503];

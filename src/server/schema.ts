@@ -701,7 +701,10 @@ export const clinicalNoteChanges = pgTable(
   },
   (t) => [
     index("clinical_note_change_history").on(t.clinicalNoteId, t.createdAt),
-    check("clinical_note_change_action_valid", sql`${t.action} IN ('CREATE','UPDATE','FINALIZE')`),
+    check(
+      "clinical_note_change_action_valid",
+      sql`${t.action} IN ('CREATE','UPDATE','REASSIGN','FINALIZE')`,
+    ),
   ],
 );
 

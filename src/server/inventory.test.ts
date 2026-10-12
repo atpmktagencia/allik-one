@@ -2143,9 +2143,11 @@ describe("care appointments", () => {
       version: null,
     };
     expect((await clinicalPost(draft)).status).toBe(201);
+    expect((await claim(`allik_inventory_session=${takeoverToken}`, 4)).status).toBe(200);
+    expect((await claim(professionalCookie, 5)).status).toBe(200);
     expect((await clinicalPost({ ...draft, version: null })).status).toBe(409);
-    expect((await clinicalPost({ ...draft, action: "FINALIZE", version: 0 })).status).toBe(200);
-    expect((await clinicalPost({ ...draft, version: 1 })).status).toBe(409);
+    expect((await clinicalPost({ ...draft, action: "FINALIZE", version: 2 })).status).toBe(200);
+    expect((await clinicalPost({ ...draft, version: 3 })).status).toBe(409);
     const storedNote = await getPool().query(
       `SELECT status,author_name AS "authorName",professional_council AS council,
         council_number AS "councilNumber",version FROM inventory_clinical_notes WHERE appointment_id=$1`,
@@ -2157,7 +2159,7 @@ describe("care appointments", () => {
         authorName: "Profissional Agenda Sintético",
         council: "CRM",
         councilNumber: "12345",
-        version: 1,
+        version: 3,
       },
     ]);
     const longitudinal = await patientDetailResponse(
@@ -2307,6 +2309,8 @@ describe("care appointments", () => {
       expect.objectContaining({ action: "STATUS" }),
       expect.objectContaining({ action: "REASSIGN", actor: "Profissional Substituto Sintético" }),
       expect.objectContaining({ action: "REASSIGN", actor: "Profissional Agenda Sintético" }),
+      expect.objectContaining({ action: "REASSIGN", actor: "Profissional Substituto Sintético" }),
+      expect.objectContaining({ action: "REASSIGN", actor: "Profissional Agenda Sintético" }),
     ]);
     expect(
       (
@@ -2314,7 +2318,7 @@ describe("care appointments", () => {
           ...rescheduled,
           action: "UPDATE_STATUS",
           status: "IN_PROGRESS",
-          version: 4,
+          version: 6,
           reason: "Atendimento iniciado durante o teste integrado.",
         })
       ).status,
@@ -2325,7 +2329,7 @@ describe("care appointments", () => {
           ...rescheduled,
           action: "UPDATE_STATUS",
           status: "COMPLETED",
-          version: 5,
+          version: 7,
           reason: "Atendimento concluído durante o teste integrado.",
         })
       ).status,
@@ -2336,7 +2340,7 @@ describe("care appointments", () => {
           ...rescheduled,
           action: "UPDATE",
           status: "COMPLETED",
-          version: 6,
+          version: 8,
           reason: "Tentativa de remarcar atendimento já concluído.",
         })
       ).status,
