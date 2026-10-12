@@ -1,5 +1,5 @@
-import { useDeferredValue, useMemo, useState, type FormEvent } from "react";
-import { Link } from "@tanstack/react-router";
+import { useDeferredValue, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import { Link, useNavigate } from "@tanstack/react-router";
 import { Pencil, Plus, Search, UserRound } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -106,10 +106,22 @@ const consentLabels: Record<ConsentStatus, string> = {
   REVOKED: "Revogado",
 };
 
-export function PatientsPage() {
-  const query = useInventory<Payload>("patients");
+export function PatientsPage({
+  autoCreate = false,
+  returnTo,
+}: {
+  autoCreate?: boolean;
+  returnTo?: "/agenda";
+}) {
   const [search, setSearch] = useState("");
   const deferredSearch = useDeferredValue(search);
+  const resource =
+    deferredSearch.trim().length >= 2
+      ? `patients?search=${encodeURIComponent(deferredSearch.trim())}`
+      : "patients";
+  const query = useInventory<Payload>(resource);
+  const navigate = useNavigate();
+  const autoCreateStarted = useRef(false);
   const [editing, setEditing] = useState<Patient | null>(null);
   const [formOpen, setFormOpen] = useState(false);
   const [photo, setPhoto] = useState<File | null>(null);
@@ -117,6 +129,17 @@ export function PatientsPage() {
   const [pending, setPending] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  useEffect(() => {
+    if (!autoCreate || autoCreateStarted.current || !query.data?.canManage) return;
+    autoCreateStarted.current = true;
+    setEditing(null);
+    setForm({
+      ...blankForm,
+      primaryUnitId: query.data.units.length === 1 ? query.data.units[0]!.id : "",
+    });
+    setFormOpen(true);
+    setPhoto(null);
+  }, [autoCreate, query.data]);
   const patientList = query.data?.patients;
   const filteredPatients = useMemo(() => {
     const patients = patientList ?? [];
@@ -270,6 +293,8 @@ export function PatientsPage() {
       setMessage(editing ? "Cadastro atualizado e auditado." : "Paciente cadastrado e auditado.");
       setFormOpen(false);
       setEditing(null);
+      if (!editing && returnTo && savedId)
+        await navigate({ to: returnTo, search: { patientId: savedId } });
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Falha de conexão.");
     } finally {

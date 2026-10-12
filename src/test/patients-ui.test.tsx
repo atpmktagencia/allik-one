@@ -74,12 +74,24 @@ describe("Patients UI", () => {
   });
 
   it("does not show create controls to a read-only response", async () => {
+    const requests: string[] = [];
     vi.stubGlobal(
       "fetch",
-      vi.fn(async () => Response.json({ data: { patients: [], units: [], canManage: false } })),
+      vi.fn(async (input: string | URL | Request) => {
+        requests.push(String(input));
+        return Response.json({ data: { patients: [], units: [], canManage: false } });
+      }),
     );
     mount();
     expect(await screen.findByText("Nenhum paciente cadastrado")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /novo paciente/i })).not.toBeInTheDocument();
+    fireEvent.change(screen.getByRole("searchbox", { name: "Buscar paciente" }), {
+      target: { value: "Maria 9999" },
+    });
+    await waitFor(() =>
+      expect(requests.some((request) => request.includes("patients?search=Maria%209999"))).toBe(
+        true,
+      ),
+    );
   });
 });

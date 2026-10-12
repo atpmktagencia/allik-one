@@ -204,6 +204,13 @@
       "when": 1792972800000,
       "tag": "0028_care_settings",
       "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "7",
+      "when": 1793062800000,
+      "tag": "0029_care_appointment_actions",
+      "breakpoints": true
     }
   ]
 }

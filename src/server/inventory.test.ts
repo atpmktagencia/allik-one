@@ -374,6 +374,15 @@ describe("operational patients", () => {
         canManage: true,
       }),
     );
+    const searched = await patientsResponse(
+      new Request(`${origin}/api/v1/inventory/patients?search=999990000`, {
+        headers: { cookie: managerCookie },
+      }),
+    );
+    expect(searched.status).toBe(200);
+    expect((await searched.json()).data.patients).toEqual([
+      expect.objectContaining({ id: patientId, fullName: "Paciente Operacional Sintético" }),
+    ]);
     const treatmentProductId = randomUUID();
     await getPool().query(
       `INSERT INTO inventory_products(id,organization_id,name,sku,category,unit,minimum)
@@ -1629,6 +1638,36 @@ describe("Controlled inventory write-offs", () => {
 });
 
 describe("care appointments", () => {
+  it("rejects a manually forged appointment for another unit", async () => {
+    const fortaleza = "a1100000-0000-4000-8000-000000000101";
+    const juazeiro = "a1100000-0000-4000-8000-000000000102";
+    const managerCookie = await scopedCookie(fortaleza, "UNIT_MANAGER");
+    const response = await careAppointmentsResponse(
+      new Request(`${origin}/api/v1/inventory/care-appointments`, {
+        method: "POST",
+        headers: { cookie: managerCookie, origin, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "CREATE",
+          id: randomUUID(),
+          unitId: juazeiro,
+          patientId: randomUUID(),
+          professionalUserId: randomUUID(),
+          careType: "CONSULTATION",
+          startsAt: "2026-10-20T12:00:00.000Z",
+          endsAt: "2026-10-20T13:00:00.000Z",
+          room: "Consultório 1",
+          chair: null,
+          resourceName: null,
+          notes: "",
+          status: "SCHEDULED",
+          version: 0,
+          reason: "Tentativa sintética fora da unidade autorizada.",
+        }),
+      }),
+    );
+    expect(response.status).toBe(403);
+  });
+
   it("creates configurable rooms, resources and appointment types", async () => {
     const unitId = "a1100000-0000-4000-8000-000000000101";
     const suffix = randomUUID().slice(0, 8);
@@ -1735,6 +1774,36 @@ describe("care appointments", () => {
       );
     expect((await send(body)).status).toBe(201);
     expect((await send({ ...body, id: randomUUID() })).status).toBe(409);
+    const rescheduled = {
+      ...body,
+      action: "UPDATE",
+      startsAt: "2026-10-20T14:00:00.000Z",
+      endsAt: "2026-10-20T15:00:00.000Z",
+      reason: "Atendimento remarcado durante o teste integrado.",
+    };
+    expect((await send(rescheduled)).status).toBe(200);
+    expect(
+      (
+        await send({
+          ...rescheduled,
+          action: "UPDATE_STATUS",
+          status: "CONFIRMED",
+          version: 1,
+          reason: "Atendimento confirmado durante o teste integrado.",
+        })
+      ).status,
+    ).toBe(200);
+    expect(
+      (
+        await send({
+          ...rescheduled,
+          action: "UPDATE_STATUS",
+          status: "COMPLETED",
+          version: 2,
+          reason: "Transição inválida exercitada durante o teste integrado.",
+        })
+      ).status,
+    ).toBe(409);
     const listed = await careAppointmentsResponse(
       new Request(
         `${origin}/api/v1/inventory/care-appointments?unitId=${unitId}&from=2026-10-20T00:00:00.000Z&to=2026-10-21T00:00:00.000Z`,
@@ -1748,13 +1817,19 @@ describe("care appointments", () => {
         patientName: "Paciente Agenda Sintético",
         careType: "INJECTABLE",
         resourceName: "Poltrona 1",
+        status: "CONFIRMED",
+        version: 2,
       }),
     ]);
     const audit = await getPool().query(
       "SELECT action,actor FROM inventory_care_appointment_changes WHERE appointment_id=$1",
       [body.id],
     );
-    expect(audit.rows).toEqual([expect.objectContaining({ action: "CREATE" })]);
+    expect(audit.rows).toEqual([
+      expect.objectContaining({ action: "CREATE" }),
+      expect.objectContaining({ action: "RESCHEDULE" }),
+      expect.objectContaining({ action: "STATUS" }),
+    ]);
   });
 });
 

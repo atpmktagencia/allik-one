@@ -105,7 +105,13 @@ export async function patientsResponse(request: Request) {
     return Response.json({ error: "Acesso negado." }, { status: 403, headers });
 
   if (request.method === "GET") {
-    const requestedUnit = new URL(request.url).searchParams.get("unitId");
+    const url = new URL(request.url);
+    const requestedUnit = url.searchParams.get("unitId");
+    const rawSearch = url.searchParams.get("search")?.trim() ?? "";
+    if (rawSearch.length > 100)
+      return Response.json({ error: "Busca inválida." }, { status: 400, headers });
+    const search = rawSearch.length >= 2 ? rawSearch : null;
+    const searchDigits = search?.replace(/\D/g, "") || null;
     if (requestedUnit && !can(auth, "patients.read", requestedUnit))
       return Response.json({ error: "Unidade não autorizada." }, { status: 403, headers });
     const unrestricted =
@@ -124,8 +130,17 @@ export async function patientsResponse(request: Request) {
        WHERE p.organization_id=$1
          AND ($2::uuid IS NULL OR p.primary_unit_id=$2)
          AND ($3::boolean OR p.primary_unit_id=ANY($4::uuid[]))
-       ORDER BY p.active DESC,lower(p.full_name),p.id`,
-        [auth.organizationId, requestedUnit, unrestricted, auth.unitIds],
+         AND ($5::text IS NULL OR p.full_name ILIKE '%'||$5||'%'
+           OR p.internal_code ILIKE '%'||$5||'%'
+           OR COALESCE(p.email,'') ILIKE '%'||$5||'%'
+           OR COALESCE(p.document_number,'') ILIKE '%'||$5||'%'
+           OR ($6::text IS NOT NULL AND (
+             regexp_replace(COALESCE(p.phone,''),'[^0-9]','','g') LIKE '%'||$6||'%'
+             OR regexp_replace(COALESCE(p.phone2,''),'[^0-9]','','g') LIKE '%'||$6||'%'
+             OR regexp_replace(COALESCE(p.document_number,''),'[^0-9]','','g') LIKE '%'||$6||'%'
+           )))
+       ORDER BY p.active DESC,lower(p.full_name),p.id LIMIT 500`,
+        [auth.organizationId, requestedUnit, unrestricted, auth.unitIds, search, searchDigits],
       ),
       pool.query(
         `SELECT id,name FROM inventory_units

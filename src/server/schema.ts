@@ -552,7 +552,13 @@ export const careAppointmentChanges = pgTable(
     actorUserId: uuid("actor_user_id").references(() => users.id),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
-  (t) => [index("care_appointment_change_history").on(t.appointmentId, t.createdAt)],
+  (t) => [
+    index("care_appointment_change_history").on(t.appointmentId, t.createdAt),
+    check(
+      "care_appointment_change_action_valid",
+      sql`${t.action} IN ('CREATE','UPDATE','RESCHEDULE','STATUS')`,
+    ),
+  ],
 );
 
 export const patientTreatments = pgTable(

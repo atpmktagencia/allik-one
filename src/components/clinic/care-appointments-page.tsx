@@ -1,6 +1,15 @@
 import { Link } from "@tanstack/react-router";
-import { useMemo, useState, type FormEvent } from "react";
-import { CalendarDays, ChevronLeft, ChevronRight, Plus, Search } from "lucide-react";
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import {
+  CalendarDays,
+  CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
+  Pencil,
+  Plus,
+  Search,
+  XCircle,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useInventory } from "@/data/inventory-api";
@@ -51,6 +60,19 @@ type Payload = {
   resources: Array<{ id: string; unitId: string; roomId: string; name: string }>;
   canManage: boolean;
 };
+type AppointmentForm = {
+  unitId: string;
+  patientId: string;
+  professionalUserId: string;
+  careType: string;
+  date: string;
+  startsAt: string;
+  endsAt: string;
+  room: string;
+  resourceName: string;
+  notes: string;
+  reason: string;
+};
 
 const fallbackTypes: Record<string, string> = {
   FIRST_VISIT: "Primeira consulta",
@@ -96,32 +118,51 @@ function formatDate(value: string) {
     timeZone: "America/Fortaleza",
   }).format(new Date(value));
 }
+const draftKey = "allik_appointment_draft_v1";
+const dateValue = (value: string) =>
+  new Intl.DateTimeFormat("en-CA", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    timeZone: "America/Fortaleza",
+  }).format(new Date(value));
+const timeValue = (value: string) =>
+  new Intl.DateTimeFormat("pt-BR", {
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+    timeZone: "America/Fortaleza",
+  }).format(new Date(value));
+const blankAppointmentForm = (): AppointmentForm => ({
+  unitId: "",
+  patientId: "",
+  professionalUserId: "",
+  careType: "CONSULTATION",
+  date: localDate(new Date()),
+  startsAt: "08:00",
+  endsAt: "09:00",
+  room: "",
+  resourceName: "",
+  notes: "",
+  reason: "Criação ou atualização operacional do agendamento.",
+});
 
-export function CareAppointmentsPage() {
+export function CareAppointmentsPage({ preselectedPatientId }: { preselectedPatientId?: string }) {
   const [view, setView] = useState<View>("week");
   const [focus, setFocus] = useState(() => new Date());
   const range = rangeFor(view, focus);
-  const resource = `care-appointments?from=${encodeURIComponent(range.from.toISOString())}&to=${encodeURIComponent(range.to.toISOString())}`;
+  const [professionalFilter, setProfessionalFilter] = useState("");
+  const [statusFilter, setStatusFilter] = useState("");
+  const resource = `care-appointments?from=${encodeURIComponent(range.from.toISOString())}&to=${encodeURIComponent(range.to.toISOString())}${professionalFilter ? `&professionalId=${encodeURIComponent(professionalFilter)}` : ""}${statusFilter ? `&status=${encodeURIComponent(statusFilter)}` : ""}`;
   const query = useInventory<Payload>(resource);
   const [open, setOpen] = useState(false);
+  const [editing, setEditing] = useState<Appointment | null>(null);
   const [patientSearch, setPatientSearch] = useState("");
   const [pending, setPending] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
-  const [form, setForm] = useState({
-    unitId: "",
-    patientId: "",
-    professionalUserId: "",
-    careType: "CONSULTATION",
-    otherCareType: "",
-    date: localDate(new Date()),
-    startsAt: "08:00",
-    endsAt: "09:00",
-    room: "",
-    chair: "",
-    notes: "",
-    reason: "Criação de agendamento solicitada pelo paciente.",
-  });
+  const [form, setForm] = useState<AppointmentForm>(blankAppointmentForm);
+  const restoredPatient = useRef(false);
   const patients = useMemo(() => {
     const term = patientSearch.trim().toLocaleLowerCase("pt-BR");
     return (query.data?.patients ?? []).filter(
@@ -139,6 +180,32 @@ export function CareAppointmentsPage() {
             .some((value) => value!.toLocaleLowerCase("pt-BR").includes(term))),
     );
   }, [form.unitId, patientSearch, query.data?.patients]);
+  useEffect(() => {
+    if (!preselectedPatientId || restoredPatient.current || !query.data) return;
+    const patient = query.data.patients.find((item) => item.id === preselectedPatientId);
+    if (!patient) return;
+    restoredPatient.current = true;
+    let draft: Partial<AppointmentForm> = {};
+    try {
+      draft = JSON.parse(sessionStorage.getItem(draftKey) ?? "{}") as Partial<AppointmentForm>;
+    } catch {
+      draft = {};
+    }
+    sessionStorage.removeItem(draftKey);
+    const sameUnit = !draft.unitId || draft.unitId === patient.unitId;
+    setForm({
+      ...blankAppointmentForm(),
+      ...draft,
+      unitId: patient.unitId,
+      patientId: patient.id,
+      professionalUserId: sameUnit ? (draft.professionalUserId ?? "") : "",
+      room: sameUnit ? (draft.room ?? "") : "",
+      resourceName: sameUnit ? (draft.resourceName ?? "") : "",
+    });
+    setEditing(null);
+    setOpen(true);
+    setMessage("Paciente cadastrado e selecionado. Confira o agendamento.");
+  }, [preselectedPatientId, query.data]);
   if (query.isPending || query.error)
     return (
       <InventoryState pending={query.isPending} error={query.error} retry={() => query.refetch()} />
@@ -159,10 +226,32 @@ export function CareAppointmentsPage() {
   };
   function startCreate() {
     const unitId = data.units.length === 1 ? data.units[0]!.id : "";
-    setForm((current) => ({ ...current, unitId, patientId: "", professionalUserId: "" }));
+    setForm({ ...blankAppointmentForm(), unitId });
+    setEditing(null);
     setOpen(true);
     setError("");
     setMessage("");
+  }
+  function startEdit(item: Appointment) {
+    setEditing(item);
+    setForm({
+      unitId: item.unitId,
+      patientId: item.patientId,
+      professionalUserId: item.professionalUserId,
+      careType: item.careType,
+      date: dateValue(item.startsAt),
+      startsAt: timeValue(item.startsAt),
+      endsAt: timeValue(item.endsAt),
+      room: item.room,
+      resourceName: item.resourceName ?? (item.chair ? `Poltrona ${item.chair}` : ""),
+      notes: item.notes,
+      reason: "Atualização operacional conferida do agendamento.",
+    });
+    setPatientSearch("");
+    setError("");
+    setMessage("");
+    setOpen(true);
+    window.scrollTo({ top: 0, behavior: "smooth" });
   }
   async function save(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -176,8 +265,8 @@ export function CareAppointmentsPage() {
         credentials: "same-origin",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          action: "CREATE",
-          id: crypto.randomUUID(),
+          action: editing ? "UPDATE" : "CREATE",
+          id: editing?.id ?? crypto.randomUUID(),
           unitId: form.unitId,
           patientId: form.patientId,
           professionalUserId: form.professionalUserId,
@@ -187,10 +276,10 @@ export function CareAppointmentsPage() {
           endsAt,
           room: form.room,
           chair: null,
-          resourceName: form.chair || null,
+          resourceName: form.resourceName || null,
           notes: form.notes,
-          status: "SCHEDULED",
-          version: 0,
+          status: editing?.status ?? "SCHEDULED",
+          version: editing?.version ?? 0,
           reason: form.reason,
         }),
       });
@@ -198,7 +287,44 @@ export function CareAppointmentsPage() {
       if (!response.ok) throw new Error(result.error ?? "Não foi possível agendar.");
       await query.refetch();
       setOpen(false);
-      setMessage("Atendimento agendado e auditado.");
+      setEditing(null);
+      setMessage(
+        editing ? "Agendamento atualizado e auditado." : "Atendimento agendado e auditado.",
+      );
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Falha de conexão.");
+    } finally {
+      setPending(false);
+    }
+  }
+  async function updateStatus(item: Appointment, status: Appointment["status"]) {
+    const destructive = status === "CANCELED" || status === "COMPLETED";
+    if (
+      destructive &&
+      !window.confirm(`Confirmar: ${statuses[status]?.toLocaleLowerCase("pt-BR")}?`)
+    )
+      return;
+    setPending(true);
+    setError("");
+    try {
+      const response = await fetch("/api/v1/inventory/care-appointments", {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "UPDATE_STATUS",
+          ...item,
+          status,
+          otherCareType: item.otherCareType,
+          chair: item.chair,
+          reason: `Situação alterada de ${statuses[item.status] ?? item.status} para ${statuses[status] ?? status}.`,
+        }),
+      });
+      const result = (await response.json()) as { error?: string };
+      if (!response.ok)
+        throw new Error(result.error ?? "Não foi possível atualizar o atendimento.");
+      await query.refetch();
+      setMessage(`Atendimento marcado como ${statuses[status]?.toLocaleLowerCase("pt-BR")}.`);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Falha de conexão.");
     } finally {
@@ -213,7 +339,14 @@ export function CareAppointmentsPage() {
   const card = (item: Appointment) => (
     <article key={item.id} className="rounded-lg border bg-card p-3 shadow-sm">
       <p className="font-medium">
-        {formatTime(item.startsAt)}–{formatTime(item.endsAt)} · {item.patientName}
+        {formatTime(item.startsAt)}–{formatTime(item.endsAt)} ·{" "}
+        <Link
+          to="/pacientes/$patientId"
+          params={{ patientId: item.patientId }}
+          className="text-primary underline-offset-4 hover:underline"
+        >
+          {item.patientName}
+        </Link>
       </p>
       <p className="text-xs text-muted-foreground">
         {data.careTypes.find((type) => type.code === item.careType)?.name ??
@@ -232,6 +365,60 @@ export function CareAppointmentsPage() {
       <span className="mt-2 inline-flex rounded-full bg-muted px-2 py-0.5 text-xs">
         {statuses[item.status] ?? item.status}
       </span>
+      {data.canManage ? (
+        <div className="mt-3 flex flex-wrap gap-2">
+          {!["COMPLETED", "NO_SHOW", "CANCELED"].includes(item.status) ? (
+            <Button size="sm" variant="outline" disabled={pending} onClick={() => startEdit(item)}>
+              <Pencil className="mr-1.5 size-3.5" /> Abrir/editar
+            </Button>
+          ) : null}
+          {item.status === "SCHEDULED" ? (
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={pending}
+              onClick={() => updateStatus(item, "CONFIRMED")}
+            >
+              Confirmar
+            </Button>
+          ) : null}
+          {["SCHEDULED", "CONFIRMED"].includes(item.status) ? (
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={pending}
+              onClick={() => updateStatus(item, "IN_PROGRESS")}
+            >
+              Iniciar
+            </Button>
+          ) : null}
+          {item.status === "IN_PROGRESS" ? (
+            <Button size="sm" disabled={pending} onClick={() => updateStatus(item, "COMPLETED")}>
+              <CheckCircle2 className="mr-1.5 size-3.5" /> Concluir
+            </Button>
+          ) : null}
+          {["SCHEDULED", "CONFIRMED"].includes(item.status) ? (
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={pending}
+              onClick={() => updateStatus(item, "NO_SHOW")}
+            >
+              Não compareceu
+            </Button>
+          ) : null}
+          {!["COMPLETED", "NO_SHOW", "CANCELED"].includes(item.status) ? (
+            <Button
+              size="sm"
+              variant="destructive"
+              disabled={pending}
+              onClick={() => updateStatus(item, "CANCELED")}
+            >
+              <XCircle className="mr-1.5 size-3.5" /> Cancelar
+            </Button>
+          ) : null}
+        </div>
+      ) : null}
     </article>
   );
   return (
@@ -260,7 +447,9 @@ export function CareAppointmentsPage() {
       {open && data.canManage && (
         <form onSubmit={save} className="space-y-5 rounded-xl border bg-card p-5">
           <div>
-            <h2 className="font-semibold">Novo agendamento</h2>
+            <h2 className="font-semibold">
+              {editing ? "Editar ou remarcar atendimento" : "Novo agendamento"}
+            </h2>
             <p className="text-sm text-muted-foreground">
               Os horários são exibidos no fuso de Fortaleza.
             </p>
@@ -278,6 +467,8 @@ export function CareAppointmentsPage() {
                     unitId: e.target.value,
                     patientId: "",
                     professionalUserId: "",
+                    room: "",
+                    resourceName: "",
                   })
                 }
               >
@@ -347,9 +538,17 @@ export function CareAppointmentsPage() {
                   </option>
                 ))}
               </select>
-              <Button asChild type="button" variant="link" className="h-auto px-0 text-xs">
-                <Link to="/pacientes">Cadastrar novo paciente</Link>
-              </Button>
+              {!editing ? (
+                <Button asChild type="button" variant="link" className="h-auto px-0 text-xs">
+                  <Link
+                    to="/pacientes"
+                    search={{ create: true, returnTo: "/agenda" }}
+                    onClick={() => sessionStorage.setItem(draftKey, JSON.stringify(form))}
+                  >
+                    Cadastrar novo paciente sem perder este agendamento
+                  </Link>
+                </Button>
+              ) : null}
             </label>
             <label className="space-y-1 text-sm font-medium">
               Data
@@ -384,7 +583,7 @@ export function CareAppointmentsPage() {
                 required
                 className="h-10 w-full rounded-md border bg-background px-3"
                 value={form.room}
-                onChange={(e) => setForm({ ...form, room: e.target.value, chair: "" })}
+                onChange={(e) => setForm({ ...form, room: e.target.value, resourceName: "" })}
               >
                 <option value="">Selecione</option>
                 {data.rooms
@@ -400,8 +599,8 @@ export function CareAppointmentsPage() {
               Leito/Poltrona
               <select
                 className="h-10 w-full rounded-md border bg-background px-3"
-                value={form.chair}
-                onChange={(e) => setForm({ ...form, chair: e.target.value })}
+                value={form.resourceName}
+                onChange={(e) => setForm({ ...form, resourceName: e.target.value })}
               >
                 <option value="">Não se aplica</option>
                 {data.resources
@@ -424,14 +623,29 @@ export function CareAppointmentsPage() {
                 onChange={(e) => setForm({ ...form, notes: e.target.value })}
               />
             </label>
+            <label className="space-y-1 text-sm font-medium md:col-span-2 xl:col-span-3">
+              Motivo do cadastro ou alteração
+              <Input
+                required
+                minLength={10}
+                maxLength={500}
+                value={form.reason}
+                onChange={(event) => setForm({ ...form, reason: event.target.value })}
+              />
+            </label>
           </div>
           <div className="flex gap-3">
-            <Button disabled={pending}>{pending ? "Agendando…" : "Agendar"}</Button>
+            <Button disabled={pending}>
+              {pending ? "Salvando…" : editing ? "Salvar alterações" : "Agendar"}
+            </Button>
             <Button
               type="button"
               variant="outline"
               disabled={pending}
-              onClick={() => setOpen(false)}
+              onClick={() => {
+                setOpen(false);
+                setEditing(null);
+              }}
             >
               Cancelar
             </Button>
@@ -474,6 +688,40 @@ export function CareAppointmentsPage() {
             ))}
           </div>
         </div>
+      </section>
+      <section className="grid gap-3 rounded-xl border bg-card p-4 sm:grid-cols-2">
+        <label className="space-y-1 text-sm font-medium">
+          Filtrar por profissional
+          <select
+            className="h-10 w-full rounded-md border bg-background px-3 font-normal"
+            value={professionalFilter}
+            onChange={(event) => setProfessionalFilter(event.target.value)}
+          >
+            <option value="">Todos os profissionais</option>
+            {Array.from(new Map(data.professionals.map((item) => [item.id, item])).values()).map(
+              (professional) => (
+                <option key={professional.id} value={professional.id}>
+                  {professional.name}
+                </option>
+              ),
+            )}
+          </select>
+        </label>
+        <label className="space-y-1 text-sm font-medium">
+          Filtrar por situação
+          <select
+            className="h-10 w-full rounded-md border bg-background px-3 font-normal"
+            value={statusFilter}
+            onChange={(event) => setStatusFilter(event.target.value)}
+          >
+            <option value="">Todas as situações</option>
+            {Object.entries(statuses).map(([value, label]) => (
+              <option key={value} value={value}>
+                {label}
+              </option>
+            ))}
+          </select>
+        </label>
       </section>
       {view === "kanban" ? (
         <div className="grid gap-4 lg:grid-cols-3">

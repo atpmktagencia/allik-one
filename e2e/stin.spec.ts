@@ -25,8 +25,8 @@ test("Stin catalog preserves boxes, complete kit, notes and vendor-specific cost
       await page.request.get(`/api/v1/inventory/vendor-catalog?supplierId=${supplier.id}`)
     ).json()
   ).data as SupplierCatalogItem[];
-  expect(catalog).toHaveLength(116);
-  expect(catalog.filter((i) => i.kind === "PRODUCT")).toHaveLength(115);
+  expect(catalog).toHaveLength(119);
+  expect(catalog.filter((i) => i.kind === "PRODUCT")).toHaveLength(118);
   await page.getByLabel("Buscar no catálogo", { exact: true }).fill("STIN-P038");
   await expect(page.getByText("Conferir cadastro", { exact: true })).toBeVisible();
   await page.getByText("Ver composição e fonte", { exact: true }).click();

@@ -12,7 +12,7 @@ const status = z.enum([
 
 export const careAppointmentInput = z
   .object({
-    action: z.enum(["CREATE", "UPDATE_STATUS"]),
+    action: z.enum(["CREATE", "UPDATE", "UPDATE_STATUS"]),
     id: z.string().uuid(),
     unitId: z.string().uuid(),
     patientId: z.string().uuid(),
@@ -34,6 +34,8 @@ export const careAppointmentInput = z
     const endsAt = new Date(value.endsAt).getTime();
     if (endsAt <= startsAt || endsAt - startsAt > 12 * 60 * 60 * 1000)
       context.addIssue({ code: "custom", path: ["endsAt"], message: "Período inválido." });
+    if (value.action === "CREATE" && (value.status !== "SCHEDULED" || value.version !== 0))
+      context.addIssue({ code: "custom", path: ["status"], message: "Estado inicial inválido." });
   });
 
 export type CareAppointmentInput = z.infer<typeof careAppointmentInput>;
