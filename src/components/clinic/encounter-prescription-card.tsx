@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { useInventory } from "@/data/inventory-api";
+import { readInventoryResponse, useInventory } from "@/data/inventory-api";
 import { InventoryState } from "./inventory-state";
 
 type PrescriptionItem = {
@@ -106,8 +106,7 @@ export function EncounterPrescriptionCard({ appointmentId }: { appointmentId: st
           version: data.prescription?.version ?? null,
         }),
       });
-      const result = (await response.json()) as { error?: string };
-      if (!response.ok) throw new Error(result.error ?? "Não foi possível salvar a prescrição.");
+      await readInventoryResponse(response, "Não foi possível salvar a prescrição.");
       await query.refetch();
       setMessage(action === "FINALIZE" ? "Prescrição finalizada e assinada." : "Rascunho salvo.");
     } catch (cause) {
@@ -337,10 +336,10 @@ export function EncounterPrescriptionCard({ appointmentId }: { appointmentId: st
       {!disabled ? (
         <div className="flex flex-wrap gap-2">
           <Button variant="outline" disabled={pending} onClick={() => save("SAVE_DRAFT")}>
-            Salvar rascunho
+            {pending ? "Salvando…" : "Salvar rascunho"}
           </Button>
           <Button disabled={pending || items.length === 0} onClick={() => save("FINALIZE")}>
-            Finalizar e assinar prescrição
+            {pending ? "Finalizando…" : "Finalizar e assinar prescrição"}
           </Button>
         </div>
       ) : null}

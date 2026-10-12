@@ -55,16 +55,39 @@ export class InventoryError extends Error {
     super(message);
   }
 }
+export async function readInventoryResponse<T>(
+  response: Response,
+  fallback = "Não foi possível concluir a operação.",
+): Promise<{ data?: T; error?: string }> {
+  const contentType = response.headers.get("content-type") ?? "";
+  let body: { data?: T; error?: string } | null = null;
+  if (contentType.includes("application/json")) {
+    try {
+      body = (await response.json()) as { data?: T; error?: string };
+    } catch {
+      body = null;
+    }
+  }
+  if (!response.ok)
+    throw new InventoryError(
+      body?.error ??
+        (response.status >= 500
+          ? "O serviço está temporariamente indisponível. Tente novamente em instantes."
+          : fallback),
+      response.status,
+    );
+  if (!body)
+    throw new InventoryError(
+      "O servidor devolveu uma resposta inválida. Tente novamente.",
+      response.status,
+    );
+  return body;
+}
 export async function fetchInventory<T>(resource: string): Promise<T> {
   const response = await fetch(withSelectedUnit(`/api/v1/inventory/${resource}`), {
     credentials: "same-origin",
   });
-  const body = (await response.json()) as { data?: T; error?: string };
-  if (!response.ok)
-    throw new InventoryError(
-      body.error ?? "Não foi possível consultar o estoque.",
-      response.status,
-    );
+  const body = await readInventoryResponse<T>(response, "Não foi possível consultar os dados.");
   return body.data as T;
 }
 export function useInventory<T>(resource: string) {
@@ -73,12 +96,7 @@ export function useInventory<T>(resource: string) {
     queryKey: ["inventory", requestPath],
     queryFn: async () => {
       const response = await fetch(requestPath, { credentials: "same-origin" });
-      const body = (await response.json()) as { data?: T; error?: string };
-      if (!response.ok)
-        throw new InventoryError(
-          body.error ?? "Não foi possível consultar o estoque.",
-          response.status,
-        );
+      const body = await readInventoryResponse<T>(response, "Não foi possível consultar os dados.");
       return body.data as T;
     },
     placeholderData: (previous) => previous,

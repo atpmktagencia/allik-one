@@ -1,6 +1,6 @@
 import { useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { InventoryError } from "@/data/inventory-api";
+import { InventoryError, readInventoryResponse } from "@/data/inventory-api";
 import { withSelectedUnit } from "@/data/unit-context";
 
 // Retain the original payload after ambiguous failures, including its UUID.
@@ -24,9 +24,7 @@ export function useInventoryWrite(resource: string) {
         headers: { "Content-Type": "application/json" },
         body: snapshot.current,
       });
-      const result = (await response.json()) as { error?: string };
-      if (!response.ok)
-        throw new InventoryError(result.error ?? "Não foi possível salvar.", response.status);
+      await readInventoryResponse(response, "Não foi possível salvar.");
       setUncertain(false);
       snapshot.current = null;
       await queryClient.invalidateQueries({ queryKey: ["inventory"] });

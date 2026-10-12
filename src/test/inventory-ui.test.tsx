@@ -27,7 +27,7 @@ describe("Inventory UI", () => {
       vi.fn(() => new Promise(() => {})),
     );
     mount();
-    expect(screen.getByRole("status")).toHaveTextContent("Carregando estoque");
+    expect(screen.getByRole("status")).toHaveTextContent("Carregando dados");
   });
   it("shows an empty state from the API", async () => {
     vi.stubGlobal(

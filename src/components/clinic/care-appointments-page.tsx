@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { useInventory } from "@/data/inventory-api";
+import { readInventoryResponse, useInventory } from "@/data/inventory-api";
 import { InventoryState } from "./inventory-state";
 import { PageHeader } from "./page-kit";
 
@@ -286,8 +286,7 @@ export function CareAppointmentsPage({ preselectedPatientId }: { preselectedPati
           reason: form.reason,
         }),
       });
-      const result = (await response.json()) as { error?: string };
-      if (!response.ok) throw new Error(result.error ?? "Não foi possível agendar.");
+      await readInventoryResponse(response, "Não foi possível agendar.");
       await query.refetch();
       setOpen(false);
       setEditing(null);
@@ -323,9 +322,7 @@ export function CareAppointmentsPage({ preselectedPatientId }: { preselectedPati
           reason: `Situação alterada de ${statuses[item.status] ?? item.status} para ${statuses[status] ?? status}.`,
         }),
       });
-      const result = (await response.json()) as { error?: string };
-      if (!response.ok)
-        throw new Error(result.error ?? "Não foi possível atualizar o atendimento.");
+      await readInventoryResponse(response, "Não foi possível atualizar o atendimento.");
       await query.refetch();
       setMessage(`Atendimento marcado como ${statuses[status]?.toLocaleLowerCase("pt-BR")}.`);
     } catch (cause) {

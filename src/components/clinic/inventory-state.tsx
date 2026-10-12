@@ -18,7 +18,7 @@ export function InventoryState({
     >
       <h2 className="font-semibold">
         {pending
-          ? "Carregando estoque…"
+          ? "Carregando dados…"
           : error instanceof InventoryError && error.status === 401
             ? "Faça o login para liberar seu acesso."
             : "Não foi possível carregar os dados."}

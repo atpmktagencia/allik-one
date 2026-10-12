@@ -4,7 +4,7 @@ import { Pencil, Plus, Search, UserRound } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { useInventory } from "@/data/inventory-api";
+import { readInventoryResponse, useInventory } from "@/data/inventory-api";
 import { InventoryState } from "./inventory-state";
 import { PageHeader } from "./page-kit";
 
@@ -272,9 +272,11 @@ export function PatientsPage({
           version: editing?.version ?? 0,
         }),
       });
-      const result = (await response.json()) as { error?: string };
-      if (!response.ok) throw new Error(result.error ?? "Não foi possível salvar o paciente.");
-      const savedId = editing?.id ?? String((result as { data?: { id?: string } }).data?.id ?? "");
+      const result = await readInventoryResponse<{ id?: string }>(
+        response,
+        "Não foi possível salvar o paciente.",
+      );
+      const savedId = editing?.id ?? String(result.data?.id ?? "");
       if (photo && savedId) {
         const photoData = new FormData();
         photoData.set("patientId", savedId);
@@ -285,9 +287,7 @@ export function PatientsPage({
           credentials: "same-origin",
           body: photoData,
         });
-        const photoResult = (await photoResponse.json()) as { error?: string };
-        if (!photoResponse.ok)
-          throw new Error(photoResult.error ?? "Paciente salvo, mas a foto não foi enviada.");
+        await readInventoryResponse(photoResponse, "Paciente salvo, mas a foto não foi enviada.");
       }
       await query.refetch();
       setMessage(editing ? "Cadastro atualizado e auditado." : "Paciente cadastrado e auditado.");

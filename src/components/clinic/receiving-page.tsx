@@ -3,7 +3,12 @@ import { Link } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { useInventory, InventoryError, type InventoryProduct } from "@/data/inventory-api";
+import {
+  useInventory,
+  InventoryError,
+  readInventoryResponse,
+  type InventoryProduct,
+} from "@/data/inventory-api";
 import { receiptInput, type ReceiptInput } from "@/data/receipt-input";
 import { formatBRL } from "@/data/mock-stock";
 import { InventoryState } from "./inventory-state";
@@ -71,12 +76,7 @@ export function ReceivingPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(submitted.current),
       });
-      const body = (await response.json()) as { error?: string };
-      if (!response.ok)
-        throw new InventoryError(
-          body.error ?? "Não foi possível registrar o recebimento.",
-          response.status,
-        );
+      await readInventoryResponse(response, "Não foi possível registrar o recebimento.");
       setSaved(true);
       setUncertain(false);
       await queryClient.invalidateQueries({ queryKey: ["inventory"] });

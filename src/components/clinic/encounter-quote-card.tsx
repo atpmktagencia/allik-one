@@ -3,7 +3,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { useInventory } from "@/data/inventory-api";
+import { readInventoryResponse, useInventory } from "@/data/inventory-api";
 import { InventoryState } from "./inventory-state";
 
 type PrescriptionItem = {
@@ -200,11 +200,7 @@ export function EncounterQuoteCard({ appointmentId }: { appointmentId: string })
           version: data.quote?.version ?? null,
         }),
       });
-      const contentType = response.headers.get("content-type") ?? "";
-      const result = contentType.includes("application/json")
-        ? ((await response.json()) as { error?: string })
-        : { error: "O servidor devolveu uma resposta inválida. Tente novamente." };
-      if (!response.ok) throw new Error(result.error ?? "Não foi possível salvar o orçamento.");
+      await readInventoryResponse(response, "Não foi possível salvar o orçamento.");
       await query.refetch();
       setMessage(action === "ISSUE" ? "Orçamento emitido." : "Rascunho do orçamento salvo.");
     } catch (cause) {
@@ -335,10 +331,10 @@ export function EncounterQuoteCard({ appointmentId }: { appointmentId: string })
       {!issued && data.canManage ? (
         <div className="flex flex-wrap gap-2">
           <Button variant="outline" disabled={pending} onClick={() => save("SAVE_DRAFT")}>
-            Salvar rascunho
+            {pending ? "Salvando…" : "Salvar rascunho"}
           </Button>
           <Button disabled={pending || !complete} onClick={() => save("ISSUE")}>
-            Emitir orçamento
+            {pending ? "Emitindo…" : "Emitir orçamento"}
           </Button>
           {!complete ? (
             <p className="w-full text-xs text-muted-foreground">

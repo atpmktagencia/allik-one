@@ -18,7 +18,7 @@ import {
 } from "@/components/ui/accordion";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { useInventory } from "@/data/inventory-api";
+import { readInventoryResponse, useInventory } from "@/data/inventory-api";
 import { InventoryState } from "./inventory-state";
 import { PageHeader } from "./page-kit";
 import { EncounterPrescriptionCard } from "./encounter-prescription-card";
@@ -369,8 +369,7 @@ export function CareEncounterPage({ appointmentId }: { appointmentId: string }) 
           version: data.clinicalNote?.version ?? null,
         }),
       });
-      const result = (await response.json()) as { error?: string };
-      if (!response.ok) throw new Error(result.error ?? "Não foi possível salvar a evolução.");
+      await readInventoryResponse(response, "Não foi possível salvar a evolução.");
       await query.refetch();
       setMessage(action === "FINALIZE" ? "Evolução finalizada e assinada." : "Rascunho salvo.");
     } catch (cause) {
@@ -397,8 +396,7 @@ export function CareEncounterPage({ appointmentId }: { appointmentId: string }) 
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "CLAIM", appointmentId, version: appointment.version }),
       });
-      const result = (await response.json()) as { error?: string };
-      if (!response.ok) throw new Error(result.error ?? "Não foi possível assumir o atendimento.");
+      await readInventoryResponse(response, "Não foi possível assumir o atendimento.");
       await query.refetch();
       setMessage("Atendimento atribuído ao seu perfil. Você já pode registrar a evolução.");
     } catch (cause) {
@@ -441,8 +439,7 @@ export function CareEncounterPage({ appointmentId }: { appointmentId: string }) 
           reason: `Situação do atendimento alterada para ${statusLabels[status] ?? status}.`,
         }),
       });
-      const result = (await response.json()) as { error?: string };
-      if (!response.ok) throw new Error(result.error ?? "Não foi possível atualizar.");
+      await readInventoryResponse(response, "Não foi possível atualizar.");
       await query.refetch();
       setMessage(`Atendimento marcado como ${statusLabels[status]?.toLocaleLowerCase("pt-BR")}.`);
     } catch (cause) {
@@ -831,13 +828,13 @@ export function CareEncounterPage({ appointmentId }: { appointmentId: string }) 
               disabled={pending}
               onClick={() => saveClinicalNote("SAVE_DRAFT")}
             >
-              Salvar rascunho
+              {pending ? "Salvando…" : "Salvar rascunho"}
             </Button>
             <Button
               disabled={pending || evolution.trim().length < 10}
               onClick={() => saveClinicalNote("FINALIZE")}
             >
-              Finalizar e assinar
+              {pending ? "Finalizando…" : "Finalizar e assinar"}
             </Button>
           </div>
         ) : null}

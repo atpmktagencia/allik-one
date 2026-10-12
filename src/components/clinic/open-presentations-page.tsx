@@ -3,7 +3,7 @@ import { AlertTriangle, FlaskConical } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { useInventory } from "@/data/inventory-api";
+import { readInventoryResponse, useInventory } from "@/data/inventory-api";
 import { InventoryState } from "./inventory-state";
 import { PageHeader } from "./page-kit";
 
@@ -60,8 +60,7 @@ export function OpenPresentationsPage() {
           reason,
         }),
       });
-      const result = (await response.json()) as { error?: string };
-      if (!response.ok) throw new Error(result.error ?? "Não foi possível registrar o descarte.");
+      await readInventoryResponse(response, "Não foi possível registrar o descarte.");
       await query.refetch();
       setSelected(null);
       setMessage("Descarte registrado e saldo fracionado encerrado.");
