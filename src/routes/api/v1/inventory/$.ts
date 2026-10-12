@@ -100,6 +100,8 @@ export const Route = createFileRoute("/api/v1/inventory/$")({
           : inventoryResponse(request);
       },
       POST: ({ request }) => {
+        if (new URL(request.url).pathname.replace(/\/$/, "") === "/api/v1/inventory/care-encounter")
+          return careEncounterResponse(request);
         if (new URL(request.url).pathname.replace(/\/$/, "") === "/api/v1/inventory/care-settings")
           return careSettingsResponse(request);
         if (

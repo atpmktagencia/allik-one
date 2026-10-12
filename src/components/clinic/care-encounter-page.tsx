@@ -1,8 +1,9 @@
 import { Link } from "@tanstack/react-router";
 import { ArrowLeft, CalendarClock, ClipboardList, History, UserRound } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
 import { useInventory } from "@/data/inventory-api";
 import { InventoryState } from "./inventory-state";
 import { PageHeader } from "./page-kit";
@@ -53,6 +54,20 @@ type Payload = {
     productName: string;
   }>;
   canManage: boolean;
+  canAuthorClinicalNote: boolean;
+  clinicalNote: null | {
+    id: string;
+    evolution: string;
+    conduct: string;
+    status: "DRAFT" | "FINAL";
+    version: number;
+    authorName: string;
+    professionalCouncil: string;
+    councilNumber: string;
+    councilRegion: string;
+    finalizedAt: string | null;
+    updatedAt: string;
+  };
 };
 
 const statusLabels: Record<string, string> = {
@@ -87,12 +102,57 @@ export function CareEncounterPage({ appointmentId }: { appointmentId: string }) 
   const [pending, setPending] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [evolution, setEvolution] = useState("");
+  const [conduct, setConduct] = useState("");
+  const [loadedNoteId, setLoadedNoteId] = useState<string | null | undefined>(undefined);
+  const loadedNote = query.data?.clinicalNote;
+  useEffect(() => {
+    if (!query.data || loadedNoteId === (loadedNote?.id ?? null)) return;
+    setLoadedNoteId(loadedNote?.id ?? null);
+    setEvolution(loadedNote?.evolution ?? "");
+    setConduct(loadedNote?.conduct ?? "");
+  }, [loadedNote, loadedNoteId, query.data]);
   if (query.isPending || query.error)
     return (
       <InventoryState pending={query.isPending} error={query.error} retry={() => query.refetch()} />
     );
   const data = query.data!;
   const appointment = data.appointment;
+
+  async function saveClinicalNote(action: "SAVE_DRAFT" | "FINALIZE") {
+    if (
+      action === "FINALIZE" &&
+      !window.confirm(
+        "Finalizar e assinar esta evolução? Depois disso, o conteúdo não poderá ser alterado.",
+      )
+    )
+      return;
+    setPending(true);
+    setError("");
+    setMessage("");
+    try {
+      const response = await fetch("/api/v1/inventory/care-encounter", {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action,
+          appointmentId,
+          evolution,
+          conduct,
+          version: data.clinicalNote?.version ?? null,
+        }),
+      });
+      const result = (await response.json()) as { error?: string };
+      if (!response.ok) throw new Error(result.error ?? "Não foi possível salvar a evolução.");
+      await query.refetch();
+      setMessage(action === "FINALIZE" ? "Evolução finalizada e assinada." : "Rascunho salvo.");
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Falha de conexão.");
+    } finally {
+      setPending(false);
+    }
+  }
 
   async function updateStatus(status: string) {
     if (
@@ -166,6 +226,78 @@ export function CareEncounterPage({ appointmentId }: { appointmentId: string }) 
           ) : null}
         </section>
       ) : null}
+      <section className="space-y-4 rounded-xl border bg-card p-5">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <h2 className="font-semibold">Evolução clínica</h2>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Rascunhos podem ser corrigidos. A finalização registra autoria e torna o conteúdo
+              imutável.
+            </p>
+          </div>
+          <Badge variant="outline">
+            {data.clinicalNote?.status === "FINAL"
+              ? "Finalizada"
+              : data.clinicalNote
+                ? "Rascunho"
+                : "Não iniciada"}
+          </Badge>
+        </div>
+        <label className="block space-y-2 text-sm font-medium">
+          Evolução
+          <Textarea
+            value={evolution}
+            onChange={(event) => setEvolution(event.target.value)}
+            disabled={!data.canAuthorClinicalNote || data.clinicalNote?.status === "FINAL"}
+            rows={8}
+            maxLength={20000}
+            placeholder="Registre a evolução do atendimento."
+          />
+        </label>
+        <label className="block space-y-2 text-sm font-medium">
+          Conduta
+          <Textarea
+            value={conduct}
+            onChange={(event) => setConduct(event.target.value)}
+            disabled={!data.canAuthorClinicalNote || data.clinicalNote?.status === "FINAL"}
+            rows={4}
+            maxLength={10000}
+            placeholder="Registre a conduta definida neste atendimento."
+          />
+        </label>
+        {data.clinicalNote ? (
+          <p className="text-xs text-muted-foreground">
+            {data.clinicalNote.authorName} · {data.clinicalNote.professionalCouncil}{" "}
+            {data.clinicalNote.councilNumber}/{data.clinicalNote.councilRegion}
+            {data.clinicalNote.finalizedAt
+              ? ` · finalizada em ${dateTime(data.clinicalNote.finalizedAt)}`
+              : ` · salva em ${dateTime(data.clinicalNote.updatedAt)}`}
+          </p>
+        ) : null}
+        {!data.canAuthorClinicalNote && !data.clinicalNote ? (
+          <p className="rounded-lg bg-muted p-3 text-sm text-muted-foreground">
+            Somente o profissional responsável, usando sua conta individual e com conselho completo,
+            pode registrar esta evolução.
+          </p>
+        ) : null}
+        {data.canAuthorClinicalNote && data.clinicalNote?.status !== "FINAL" ? (
+          <div className="flex flex-wrap gap-2">
+            <Button
+              variant="outline"
+              disabled={pending}
+              onClick={() => saveClinicalNote("SAVE_DRAFT")}
+            >
+              Salvar rascunho
+            </Button>
+            <Button
+              disabled={pending || evolution.trim().length < 10}
+              onClick={() => saveClinicalNote("FINALIZE")}
+            >
+              Finalizar e assinar
+            </Button>
+          </div>
+        ) : null}
+      </section>
       <div className="grid gap-5 xl:grid-cols-[1fr_.9fr]">
         <section className="space-y-4 rounded-xl border bg-card p-5">
           <h2 className="flex items-center gap-2 font-semibold">
@@ -220,8 +352,8 @@ export function CareEncounterPage({ appointmentId }: { appointmentId: string }) 
             </p>
           )}
           <p className="rounded-lg bg-muted p-3 text-xs text-muted-foreground">
-            Esta tela organiza o atendimento e o consumo. Evolução clínica, diagnóstico e assinatura
-            ainda não são registrados aqui.
+            Tratamentos e consumo permanecem operacionais; prescrição e assinatura digital serão
+            etapas próprias.
           </p>
         </section>
       </div>

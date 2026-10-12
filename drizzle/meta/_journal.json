@@ -232,6 +232,13 @@
       "when": 1793322000000,
       "tag": "0032_user_profile_audit",
       "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "7",
+      "when": 1793408400000,
+      "tag": "0033_smooth_gorilla_man",
+      "breakpoints": true
     }
   ]
 }

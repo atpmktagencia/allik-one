@@ -1852,8 +1852,8 @@ describe("care appointments", () => {
     const unitId = "a1100000-0000-4000-8000-000000000101";
     const patientId = randomUUID();
     const professional = await getPool().query<{ id: string }>(
-      `INSERT INTO inventory_users(name,email,profession)
-       VALUES('Profissional Agenda Sintético',$1,'Médico') RETURNING id`,
+      `INSERT INTO inventory_users(name,email,profession,professional_council,council_number,council_region)
+       VALUES('Profissional Agenda Sintético',$1,'Médico','CRM','12345','CE') RETURNING id`,
       [`${randomUUID()}@example.test`],
     );
     await getPool().query(
@@ -1861,6 +1861,12 @@ describe("care appointments", () => {
        VALUES($1,'a1100000-0000-4000-8000-000000000001','SUPER_ADMIN')`,
       [professional.rows[0]!.id],
     );
+    const professionalToken = randomUUID();
+    await getPool().query(
+      "INSERT INTO inventory_sessions(user_id,token_hash,session_version,expires_at) VALUES($1,$2,0,now()+interval '1 hour')",
+      [professional.rows[0]!.id, hashToken(professionalToken)],
+    );
+    const professionalCookie = `allik_inventory_session=${professionalToken}`;
     const documentNumber = `DOC${patientId.replaceAll("-", "").slice(0, 11)}`;
     await getPool().query(
       `INSERT INTO inventory_patients(id,organization_id,primary_unit_id,internal_code,full_name,phone,email,document_number)
@@ -2056,6 +2062,51 @@ describe("care appointments", () => {
         canManage: true,
       }),
     );
+    const clinicalPost = (value: unknown, sessionCookie = professionalCookie) =>
+      careEncounterResponse(
+        new Request(`${origin}/api/v1/inventory/care-encounter`, {
+          method: "POST",
+          headers: { cookie: sessionCookie, origin, "Content-Type": "application/json" },
+          body: JSON.stringify(value),
+        }),
+      );
+    const draft = {
+      action: "SAVE_DRAFT",
+      appointmentId: body.id,
+      evolution: "Paciente avaliado durante atendimento sintético.",
+      conduct: "Manter acompanhamento operacional.",
+      version: null,
+    };
+    expect((await clinicalPost(draft)).status).toBe(201);
+    expect((await clinicalPost({ ...draft, version: null })).status).toBe(409);
+    expect((await clinicalPost({ ...draft, action: "FINALIZE", version: 0 })).status).toBe(200);
+    expect((await clinicalPost({ ...draft, version: 1 })).status).toBe(409);
+    const storedNote = await getPool().query(
+      `SELECT status,author_name AS "authorName",professional_council AS council,
+        council_number AS "councilNumber",version FROM inventory_clinical_notes WHERE appointment_id=$1`,
+      [body.id],
+    );
+    expect(storedNote.rows).toEqual([
+      {
+        status: "FINAL",
+        authorName: "Profissional Agenda Sintético",
+        council: "CRM",
+        councilNumber: "12345",
+        version: 1,
+      },
+    ]);
+    await expect(
+      getPool().query(
+        "UPDATE inventory_clinical_notes SET evolution='alterada' WHERE appointment_id=$1",
+        [body.id],
+      ),
+    ).rejects.toThrow(/immutable|append-only/);
+    await expect(
+      getPool().query(
+        "DELETE FROM inventory_clinical_note_changes WHERE clinical_note_id=(SELECT id FROM inventory_clinical_notes WHERE appointment_id=$1)",
+        [body.id],
+      ),
+    ).rejects.toThrow(/immutable|append-only/);
     const juazeiroManager = await scopedCookie(juazeiro, "UNIT_MANAGER");
     expect(
       (
