@@ -15,15 +15,28 @@ const prescriptionItem = z
     doseUnit: z.enum(["MG", "MCG", "G", "ML", "UI", "UNIT", "OTHER"]),
     doseUnitOther: z.string().trim().max(30).default(""),
     route: z.string().trim().min(2).max(80),
-    frequency: z.string().trim().min(2).max(200),
-    duration: z.string().trim().min(2).max(200),
+    frequencyEvery: z.number().int().positive().max(365),
+    frequencyUnit: z.enum(["HOUR", "DAY", "WEEK", "MONTH"]),
+    durationAmount: z.number().int().positive().max(3650).nullable(),
+    durationUnit: z.enum(["DAY", "WEEK", "MONTH"]).nullable(),
+    continuousUse: z.boolean(),
     plannedAdministrations: z.number().int().positive().max(1000).nullable(),
     instructions: z.string().trim().max(2000).default(""),
   })
   .refine((item) => item.doseUnit !== "OTHER" || item.doseUnitOther.length >= 1, {
     message: "Informe a unidade da dose.",
     path: ["doseUnitOther"],
-  });
+  })
+  .refine(
+    (item) =>
+      item.continuousUse
+        ? item.durationAmount === null && item.durationUnit === null
+        : item.durationAmount !== null && item.durationUnit !== null,
+    {
+      message: "Informe a duração ou marque uso contínuo.",
+      path: ["durationAmount"],
+    },
+  );
 
 const prescriptionInput = z.object({
   action: z.enum(["SAVE_DRAFT", "FINALIZE"]),

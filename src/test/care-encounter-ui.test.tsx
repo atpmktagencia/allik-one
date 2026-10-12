@@ -114,7 +114,12 @@ describe("Care encounter UI", () => {
     expect(screen.getByRole("textbox", { name: "Plano clínico" })).toBeInTheDocument();
     expect(screen.getByLabelText("Data sugerida")).toBeInTheDocument();
     expect(await screen.findByText("Prescrição do atendimento")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Adicionar item" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Adicionar item" }));
+    expect(screen.getByLabelText("Intervalo da frequência do item 1")).toHaveValue(1);
+    expect(screen.getByLabelText("Unidade da frequência do item 1")).toHaveValue("WEEK");
+    expect(screen.getByLabelText("Quantidade da duração do item 1")).toHaveValue(4);
+    expect(screen.getByLabelText("Unidade da duração do item 1")).toHaveValue("WEEK");
+    expect(screen.queryByRole("textbox", { name: "Frequência" })).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Anamnese estruturada" }));
     fireEvent.click(screen.getByRole("button", { name: "Motivo da consulta" }));
     expect(screen.getByRole("textbox", { name: "Motivo da consulta" })).toBeInTheDocument();

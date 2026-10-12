@@ -15,8 +15,13 @@ type PrescriptionItem = {
   doseUnit: "MG" | "MCG" | "G" | "ML" | "UI" | "UNIT" | "OTHER";
   doseUnitOther: string;
   route: string;
-  frequency: string;
-  duration: string;
+  frequencyEvery: number;
+  frequencyUnit: "HOUR" | "DAY" | "WEEK" | "MONTH";
+  durationAmount: number | null;
+  durationUnit: "DAY" | "WEEK" | "MONTH" | null;
+  continuousUse: boolean;
+  frequency?: string;
+  duration?: string;
   plannedAdministrations: number | null;
   instructions: string;
 };
@@ -47,8 +52,11 @@ const emptyItem = (): PrescriptionItem => ({
   doseUnit: "MG",
   doseUnitOther: "",
   route: "",
-  frequency: "",
-  duration: "",
+  frequencyEvery: 1,
+  frequencyUnit: "WEEK",
+  durationAmount: 4,
+  durationUnit: "WEEK",
+  continuousUse: false,
   plannedAdministrations: null,
   instructions: "",
 });
@@ -66,7 +74,16 @@ export function EncounterPrescriptionCard({ appointmentId }: { appointmentId: st
   useEffect(() => {
     if (!query.data || loadedId === (loaded?.id ?? null)) return;
     setLoadedId(loaded?.id ?? null);
-    setItems(loaded?.items ?? []);
+    setItems(
+      (loaded?.items ?? []).map((item) => ({
+        ...item,
+        frequencyEvery: item.frequencyEvery ?? 1,
+        frequencyUnit: item.frequencyUnit ?? "WEEK",
+        durationAmount: item.durationAmount ?? 4,
+        durationUnit: item.durationUnit ?? "WEEK",
+        continuousUse: item.continuousUse ?? false,
+      })),
+    );
     setGeneralInstructions(loaded?.generalInstructions ?? "");
   }, [loaded, loadedId, query.data]);
 
@@ -268,28 +285,113 @@ export function EncounterPrescriptionCard({ appointmentId }: { appointmentId: st
                 </label>
               </div>
               <div className="grid gap-4 md:grid-cols-2">
-                <label className="space-y-1 text-sm font-medium">
-                  Frequência
-                  <Input
-                    value={item.frequency}
-                    required
-                    minLength={2}
-                    maxLength={200}
-                    placeholder="Ex.: uma vez por semana"
-                    onChange={(event) => updateItem(item.id, { frequency: event.target.value })}
-                  />
-                </label>
-                <label className="space-y-1 text-sm font-medium">
-                  Duração
-                  <Input
-                    value={item.duration}
-                    required
-                    minLength={2}
-                    maxLength={200}
-                    placeholder="Ex.: quatro semanas"
-                    onChange={(event) => updateItem(item.id, { duration: event.target.value })}
-                  />
-                </label>
+                <fieldset className="space-y-2 rounded-md border p-3">
+                  <legend className="px-1 text-sm font-medium">Frequência de administração</legend>
+                  <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1.5fr)] gap-2">
+                    <label className="space-y-1 text-xs text-muted-foreground">
+                      A cada
+                      <Input
+                        aria-label={`Intervalo da frequência do item ${index + 1}`}
+                        type="number"
+                        min="1"
+                        max="365"
+                        step="1"
+                        required
+                        value={item.frequencyEvery}
+                        onChange={(event) =>
+                          updateItem(item.id, { frequencyEvery: Number(event.target.value) })
+                        }
+                      />
+                    </label>
+                    <label className="space-y-1 text-xs text-muted-foreground">
+                      Unidade do intervalo
+                      <select
+                        aria-label={`Unidade da frequência do item ${index + 1}`}
+                        className="h-10 w-full rounded-md border bg-background px-3 text-sm text-foreground"
+                        value={item.frequencyUnit}
+                        onChange={(event) =>
+                          updateItem(item.id, {
+                            frequencyUnit: event.target.value as PrescriptionItem["frequencyUnit"],
+                          })
+                        }
+                      >
+                        <option value="HOUR">hora(s)</option>
+                        <option value="DAY">dia(s)</option>
+                        <option value="WEEK">semana(s)</option>
+                        <option value="MONTH">mês(es)</option>
+                      </select>
+                    </label>
+                  </div>
+                  {item.frequency ? (
+                    <p className="text-xs text-warning-foreground">
+                      Registro anterior: {item.frequency}. Confira a conversão estruturada.
+                    </p>
+                  ) : null}
+                </fieldset>
+                <fieldset className="space-y-2 rounded-md border p-3">
+                  <legend className="px-1 text-sm font-medium">Duração do tratamento</legend>
+                  <label className="flex min-h-10 items-center gap-2 text-sm font-normal">
+                    <input
+                      type="checkbox"
+                      checked={item.continuousUse}
+                      onChange={(event) =>
+                        updateItem(item.id, {
+                          continuousUse: event.target.checked,
+                          durationAmount: event.target.checked ? null : 4,
+                          durationUnit: event.target.checked ? null : "WEEK",
+                        })
+                      }
+                    />
+                    Uso contínuo
+                  </label>
+                  {!item.continuousUse ? (
+                    <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1.5fr)] gap-2">
+                      <label className="space-y-1 text-xs text-muted-foreground">
+                        Durante
+                        <Input
+                          aria-label={`Quantidade da duração do item ${index + 1}`}
+                          type="number"
+                          min="1"
+                          max="3650"
+                          step="1"
+                          required
+                          value={item.durationAmount ?? ""}
+                          onChange={(event) =>
+                            updateItem(item.id, {
+                              durationAmount: event.target.value
+                                ? Number(event.target.value)
+                                : null,
+                            })
+                          }
+                        />
+                      </label>
+                      <label className="space-y-1 text-xs text-muted-foreground">
+                        Unidade da duração
+                        <select
+                          aria-label={`Unidade da duração do item ${index + 1}`}
+                          className="h-10 w-full rounded-md border bg-background px-3 text-sm text-foreground"
+                          value={item.durationUnit ?? ""}
+                          onChange={(event) =>
+                            updateItem(item.id, {
+                              durationUnit: event.target.value as NonNullable<
+                                PrescriptionItem["durationUnit"]
+                              >,
+                            })
+                          }
+                        >
+                          <option value="DAY">dia(s)</option>
+                          <option value="WEEK">semana(s)</option>
+                          <option value="MONTH">mês(es)</option>
+                        </select>
+                      </label>
+                    </div>
+                  ) : null}
+                  {item.duration ? (
+                    <p className="text-xs text-warning-foreground">
+                      Registro anterior: {item.duration}. Confira a conversão estruturada.
+                    </p>
+                  ) : null}
+                </fieldset>
               </div>
               <label className="block space-y-1 text-sm font-medium">
                 Orientações deste item
