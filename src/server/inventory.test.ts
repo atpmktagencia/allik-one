@@ -117,7 +117,6 @@ async function scopedCookie(unitId: string, role = "VIEWER") {
   return `allik_inventory_session=${token}`;
 }
 
-
 describe("revocable integration credentials", () => {
   it("creates a scoped secret, audits its use and revokes it immediately", async () => {
     const adminCookie = await scopedCookie("a1100000-0000-4000-8000-000000000101", "SUPER_ADMIN");
@@ -3653,5 +3652,331 @@ describe("encounter quote commercial lifecycle", () => {
         )
       ).rows[0].count,
     ).toBe(0);
+  });
+});
+
+describe("paid encounter quote therapeutic activation", () => {
+  const unitId = "a1100000-0000-4000-8000-000000000101";
+  async function activationFixture(
+    options: {
+      paid?: boolean;
+      quantity?: number;
+      frequencyUnit?: string;
+      durationAmount?: number;
+    } = {},
+  ) {
+    const sessionCookie = await scopedCookie(unitId, "PARTNER_ADMIN");
+    const userId = (
+      await getPool().query<{ user_id: string }>(
+        "SELECT user_id FROM inventory_sessions WHERE token_hash=$1",
+        [hashToken(sessionCookie.split("=")[1]!)],
+      )
+    ).rows[0]!.user_id;
+    const patientId = randomUUID();
+    const appointmentId = randomUUID();
+    const prescriptionId = randomUUID();
+    const quoteId = randomUUID();
+    const productId = (
+      await getPool().query<{ id: string }>(
+        `INSERT INTO inventory_products(organization_id,name,sku,category,unit)
+       VALUES('a1100000-0000-4000-8000-000000000001','Medicamento cadência sintético',$1,'Injetável','un') RETURNING id`,
+        [randomUUID()],
+      )
+    ).rows[0]!.id;
+    await getPool().query(
+      `INSERT INTO inventory_patients(id,organization_id,primary_unit_id,internal_code,full_name,phone,email)
+       VALUES($1,'a1100000-0000-4000-8000-000000000001',$2,$3,'Paciente cadência sintético','+5585999999999','cadence@example.test')`,
+      [patientId, unitId, `CAD-${patientId.slice(0, 8)}`],
+    );
+    await getPool().query(
+      `INSERT INTO inventory_care_appointments(id,organization_id,unit_id,patient_id,professional_user_id,care_type,starts_at,ends_at,room)
+       VALUES($1,'a1100000-0000-4000-8000-000000000001',$2,$3,$4,'CONSULTATION','2028-01-10T12:00:00Z','2028-01-10T13:00:00Z',$5)`,
+      [appointmentId, unitId, patientId, userId, `Sala ${appointmentId.slice(0, 8)}`],
+    );
+    const item = {
+      id: randomUUID(),
+      productId,
+      medicationName: "Medicamento cadência sintético",
+      doseQuantity: 2.5,
+      doseUnit: "MG",
+      route: "SC",
+      frequencyEvery: 1,
+      frequencyUnit: options.frequencyUnit ?? "WEEK",
+      durationAmount: options.durationAmount ?? 4,
+      durationUnit: options.frequencyUnit === "MONTH" ? "MONTH" : "WEEK",
+      continuousUse: false,
+      plannedAdministrations: options.quantity ?? 4,
+      instructions: "Orientação sintética.",
+    };
+    await getPool().query(
+      `INSERT INTO inventory_encounter_prescriptions(id,organization_id,unit_id,appointment_id,patient_id,author_user_id,author_name,professional_council,council_number,council_region,items,status,finalized_at)
+       VALUES($1,'a1100000-0000-4000-8000-000000000001',$2,$3,$4,$5,'Profissional sintético','CRM','12345','CE',$6,'FINAL',now())`,
+      [prescriptionId, unitId, appointmentId, patientId, userId, JSON.stringify([item])],
+    );
+    const quoteItem = {
+      prescriptionItemId: item.id,
+      productId,
+      medicationName: item.medicationName,
+      doseQuantity: item.doseQuantity,
+      doseUnit: item.doseUnit,
+      quantity: options.quantity ?? 4,
+      unitSalePrice: 200,
+      subtotalSale: 200 * (options.quantity ?? 4),
+      unitEstimatedCost: 25,
+      subtotalEstimatedCost: 25 * (options.quantity ?? 4),
+      pricingDoseId: randomUUID(),
+    };
+    await getPool().query(
+      `INSERT INTO inventory_encounter_quotes(id,organization_id,unit_id,appointment_id,patient_id,prescription_id,created_by_user_id,items,total_sale,estimated_cost,gross_result,status,issued_at,approved_at,paid_at,payment_method,version)
+       VALUES($1,'a1100000-0000-4000-8000-000000000001',$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,now(),$12,$12,$13,3)`,
+      [
+        quoteId,
+        unitId,
+        appointmentId,
+        patientId,
+        prescriptionId,
+        userId,
+        JSON.stringify([quoteItem]),
+        quoteItem.subtotalSale,
+        quoteItem.subtotalEstimatedCost,
+        quoteItem.subtotalSale - quoteItem.subtotalEstimatedCost,
+        options.paid === false ? "ISSUED" : "PAID",
+        options.paid === false ? null : new Date(),
+        options.paid === false ? null : "PIX",
+      ],
+    );
+    const post = (
+      action: string,
+      extra: Record<string, unknown> = {},
+      credential = sessionCookie,
+    ) =>
+      encounterQuotesResponse(
+        new Request(`${origin}/api/v1/inventory/encounter-quotes`, {
+          method: "POST",
+          headers: { cookie: credential, origin, "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action,
+            appointmentId,
+            version: 3,
+            firstScheduledOn: "2028-01-31",
+            reason: "Equipe conferiu a cadência prescrita.",
+            ...extra,
+          }),
+        }),
+      );
+    return { quoteId, appointmentId, patientId, productId, userId, item, post };
+  }
+  const stockSnapshot = async () =>
+    (
+      await getPool().query(
+        `SELECT (SELECT count(*)::int FROM inventory_movements) AS movements,
+     (SELECT coalesce(jsonb_agg(to_jsonb(b) ORDER BY lot_id,location_id),'[]'::jsonb) FROM inventory_balances b) AS balances`,
+      )
+    ).rows;
+
+  it("previews and atomically activates paid doses with authored purchases, planned dates and no stock movement", async () => {
+    const f = await activationFixture();
+    const beforeStock = await stockSnapshot();
+    const preview = await f.post("PREVIEW_ACTIVATION");
+    expect(preview.status).toBe(200);
+    const previewData = (await preview.json()).data.activation;
+    expect(previewData.items[0].dates).toEqual([
+      "2028-01-31",
+      "2028-02-07",
+      "2028-02-14",
+      "2028-02-21",
+    ]);
+    expect(
+      (
+        await getPool().query(
+          "SELECT count(*)::int AS count FROM inventory_patient_treatments WHERE patient_id=$1",
+          [f.patientId],
+        )
+      ).rows[0].count,
+    ).toBe(0);
+    const activated = await f.post("ACTIVATE_PLAN");
+    expect(activated.status).toBe(200);
+    const treatment = (
+      await getPool().query(
+        "SELECT id,status,dose_quantity::text,dose_unit,planned_administrations,created_by_user_id FROM inventory_patient_treatments WHERE patient_id=$1",
+        [f.patientId],
+      )
+    ).rows;
+    expect(treatment).toHaveLength(1);
+    expect(treatment[0]).toEqual(
+      expect.objectContaining({
+        status: "ACTIVE",
+        dose_quantity: "2.500000",
+        dose_unit: "MG",
+        planned_administrations: 4,
+        created_by_user_id: f.userId,
+      }),
+    );
+    expect(
+      (
+        await getPool().query(
+          "SELECT to_char(scheduled_on,'YYYY-MM-DD') AS date,status,dose_quantity::text FROM inventory_patient_treatment_schedule WHERE treatment_id=$1 ORDER BY sequence",
+          [treatment[0].id],
+        )
+      ).rows,
+    ).toEqual(
+      previewData.items[0].dates.map((date: string) => ({
+        date,
+        status: "PLANNED",
+        dose_quantity: "2.500000",
+      })),
+    );
+    expect(
+      (
+        await getPool().query(
+          "SELECT purchased_quantity::text,total_value::text,actor,actor_user_id FROM inventory_patient_treatment_purchases WHERE treatment_id=$1",
+          [treatment[0].id],
+        )
+      ).rows,
+    ).toEqual([
+      {
+        purchased_quantity: "10.000000",
+        total_value: "800.00",
+        actor: "Usuário de escopo",
+        actor_user_id: f.userId,
+      },
+    ]);
+    expect(
+      (
+        await getPool().query(
+          "SELECT actor,actor_user_id FROM inventory_patient_treatment_changes WHERE treatment_id=$1",
+          [treatment[0].id],
+        )
+      ).rows,
+    ).toEqual([{ actor: "Usuário de escopo", actor_user_id: f.userId }]);
+    expect(await stockSnapshot()).toEqual(beforeStock);
+  });
+
+  it("uses calendar months instead of approximating a month as thirty days", async () => {
+    const f = await activationFixture({ frequencyUnit: "MONTH" });
+    const response = await f.post("PREVIEW_ACTIVATION");
+    expect(response.status).toBe(200);
+    expect((await response.json()).data.activation.items[0].dates).toEqual([
+      "2028-01-31",
+      "2028-02-29",
+      "2028-03-31",
+      "2028-04-30",
+    ]);
+  });
+
+  it("rolls back every activation record when a purchase insert fails", async () => {
+    const f = await activationFixture();
+    // Inject a database failure after treatment and schedule inserts, confined to this patient.
+    const suffix = f.patientId.replaceAll("-", "");
+    const functionName = `test_activation_fail_${suffix}`;
+    await getPool().query(`CREATE FUNCTION ${functionName}() RETURNS trigger LANGUAGE plpgsql AS $$
+      BEGIN RAISE EXCEPTION 'constraint synthetic activation failure'; END; $$`);
+    await getPool()
+      .query(`CREATE TRIGGER ${functionName} BEFORE INSERT ON inventory_patient_treatment_purchases
+      FOR EACH ROW WHEN (NEW.patient_id='${f.patientId}'::uuid) EXECUTE FUNCTION ${functionName}()`);
+    try {
+      expect((await f.post("ACTIVATE_PLAN")).status).toBe(500);
+      for (const table of [
+        "inventory_patient_treatments",
+        "inventory_patient_treatment_schedule",
+        "inventory_patient_treatment_purchases",
+        "inventory_encounter_quote_activations",
+      ])
+        expect(
+          (
+            await getPool().query(
+              `SELECT count(*)::int AS count FROM ${table} WHERE patient_id=$1`,
+              [f.patientId],
+            )
+          ).rows[0].count,
+        ).toBe(0);
+    } finally {
+      await getPool().query(
+        `DROP TRIGGER ${functionName} ON inventory_patient_treatment_purchases`,
+      );
+      await getPool().query(`DROP FUNCTION ${functionName}()`);
+    }
+    expect((await f.post("ACTIVATE_PLAN")).status).toBe(200);
+  });
+
+  it("rejects unpaid, stale, invalid dates and doses outside the prescribed duration without partial plans", async () => {
+    const unpaid = await activationFixture({ paid: false });
+    expect((await unpaid.post("ACTIVATE_PLAN")).status).toBe(409);
+    const f = await activationFixture();
+    expect((await f.post("ACTIVATE_PLAN", { version: 2 })).status).toBe(409);
+    expect((await f.post("ACTIVATE_PLAN", { firstScheduledOn: "2028-02-30" })).status).toBe(400);
+    const tooLong = await activationFixture({ quantity: 6, durationAmount: 1 });
+    expect((await tooLong.post("ACTIVATE_PLAN")).status).toBe(400);
+    for (const patientId of [f.patientId, unpaid.patientId, tooLong.patientId])
+      expect(
+        (
+          await getPool().query(
+            "SELECT count(*)::int AS count FROM inventory_patient_treatments WHERE patient_id=$1",
+            [patientId],
+          )
+        ).rows[0].count,
+      ).toBe(0);
+  });
+
+  it("prevents unit IDOR and commercial-only, viewer and anonymous activation", async () => {
+    const f = await activationFixture();
+    const credentials = await Promise.all([
+      scopedCookie("a1100000-0000-4000-8000-000000000102", "PARTNER_ADMIN"),
+      scopedCookie(unitId, "FINANCE"),
+      scopedCookie(unitId, "VIEWER"),
+    ]);
+    for (const credential of [...credentials, cookie])
+      expect((await f.post("ACTIVATE_PLAN", {}, credential)).status).toBe(403);
+    expect(
+      (
+        await getPool().query(
+          "SELECT count(*)::int AS count FROM inventory_patient_treatments WHERE patient_id=$1",
+          [f.patientId],
+        )
+      ).rows[0].count,
+    ).toBe(0);
+  });
+
+  it("replays simultaneous activation once and preserves original cadence and audit author", async () => {
+    const f = await activationFixture();
+    const secondCookie = await scopedCookie(unitId, "PARTNER_ADMIN");
+    const responses = await Promise.all([
+      f.post("ACTIVATE_PLAN"),
+      f.post("ACTIVATE_PLAN", {}, secondCookie),
+    ]);
+    expect(responses.map((response) => response.status)).toEqual([200, 200]);
+    const replay = await f.post("ACTIVATE_PLAN", { version: 0, firstScheduledOn: "2029-01-01" });
+    expect(replay.status).toBe(200);
+    const treatment = (
+      await getPool().query(
+        "SELECT id,created_by_user_id FROM inventory_patient_treatments WHERE patient_id=$1",
+        [f.patientId],
+      )
+    ).rows;
+    expect(treatment).toHaveLength(1);
+    expect(
+      (
+        await getPool().query(
+          "SELECT count(*)::int AS count,min(scheduled_on)::text AS first FROM inventory_patient_treatment_schedule WHERE treatment_id=$1",
+          [treatment[0].id],
+        )
+      ).rows,
+    ).toEqual([{ count: 4, first: "2028-01-31" }]);
+    expect(
+      (
+        await getPool().query(
+          "SELECT count(*)::int AS count FROM inventory_patient_treatment_purchases WHERE treatment_id=$1",
+          [treatment[0].id],
+        )
+      ).rows[0].count,
+    ).toBe(1);
+    expect(
+      (
+        await getPool().query(
+          "SELECT actor_user_id FROM inventory_patient_treatment_changes WHERE treatment_id=$1",
+          [treatment[0].id],
+        )
+      ).rows,
+    ).toEqual([{ actor_user_id: treatment[0].created_by_user_id }]);
   });
 });

@@ -1077,7 +1077,11 @@ export const patientTreatments = pgTable(
     doseQuantity: numeric("dose_quantity", { precision: 18, scale: 6 }).notNull(),
     doseUnit: text("dose_unit").notNull(),
     route: text("route").notNull(),
-    frequencyEveryDays: numeric("frequency_every_days", { precision: 10, scale: 2 }).notNull(),
+    frequencyEveryDays: numeric("frequency_every_days", { precision: 10, scale: 2 }),
+    frequencyEvery: integer("frequency_every"),
+    frequencyUnit: text("frequency_unit"),
+    sourceQuoteId: uuid("source_quote_id").references(() => encounterQuotes.id),
+    sourcePrescriptionItemId: uuid("source_prescription_item_id"),
     firstScheduledOn: date("first_scheduled_on").notNull(),
     plannedAdministrations: integer("planned_administrations"),
     status: text("status").notNull().default("PLANNED"),
@@ -1099,6 +1103,18 @@ export const patientTreatments = pgTable(
     check("patient_treatment_unit_valid", sql`${t.doseUnit} IN ('MG','ML','UI','UNIT')`),
     check("patient_treatment_route_valid", sql`char_length(trim(${t.route})) BETWEEN 2 AND 40`),
     check("patient_treatment_frequency_positive", sql`${t.frequencyEveryDays} > 0`),
+    uniqueIndex("patient_treatment_quote_item_unique").on(
+      t.sourceQuoteId,
+      t.sourcePrescriptionItemId,
+    ),
+    check(
+      "patient_treatment_cadence_valid",
+      sql`coalesce((${t.frequencyEvery} IS NULL AND ${t.frequencyUnit} IS NULL AND ${t.frequencyEveryDays} IS NOT NULL) OR (${t.frequencyEvery} > 0 AND ${t.frequencyUnit} IN ('DAY','WEEK','MONTH') AND ((${t.frequencyUnit}='MONTH' AND ${t.frequencyEveryDays} IS NULL) OR (${t.frequencyUnit}='DAY' AND ${t.frequencyEveryDays}=${t.frequencyEvery}) OR (${t.frequencyUnit}='WEEK' AND ${t.frequencyEveryDays}=${t.frequencyEvery}*7))),false)`,
+    ),
+    check(
+      "patient_treatment_source_pair_valid",
+      sql`(${t.sourceQuoteId} IS NULL) = (${t.sourcePrescriptionItemId} IS NULL)`,
+    ),
     check(
       "patient_treatment_count_positive",
       sql`${t.plannedAdministrations} IS NULL OR ${t.plannedAdministrations} > 0`,
@@ -1857,6 +1873,39 @@ export const openPresentationEvents = pgTable(
     check("open_presentation_event_quantity_positive", sql`${t.quantity} > 0`),
     check(
       "open_presentation_event_reason_valid",
+      sql`char_length(trim(${t.reason})) BETWEEN 10 AND 500`,
+    ),
+  ],
+);
+
+export const encounterQuoteActivations = pgTable(
+  "inventory_encounter_quote_activations",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id),
+    quoteId: uuid("quote_id")
+      .notNull()
+      .unique()
+      .references(() => encounterQuotes.id),
+    patientId: uuid("patient_id")
+      .notNull()
+      .references(() => patients.id),
+    unitId: uuid("unit_id")
+      .notNull()
+      .references(() => units.id),
+    firstScheduledOn: date("first_scheduled_on").notNull(),
+    snapshot: jsonb("snapshot").notNull(),
+    reason: text("reason").notNull(),
+    actorUserId: uuid("actor_user_id")
+      .notNull()
+      .references(() => users.id),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    check(
+      "encounter_activation_reason_valid",
       sql`char_length(trim(${t.reason})) BETWEEN 10 AND 500`,
     ),
   ],

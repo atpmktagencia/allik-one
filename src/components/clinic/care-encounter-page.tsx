@@ -27,6 +27,7 @@ import { readInventoryResponse, useInventory } from "@/data/inventory-api";
 import { InventoryState } from "./inventory-state";
 import { EncounterPrescriptionCard } from "./encounter-prescription-card";
 import { EncounterQuoteCard } from "./encounter-quote-card";
+import { treatmentCadenceLabel } from "@/data/treatment-cadence-label";
 
 type Appointment = {
   id: string;
@@ -63,6 +64,8 @@ type Payload = {
     doseUnit: string;
     route: string;
     frequencyEveryDays: string;
+    frequencyEvery?: number | string | null;
+    frequencyUnit?: string | null;
     status: string;
   }>;
   schedule: Array<{
@@ -973,8 +976,8 @@ export function CareEncounterPage({ appointmentId }: { appointmentId: string }) 
                     <article key={item.id} className="rounded-lg border p-3 text-sm">
                       <p className="font-medium">{item.productName}</p>
                       <p className="mt-1 text-xs text-muted-foreground">
-                        {item.doseQuantity} {item.doseUnit} · {item.route} · a cada{" "}
-                        {item.frequencyEveryDays} dia(s)
+                        {item.doseQuantity} {item.doseUnit} · {item.route} ·{" "}
+                        {treatmentCadenceLabel(item)}
                       </p>
                     </article>
                   ))}

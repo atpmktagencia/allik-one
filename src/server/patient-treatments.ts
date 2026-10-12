@@ -60,7 +60,7 @@ export async function patientDetailResponse(request: Request) {
       getPool().query(
         `SELECT t.id,t.product_id AS "productId",p.name AS "productName",p.sku,
           t.dose_quantity AS "doseQuantity",t.dose_unit AS "doseUnit",t.route,
-          t.frequency_every_days AS "frequencyEveryDays",t.first_scheduled_on AS "firstScheduledOn",
+          t.frequency_every_days AS "frequencyEveryDays",t.frequency_every AS "frequencyEvery",t.frequency_unit AS "frequencyUnit",t.first_scheduled_on AS "firstScheduledOn",
           t.planned_administrations AS "plannedAdministrations",t.status,t.version
          FROM inventory_patient_treatments t JOIN inventory_products p ON p.id=t.product_id
          WHERE t.patient_id=$1 AND t.organization_id=$2 ORDER BY t.first_scheduled_on,t.created_at`,
@@ -419,6 +419,16 @@ export async function patientDetailResponse(request: Request) {
         );
       }
       before = current.rows[0];
+      if (current.rows[0].source_quote_id) {
+        await client.query("ROLLBACK");
+        return Response.json(
+          {
+            error:
+              "Este plano foi gerado de um orçamento pago. A alteração da prescrição exige revisão clínica específica.",
+          },
+          { status: 409, headers },
+        );
+      }
       result = await client.query(
         `UPDATE inventory_patient_treatments SET product_id=$4,dose_quantity=$5,dose_unit=$6,route=$7,frequency_every_days=$8,first_scheduled_on=$9,planned_administrations=$10,status=$11,updated_by_user_id=$12,version=version+1,updated_at=now()
          WHERE id=$1 AND patient_id=$2 AND organization_id=$3 RETURNING *`,

@@ -105,7 +105,8 @@ export async function careEncounterResponse(request: Request) {
     ),
     pool.query(
       `SELECT t.id,p.name AS "productName",p.sku,t.dose_quantity AS "doseQuantity",
-        t.dose_unit AS "doseUnit",t.route,t.frequency_every_days AS "frequencyEveryDays",t.status
+        t.dose_unit AS "doseUnit",t.route,t.frequency_every_days AS "frequencyEveryDays",
+        t.frequency_every AS "frequencyEvery",t.frequency_unit AS "frequencyUnit",t.status
        FROM inventory_patient_treatments t JOIN inventory_products p ON p.id=t.product_id
        WHERE t.patient_id=$1 AND t.organization_id=$2 AND t.unit_id=$3
        ORDER BY t.created_at DESC LIMIT 20`,

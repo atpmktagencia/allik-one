@@ -8,6 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useInventory } from "@/data/inventory-api";
 import { InventoryState } from "./inventory-state";
 import { PageHeader } from "./page-kit";
+import { treatmentCadenceLabel } from "@/data/treatment-cadence-label";
 
 type Treatment = {
   id: string;
@@ -18,6 +19,8 @@ type Treatment = {
   doseUnit: string;
   route: string;
   frequencyEveryDays: string;
+  frequencyEvery?: number | string | null;
+  frequencyUnit?: string | null;
   firstScheduledOn: string;
   plannedAdministrations: number | null;
   status: string;
@@ -1107,8 +1110,8 @@ export function PatientTreatmentPage({ patientId }: { patientId: string }) {
                 <div>
                   <p className="font-medium">{t.productName}</p>
                   <p className="text-sm text-muted-foreground">
-                    {t.doseQuantity} {t.doseUnit} · {t.route} · a cada {t.frequencyEveryDays} dias ·
-                    início {String(t.firstScheduledOn).slice(0, 10).split("-").reverse().join("/")}
+                    {t.doseQuantity} {t.doseUnit} · {t.route} · {treatmentCadenceLabel(t)} · início{" "}
+                    {String(t.firstScheduledOn).slice(0, 10).split("-").reverse().join("/")}
                   </p>
                   {data.supplySummaries
                     .filter((s) => s.treatmentId === t.id)

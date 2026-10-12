@@ -47,6 +47,23 @@ type QuoteItem = {
   subtotalEstimatedCost: number;
 };
 
+type Activation = {
+  quoteId: string;
+  patientId: string;
+  unitId: string;
+  firstScheduledOn: string;
+  activated: boolean;
+  items: {
+    prescriptionItemId: string;
+    medicationName: string;
+    doseQuantity: number;
+    doseUnit: string;
+    route: string;
+    quantity: number;
+    dates: string[];
+  }[];
+};
+
 type Payload = {
   prescription: null | { id: string; items: PrescriptionItem[]; status: "DRAFT" | "FINAL" };
   quote: null | {
@@ -70,6 +87,8 @@ type Payload = {
   canApprove: boolean;
   canDecline: boolean;
   canRegisterPayment: boolean;
+  canActivate?: boolean;
+  activation?: Activation | null;
 };
 
 type Selection = { prescriptionItemId: string; pricingDoseId: string; quantity: number };
@@ -125,6 +144,12 @@ export function EncounterQuoteCard({ appointmentId }: { appointmentId: string })
   const [paymentDate, setPaymentDate] = useState("");
   const [paymentReference, setPaymentReference] = useState("");
   const [paymentReason, setPaymentReason] = useState("");
+  const [firstScheduledOn, setFirstScheduledOn] = useState("");
+  const [activationReason, setActivationReason] = useState("");
+  const [activationPreview, setActivationPreview] = useState<{
+    activation: Activation;
+    version: number;
+  } | null>(null);
   const loaded = query.data?.quote;
 
   useEffect(() => {
@@ -312,6 +337,65 @@ export function EncounterQuoteCard({ appointmentId }: { appointmentId: string })
             : "Pagamento registrado. Nenhuma aplicação foi agendada automaticamente.",
       );
     } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Falha de conexão.");
+    } finally {
+      setPending(false);
+    }
+  }
+
+  async function activate(action: "PREVIEW_ACTIVATION" | "ACTIVATE_PLAN") {
+    if (!data.quote || pending || !data.canActivate) return;
+    if (!firstScheduledOn || activationReason.trim().length < 10) {
+      setError("Informe a primeira data e um motivo com pelo menos 10 caracteres.");
+      return;
+    }
+    if (action === "ACTIVATE_PLAN") {
+      if (!activationPreview || activationPreview.version !== data.quote.version) {
+        setActivationPreview(null);
+        setError("Confira novamente as datas antes de ativar o plano.");
+        return;
+      }
+      if (
+        !window.confirm(
+          "Ativar o plano terapêutico com as datas conferidas? As aplicações ficarão previstas; confirme os horários com a equipe.",
+        )
+      )
+        return;
+    }
+    setPending(true);
+    setError("");
+    setMessage("");
+    try {
+      const response = await fetch("/api/v1/inventory/encounter-quotes", {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action,
+          appointmentId,
+          version: data.quote.version,
+          firstScheduledOn,
+          reason: activationReason.trim(),
+        }),
+      });
+      const result = await readInventoryResponse<{ activation: Activation }>(
+        response,
+        "Não foi possível preparar o plano terapêutico.",
+      );
+      if (!result.data?.activation)
+        throw new Error("O servidor não retornou as datas do plano. Tente novamente.");
+      if (action === "PREVIEW_ACTIVATION") {
+        setActivationPreview({ activation: result.data.activation, version: data.quote.version });
+        setMessage("Datas previstas geradas. Confira cada aplicação antes de confirmar.");
+      } else {
+        setActivationPreview(null);
+        await query.refetch();
+        setMessage(
+          "Plano terapêutico ativado. As aplicações estão previstas para conferência da equipe.",
+        );
+      }
+    } catch (cause) {
+      setActivationPreview(null);
       setError(cause instanceof Error ? cause.message : "Falha de conexão.");
     } finally {
       setPending(false);
@@ -551,6 +635,100 @@ export function EncounterQuoteCard({ appointmentId }: { appointmentId: string })
             data.quote.paymentMethod}
           {data.quote.paymentReference ? ` · Referência: ${data.quote.paymentReference}` : ""}
         </p>
+      ) : null}
+      {data.activation?.activated ? (
+        <div className="space-y-2 rounded-lg border p-4">
+          <h3 className="text-sm font-semibold">Plano terapêutico ativo</h3>
+          <p className="text-sm text-muted-foreground">
+            {data.activation.items.reduce((total, item) => total + item.dates.length, 0)} aplicações
+            previstas a partir de{" "}
+            {new Date(`${data.activation.firstScheduledOn}T12:00:00`).toLocaleDateString("pt-BR")}.
+          </p>
+          <a
+            className="inline-block text-sm font-medium underline underline-offset-4"
+            href={`/pacientes/${data.activation.patientId}`}
+          >
+            Abrir plano terapêutico do paciente
+          </a>
+        </div>
+      ) : data.quote?.status === "PAID" && data.canActivate ? (
+        <div className="space-y-4 rounded-lg border p-4">
+          <div>
+            <h3 className="text-sm font-semibold">Programar plano terapêutico</h3>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Escolha a primeira data para calcular a cadência prescrita. As datas são previstas;
+              horário, profissional e disponibilidade serão conferidos pela equipe. Não reserva nem
+              baixa estoque.
+            </p>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <label className="space-y-1 text-sm">
+              Data da primeira aplicação
+              <Input
+                type="date"
+                required
+                disabled={pending}
+                value={firstScheduledOn}
+                onChange={(event) => {
+                  setFirstScheduledOn(event.target.value);
+                  setActivationPreview(null);
+                  setMessage("");
+                }}
+              />
+            </label>
+            <label className="space-y-1 text-sm">
+              Motivo da programação
+              <Input
+                required
+                minLength={10}
+                maxLength={500}
+                disabled={pending}
+                value={activationReason}
+                placeholder="Ex.: datas acordadas com o paciente"
+                onChange={(event) => {
+                  setActivationReason(event.target.value);
+                  setActivationPreview(null);
+                  setMessage("");
+                }}
+              />
+            </label>
+          </div>
+          <Button
+            variant="outline"
+            disabled={pending || !firstScheduledOn || activationReason.trim().length < 10}
+            onClick={() => activate("PREVIEW_ACTIVATION")}
+          >
+            {pending ? "Processando…" : "Conferir datas previstas"}
+          </Button>
+          {activationPreview && activationPreview.version === data.quote.version ? (
+            <div className="space-y-3">
+              <h4 className="text-sm font-semibold">Confira a programação antes de ativar</h4>
+              {activationPreview.activation.items.map((item) => (
+                <div key={item.prescriptionItemId} className="space-y-2 rounded-lg border p-3">
+                  <p className="text-sm font-medium">
+                    {item.medicationName} · {item.doseQuantity} {item.doseUnit} · {item.route}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {item.dates.length} aplicações previstas
+                  </p>
+                  <ol
+                    aria-label={`Datas previstas para ${item.medicationName}`}
+                    className="flex max-h-48 flex-wrap gap-2 overflow-y-auto text-xs"
+                  >
+                    {item.dates.map((date, index) => (
+                      <li key={`${date}-${index}`} className="rounded-md bg-muted px-2 py-1">
+                        {index + 1}. {new Date(`${date}T12:00:00`).toLocaleDateString("pt-BR")}
+                      </li>
+                    ))}
+                  </ol>
+                </div>
+              ))}
+              <Button disabled={pending} onClick={() => activate("ACTIVATE_PLAN")}>
+                {pending ? "Ativando…" : "Confirmar e ativar plano"}
+              </Button>
+            </div>
+          ) : null}
+        </div>
       ) : null}
     </section>
   );

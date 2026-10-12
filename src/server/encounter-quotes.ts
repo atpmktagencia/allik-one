@@ -2,6 +2,7 @@ import "@tanstack/react-start/server-only";
 import { z } from "zod";
 import { authenticate, can } from "./auth";
 import { getPool } from "./db";
+import { activateEncounterQuote } from "./encounter-quote-activation";
 
 const headers = { "Cache-Control": "private, no-store", Vary: "Cookie, Authorization" };
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -70,6 +71,13 @@ export async function encounterQuotesResponse(request: Request) {
       typeof body === "object" &&
       body &&
       "action" in body &&
+      ["PREVIEW_ACTIVATION", "ACTIVATE_PLAN"].includes(String(body.action))
+    )
+      return activateEncounterQuote(body, auth);
+    if (
+      typeof body === "object" &&
+      body &&
+      "action" in body &&
       ["APPROVE", "DECLINE", "REGISTER_PAYMENT"].includes(String(body.action))
     )
       return transitionQuote(body, auth);
@@ -122,6 +130,14 @@ export async function encounterQuotesResponse(request: Request) {
     ),
   ]);
   const quote = quoteResult.rows[0] ?? null;
+  const activation = quote
+    ? ((
+        await pool.query(
+          "SELECT snapshot FROM inventory_encounter_quote_activations WHERE quote_id=$1 AND organization_id=$2",
+          [quote.id, auth.organizationId],
+        )
+      ).rows[0]?.snapshot ?? null)
+    : null;
   const canManage =
     Boolean(auth.user.id) &&
     !auth.preview &&
@@ -137,6 +153,14 @@ export async function encounterQuotesResponse(request: Request) {
           ? (prescriptionResult.rows[0] ?? null)
           : null,
         quote,
+        activation: can(auth, "patients.private.read", appointment.unitId) ? activation : null,
+        canActivate:
+          Boolean(auth.user.id) &&
+          !auth.preview &&
+          !auth.integration &&
+          can(auth, "patients.clinical.manage", appointment.unitId) &&
+          quote?.status === "PAID" &&
+          !activation,
         pricingOptions: can(auth, "patients.private.read", appointment.unitId)
           ? optionResult.rows
           : [],
