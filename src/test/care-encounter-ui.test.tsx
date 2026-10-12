@@ -93,6 +93,8 @@ describe("Care encounter UI", () => {
       "ANAMNESE LONGEVIDADE SAUDÁVEL",
     );
     expect(screen.queryByRole("textbox", { name: "Motivo da consulta" })).not.toBeInTheDocument();
+    expect(screen.getByRole("textbox", { name: "Conduta" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Anamnese estruturada" }));
     fireEvent.click(screen.getByRole("button", { name: "Motivo da consulta" }));
     expect(screen.getByRole("textbox", { name: "Motivo da consulta" })).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Concluir atendimento" }));

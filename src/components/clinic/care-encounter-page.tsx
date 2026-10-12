@@ -572,122 +572,128 @@ export function CareEncounterPage({ appointmentId }: { appointmentId: string }) 
             className="min-h-[420px] resize-y text-base leading-relaxed"
           />
         </label>
-        <div>
-          <h3 className="font-medium">Anamnese estruturada</h3>
-          <p className="mt-1 text-xs text-muted-foreground">
-            Preencha apenas os campos aplicáveis ao atendimento.
-          </p>
-          <fieldset
-            disabled={!data.canAuthorClinicalNote || data.clinicalNote?.status === "FINAL"}
-            className="mt-3"
-          >
-            <Accordion type="multiple" className="rounded-lg border px-4">
-              <AnamnesisField
-                label="Motivo da consulta"
-                field="chiefComplaint"
-                value={anamnesis.chiefComplaint}
-                maxLength={2000}
-                setAnamnesis={setAnamnesis}
-              />
-              <AnamnesisField
-                label="História da condição atual"
-                field="currentHistory"
-                value={anamnesis.currentHistory}
-                maxLength={10000}
-                setAnamnesis={setAnamnesis}
-              />
-              <AnamnesisField
-                label="Antecedentes pessoais"
-                field="personalHistory"
-                value={anamnesis.personalHistory}
-                maxLength={10000}
-                setAnamnesis={setAnamnesis}
-              />
-              <AnamnesisField
-                label="Antecedentes familiares"
-                field="familyHistory"
-                value={anamnesis.familyHistory}
-                maxLength={10000}
-                setAnamnesis={setAnamnesis}
-              />
-              <AnamnesisField
-                label="Hábitos e contexto"
-                field="habits"
-                value={anamnesis.habits}
-                maxLength={5000}
-                setAnamnesis={setAnamnesis}
-              />
-              <AnamnesisField
-                label="Revisão de sistemas"
-                field="systemsReview"
-                value={anamnesis.systemsReview}
-                maxLength={10000}
-                setAnamnesis={setAnamnesis}
-              />
-            </Accordion>
-          </fieldset>
-        </div>
-        <div>
-          <h3 className="font-medium">Exame físico</h3>
-          <p className="mt-1 text-xs text-muted-foreground">
-            Registre somente os sistemas examinados neste atendimento.
-          </p>
-          <fieldset
-            disabled={!data.canAuthorClinicalNote || data.clinicalNote?.status === "FINAL"}
-            className="mt-3"
-          >
-            <Accordion type="multiple" className="rounded-lg border px-4">
-              <PhysicalExamField
-                label="Estado geral"
-                field="generalExam"
-                value={physicalExam.generalExam}
-                setPhysicalExam={setPhysicalExam}
-              />
-              <PhysicalExamField
-                label="Cardiovascular"
-                field="cardiovascularExam"
-                value={physicalExam.cardiovascularExam}
-                setPhysicalExam={setPhysicalExam}
-              />
-              <PhysicalExamField
-                label="Respiratório"
-                field="respiratoryExam"
-                value={physicalExam.respiratoryExam}
-                setPhysicalExam={setPhysicalExam}
-              />
-              <PhysicalExamField
-                label="Abdominal"
-                field="abdominalExam"
-                value={physicalExam.abdominalExam}
-                setPhysicalExam={setPhysicalExam}
-              />
-              <PhysicalExamField
-                label="Neurológico"
-                field="neurologicalExam"
-                value={physicalExam.neurologicalExam}
-                setPhysicalExam={setPhysicalExam}
-              />
-              <PhysicalExamField
-                label="Musculoesquelético"
-                field="musculoskeletalExam"
-                value={physicalExam.musculoskeletalExam}
-                setPhysicalExam={setPhysicalExam}
-              />
-              <PhysicalExamField
-                label="Pele e anexos"
-                field="skinExam"
-                value={physicalExam.skinExam}
-                setPhysicalExam={setPhysicalExam}
-              />
-              <PhysicalExamField
-                label="Outros achados"
-                field="otherExam"
-                value={physicalExam.otherExam}
-                setPhysicalExam={setPhysicalExam}
-              />
-            </Accordion>
-          </fieldset>
-        </div>
+        <Accordion type="multiple" className="rounded-lg border px-4">
+          <AccordionItem value="structured-anamnesis" className="border-b-0">
+            <AccordionTrigger className="text-base">Anamnese estruturada</AccordionTrigger>
+            <AccordionContent>
+              <p className="mb-3 text-xs text-muted-foreground">
+                Preencha apenas os campos aplicáveis ao atendimento.
+              </p>
+              <fieldset
+                disabled={!data.canAuthorClinicalNote || data.clinicalNote?.status === "FINAL"}
+              >
+                <Accordion type="multiple" className="rounded-lg border px-4">
+                  <AnamnesisField
+                    label="Motivo da consulta"
+                    field="chiefComplaint"
+                    value={anamnesis.chiefComplaint}
+                    maxLength={2000}
+                    setAnamnesis={setAnamnesis}
+                  />
+                  <AnamnesisField
+                    label="História da condição atual"
+                    field="currentHistory"
+                    value={anamnesis.currentHistory}
+                    maxLength={10000}
+                    setAnamnesis={setAnamnesis}
+                  />
+                  <AnamnesisField
+                    label="Antecedentes pessoais"
+                    field="personalHistory"
+                    value={anamnesis.personalHistory}
+                    maxLength={10000}
+                    setAnamnesis={setAnamnesis}
+                  />
+                  <AnamnesisField
+                    label="Antecedentes familiares"
+                    field="familyHistory"
+                    value={anamnesis.familyHistory}
+                    maxLength={10000}
+                    setAnamnesis={setAnamnesis}
+                  />
+                  <AnamnesisField
+                    label="Hábitos e contexto"
+                    field="habits"
+                    value={anamnesis.habits}
+                    maxLength={5000}
+                    setAnamnesis={setAnamnesis}
+                  />
+                  <AnamnesisField
+                    label="Revisão de sistemas"
+                    field="systemsReview"
+                    value={anamnesis.systemsReview}
+                    maxLength={10000}
+                    setAnamnesis={setAnamnesis}
+                  />
+                </Accordion>
+              </fieldset>
+            </AccordionContent>
+          </AccordionItem>
+        </Accordion>
+        <Accordion type="multiple" className="rounded-lg border px-4">
+          <AccordionItem value="structured-physical-exam" className="border-b-0">
+            <AccordionTrigger className="text-base">Exame físico estruturado</AccordionTrigger>
+            <AccordionContent>
+              <p className="mb-3 text-xs text-muted-foreground">
+                Registre somente os sistemas examinados neste atendimento.
+              </p>
+              <fieldset
+                disabled={!data.canAuthorClinicalNote || data.clinicalNote?.status === "FINAL"}
+              >
+                <Accordion type="multiple" className="rounded-lg border px-4">
+                  <PhysicalExamField
+                    label="Estado geral"
+                    field="generalExam"
+                    value={physicalExam.generalExam}
+                    setPhysicalExam={setPhysicalExam}
+                  />
+                  <PhysicalExamField
+                    label="Cardiovascular"
+                    field="cardiovascularExam"
+                    value={physicalExam.cardiovascularExam}
+                    setPhysicalExam={setPhysicalExam}
+                  />
+                  <PhysicalExamField
+                    label="Respiratório"
+                    field="respiratoryExam"
+                    value={physicalExam.respiratoryExam}
+                    setPhysicalExam={setPhysicalExam}
+                  />
+                  <PhysicalExamField
+                    label="Abdominal"
+                    field="abdominalExam"
+                    value={physicalExam.abdominalExam}
+                    setPhysicalExam={setPhysicalExam}
+                  />
+                  <PhysicalExamField
+                    label="Neurológico"
+                    field="neurologicalExam"
+                    value={physicalExam.neurologicalExam}
+                    setPhysicalExam={setPhysicalExam}
+                  />
+                  <PhysicalExamField
+                    label="Musculoesquelético"
+                    field="musculoskeletalExam"
+                    value={physicalExam.musculoskeletalExam}
+                    setPhysicalExam={setPhysicalExam}
+                  />
+                  <PhysicalExamField
+                    label="Pele e anexos"
+                    field="skinExam"
+                    value={physicalExam.skinExam}
+                    setPhysicalExam={setPhysicalExam}
+                  />
+                  <PhysicalExamField
+                    label="Outros achados"
+                    field="otherExam"
+                    value={physicalExam.otherExam}
+                    setPhysicalExam={setPhysicalExam}
+                  />
+                </Accordion>
+              </fieldset>
+            </AccordionContent>
+          </AccordionItem>
+        </Accordion>
         <label className="block space-y-2 text-sm font-medium">
           Conduta
           <Textarea
