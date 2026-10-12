@@ -34,6 +34,7 @@ import { careAppointmentsResponse } from "./care-appointments";
 import { careSettingsResponse } from "./care-settings";
 import { careEncounterResponse } from "./care-encounter";
 import { clinicalProblemsResponse } from "./clinical-problems";
+import { clinicalAlertsResponse } from "./clinical-alerts";
 vi.mock("@vercel/blob", () => ({
   put: vi.fn(async (pathname: string) => ({ pathname })),
   del: vi.fn(async () => undefined),
@@ -2168,6 +2169,51 @@ describe("care appointments", () => {
     ]);
     await expect(
       getPool().query("DELETE FROM inventory_patient_clinical_problems WHERE id=$1", [problemId]),
+    ).rejects.toThrow(/cannot be deleted/);
+    const alertId = randomUUID();
+    const clinicalAlert = {
+      action: "CREATE",
+      id: alertId,
+      patientId,
+      type: "ALLERGY",
+      title: "Substância sintética de teste",
+      reaction: "Reação sintética moderada",
+      severity: "MODERATE",
+      status: "ACTIVE",
+      notes: "Alerta criado exclusivamente para validação integrada.",
+      reason: "Inclusão após avaliação profissional sintética.",
+      version: 0,
+    };
+    const alertPost = (value: unknown) =>
+      clinicalAlertsResponse(
+        new Request(`${origin}/api/v1/inventory/clinical-alerts`, {
+          method: "POST",
+          headers: { cookie: professionalCookie, origin, "Content-Type": "application/json" },
+          body: JSON.stringify(value),
+        }),
+      );
+    expect((await alertPost(clinicalAlert)).status).toBe(201);
+    const encounterWithAlert = await careEncounterResponse(
+      new Request(`${origin}/api/v1/inventory/care-encounter?appointmentId=${body.id}`, {
+        headers: { cookie: professionalCookie },
+      }),
+    );
+    expect((await encounterWithAlert.json()).data.clinicalAlerts).toEqual([
+      expect.objectContaining({ id: alertId, severity: "MODERATE" }),
+    ]);
+    expect(
+      (
+        await alertPost({
+          ...clinicalAlert,
+          action: "UPDATE",
+          status: "INACTIVE",
+          reason: "Alerta inativado após reavaliação profissional.",
+        })
+      ).status,
+    ).toBe(200);
+    expect((await alertPost({ ...clinicalAlert, action: "UPDATE" })).status).toBe(409);
+    await expect(
+      getPool().query("DELETE FROM inventory_patient_clinical_alerts WHERE id=$1", [alertId]),
     ).rejects.toThrow(/cannot be deleted/);
     await expect(
       getPool().query(

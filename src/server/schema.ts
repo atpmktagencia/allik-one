@@ -755,6 +755,84 @@ export const patientClinicalProblemChanges = pgTable(
   ],
 );
 
+export const patientClinicalAlerts = pgTable(
+  "inventory_patient_clinical_alerts",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id),
+    unitId: uuid("unit_id")
+      .notNull()
+      .references(() => units.id),
+    patientId: uuid("patient_id")
+      .notNull()
+      .references(() => patients.id),
+    type: text("type").notNull(),
+    title: text("title").notNull(),
+    reaction: text("reaction"),
+    severity: text("severity").notNull().default("UNKNOWN"),
+    status: text("status").notNull().default("ACTIVE"),
+    notes: text("notes").notNull().default(""),
+    authorUserId: uuid("author_user_id")
+      .notNull()
+      .references(() => users.id),
+    authorName: text("author_name").notNull(),
+    professionalCouncil: text("professional_council").notNull(),
+    councilNumber: text("council_number").notNull(),
+    councilRegion: text("council_region").notNull(),
+    version: integer("version").notNull().default(0),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("clinical_alert_patient_status").on(t.patientId, t.status, t.severity),
+    index("clinical_alert_unit_history").on(t.unitId, t.createdAt),
+    check("clinical_alert_type_valid", sql`${t.type} IN ('ALLERGY','WARNING','PRECAUTION')`),
+    check("clinical_alert_title_valid", sql`char_length(trim(${t.title})) BETWEEN 2 AND 200`),
+    check(
+      "clinical_alert_reaction_valid",
+      sql`${t.reaction} IS NULL OR char_length(trim(${t.reaction})) BETWEEN 2 AND 500`,
+    ),
+    check(
+      "clinical_alert_severity_valid",
+      sql`${t.severity} IN ('UNKNOWN','MILD','MODERATE','SEVERE')`,
+    ),
+    check("clinical_alert_status_valid", sql`${t.status} IN ('ACTIVE','INACTIVE')`),
+    check("clinical_alert_notes_valid", sql`char_length(${t.notes})<=2000`),
+    check("clinical_alert_version_nonnegative", sql`${t.version}>=0`),
+  ],
+);
+
+export const patientClinicalAlertChanges = pgTable(
+  "inventory_patient_clinical_alert_changes",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id),
+    alertId: uuid("alert_id")
+      .notNull()
+      .references(() => patientClinicalAlerts.id),
+    action: text("action").notNull(),
+    beforeData: jsonb("before_data"),
+    afterData: jsonb("after_data").notNull(),
+    reason: text("reason").notNull(),
+    actorUserId: uuid("actor_user_id")
+      .notNull()
+      .references(() => users.id),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("clinical_alert_change_history").on(t.alertId, t.createdAt),
+    check("clinical_alert_change_action_valid", sql`${t.action} IN ('CREATE','UPDATE')`),
+    check(
+      "clinical_alert_change_reason_valid",
+      sql`char_length(trim(${t.reason})) BETWEEN 10 AND 500`,
+    ),
+  ],
+);
+
 export const patientTreatments = pgTable(
   "inventory_patient_treatments",
   {

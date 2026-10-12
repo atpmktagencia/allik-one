@@ -59,7 +59,7 @@ export async function careEncounterResponse(request: Request) {
 
   const patientId = String(appointment["patientId"]);
   const unitId = String(appointment["unitId"]);
-  const [changes, treatments, schedule, clinicalNote] = await Promise.all([
+  const [changes, treatments, schedule, clinicalNote, clinicalAlerts] = await Promise.all([
     pool.query(
       `SELECT c.id,c.action,c.reason,c.actor,c.created_at AS "createdAt"
        FROM inventory_care_appointment_changes c
@@ -96,6 +96,14 @@ export async function careEncounterResponse(request: Request) {
        FROM inventory_clinical_notes WHERE appointment_id=$1 AND organization_id=$2`,
       [appointmentId, auth.organizationId],
     ),
+    pool.query(
+      `SELECT id,type,title,reaction,severity,notes
+       FROM inventory_patient_clinical_alerts
+       WHERE patient_id=$1 AND organization_id=$2 AND unit_id=$3 AND status='ACTIVE'
+       ORDER BY CASE severity WHEN 'SEVERE' THEN 0 WHEN 'MODERATE' THEN 1 WHEN 'MILD' THEN 2 ELSE 3 END,
+         updated_at DESC,id DESC`,
+      [patientId, auth.organizationId, unitId],
+    ),
   ]);
 
   return Response.json(
@@ -107,6 +115,7 @@ export async function careEncounterResponse(request: Request) {
         schedule: schedule.rows,
         canManage: can(auth, "patients.manage", unitId),
         clinicalNote: clinicalNote.rows[0] ?? null,
+        clinicalAlerts: clinicalAlerts.rows,
         canAuthorClinicalNote:
           Boolean(auth.user.id) &&
           can(auth, "patients.clinical.manage", unitId) &&

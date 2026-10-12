@@ -55,6 +55,7 @@ export async function patientDetailResponse(request: Request) {
       openStock,
       clinicalHistory,
       clinicalProblems,
+      clinicalAlerts,
     ] = await Promise.all([
       getPool().query(
         `SELECT t.id,t.product_id AS "productId",p.name AS "productName",p.sku,
@@ -162,6 +163,17 @@ export async function patientDetailResponse(request: Request) {
          WHERE patient_id=$1 AND organization_id=$2 AND unit_id=$3
          ORDER BY CASE status WHEN 'ACTIVE' THEN 0 WHEN 'RESOLVED' THEN 1 ELSE 2 END,
            updated_at DESC,id DESC LIMIT 200`,
+        [patientId, auth.organizationId, patient.primaryUnitId],
+      ),
+      getPool().query(
+        `SELECT id,type,title,reaction,severity,status,notes,author_name AS "authorName",
+          professional_council AS "professionalCouncil",council_number AS "councilNumber",
+          council_region AS "councilRegion",version,created_at AS "createdAt",updated_at AS "updatedAt"
+         FROM inventory_patient_clinical_alerts
+         WHERE patient_id=$1 AND organization_id=$2 AND unit_id=$3
+         ORDER BY CASE status WHEN 'ACTIVE' THEN 0 ELSE 1 END,
+          CASE severity WHEN 'SEVERE' THEN 0 WHEN 'MODERATE' THEN 1 WHEN 'MILD' THEN 2 ELSE 3 END,
+          updated_at DESC,id DESC LIMIT 200`,
         [patientId, auth.organizationId, patient.primaryUnitId],
       ),
     ]);
@@ -279,6 +291,7 @@ export async function patientDetailResponse(request: Request) {
           locations: locations.rows,
           clinicalHistory: clinicalHistory.rows,
           clinicalProblems: clinicalProblems.rows,
+          clinicalAlerts: clinicalAlerts.rows,
           canManageClinicalProblems:
             Boolean(auth.user.id) &&
             !auth.preview &&

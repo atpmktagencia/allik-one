@@ -1,6 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import { useState, type FormEvent } from "react";
-import { ArrowLeft, FileText, Plus, Stethoscope } from "lucide-react";
+import { AlertTriangle, ArrowLeft, FileText, Plus, Stethoscope } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -138,6 +138,20 @@ type Payload = {
     version: number;
     updatedAt: string;
   }>;
+  clinicalAlerts: Array<{
+    id: string;
+    type: "ALLERGY" | "WARNING" | "PRECAUTION";
+    title: string;
+    reaction: string | null;
+    severity: "UNKNOWN" | "MILD" | "MODERATE" | "SEVERE";
+    status: "ACTIVE" | "INACTIVE";
+    notes: string;
+    authorName: string;
+    professionalCouncil: string;
+    councilNumber: string;
+    councilRegion: string;
+    version: number;
+  }>;
   canManageClinicalProblems: boolean;
   canManage: boolean;
   canConsume: boolean;
@@ -174,6 +188,17 @@ const prescriptionLabels: Record<string, string> = {
   REVOKED: "Revogada",
   LEGACY_REVIEW: "Metadados pendentes",
 };
+const alertTypeLabels: Record<string, string> = {
+  ALLERGY: "Alergia",
+  WARNING: "Alerta",
+  PRECAUTION: "Precaução",
+};
+const alertSeverityLabels: Record<string, string> = {
+  UNKNOWN: "Gravidade não informada",
+  MILD: "Leve",
+  MODERATE: "Moderada",
+  SEVERE: "Grave",
+};
 const blankProblem = {
   id: "",
   description: "",
@@ -183,6 +208,17 @@ const blankProblem = {
   status: "ACTIVE" as "ACTIVE" | "RESOLVED" | "INACTIVE",
   notes: "",
   reason: "Registro clínico incluído após avaliação profissional.",
+  version: 0,
+};
+const blankAlert = {
+  id: "",
+  type: "ALLERGY" as "ALLERGY" | "WARNING" | "PRECAUTION",
+  title: "",
+  reaction: "",
+  severity: "UNKNOWN" as "UNKNOWN" | "MILD" | "MODERATE" | "SEVERE",
+  status: "ACTIVE" as "ACTIVE" | "INACTIVE",
+  notes: "",
+  reason: "Alerta incluído após avaliação profissional.",
   version: 0,
 };
 
@@ -195,6 +231,8 @@ export function PatientTreatmentPage({ patientId }: { patientId: string }) {
   const [error, setError] = useState("");
   const [problemFormOpen, setProblemFormOpen] = useState(false);
   const [problem, setProblem] = useState(blankProblem);
+  const [alertFormOpen, setAlertFormOpen] = useState(false);
+  const [clinicalAlert, setClinicalAlert] = useState(blankAlert);
   const [purchase, setPurchase] = useState({
     treatmentId: "",
     purchasedQuantity: "",
@@ -225,6 +263,52 @@ export function PatientTreatmentPage({ patientId }: { patientId: string }) {
   const data = query.data!;
   const clinicalHistory = data.clinicalHistory ?? [];
   const clinicalProblems = data.clinicalProblems ?? [];
+  const clinicalAlerts = data.clinicalAlerts ?? [];
+  async function saveClinicalAlert(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setPending(true);
+    setError("");
+    setMessage("");
+    try {
+      const response = await fetch("/api/v1/inventory/clinical-alerts", {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: clinicalAlert.id ? "UPDATE" : "CREATE",
+          ...clinicalAlert,
+          id: clinicalAlert.id || crypto.randomUUID(),
+          patientId,
+          reaction: clinicalAlert.reaction || null,
+        }),
+      });
+      const result = (await response.json()) as { error?: string };
+      if (!response.ok) throw new Error(result.error ?? "Não foi possível salvar o alerta.");
+      await query.refetch();
+      setClinicalAlert(blankAlert);
+      setAlertFormOpen(false);
+      setMessage("Alerta clínico salvo com auditoria.");
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Falha de conexão.");
+    } finally {
+      setPending(false);
+    }
+  }
+
+  function editClinicalAlert(item: Payload["clinicalAlerts"][number]) {
+    setClinicalAlert({
+      id: item.id,
+      type: item.type,
+      title: item.title,
+      reaction: item.reaction ?? "",
+      severity: item.severity,
+      status: item.status,
+      notes: item.notes,
+      reason: "Correção ou atualização justificada do alerta clínico.",
+      version: item.version,
+    });
+    setAlertFormOpen(true);
+  }
   async function saveClinicalProblem(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setPending(true);
@@ -476,6 +560,184 @@ export function PatientTreatmentPage({ patientId }: { patientId: string }) {
           {error || message}
         </div>
       )}
+      <section className="space-y-4 rounded-xl border border-warning bg-warning-soft p-5">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h2 className="flex items-center gap-2 font-semibold text-warning-foreground">
+              <AlertTriangle className="size-5" /> Alergias e alertas clínicos
+            </h2>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Alertas ativos ficam destacados também durante o atendimento.
+            </p>
+          </div>
+          {data.canManageClinicalProblems ? (
+            <Button
+              variant="outline"
+              onClick={() => {
+                setClinicalAlert(blankAlert);
+                setAlertFormOpen(true);
+              }}
+            >
+              <Plus /> Adicionar alerta
+            </Button>
+          ) : null}
+        </div>
+        {alertFormOpen && data.canManageClinicalProblems ? (
+          <form onSubmit={saveClinicalAlert} className="space-y-4 rounded-lg border bg-card p-4">
+            <div className="grid gap-4 md:grid-cols-2">
+              <label className="space-y-1 text-sm font-medium">
+                Tipo
+                <select
+                  className="h-10 w-full rounded-md border bg-background px-3"
+                  value={clinicalAlert.type}
+                  onChange={(event) =>
+                    setClinicalAlert({
+                      ...clinicalAlert,
+                      type: event.target.value as typeof clinicalAlert.type,
+                    })
+                  }
+                >
+                  <option value="ALLERGY">Alergia</option>
+                  <option value="WARNING">Alerta</option>
+                  <option value="PRECAUTION">Precaução</option>
+                </select>
+              </label>
+              <label className="space-y-1 text-sm font-medium">
+                Gravidade
+                <select
+                  className="h-10 w-full rounded-md border bg-background px-3"
+                  value={clinicalAlert.severity}
+                  onChange={(event) =>
+                    setClinicalAlert({
+                      ...clinicalAlert,
+                      severity: event.target.value as typeof clinicalAlert.severity,
+                    })
+                  }
+                >
+                  <option value="UNKNOWN">Não informada</option>
+                  <option value="MILD">Leve</option>
+                  <option value="MODERATE">Moderada</option>
+                  <option value="SEVERE">Grave</option>
+                </select>
+              </label>
+              <label className="space-y-1 text-sm font-medium md:col-span-2">
+                Agente, alergia ou título do alerta
+                <Input
+                  required
+                  minLength={2}
+                  maxLength={200}
+                  value={clinicalAlert.title}
+                  onChange={(event) =>
+                    setClinicalAlert({ ...clinicalAlert, title: event.target.value })
+                  }
+                />
+              </label>
+              <label className="space-y-1 text-sm font-medium">
+                Reação conhecida (opcional)
+                <Input
+                  maxLength={500}
+                  value={clinicalAlert.reaction}
+                  onChange={(event) =>
+                    setClinicalAlert({ ...clinicalAlert, reaction: event.target.value })
+                  }
+                />
+              </label>
+              <label className="space-y-1 text-sm font-medium">
+                Situação
+                <select
+                  className="h-10 w-full rounded-md border bg-background px-3"
+                  value={clinicalAlert.status}
+                  onChange={(event) =>
+                    setClinicalAlert({
+                      ...clinicalAlert,
+                      status: event.target.value as typeof clinicalAlert.status,
+                    })
+                  }
+                >
+                  <option value="ACTIVE">Ativo</option>
+                  <option value="INACTIVE">Inativo</option>
+                </select>
+              </label>
+              <label className="space-y-1 text-sm font-medium md:col-span-2">
+                Observações
+                <Textarea
+                  maxLength={2000}
+                  rows={3}
+                  value={clinicalAlert.notes}
+                  onChange={(event) =>
+                    setClinicalAlert({ ...clinicalAlert, notes: event.target.value })
+                  }
+                />
+              </label>
+              <label className="space-y-1 text-sm font-medium md:col-span-2">
+                Motivo da inclusão ou alteração
+                <Input
+                  required
+                  minLength={10}
+                  maxLength={500}
+                  value={clinicalAlert.reason}
+                  onChange={(event) =>
+                    setClinicalAlert({ ...clinicalAlert, reason: event.target.value })
+                  }
+                />
+              </label>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Button disabled={pending}>{pending ? "Salvando…" : "Salvar alerta"}</Button>
+              <Button
+                type="button"
+                variant="ghost"
+                disabled={pending}
+                onClick={() => setAlertFormOpen(false)}
+              >
+                Cancelar
+              </Button>
+            </div>
+          </form>
+        ) : null}
+        {clinicalAlerts.length ? (
+          <div className="grid gap-3 lg:grid-cols-2">
+            {clinicalAlerts.map((item) => (
+              <article
+                key={item.id}
+                className={`rounded-lg border p-4 ${item.status === "ACTIVE" ? "bg-card" : "opacity-60"}`}
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="font-medium">{item.title}</p>
+                      <Badge variant={item.severity === "SEVERE" ? "destructive" : "outline"}>
+                        {alertSeverityLabels[item.severity]}
+                      </Badge>
+                      <Badge variant="secondary">{alertTypeLabels[item.type]}</Badge>
+                      {item.status === "INACTIVE" ? <Badge variant="outline">Inativo</Badge> : null}
+                    </div>
+                    {item.reaction ? <p className="mt-2 text-sm">Reação: {item.reaction}</p> : null}
+                    {item.notes ? (
+                      <p className="mt-2 whitespace-pre-wrap text-sm text-muted-foreground">
+                        {item.notes}
+                      </p>
+                    ) : null}
+                    <p className="mt-2 text-xs text-muted-foreground">
+                      {item.authorName} · {item.professionalCouncil} {item.councilNumber}/
+                      {item.councilRegion}
+                    </p>
+                  </div>
+                  {data.canManageClinicalProblems ? (
+                    <Button variant="ghost" size="sm" onClick={() => editClinicalAlert(item)}>
+                      Editar
+                    </Button>
+                  ) : null}
+                </div>
+              </article>
+            ))}
+          </div>
+        ) : (
+          <p className="rounded-lg bg-card p-4 text-sm text-muted-foreground">
+            Nenhuma alergia ou alerta clínico registrado.
+          </p>
+        )}
+      </section>
       <section className="space-y-4 rounded-xl border bg-card p-5">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>

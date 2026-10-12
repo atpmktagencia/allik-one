@@ -1,5 +1,12 @@
 import { Link } from "@tanstack/react-router";
-import { ArrowLeft, CalendarClock, ClipboardList, History, UserRound } from "lucide-react";
+import {
+  AlertTriangle,
+  ArrowLeft,
+  CalendarClock,
+  ClipboardList,
+  History,
+  UserRound,
+} from "lucide-react";
 import { useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -76,6 +83,14 @@ type Payload = {
     finalizedAt: string | null;
     updatedAt: string;
   };
+  clinicalAlerts: Array<{
+    id: string;
+    type: "ALLERGY" | "WARNING" | "PRECAUTION";
+    title: string;
+    reaction: string | null;
+    severity: "UNKNOWN" | "MILD" | "MODERATE" | "SEVERE";
+    notes: string;
+  }>;
 };
 
 const statusLabels: Record<string, string> = {
@@ -239,6 +254,38 @@ export function CareEncounterPage({ appointmentId }: { appointmentId: string }) 
           {error || message}
         </div>
       )}
+      {data.clinicalAlerts?.length ? (
+        <section
+          className="space-y-3 rounded-xl border border-warning bg-warning-soft p-5"
+          role="alert"
+        >
+          <h2 className="flex items-center gap-2 font-semibold text-warning-foreground">
+            <AlertTriangle className="size-5" /> Alergias e alertas ativos
+          </h2>
+          <div className="grid gap-3 md:grid-cols-2">
+            {data.clinicalAlerts.map((item) => (
+              <article key={item.id} className="rounded-lg border bg-card p-3 text-sm">
+                <div className="flex flex-wrap items-center gap-2">
+                  <strong>{item.title}</strong>
+                  <Badge variant={item.severity === "SEVERE" ? "destructive" : "outline"}>
+                    {item.severity === "SEVERE"
+                      ? "Grave"
+                      : item.severity === "MODERATE"
+                        ? "Moderada"
+                        : item.severity === "MILD"
+                          ? "Leve"
+                          : "Não informada"}
+                  </Badge>
+                </div>
+                {item.reaction ? <p className="mt-2">Reação: {item.reaction}</p> : null}
+                {item.notes ? (
+                  <p className="mt-1 text-xs text-muted-foreground">{item.notes}</p>
+                ) : null}
+              </article>
+            ))}
+          </div>
+        </section>
+      ) : null}
       {data.canManage && !["COMPLETED", "NO_SHOW", "CANCELED"].includes(appointment.status) ? (
         <section className="flex flex-wrap gap-2 rounded-xl border bg-card p-4">
           {appointment.status === "SCHEDULED" ? (

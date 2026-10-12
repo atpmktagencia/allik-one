@@ -253,6 +253,13 @@
       "when": 1793581200000,
       "tag": "0035_lonely_boom_boom",
       "breakpoints": true
+    },
+    {
+      "idx": 36,
+      "version": "7",
+      "when": 1793667600000,
+      "tag": "0036_watery_betty_brant",
+      "breakpoints": true
     }
   ]
 }
