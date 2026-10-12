@@ -27,6 +27,8 @@ describe("Care encounter UI", () => {
     vi.stubGlobal(
       "fetch",
       vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+        if (String(_input).includes("encounter-documents"))
+          return Response.json({ data: { documents: [], templates: [], canAuthor: true } });
         if (init?.method === "POST") {
           writes.push(JSON.parse(String(init.body)) as Record<string, unknown>);
           return Response.json({ data: { id: "44444444-4444-4444-8444-444444444444" } });
@@ -139,6 +141,8 @@ describe("Care encounter UI", () => {
     vi.stubGlobal(
       "fetch",
       vi.fn(async (input: RequestInfo | URL) => {
+        if (String(input).includes("encounter-documents"))
+          return Response.json({ data: { documents: [], templates: [], canAuthor: false } });
         if (String(input).includes("encounter-prescriptions"))
           return Response.json({
             data: { prescription: null, products: [], canAuthor: false },

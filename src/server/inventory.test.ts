@@ -37,6 +37,7 @@ import { clinicalProblemsResponse } from "./clinical-problems";
 import { clinicalAlertsResponse } from "./clinical-alerts";
 import { encounterPrescriptionsResponse } from "./encounter-prescriptions";
 import { encounterQuotesResponse } from "./encounter-quotes";
+import { encounterDocumentsResponse } from "./encounter-documents";
 vi.mock("@vercel/blob", () => ({
   put: vi.fn(async (pathname: string) => ({ pathname })),
   del: vi.fn(async () => undefined),
@@ -3652,6 +3653,202 @@ describe("encounter quote commercial lifecycle", () => {
         )
       ).rows[0].count,
     ).toBe(0);
+  });
+});
+
+describe("clinical encounter documents", () => {
+  const unitId = "a1100000-0000-4000-8000-000000000101";
+  async function documentsFixture() {
+    const credential = await scopedCookie(unitId, "PARTNER_ADMIN");
+    const userId = (
+      await getPool().query<{ user_id: string }>(
+        "SELECT user_id FROM inventory_sessions WHERE token_hash=$1",
+        [hashToken(credential.split("=")[1]!)],
+      )
+    ).rows[0]!.user_id;
+    await getPool().query(
+      "UPDATE inventory_users SET professional_council='CRM',council_number='98765',council_region='CE' WHERE id=$1",
+      [userId],
+    );
+    const patientId = randomUUID();
+    const appointmentId = randomUUID();
+    await getPool().query(
+      `INSERT INTO inventory_patients(id,organization_id,primary_unit_id,internal_code,full_name,phone,email)
+      VALUES($1,'a1100000-0000-4000-8000-000000000001',$2,$3,'Paciente documento sintético','+5585999999999','document@example.test')`,
+      [patientId, unitId, `DOC-${patientId.slice(0, 8)}`],
+    );
+    await getPool().query(
+      `INSERT INTO inventory_care_appointments(id,organization_id,unit_id,patient_id,professional_user_id,care_type,starts_at,ends_at,room)
+      VALUES($1,'a1100000-0000-4000-8000-000000000001',$2,$3,$4,'CONSULTATION','2031-01-10T12:00:00Z','2031-01-10T13:00:00Z',$5)`,
+      [appointmentId, unitId, patientId, userId, `Sala documento ${appointmentId}`],
+    );
+    const post = (extra: Record<string, unknown>, session = credential) =>
+      encounterDocumentsResponse(
+        new Request(`${origin}/api/v1/inventory/encounter-documents`, {
+          method: "POST",
+          headers: { cookie: session, origin, "Content-Type": "application/json" },
+          body: JSON.stringify({
+            appointmentId,
+            action: "SAVE_DRAFT",
+            documentId: null,
+            type: "PRESCRIPTION",
+            title: "Receita sintética",
+            content: "Orientação sintética",
+            version: null,
+            ...extra,
+          }),
+        }),
+      );
+    const get = (query = `appointmentId=${appointmentId}`, session = credential) =>
+      encounterDocumentsResponse(
+        new Request(`${origin}/api/v1/inventory/encounter-documents?${query}`, {
+          headers: { cookie: session },
+        }),
+      );
+    return { credential, userId, appointmentId, patientId, post, get };
+  }
+
+  it("keeps independent documents, final authorship and commercial records unchanged", async () => {
+    const f = await documentsFixture();
+    const first = await f.post({});
+    expect(first.status).toBe(201);
+    const second = await f.post({
+      type: "EXAM_REQUEST",
+      title: "Exames sintéticos",
+      content: "Hemograma",
+    });
+    expect(second.status).toBe(201);
+    const docs = (await (await f.get()).json()).data.documents;
+    expect(docs).toHaveLength(2);
+    const prescription = docs.find((doc: { type: string }) => doc.type === "PRESCRIPTION");
+    const exam = docs.find((doc: { type: string }) => doc.type === "EXAM_REQUEST");
+    const updated = await f.post({
+      documentId: prescription.id,
+      version: prescription.version,
+      content: "Orientação revisada",
+    });
+    expect(updated.status).toBe(200);
+    const stale = await f.post({
+      documentId: prescription.id,
+      version: prescription.version,
+      content: "Sobrescrita concorrente",
+    });
+    expect(stale.status).toBe(409);
+    const current = (await (await f.get()).json()).data.documents.find(
+      (doc: { id: string }) => doc.id === prescription.id,
+    );
+    const final = await f.post({
+      action: "FINALIZE",
+      documentId: current.id,
+      version: current.version,
+      content: current.content,
+    });
+    expect(final.status).toBe(200);
+    const finalized = (await (await f.get()).json()).data.documents.find(
+      (doc: { id: string }) => doc.id === prescription.id,
+    );
+    expect(finalized.status).toBe("FINAL");
+    expect(
+      (
+        await f.post({
+          documentId: finalized.id,
+          version: finalized.version,
+          content: "Alteração proibida",
+        })
+      ).status,
+    ).toBe(409);
+    const unchangedExam = (await (await f.get()).json()).data.documents.find(
+      (doc: { id: string }) => doc.id === exam.id,
+    );
+    expect(unchangedExam.content).toBe("Hemograma");
+    expect(unchangedExam.status).toBe("DRAFT");
+    await expect(
+      getPool().query("UPDATE inventory_encounter_documents SET content='tampered' WHERE id=$1", [
+        finalized.id,
+      ]),
+    ).rejects.toThrow();
+    const audit = (
+      await getPool().query(
+        "SELECT actor_user_id FROM inventory_encounter_document_changes WHERE document_id=$1",
+        [finalized.id],
+      )
+    ).rows;
+    expect(audit.length).toBeGreaterThanOrEqual(3);
+    expect(audit.every((row) => row.actor_user_id === f.userId)).toBe(true);
+    expect(
+      (
+        await getPool().query(
+          "SELECT count(*)::int AS count FROM inventory_encounter_prescriptions WHERE appointment_id=$1",
+          [f.appointmentId],
+        )
+      ).rows[0].count,
+    ).toBe(0);
+    expect(
+      (
+        await getPool().query(
+          "SELECT count(*)::int AS count FROM inventory_encounter_quotes WHERE appointment_id=$1",
+          [f.appointmentId],
+        )
+      ).rows[0].count,
+    ).toBe(0);
+  });
+
+  it("enforces assigned clinician, council registration, individual identity and unit isolation", async () => {
+    const f = await documentsFixture();
+    expect((await f.post({}, cookie)).status).toBe(403);
+    expect((await f.post({}, await scopedCookie(unitId, "PARTNER_ADMIN"))).status).toBe(403);
+    const otherUnit = await scopedCookie("a1100000-0000-4000-8000-000000000102", "PARTNER_ADMIN");
+    expect((await f.get(undefined, otherUnit)).status).toBe(404);
+    expect((await f.post({}, otherUnit)).status).toBe(404);
+    await getPool().query("UPDATE inventory_users SET council_number=NULL WHERE id=$1", [f.userId]);
+    expect((await f.post({})).status).toBe(409);
+  });
+
+  it("restricts personal models and safely renders authenticated final documents", async () => {
+    const f = await documentsFixture();
+    expect(
+      (
+        await f.post({
+          action: "SAVE_TEMPLATE",
+          title: "Modelo pessoal",
+          content: "Conteúdo pessoal",
+        })
+      ).status,
+    ).toBe(201);
+    const own = (await (await f.get()).json()).data.templates;
+    expect(own.some((model: { title: string }) => model.title === "Modelo pessoal")).toBe(true);
+    const otherCredential = await scopedCookie(unitId, "PARTNER_ADMIN");
+    const other = (await (await f.get(undefined, otherCredential)).json()).data.templates;
+    expect(other.some((model: { title: string }) => model.title === "Modelo pessoal")).toBe(false);
+    const malicious = '<script>alert("x")</script><img src=x onerror=alert(1)>';
+    expect((await f.post({ title: malicious, content: malicious })).status).toBe(201);
+    const doc = (await (await f.get()).json()).data.documents[0];
+    expect((await f.get(`documentId=${doc.id}&print=true`)).status).toBe(409);
+    expect(
+      (
+        await f.post({
+          action: "FINALIZE",
+          documentId: doc.id,
+          version: doc.version,
+          title: malicious,
+          content: malicious,
+        })
+      ).status,
+    ).toBe(200);
+    const print = await f.get(`documentId=${doc.id}&print=true`);
+    expect(print.status).toBe(200);
+    expect(print.headers.get("content-type")).toContain("text/html");
+    expect(print.headers.get("cache-control")).toContain("no-store");
+    const html = await print.text();
+    expect(html).not.toContain('<script>alert("x")</script>');
+    expect(html).not.toContain("<img src=x");
+    expect(html).toContain("&lt;script&gt;");
+    const anonymous = await encounterDocumentsResponse(
+      new Request(`${origin}/api/v1/inventory/encounter-documents?documentId=${doc.id}&print=true`),
+    );
+    expect(anonymous.status).toBe(401);
+    const foreign = await scopedCookie("a1100000-0000-4000-8000-000000000102", "PARTNER_ADMIN");
+    expect((await f.get(`documentId=${doc.id}&print=true`, foreign)).status).toBe(404);
   });
 });
 

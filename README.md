@@ -208,6 +208,8 @@ O Milestone 1 só é encerrado após validar o deployment com PostgreSQL na Verc
 
   A ativação exige orçamento pago e uma prévia conferida pela equipe. A quantidade contratada define o número de aplicações, respeitando a duração prescrita. Intervalos mensais seguem o calendário; intervalos em horas exigem uma agenda com horários e não são convertidos em dias. Prescrições antigas com frequência livre precisam de revisão clínica antes da ativação. A operação gera plano, compra do paciente e aplicações previstas em uma única transação, sem alterar saldo físico.
 - Milestone 15: documentos independentes por atendimento, modelos reutilizáveis de prescrição e solicitação de exames, visualização e impressão.
+
+  Receitas textuais e solicitações de exames são documentos independentes, com rascunho, controle de versão, autoria e finalização imutável. Modelos são particulares do profissional e devem conter somente conteúdo reutilizável, sem identificação de pacientes. A impressão autenticada de documentos finais permite salvar em PDF pelo navegador. A prescrição estruturada de injetáveis mantém seu vínculo com orçamento e plano terapêutico.
 - Milestone 16: histórico longitudinal do paciente, evoluções, planos terapêuticos, documentos e aplicações.
 - Milestone 17: assinatura eletrônica de documentos, integridade e validação.
 

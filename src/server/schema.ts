@@ -800,6 +800,107 @@ export const encounterPrescriptionChanges = pgTable(
   ],
 );
 
+export const encounterDocuments = pgTable(
+  "inventory_encounter_documents",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id),
+    unitId: uuid("unit_id")
+      .notNull()
+      .references(() => units.id),
+    appointmentId: uuid("appointment_id")
+      .notNull()
+      .references(() => careAppointments.id),
+    patientId: uuid("patient_id")
+      .notNull()
+      .references(() => patients.id),
+    authorUserId: uuid("author_user_id")
+      .notNull()
+      .references(() => users.id),
+    authorName: text("author_name").notNull(),
+    professionalCouncil: text("professional_council").notNull(),
+    councilNumber: text("council_number").notNull(),
+    councilRegion: text("council_region").notNull(),
+    type: text("type").notNull(),
+    title: text("title").notNull(),
+    content: text("content").notNull(),
+    status: text("status").notNull().default("DRAFT"),
+    version: integer("version").notNull().default(0),
+    finalizedAt: timestamp("finalized_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("encounter_document_history").on(t.appointmentId, t.createdAt),
+    check("encounter_document_type_valid", sql`${t.type} IN ('PRESCRIPTION','EXAM_REQUEST')`),
+    check("encounter_document_status_valid", sql`${t.status} IN ('DRAFT','FINAL')`),
+    check("encounter_document_version_valid", sql`${t.version}>=0`),
+    check(
+      "encounter_document_text_valid",
+      sql`char_length(trim(${t.title})) BETWEEN 2 AND 200 AND char_length(${t.content})<=30000`,
+    ),
+    check(
+      "encounter_document_final_valid",
+      sql`(${t.status}='DRAFT' AND ${t.finalizedAt} IS NULL) OR (${t.status}='FINAL' AND ${t.finalizedAt} IS NOT NULL AND char_length(trim(${t.content}))>0)`,
+    ),
+  ],
+);
+export const encounterDocumentChanges = pgTable(
+  "inventory_encounter_document_changes",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id),
+    documentId: uuid("document_id")
+      .notNull()
+      .references(() => encounterDocuments.id),
+    action: text("action").notNull(),
+    beforeData: jsonb("before_data"),
+    afterData: jsonb("after_data").notNull(),
+    actorUserId: uuid("actor_user_id")
+      .notNull()
+      .references(() => users.id),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("encounter_document_change_history").on(t.documentId, t.createdAt),
+    check(
+      "encounter_document_change_action_valid",
+      sql`${t.action} IN ('CREATE','UPDATE','FINALIZE')`,
+    ),
+  ],
+);
+export const clinicalDocumentTemplates = pgTable(
+  "inventory_clinical_document_templates",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id),
+    ownerUserId: uuid("owner_user_id")
+      .notNull()
+      .references(() => users.id),
+    type: text("type").notNull(),
+    title: text("title").notNull(),
+    content: text("content").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("clinical_document_template_owner").on(t.organizationId, t.ownerUserId),
+    check(
+      "clinical_document_template_type_valid",
+      sql`${t.type} IN ('PRESCRIPTION','EXAM_REQUEST')`,
+    ),
+    check(
+      "clinical_document_template_text_valid",
+      sql`char_length(trim(${t.title})) BETWEEN 2 AND 200 AND char_length(trim(${t.content})) BETWEEN 1 AND 30000`,
+    ),
+  ],
+);
+
 export const encounterQuotes = pgTable(
   "inventory_encounter_quotes",
   {

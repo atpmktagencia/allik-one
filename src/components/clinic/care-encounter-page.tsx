@@ -27,6 +27,7 @@ import { readInventoryResponse, useInventory } from "@/data/inventory-api";
 import { InventoryState } from "./inventory-state";
 import { EncounterPrescriptionCard } from "./encounter-prescription-card";
 import { EncounterQuoteCard } from "./encounter-quote-card";
+import { EncounterDocumentsCard } from "./encounter-documents-card";
 import { treatmentCadenceLabel } from "@/data/treatment-cadence-label";
 
 type Appointment = {
@@ -158,6 +159,7 @@ const encounterSections = [
   { id: "avaliacao-plano", label: "Avaliação e plano", icon: ClipboardList },
   { id: "conduta", label: "Conduta", icon: FileText },
   { id: "prescricao", label: "Prescrição", icon: Pill },
+  { id: "documentos", label: "Receitas e exames", icon: FileText },
   { id: "orcamento", label: "Orçamento", icon: ReceiptText },
   { id: "contexto", label: "Contexto e histórico", icon: History },
 ] as const;
@@ -930,6 +932,9 @@ export function CareEncounterPage({ appointmentId }: { appointmentId: string }) 
           </section>
           <div id="prescricao" className="scroll-mt-40">
             <EncounterPrescriptionCard appointmentId={appointmentId} />
+          </div>
+          <div id="documentos" className="scroll-mt-40">
+            <EncounterDocumentsCard appointmentId={appointmentId} />
           </div>
           <div id="orcamento" className="scroll-mt-40">
             <EncounterQuoteCard appointmentId={appointmentId} />

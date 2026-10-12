@@ -264,6 +264,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       !path.startsWith("/pacientes") &&
       !path.startsWith("/agenda") &&
       !path.startsWith("/aplicacoes") &&
+      !path.startsWith("/atendimentos/") &&
       !path.startsWith("/configuracoes")
     )
       return;
