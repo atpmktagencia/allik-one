@@ -13,6 +13,7 @@ import { writeOffResponse } from "@/server/write-offs";
 import { integrationCredentialResponse } from "@/server/integration-credentials";
 import { pricingResponse } from "@/server/pricing";
 import { patientsResponse } from "@/server/patients";
+import { patientTimelineResponse } from "@/server/patient-timeline";
 import { patientDetailResponse } from "@/server/patient-treatments";
 import { patientDemandResponse } from "@/server/patient-demand";
 import { patientApplicationResponse } from "@/server/patient-applications";
@@ -48,6 +49,10 @@ export const Route = createFileRoute("/api/v1/inventory/$")({
   server: {
     handlers: {
       GET: ({ request }) => {
+        if (
+          new URL(request.url).pathname.replace(/\/$/, "") === "/api/v1/inventory/patient-timeline"
+        )
+          return patientTimelineResponse(request);
         if (
           new URL(request.url).pathname.replace(/\/$/, "") ===
           "/api/v1/inventory/encounter-documents"

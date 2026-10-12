@@ -211,6 +211,8 @@ O Milestone 1 só é encerrado após validar o deployment com PostgreSQL na Verc
 
   Receitas textuais e solicitações de exames são documentos independentes, com rascunho, controle de versão, autoria e finalização imutável. Modelos são particulares do profissional e devem conter somente conteúdo reutilizável, sem identificação de pacientes. A impressão autenticada de documentos finais permite salvar em PDF pelo navegador. A prescrição estruturada de injetáveis mantém seu vínculo com orçamento e plano terapêutico.
 - Milestone 16: histórico longitudinal do paciente, evoluções, planos terapêuticos, documentos e aplicações.
+
+  O prontuário em `/pacientes/:patientId/prontuario` reúne agendamentos, evoluções finalizadas, prescrições estruturadas finalizadas, receitas e pedidos de exames finais, planos e aplicações. A consulta é protegida por organização e unidade em cada fonte, com paginação determinística e filtros. Rascunhos clínicos permanecem no atendimento; a linha do tempo não os apresenta como documentos finais.
 - Milestone 17: assinatura eletrônica de documentos, integridade e validação.
 
 Projeto Lovable: https://lovable.dev/projects/d9d8071f-e34a-4e1b-8e4d-5b845dc82c23

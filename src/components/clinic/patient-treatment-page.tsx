@@ -563,14 +563,21 @@ export function PatientTreatmentPage({ patientId }: { patientId: string }) {
       <PageHeader
         eyebrow={`${data.patient.internalCode} · ${data.patient.unitName}`}
         title={data.patient.fullName}
-        description="Plano operacional de aplicações. Não substitui prontuário, avaliação clínica ou prescrição médica."
+        description="Planos terapêuticos, aplicações e acompanhamento do paciente."
         action={
-          data.canManage ? (
-            <Button onClick={() => setOpen(true)}>
-              <Plus className="mr-2 size-4" />
-              Novo tratamento
+          <div className="flex flex-wrap gap-2">
+            <Button asChild variant="outline">
+              <Link to="/pacientes/$patientId/prontuario" params={{ patientId }}>
+                <Stethoscope /> Abrir prontuário
+              </Link>
             </Button>
-          ) : undefined
+            {data.canManage ? (
+              <Button onClick={() => setOpen(true)}>
+                <Plus className="mr-2 size-4" />
+                Novo tratamento
+              </Button>
+            ) : null}
+          </div>
         }
       />
       {(message || error) && (
@@ -915,7 +922,7 @@ export function PatientTreatmentPage({ patientId }: { patientId: string }) {
             <Stethoscope className="size-4" /> Prontuário longitudinal
           </h2>
           <p className="mt-1 text-xs text-muted-foreground">
-            Evoluções finalizadas, assinadas e ordenadas da mais recente para a mais antiga.
+            Evoluções finalizadas, com autoria registrada, da mais recente para a mais antiga.
           </p>
         </div>
         {clinicalHistory.length ? (

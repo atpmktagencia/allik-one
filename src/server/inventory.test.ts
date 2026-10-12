@@ -38,6 +38,7 @@ import { clinicalAlertsResponse } from "./clinical-alerts";
 import { encounterPrescriptionsResponse } from "./encounter-prescriptions";
 import { encounterQuotesResponse } from "./encounter-quotes";
 import { encounterDocumentsResponse } from "./encounter-documents";
+import { patientTimelineResponse } from "./patient-timeline";
 vi.mock("@vercel/blob", () => ({
   put: vi.fn(async (pathname: string) => ({ pathname })),
   del: vi.fn(async () => undefined),
@@ -4175,5 +4176,282 @@ describe("paid encounter quote therapeutic activation", () => {
         )
       ).rows,
     ).toEqual([{ actor_user_id: treatment[0].created_by_user_id }]);
+  });
+});
+
+describe("patient longitudinal clinical timeline", () => {
+  const unitId = "a1100000-0000-4000-8000-000000000101";
+  const otherUnitId = "a1100000-0000-4000-8000-000000000102";
+  const organizationId = "a1100000-0000-4000-8000-000000000001";
+  async function timelineFixture() {
+    const credential = await scopedCookie(unitId, "PARTNER_ADMIN");
+    const userId = (
+      await getPool().query<{ user_id: string }>(
+        "SELECT user_id FROM inventory_sessions WHERE token_hash=$1",
+        [hashToken(credential.split("=")[1]!)],
+      )
+    ).rows[0]!.user_id;
+    const patientId = randomUUID();
+    await getPool().query(
+      `INSERT INTO inventory_patients(id,organization_id,primary_unit_id,internal_code,full_name,phone,email)
+       VALUES($1,$2,$3,$4,'Paciente histórico sintético','+5585999999999','timeline@example.test')`,
+      [patientId, organizationId, unitId, `TIME-${patientId.slice(0, 8)}`],
+    );
+    const insertAppointment = async (unit: string, org = organizationId) => {
+      const id = randomUUID();
+      await getPool().query(
+        `INSERT INTO inventory_care_appointments(id,organization_id,unit_id,patient_id,professional_user_id,care_type,starts_at,ends_at,room,created_by_user_id)
+         VALUES($1,$2,$3,$4,$5,'CONSULTATION','2032-02-10T12:00:00Z','2032-02-10T13:00:00Z',$6,$5)`,
+        [id, org, unit, patientId, userId, `Sala ${id}`],
+      );
+      return id;
+    };
+    const appointmentId = await insertAppointment(unitId);
+    const draftAppointmentId = await insertAppointment(unitId);
+    const foreignUnitAppointmentId = await insertAppointment(otherUnitId);
+    const foreignOrganizationId = randomUUID();
+    await getPool().query("INSERT INTO inventory_organizations(id,name) VALUES($1,$2)", [
+      foreignOrganizationId,
+      `Organização externa ${foreignOrganizationId}`,
+    ]);
+    const foreignOrganizationUnitId = randomUUID();
+    await getPool().query(
+      "INSERT INTO inventory_units(id,organization_id,name) VALUES($1,$2,'Unidade externa')",
+      [foreignOrganizationUnitId, foreignOrganizationId],
+    );
+    const foreignOrganizationAppointmentId = await insertAppointment(
+      foreignOrganizationUnitId,
+      foreignOrganizationId,
+    );
+    const insertNote = async (
+      appointment: string,
+      status: "DRAFT" | "FINAL",
+      unit = unitId,
+      org = organizationId,
+    ) => {
+      const id = randomUUID();
+      await getPool().query(
+        `INSERT INTO inventory_clinical_notes(id,organization_id,unit_id,appointment_id,patient_id,author_user_id,author_name,professional_council,council_number,council_region,evolution,conduct,status,finalized_at)
+         VALUES($1,$2,$3,$4,$5,$6,'Autora clínica registrada','CRM','12345','CE',$7,'Conduta sintética',$8,CASE WHEN $8='FINAL' THEN '2032-02-10T14:00:00Z'::timestamptz ELSE NULL END)`,
+        [
+          id,
+          org,
+          unit,
+          appointment,
+          patientId,
+          userId,
+          status === "FINAL"
+            ? "Evolução final registrada no prontuário"
+            : "RASCUNHO PRIVADO NÃO FINALIZADO",
+          status,
+        ],
+      );
+      return id;
+    };
+    const noteId = await insertNote(appointmentId, "FINAL");
+    await insertNote(draftAppointmentId, "DRAFT");
+    const foreignUnitNoteId = await insertNote(foreignUnitAppointmentId, "FINAL", otherUnitId);
+    const foreignOrganizationNoteId = await insertNote(
+      foreignOrganizationAppointmentId,
+      "FINAL",
+      foreignOrganizationUnitId,
+      foreignOrganizationId,
+    );
+    const insertDocument = async (status: "DRAFT" | "FINAL") => {
+      const id = randomUUID();
+      await getPool().query(
+        `INSERT INTO inventory_encounter_documents(id,organization_id,unit_id,appointment_id,patient_id,author_user_id,author_name,professional_council,council_number,council_region,type,title,content,status,finalized_at)
+         VALUES($1,$2,$3,$4,$5,$6,'Autor documento registrado','CRM','67890','CE','EXAM_REQUEST','Exames sintéticos',$7,$8,CASE WHEN $8='FINAL' THEN '2032-02-10T14:00:00Z'::timestamptz ELSE NULL END)`,
+        [
+          id,
+          organizationId,
+          unitId,
+          appointmentId,
+          patientId,
+          userId,
+          status === "FINAL" ? "Exame solicitado finalizado" : "DOCUMENTO PRIVADO EM RASCUNHO",
+          status,
+        ],
+      );
+      return id;
+    };
+    await getPool().query(
+      `INSERT INTO inventory_encounter_prescriptions(id,organization_id,unit_id,appointment_id,patient_id,author_user_id,author_name,professional_council,council_number,council_region,items,general_instructions,status,finalized_at)
+       VALUES($1,$2,$3,$4,$5,$6,'Prescritor histórico','CRM','54321','CE',$7,'Orientação registrada','FINAL','2032-02-10T14:00:00.123456Z')`,
+      [
+        randomUUID(),
+        organizationId,
+        unitId,
+        appointmentId,
+        patientId,
+        userId,
+        JSON.stringify([
+          {
+            medicationName: "Medicamento sintético",
+            doseQuantity: 2.5,
+            doseUnit: "MG",
+            route: "SC",
+            frequencyAmount: 1,
+            frequencyUnit: "WEEK",
+            durationAmount: 4,
+            durationUnit: "WEEK",
+            instructions: "Orientação sintética",
+          },
+        ]),
+      ],
+    );
+    const documentId = await insertDocument("FINAL");
+    await insertDocument("DRAFT");
+    return {
+      credential,
+      userId,
+      patientId,
+      appointmentId,
+      noteId,
+      documentId,
+      foreignUnitNoteId,
+      foreignOrganizationNoteId,
+      insertDocument,
+    };
+  }
+  const timelineGet = (patientId: string, credential: string, query = "") =>
+    patientTimelineResponse(
+      new Request(`${origin}/api/v1/inventory/patient-timeline?patientId=${patientId}${query}`, {
+        headers: { cookie: credential },
+      }),
+    );
+
+  it("combines source records with preserved clinical authors and excludes drafts and out-of-scope history", async () => {
+    const f = await timelineFixture();
+    const response = await timelineGet(f.patientId, f.credential);
+    expect(response.status).toBe(200);
+    const body = (await response.json()).data;
+    expect(body.patient.id).toBe(f.patientId);
+    expect(body.events.map((event: { kind: string }) => event.kind)).toEqual(
+      expect.arrayContaining(["APPOINTMENT", "CLINICAL_NOTE", "DOCUMENT", "PRESCRIPTION"]),
+    );
+    const note = body.events.find((event: { kind: string }) => event.kind === "CLINICAL_NOTE");
+    const document = body.events.find((event: { kind: string }) => event.kind === "DOCUMENT");
+    expect(note).toEqual(
+      expect.objectContaining({ authorName: "Autora clínica registrada", status: "FINAL" }),
+    );
+    expect(document).toEqual(
+      expect.objectContaining({ authorName: "Autor documento registrado", status: "FINAL" }),
+    );
+    const serialized = JSON.stringify(body);
+    expect(serialized).toContain("Evolução final registrada no prontuário");
+    expect(serialized).toContain("Exame solicitado finalizado");
+    expect(serialized).toContain("Medicamento sintético");
+    expect(serialized).not.toContain("RASCUNHO PRIVADO");
+    expect(serialized).not.toContain("DOCUMENTO PRIVADO EM RASCUNHO");
+    expect(serialized).not.toContain(f.foreignUnitNoteId);
+    expect(serialized).not.toContain(f.foreignOrganizationNoteId);
+    const replay = (await (await timelineGet(f.patientId, f.credential)).json()).data;
+    expect(replay).toEqual(body);
+  });
+
+  it("rejects commercial-only, viewer, anonymous and different-unit access", async () => {
+    const f = await timelineFixture();
+    for (const role of ["FINANCE", "VIEWER", "INVENTORY_MANAGER"])
+      expect((await timelineGet(f.patientId, await scopedCookie(unitId, role))).status).toBe(403);
+    expect(
+      (await timelineGet(f.patientId, await scopedCookie(otherUnitId, "PARTNER_ADMIN"))).status,
+    ).toBe(404);
+    expect((await timelineGet(f.patientId, f.credential, `&unitId=${otherUnitId}`)).status).toBe(
+      403,
+    );
+    expect((await timelineGet(f.patientId, "")).status).toBe(401);
+    const consolidated = (
+      await (await timelineGet(f.patientId, await scopedCookie(unitId, "SUPER_ADMIN"))).json()
+    ).data;
+    expect(consolidated.events.map((event: { id: string }) => event.id)).toContain(
+      f.foreignUnitNoteId,
+    );
+    expect(JSON.stringify(consolidated)).not.toContain(f.foreignOrganizationNoteId);
+  });
+
+  it("validates filters and opaque cursors without returning clinical data", async () => {
+    const f = await timelineFixture();
+    for (const query of [
+      "&kind=UNKNOWN",
+      "&unitId=invalid",
+      "&from=not-a-date",
+      "&from=0000-01-01",
+      "&to=2032-02-30",
+      "&from=2033-01-01&to=2032-01-01",
+      "&cursor=invalid",
+    ])
+      expect((await timelineGet(f.patientId, f.credential, query)).status).toBe(400);
+    expect((await timelineGet("invalid", f.credential)).status).toBe(400);
+    expect(
+      (await timelineGet(f.patientId, f.credential, "&unitId=&from=&to=&kind=&cursor=")).status,
+    ).toBe(200);
+    const filtered = (await (await timelineGet(f.patientId, f.credential, "&kind=DOCUMENT")).json())
+      .data;
+    expect(filtered.events).toHaveLength(1);
+    expect(filtered.events[0].kind).toBe("DOCUMENT");
+    const empty = (
+      await (await timelineGet(f.patientId, f.credential, "&from=2040-01-01&to=2040-01-02")).json()
+    ).data;
+    expect(empty.events).toEqual([]);
+    expect(empty.nextCursor).toBeNull();
+  });
+  it("paginates timestamp ties deterministically without missing or repeating source records", async () => {
+    const f = await timelineFixture();
+    const extraIds: string[] = [];
+    for (let index = 0; index < 34; index++) extraIds.push(await f.insertDocument("FINAL"));
+    const seen: { id: string; kind: string; occurredAt: string }[] = [];
+    let cursor: string | null = null;
+    let pages = 0;
+    do {
+      const response = await timelineGet(
+        f.patientId,
+        f.credential,
+        cursor ? `&cursor=${encodeURIComponent(cursor)}` : "",
+      );
+      expect(response.status).toBe(200);
+      const page = (await response.json()).data;
+      expect(page.events.length).toBeLessThanOrEqual(30);
+      seen.push(...page.events);
+      cursor = page.nextCursor;
+      pages++;
+      expect(pages).toBeLessThan(4);
+    } while (cursor);
+    expect(pages).toBe(2);
+    expect(seen).toHaveLength(39);
+    expect(new Set(seen.map((event) => `${event.kind}:${event.id}`)).size).toBe(39);
+    expect(seen.map((event) => event.id)).toEqual(expect.arrayContaining(extraIds));
+    const firstPage = (await (await timelineGet(f.patientId, f.credential)).json()).data;
+    expect(
+      (
+        await timelineGet(
+          f.patientId,
+          f.credential,
+          `&kind=DOCUMENT&cursor=${encodeURIComponent(firstPage.nextCursor)}`,
+        )
+      ).status,
+    ).toBe(400);
+    expect(
+      (
+        await timelineGet(
+          randomUUID(),
+          f.credential,
+          `&cursor=${encodeURIComponent(firstPage.nextCursor)}`,
+        )
+      ).status,
+    ).toBe(400);
+    expect(firstPage.events.map((event: { id: string }) => event.id)).toEqual(
+      seen.slice(0, 30).map((event) => event.id),
+    );
+    for (let index = 1; index < seen.length; index++) {
+      const previous = seen[index - 1]!;
+      const current = seen[index]!;
+      if (previous.occurredAt === current.occurredAt && previous.kind === current.kind)
+        expect(previous.id > current.id).toBe(true);
+      else
+        expect(Date.parse(previous.occurredAt)).toBeGreaterThanOrEqual(
+          Date.parse(current.occurredAt),
+        );
+    }
   });
 });

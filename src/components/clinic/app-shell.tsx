@@ -287,7 +287,9 @@ export function AppShell({ children }: { children: ReactNode }) {
   }, [path]);
   const title = path.startsWith("/atendimentos/")
     ? "Atendimento"
-    : (pageTitles[path] ?? "Allik One");
+    : path.startsWith("/pacientes/") && path.endsWith("/prontuario")
+      ? "Prontuário"
+      : (pageTitles[path] ?? "Allik One");
   return (
     <div className="min-h-screen bg-background">
       {!focusedEncounter ? (

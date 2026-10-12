@@ -966,8 +966,11 @@ export function CareEncounterPage({ appointmentId }: { appointmentId: string }) 
                 </p>
               </div>
               <Button asChild variant="outline">
-                <Link to="/pacientes/$patientId" params={{ patientId: appointment.patientId }}>
-                  <UserRound /> Abrir cadastro clínico do paciente
+                <Link
+                  to="/pacientes/$patientId/prontuario"
+                  params={{ patientId: appointment.patientId }}
+                >
+                  <UserRound /> Abrir prontuário do paciente
                 </Link>
               </Button>
             </section>
