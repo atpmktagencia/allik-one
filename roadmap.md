@@ -35,7 +35,7 @@ comercial.
 ## Próximas entregas
 
 - [x] Consolidar diagnósticos/hipóteses, plano clínico e retorno no prontuário longitudinal.
-- [ ] Implementar prescrição de tratamento durante o atendimento, vinculada ao profissional,
+- [x] Implementar prescrição de tratamento durante o atendimento, vinculada ao profissional,
       paciente e versão imutável do encontro.
 - [ ] Gerar orçamento a partir da prescrição, mostrando apresentação, dose, quantidade prevista,
       materiais, perda técnica, custo, preço aprovado e total estimado.

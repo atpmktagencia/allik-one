@@ -31,6 +31,10 @@ describe("Care encounter UI", () => {
           writes.push(JSON.parse(String(init.body)) as Record<string, unknown>);
           return Response.json({ data: { id: "44444444-4444-4444-8444-444444444444" } });
         }
+        if (String(_input).includes("encounter-prescriptions"))
+          return Response.json({
+            data: { prescription: null, products: [], canAuthor: true },
+          });
         return Response.json({
           data: {
             appointment: {
@@ -99,6 +103,8 @@ describe("Care encounter UI", () => {
     ).toBeInTheDocument();
     expect(screen.getByRole("textbox", { name: "Plano clínico" })).toBeInTheDocument();
     expect(screen.getByLabelText("Data sugerida")).toBeInTheDocument();
+    expect(await screen.findByText("Prescrição do atendimento")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Adicionar item" })).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Anamnese estruturada" }));
     fireEvent.click(screen.getByRole("button", { name: "Motivo da consulta" }));
     expect(screen.getByRole("textbox", { name: "Motivo da consulta" })).toBeInTheDocument();
@@ -117,8 +123,12 @@ describe("Care encounter UI", () => {
   it("shows reassignment when another professional owns an existing draft", async () => {
     vi.stubGlobal(
       "fetch",
-      vi.fn(async () =>
-        Response.json({
+      vi.fn(async (input: RequestInfo | URL) => {
+        if (String(input).includes("encounter-prescriptions"))
+          return Response.json({
+            data: { prescription: null, products: [], canAuthor: false },
+          });
+        return Response.json({
           data: {
             appointment: {
               id: "44444444-4444-4444-8444-444444444444",
@@ -167,8 +177,8 @@ describe("Care encounter UI", () => {
             },
             clinicalAlerts: [],
           },
-        }),
-      ),
+        });
+      }),
     );
     render(
       <QueryClientProvider

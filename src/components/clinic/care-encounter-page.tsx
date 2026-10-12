@@ -21,6 +21,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useInventory } from "@/data/inventory-api";
 import { InventoryState } from "./inventory-state";
 import { PageHeader } from "./page-kit";
+import { EncounterPrescriptionCard } from "./encounter-prescription-card";
 
 type Appointment = {
   id: string;
@@ -840,6 +841,7 @@ export function CareEncounterPage({ appointmentId }: { appointmentId: string }) 
           </div>
         ) : null}
       </section>
+      <EncounterPrescriptionCard appointmentId={appointmentId} />
       <div className="grid gap-5 xl:grid-cols-[1fr_.9fr]">
         <section className="space-y-4 rounded-xl border bg-card p-5">
           <h2 className="flex items-center gap-2 font-semibold">

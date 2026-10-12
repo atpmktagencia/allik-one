@@ -35,6 +35,7 @@ import { careSettingsResponse } from "./care-settings";
 import { careEncounterResponse } from "./care-encounter";
 import { clinicalProblemsResponse } from "./clinical-problems";
 import { clinicalAlertsResponse } from "./clinical-alerts";
+import { encounterPrescriptionsResponse } from "./encounter-prescriptions";
 vi.mock("@vercel/blob", () => ({
   put: vi.fn(async (pathname: string) => ({ pathname })),
   del: vi.fn(async () => undefined),
@@ -2152,6 +2153,88 @@ describe("care appointments", () => {
     expect((await clinicalPost({ ...draft, version: null })).status).toBe(409);
     expect((await clinicalPost({ ...draft, action: "FINALIZE", version: 2 })).status).toBe(200);
     expect((await clinicalPost({ ...draft, version: 3 })).status).toBe(409);
+    const prescribedProduct = await getPool().query<{ id: string; name: string }>(
+      `SELECT id,name FROM inventory_products
+       WHERE organization_id='a1100000-0000-4000-8000-000000000001' AND active
+       ORDER BY name LIMIT 1`,
+    );
+    const prescriptionPost = (value: unknown, sessionCookie = professionalCookie) =>
+      encounterPrescriptionsResponse(
+        new Request(`${origin}/api/v1/inventory/encounter-prescriptions`, {
+          method: "POST",
+          headers: { cookie: sessionCookie, origin, "Content-Type": "application/json" },
+          body: JSON.stringify(value),
+        }),
+      );
+    const prescriptionDraft = {
+      action: "SAVE_DRAFT",
+      appointmentId: body.id,
+      items: [
+        {
+          id: randomUUID(),
+          productId: prescribedProduct.rows[0]!.id,
+          medicationName: "Nome enviado pelo cliente não deve prevalecer",
+          doseQuantity: 2.5,
+          doseUnit: "MG",
+          doseUnitOther: "",
+          route: "Subcutânea",
+          frequency: "Uma vez por semana",
+          duration: "Quatro semanas",
+          plannedAdministrations: 4,
+          instructions: "Aplicar conforme avaliação clínica.",
+        },
+      ],
+      generalInstructions: "Retornar em quatro semanas para reavaliação.",
+      version: null,
+    };
+    expect((await prescriptionPost(prescriptionDraft)).status).toBe(201);
+    expect(
+      (
+        await prescriptionPost({
+          ...prescriptionDraft,
+          action: "FINALIZE",
+          version: 0,
+        })
+      ).status,
+    ).toBe(200);
+    expect((await prescriptionPost({ ...prescriptionDraft, version: 1 })).status).toBe(409);
+    const prescriptionGet = await encounterPrescriptionsResponse(
+      new Request(`${origin}/api/v1/inventory/encounter-prescriptions?appointmentId=${body.id}`, {
+        headers: { cookie: professionalCookie },
+      }),
+    );
+    expect(prescriptionGet.status).toBe(200);
+    expect((await prescriptionGet.json()).data.prescription).toEqual(
+      expect.objectContaining({
+        status: "FINAL",
+        version: 1,
+        generalInstructions: "Retornar em quatro semanas para reavaliação.",
+        items: [
+          expect.objectContaining({
+            medicationName: prescribedProduct.rows[0]!.name,
+            doseQuantity: 2.5,
+            plannedAdministrations: 4,
+          }),
+        ],
+      }),
+    );
+    await expect(
+      getPool().query(
+        `UPDATE inventory_encounter_prescriptions SET general_instructions='alteração indevida'
+         WHERE appointment_id=$1`,
+        [body.id],
+      ),
+    ).rejects.toThrow(/immutable/);
+    expect(
+      (
+        await getPool().query(
+          `SELECT action FROM inventory_encounter_prescription_changes
+           WHERE prescription_id=(SELECT id FROM inventory_encounter_prescriptions WHERE appointment_id=$1)
+           ORDER BY created_at`,
+          [body.id],
+        )
+      ).rows,
+    ).toEqual([{ action: "CREATE" }, { action: "FINALIZE" }]);
     const storedNote = await getPool().query(
       `SELECT status,author_name AS "authorName",professional_council AS council,
         council_number AS "councilNumber",version,

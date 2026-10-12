@@ -295,6 +295,13 @@
       "when": 1794099600000,
       "tag": "0041_bent_victor_mancha",
       "breakpoints": true
+    },
+    {
+      "idx": 42,
+      "version": "7",
+      "when": 1794186000000,
+      "tag": "0042_neat_justice",
+      "breakpoints": true
     }
   ]
 }

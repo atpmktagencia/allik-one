@@ -721,6 +721,85 @@ export const clinicalNoteChanges = pgTable(
   ],
 );
 
+export const encounterPrescriptions = pgTable(
+  "inventory_encounter_prescriptions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id),
+    unitId: uuid("unit_id")
+      .notNull()
+      .references(() => units.id),
+    appointmentId: uuid("appointment_id")
+      .notNull()
+      .unique()
+      .references(() => careAppointments.id),
+    patientId: uuid("patient_id")
+      .notNull()
+      .references(() => patients.id),
+    authorUserId: uuid("author_user_id")
+      .notNull()
+      .references(() => users.id),
+    authorName: text("author_name").notNull(),
+    professionalCouncil: text("professional_council").notNull(),
+    councilNumber: text("council_number").notNull(),
+    councilRegion: text("council_region").notNull(),
+    items: jsonb("items").notNull().default([]),
+    generalInstructions: text("general_instructions").notNull().default(""),
+    status: text("status").notNull().default("DRAFT"),
+    version: integer("version").notNull().default(0),
+    finalizedAt: timestamp("finalized_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("encounter_prescription_patient_history").on(t.patientId, t.createdAt),
+    index("encounter_prescription_unit_history").on(t.unitId, t.createdAt),
+    check("encounter_prescription_status_valid", sql`${t.status} IN ('DRAFT','FINAL')`),
+    check("encounter_prescription_version_nonnegative", sql`${t.version}>=0`),
+    check(
+      "encounter_prescription_items_valid",
+      sql`jsonb_typeof(${t.items})='array' AND jsonb_array_length(${t.items})<=50`,
+    ),
+    check(
+      "encounter_prescription_instructions_valid",
+      sql`char_length(${t.generalInstructions})<=5000`,
+    ),
+    check(
+      "encounter_prescription_final_valid",
+      sql`(${t.status}='DRAFT' AND ${t.finalizedAt} IS NULL) OR (${t.status}='FINAL' AND ${t.finalizedAt} IS NOT NULL AND jsonb_array_length(${t.items})>0)`,
+    ),
+  ],
+);
+
+export const encounterPrescriptionChanges = pgTable(
+  "inventory_encounter_prescription_changes",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id),
+    prescriptionId: uuid("prescription_id")
+      .notNull()
+      .references(() => encounterPrescriptions.id),
+    action: text("action").notNull(),
+    beforeData: jsonb("before_data"),
+    afterData: jsonb("after_data").notNull(),
+    actorUserId: uuid("actor_user_id")
+      .notNull()
+      .references(() => users.id),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("encounter_prescription_change_history").on(t.prescriptionId, t.createdAt),
+    check(
+      "encounter_prescription_change_action_valid",
+      sql`${t.action} IN ('CREATE','UPDATE','FINALIZE')`,
+    ),
+  ],
+);
+
 export const patientClinicalProblems = pgTable(
   "inventory_patient_clinical_problems",
   {
