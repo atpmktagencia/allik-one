@@ -92,6 +92,9 @@ describe("Care encounter UI", () => {
     expect((screen.getByLabelText("Evolução") as HTMLTextAreaElement).value).toContain(
       "ANAMNESE LONGEVIDADE SAUDÁVEL",
     );
+    expect(screen.queryByRole("textbox", { name: "Motivo da consulta" })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Motivo da consulta" }));
+    expect(screen.getByRole("textbox", { name: "Motivo da consulta" })).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Concluir atendimento" }));
     await waitFor(() =>
       expect(writes).toContainEqual(

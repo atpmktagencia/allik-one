@@ -10,6 +10,12 @@ import {
 import { useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useInventory } from "@/data/inventory-api";
@@ -560,9 +566,10 @@ export function CareEncounterPage({ appointmentId }: { appointmentId: string }) 
             value={evolution}
             onChange={(event) => setEvolution(event.target.value)}
             disabled={!data.canAuthorClinicalNote || data.clinicalNote?.status === "FINAL"}
-            rows={8}
+            rows={16}
             maxLength={20000}
             placeholder="Registre a evolução do atendimento."
+            className="min-h-[420px] resize-y text-base leading-relaxed"
           />
         </label>
         <div>
@@ -572,50 +579,52 @@ export function CareEncounterPage({ appointmentId }: { appointmentId: string }) 
           </p>
           <fieldset
             disabled={!data.canAuthorClinicalNote || data.clinicalNote?.status === "FINAL"}
-            className="mt-3 grid gap-4 md:grid-cols-2"
+            className="mt-3"
           >
-            <AnamnesisField
-              label="Motivo da consulta"
-              field="chiefComplaint"
-              value={anamnesis.chiefComplaint}
-              maxLength={2000}
-              setAnamnesis={setAnamnesis}
-            />
-            <AnamnesisField
-              label="História da condição atual"
-              field="currentHistory"
-              value={anamnesis.currentHistory}
-              maxLength={10000}
-              setAnamnesis={setAnamnesis}
-            />
-            <AnamnesisField
-              label="Antecedentes pessoais"
-              field="personalHistory"
-              value={anamnesis.personalHistory}
-              maxLength={10000}
-              setAnamnesis={setAnamnesis}
-            />
-            <AnamnesisField
-              label="Antecedentes familiares"
-              field="familyHistory"
-              value={anamnesis.familyHistory}
-              maxLength={10000}
-              setAnamnesis={setAnamnesis}
-            />
-            <AnamnesisField
-              label="Hábitos e contexto"
-              field="habits"
-              value={anamnesis.habits}
-              maxLength={5000}
-              setAnamnesis={setAnamnesis}
-            />
-            <AnamnesisField
-              label="Revisão de sistemas"
-              field="systemsReview"
-              value={anamnesis.systemsReview}
-              maxLength={10000}
-              setAnamnesis={setAnamnesis}
-            />
+            <Accordion type="multiple" className="rounded-lg border px-4">
+              <AnamnesisField
+                label="Motivo da consulta"
+                field="chiefComplaint"
+                value={anamnesis.chiefComplaint}
+                maxLength={2000}
+                setAnamnesis={setAnamnesis}
+              />
+              <AnamnesisField
+                label="História da condição atual"
+                field="currentHistory"
+                value={anamnesis.currentHistory}
+                maxLength={10000}
+                setAnamnesis={setAnamnesis}
+              />
+              <AnamnesisField
+                label="Antecedentes pessoais"
+                field="personalHistory"
+                value={anamnesis.personalHistory}
+                maxLength={10000}
+                setAnamnesis={setAnamnesis}
+              />
+              <AnamnesisField
+                label="Antecedentes familiares"
+                field="familyHistory"
+                value={anamnesis.familyHistory}
+                maxLength={10000}
+                setAnamnesis={setAnamnesis}
+              />
+              <AnamnesisField
+                label="Hábitos e contexto"
+                field="habits"
+                value={anamnesis.habits}
+                maxLength={5000}
+                setAnamnesis={setAnamnesis}
+              />
+              <AnamnesisField
+                label="Revisão de sistemas"
+                field="systemsReview"
+                value={anamnesis.systemsReview}
+                maxLength={10000}
+                setAnamnesis={setAnamnesis}
+              />
+            </Accordion>
           </fieldset>
         </div>
         <div>
@@ -625,56 +634,58 @@ export function CareEncounterPage({ appointmentId }: { appointmentId: string }) 
           </p>
           <fieldset
             disabled={!data.canAuthorClinicalNote || data.clinicalNote?.status === "FINAL"}
-            className="mt-3 grid gap-4 md:grid-cols-2"
+            className="mt-3"
           >
-            <PhysicalExamField
-              label="Estado geral"
-              field="generalExam"
-              value={physicalExam.generalExam}
-              setPhysicalExam={setPhysicalExam}
-            />
-            <PhysicalExamField
-              label="Cardiovascular"
-              field="cardiovascularExam"
-              value={physicalExam.cardiovascularExam}
-              setPhysicalExam={setPhysicalExam}
-            />
-            <PhysicalExamField
-              label="Respiratório"
-              field="respiratoryExam"
-              value={physicalExam.respiratoryExam}
-              setPhysicalExam={setPhysicalExam}
-            />
-            <PhysicalExamField
-              label="Abdominal"
-              field="abdominalExam"
-              value={physicalExam.abdominalExam}
-              setPhysicalExam={setPhysicalExam}
-            />
-            <PhysicalExamField
-              label="Neurológico"
-              field="neurologicalExam"
-              value={physicalExam.neurologicalExam}
-              setPhysicalExam={setPhysicalExam}
-            />
-            <PhysicalExamField
-              label="Musculoesquelético"
-              field="musculoskeletalExam"
-              value={physicalExam.musculoskeletalExam}
-              setPhysicalExam={setPhysicalExam}
-            />
-            <PhysicalExamField
-              label="Pele e anexos"
-              field="skinExam"
-              value={physicalExam.skinExam}
-              setPhysicalExam={setPhysicalExam}
-            />
-            <PhysicalExamField
-              label="Outros achados"
-              field="otherExam"
-              value={physicalExam.otherExam}
-              setPhysicalExam={setPhysicalExam}
-            />
+            <Accordion type="multiple" className="rounded-lg border px-4">
+              <PhysicalExamField
+                label="Estado geral"
+                field="generalExam"
+                value={physicalExam.generalExam}
+                setPhysicalExam={setPhysicalExam}
+              />
+              <PhysicalExamField
+                label="Cardiovascular"
+                field="cardiovascularExam"
+                value={physicalExam.cardiovascularExam}
+                setPhysicalExam={setPhysicalExam}
+              />
+              <PhysicalExamField
+                label="Respiratório"
+                field="respiratoryExam"
+                value={physicalExam.respiratoryExam}
+                setPhysicalExam={setPhysicalExam}
+              />
+              <PhysicalExamField
+                label="Abdominal"
+                field="abdominalExam"
+                value={physicalExam.abdominalExam}
+                setPhysicalExam={setPhysicalExam}
+              />
+              <PhysicalExamField
+                label="Neurológico"
+                field="neurologicalExam"
+                value={physicalExam.neurologicalExam}
+                setPhysicalExam={setPhysicalExam}
+              />
+              <PhysicalExamField
+                label="Musculoesquelético"
+                field="musculoskeletalExam"
+                value={physicalExam.musculoskeletalExam}
+                setPhysicalExam={setPhysicalExam}
+              />
+              <PhysicalExamField
+                label="Pele e anexos"
+                field="skinExam"
+                value={physicalExam.skinExam}
+                setPhysicalExam={setPhysicalExam}
+              />
+              <PhysicalExamField
+                label="Outros achados"
+                field="otherExam"
+                value={physicalExam.otherExam}
+                setPhysicalExam={setPhysicalExam}
+              />
+            </Accordion>
           </fieldset>
         </div>
         <label className="block space-y-2 text-sm font-medium">
@@ -886,17 +897,26 @@ function PhysicalExamField({
   setPhysicalExam: React.Dispatch<React.SetStateAction<PhysicalExam>>;
 }) {
   return (
-    <label className="space-y-1 text-sm font-medium">
-      {label}
-      <Textarea
-        rows={3}
-        maxLength={5000}
-        value={value}
-        onChange={(event) =>
-          setPhysicalExam((current) => ({ ...current, [field]: event.target.value }))
-        }
-      />
-    </label>
+    <AccordionItem value={`exam-${field}`}>
+      <AccordionTrigger>
+        <span className="flex items-center gap-2">
+          {label}
+          {value.trim() ? <Badge variant="secondary">Preenchido</Badge> : null}
+        </span>
+      </AccordionTrigger>
+      <AccordionContent>
+        <Textarea
+          aria-label={label}
+          rows={4}
+          maxLength={5000}
+          value={value}
+          onChange={(event) =>
+            setPhysicalExam((current) => ({ ...current, [field]: event.target.value }))
+          }
+          placeholder={`Registre os achados de ${label.toLocaleLowerCase("pt-BR")}.`}
+        />
+      </AccordionContent>
+    </AccordionItem>
   );
 }
 
@@ -914,17 +934,26 @@ function AnamnesisField({
   setAnamnesis: React.Dispatch<React.SetStateAction<Anamnesis>>;
 }) {
   return (
-    <label className="space-y-1 text-sm font-medium">
-      {label}
-      <Textarea
-        rows={3}
-        maxLength={maxLength}
-        value={value}
-        onChange={(event) =>
-          setAnamnesis((current) => ({ ...current, [field]: event.target.value }))
-        }
-      />
-    </label>
+    <AccordionItem value={`anamnesis-${field}`}>
+      <AccordionTrigger>
+        <span className="flex items-center gap-2">
+          {label}
+          {value.trim() ? <Badge variant="secondary">Preenchido</Badge> : null}
+        </span>
+      </AccordionTrigger>
+      <AccordionContent>
+        <Textarea
+          aria-label={label}
+          rows={4}
+          maxLength={maxLength}
+          value={value}
+          onChange={(event) =>
+            setAnamnesis((current) => ({ ...current, [field]: event.target.value }))
+          }
+          placeholder={`Registre ${label.toLocaleLowerCase("pt-BR")}.`}
+        />
+      </AccordionContent>
+    </AccordionItem>
   );
 }
 
