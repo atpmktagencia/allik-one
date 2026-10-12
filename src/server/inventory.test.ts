@@ -2308,12 +2308,6 @@ describe("care appointments", () => {
       expect.objectContaining({ action: "REASSIGN", actor: "Profissional Substituto Sintético" }),
       expect.objectContaining({ action: "REASSIGN", actor: "Profissional Agenda Sintético" }),
     ]);
-    await getPool().query(
-      `UPDATE inventory_care_appointments
-       SET starts_at=now()-interval '2 hours',ends_at=now()-interval '1 hour'
-       WHERE id=$1`,
-      [body.id],
-    );
     expect(
       (
         await send({
@@ -2347,6 +2341,18 @@ describe("care appointments", () => {
         })
       ).status,
     ).toBe(409);
+    expect(
+      (
+        await send({
+          ...rescheduled,
+          action: "CREATE",
+          id: randomUUID(),
+          version: 0,
+          status: "SCHEDULED",
+          reason: "Novo atendimento após liberação antecipada do horário.",
+        })
+      ).status,
+    ).toBe(201);
   });
 });
 

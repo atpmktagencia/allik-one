@@ -463,7 +463,7 @@ async function claimAppointment(
     const conflict = await client.query(
       `SELECT 1 FROM inventory_care_appointments
        WHERE organization_id=$1 AND professional_user_id=$2 AND id<>$3
-         AND status NOT IN ('CANCELED','NO_SHOW') AND starts_at<$5 AND ends_at>$4
+         AND status NOT IN ('COMPLETED','CANCELED','NO_SHOW') AND starts_at<$5 AND ends_at>$4
        LIMIT 1 FOR SHARE`,
       [
         auth.organizationId,

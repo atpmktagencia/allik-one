@@ -39,7 +39,7 @@ async function hasConflict(
 ) {
   const result = await client.query(
     `SELECT id FROM inventory_care_appointments
-     WHERE id<>$1 AND organization_id=$2 AND status NOT IN ('CANCELED','NO_SHOW')
+     WHERE id<>$1 AND organization_id=$2 AND status NOT IN ('COMPLETED','CANCELED','NO_SHOW')
        AND starts_at<$5 AND ends_at>$4
        AND (professional_user_id=$6 OR (unit_id=$3 AND lower(room)=lower($7) AND
          (($8::text IS NULL AND resource_name IS NULL) OR lower(resource_name)=lower($8))))
@@ -324,14 +324,8 @@ export async function careAppointmentsResponse(request: Request) {
       if (!allowedStatusTransitions[currentStatus]?.has(input.status))
         throw new Error("INVALID_STATUS");
       const now = Date.now();
-      const currentStartsAt = new Date(String(currentRow?.["starts_at"])).getTime();
       const currentEndsAt = new Date(String(currentRow?.["ends_at"])).getTime();
-      if (
-        (input.status === "IN_PROGRESS" && now < currentStartsAt - 15 * 60 * 1000) ||
-        (input.status === "COMPLETED" && now < currentStartsAt) ||
-        (input.status === "NO_SHOW" && now < currentEndsAt)
-      )
-        throw new Error("TOO_EARLY");
+      if (input.status === "NO_SHOW" && now < currentEndsAt) throw new Error("TOO_EARLY");
       result = await client.query(
         "UPDATE inventory_care_appointments SET status=$2,updated_by_user_id=$3,version=version+1,updated_at=now() WHERE id=$1 RETURNING *",
         [input.id, input.status, auth.user.id],
@@ -371,7 +365,7 @@ export async function careAppointmentsResponse(request: Request) {
               : message === "TERMINAL_STATUS"
                 ? ["Atendimentos encerrados não podem ser alterados.", 409]
                 : message === "TOO_EARLY"
-                  ? ["Esta situação ainda não pode ser registrada antes do horário previsto.", 409]
+                  ? ["A falta só pode ser registrada após o término previsto.", 409]
                   : ["INVALID_SCOPE", "INVALID_TYPE", "INVALID_ROOM"].includes(message)
                     ? ["Paciente, profissional, tipo ou sala inválido para esta unidade.", 400]
                     : ["Não foi possível salvar o agendamento.", 503];
