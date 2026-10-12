@@ -67,6 +67,12 @@ type Payload = {
     id: string;
     evolution: string;
     conduct: string;
+    chiefComplaint: string;
+    currentHistory: string;
+    personalHistory: string;
+    familyHistory: string;
+    habits: string;
+    systemsReview: string;
     status: "DRAFT" | "FINAL";
     version: number;
     authorName: string;
@@ -127,6 +133,14 @@ export function CareEncounterPage({ appointmentId }: { appointmentId: string }) 
   const [error, setError] = useState("");
   const [evolution, setEvolution] = useState("");
   const [conduct, setConduct] = useState("");
+  const [anamnesis, setAnamnesis] = useState({
+    chiefComplaint: "",
+    currentHistory: "",
+    personalHistory: "",
+    familyHistory: "",
+    habits: "",
+    systemsReview: "",
+  });
   const [vitals, setVitals] = useState({
     systolicPressure: "",
     diastolicPressure: "",
@@ -143,6 +157,14 @@ export function CareEncounterPage({ appointmentId }: { appointmentId: string }) 
     setLoadedNoteId(loadedNote?.id ?? null);
     setEvolution(loadedNote?.evolution ?? "");
     setConduct(loadedNote?.conduct ?? "");
+    setAnamnesis({
+      chiefComplaint: loadedNote?.chiefComplaint ?? "",
+      currentHistory: loadedNote?.currentHistory ?? "",
+      personalHistory: loadedNote?.personalHistory ?? "",
+      familyHistory: loadedNote?.familyHistory ?? "",
+      habits: loadedNote?.habits ?? "",
+      systemsReview: loadedNote?.systemsReview ?? "",
+    });
     setVitals({
       systolicPressure: String(loadedNote?.systolicPressure ?? ""),
       diastolicPressure: String(loadedNote?.diastolicPressure ?? ""),
@@ -181,6 +203,7 @@ export function CareEncounterPage({ appointmentId }: { appointmentId: string }) 
           appointmentId,
           evolution,
           conduct,
+          ...anamnesis,
           ...Object.fromEntries(
             Object.entries(vitals).map(([key, value]) => [
               key,
@@ -333,6 +356,59 @@ export function CareEncounterPage({ appointmentId }: { appointmentId: string }) 
             placeholder="Registre a evolução do atendimento."
           />
         </label>
+        <div>
+          <h3 className="font-medium">Anamnese estruturada</h3>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Preencha apenas os campos aplicáveis ao atendimento.
+          </p>
+          <fieldset
+            disabled={!data.canAuthorClinicalNote || data.clinicalNote?.status === "FINAL"}
+            className="mt-3 grid gap-4 md:grid-cols-2"
+          >
+            <AnamnesisField
+              label="Motivo da consulta"
+              field="chiefComplaint"
+              value={anamnesis.chiefComplaint}
+              maxLength={2000}
+              setAnamnesis={setAnamnesis}
+            />
+            <AnamnesisField
+              label="História da condição atual"
+              field="currentHistory"
+              value={anamnesis.currentHistory}
+              maxLength={10000}
+              setAnamnesis={setAnamnesis}
+            />
+            <AnamnesisField
+              label="Antecedentes pessoais"
+              field="personalHistory"
+              value={anamnesis.personalHistory}
+              maxLength={10000}
+              setAnamnesis={setAnamnesis}
+            />
+            <AnamnesisField
+              label="Antecedentes familiares"
+              field="familyHistory"
+              value={anamnesis.familyHistory}
+              maxLength={10000}
+              setAnamnesis={setAnamnesis}
+            />
+            <AnamnesisField
+              label="Hábitos e contexto"
+              field="habits"
+              value={anamnesis.habits}
+              maxLength={5000}
+              setAnamnesis={setAnamnesis}
+            />
+            <AnamnesisField
+              label="Revisão de sistemas"
+              field="systemsReview"
+              value={anamnesis.systemsReview}
+              maxLength={10000}
+              setAnamnesis={setAnamnesis}
+            />
+          </fieldset>
+        </div>
         <div>
           <p className="mb-2 text-sm font-medium">Sinais vitais</p>
           <fieldset
@@ -570,6 +646,43 @@ type Vitals = {
   weightKg: string;
   heightCm: string;
 };
+
+type Anamnesis = {
+  chiefComplaint: string;
+  currentHistory: string;
+  personalHistory: string;
+  familyHistory: string;
+  habits: string;
+  systemsReview: string;
+};
+
+function AnamnesisField({
+  label,
+  field,
+  value,
+  maxLength,
+  setAnamnesis,
+}: {
+  label: string;
+  field: keyof Anamnesis;
+  value: string;
+  maxLength: number;
+  setAnamnesis: React.Dispatch<React.SetStateAction<Anamnesis>>;
+}) {
+  return (
+    <label className="space-y-1 text-sm font-medium">
+      {label}
+      <Textarea
+        rows={3}
+        maxLength={maxLength}
+        value={value}
+        onChange={(event) =>
+          setAnamnesis((current) => ({ ...current, [field]: event.target.value }))
+        }
+      />
+    </label>
+  );
+}
 
 function VitalInput({
   label,

@@ -10,6 +10,12 @@ const clinicalInput = z.object({
   appointmentId: z.string().uuid(),
   evolution: z.string().trim().max(20000),
   conduct: z.string().trim().max(10000),
+  chiefComplaint: z.string().trim().max(2000).default(""),
+  currentHistory: z.string().trim().max(10000).default(""),
+  personalHistory: z.string().trim().max(10000).default(""),
+  familyHistory: z.string().trim().max(10000).default(""),
+  habits: z.string().trim().max(5000).default(""),
+  systemsReview: z.string().trim().max(10000).default(""),
   systolicPressure: z.number().int().min(40).max(300).nullable().default(null),
   diastolicPressure: z.number().int().min(20).max(200).nullable().default(null),
   heartRate: z.number().int().min(20).max(300).nullable().default(null),
@@ -86,7 +92,10 @@ export async function careEncounterResponse(request: Request) {
       [patientId, auth.organizationId, unitId],
     ),
     pool.query(
-      `SELECT id,evolution,conduct,status,version,author_name AS "authorName",
+      `SELECT id,evolution,conduct,chief_complaint AS "chiefComplaint",
+        current_history AS "currentHistory",personal_history AS "personalHistory",
+        family_history AS "familyHistory",habits,systems_review AS "systemsReview",
+        status,version,author_name AS "authorName",
         professional_council AS "professionalCouncil",council_number AS "councilNumber",
         council_region AS "councilRegion",systolic_pressure AS "systolicPressure",
         diastolic_pressure AS "diastolicPressure",heart_rate AS "heartRate",
@@ -219,6 +228,8 @@ async function saveClinicalNote(
           `UPDATE inventory_clinical_notes SET evolution=$2,conduct=$3,status=$4,
              systolic_pressure=$5,diastolic_pressure=$6,heart_rate=$7,oxygen_saturation=$8,
              temperature_c=$9,weight_kg=$10,height_cm=$11,
+             chief_complaint=$12,current_history=$13,personal_history=$14,family_history=$15,
+             habits=$16,systems_review=$17,
              finalized_at=CASE WHEN $4='FINAL' THEN now() ELSE NULL END,version=version+1,updated_at=now()
            WHERE id=$1 RETURNING *`,
           [
@@ -233,14 +244,22 @@ async function saveClinicalNote(
             parsed.temperatureC,
             parsed.weightKg,
             parsed.heightCm,
+            parsed.chiefComplaint,
+            parsed.currentHistory,
+            parsed.personalHistory,
+            parsed.familyHistory,
+            parsed.habits,
+            parsed.systemsReview,
           ],
         )
       : await client.query(
           `INSERT INTO inventory_clinical_notes(organization_id,unit_id,appointment_id,patient_id,
              author_user_id,author_name,professional_council,council_number,council_region,
              evolution,conduct,status,systolic_pressure,diastolic_pressure,heart_rate,
-             oxygen_saturation,temperature_c,weight_kg,height_cm,finalized_at)
+             oxygen_saturation,temperature_c,weight_kg,height_cm,chief_complaint,current_history,
+             personal_history,family_history,habits,systems_review,finalized_at)
            VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,
+             $20,$21,$22,$23,$24,$25,
              CASE WHEN $12='FINAL' THEN now() ELSE NULL END)
            RETURNING *`,
           [
@@ -263,6 +282,12 @@ async function saveClinicalNote(
             parsed.temperatureC,
             parsed.weightKg,
             parsed.heightCm,
+            parsed.chiefComplaint,
+            parsed.currentHistory,
+            parsed.personalHistory,
+            parsed.familyHistory,
+            parsed.habits,
+            parsed.systemsReview,
           ],
         );
     const note = noteResult.rows[0];
@@ -280,6 +305,7 @@ async function saveClinicalNote(
               status: current.status,
               version: current.version,
               vitals: clinicalVitals(current),
+              anamnesis: clinicalAnamnesis(current),
             }
           : null,
         {
@@ -288,6 +314,7 @@ async function saveClinicalNote(
           status: note.status,
           version: note.version,
           vitals: clinicalVitals(note),
+          anamnesis: clinicalAnamnesis(note),
         },
         auth.user.id,
       ],
@@ -321,5 +348,16 @@ function clinicalVitals(row: Record<string, unknown>) {
     temperatureC: row["temperature_c"],
     weightKg: row["weight_kg"],
     heightCm: row["height_cm"],
+  };
+}
+
+function clinicalAnamnesis(row: Record<string, unknown>) {
+  return {
+    chiefComplaint: row["chief_complaint"],
+    currentHistory: row["current_history"],
+    personalHistory: row["personal_history"],
+    familyHistory: row["family_history"],
+    habits: row["habits"],
+    systemsReview: row["systems_review"],
   };
 }

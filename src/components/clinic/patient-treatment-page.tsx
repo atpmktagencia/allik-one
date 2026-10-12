@@ -108,6 +108,12 @@ type Payload = {
     appointmentId: string;
     evolution: string;
     conduct: string;
+    chiefComplaint: string;
+    currentHistory: string;
+    personalHistory: string;
+    familyHistory: string;
+    habits: string;
+    systemsReview: string;
     authorName: string;
     professionalCouncil: string;
     councilNumber: string;
@@ -936,6 +942,7 @@ export function PatientTreatmentPage({ patientId }: { patientId: string }) {
                     </p>
                   </div>
                 </div>
+                <ClinicalAnamnesis note={note} />
                 <VitalsSummary note={note} />
               </article>
             ))}
@@ -1614,6 +1621,27 @@ function VitalsSummary({ note }: { note: Payload["clinicalHistory"][number] }) {
         <Badge key={value} variant="secondary">
           {value}
         </Badge>
+      ))}
+    </div>
+  ) : null;
+}
+
+function ClinicalAnamnesis({ note }: { note: Payload["clinicalHistory"][number] }) {
+  const fields = [
+    ["Motivo da consulta", note.chiefComplaint],
+    ["História atual", note.currentHistory],
+    ["Antecedentes pessoais", note.personalHistory],
+    ["Antecedentes familiares", note.familyHistory],
+    ["Hábitos e contexto", note.habits],
+    ["Revisão de sistemas", note.systemsReview],
+  ].filter((field) => field[1]);
+  return fields.length ? (
+    <div className="mt-4 grid gap-3 rounded-lg bg-muted p-4 md:grid-cols-2">
+      {fields.map(([label, value]) => (
+        <div key={label}>
+          <p className="text-xs font-medium text-muted-foreground">{label}</p>
+          <p className="mt-1 whitespace-pre-wrap text-sm">{value}</p>
+        </div>
       ))}
     </div>
   ) : null;

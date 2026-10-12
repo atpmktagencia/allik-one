@@ -140,6 +140,9 @@ export async function patientDetailResponse(request: Request) {
       ),
       getPool().query(
         `SELECT n.id,n.appointment_id AS "appointmentId",n.evolution,n.conduct,
+          n.chief_complaint AS "chiefComplaint",n.current_history AS "currentHistory",
+          n.personal_history AS "personalHistory",n.family_history AS "familyHistory",
+          n.habits,n.systems_review AS "systemsReview",
           n.author_name AS "authorName",n.professional_council AS "professionalCouncil",
           n.council_number AS "councilNumber",n.council_region AS "councilRegion",
           n.systolic_pressure AS "systolicPressure",n.diastolic_pressure AS "diastolicPressure",
