@@ -302,6 +302,13 @@
       "when": 1794186000000,
       "tag": "0042_neat_justice",
       "breakpoints": true
+    },
+    {
+      "idx": 43,
+      "version": "7",
+      "when": 1794272400000,
+      "tag": "0043_spotty_silver_surfer",
+      "breakpoints": true
     }
   ]
 }

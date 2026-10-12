@@ -25,6 +25,7 @@ import { careEncounterResponse } from "@/server/care-encounter";
 import { clinicalProblemsResponse } from "@/server/clinical-problems";
 import { clinicalAlertsResponse } from "@/server/clinical-alerts";
 import { encounterPrescriptionsResponse } from "@/server/encounter-prescriptions";
+import { encounterQuotesResponse } from "@/server/encounter-quotes";
 
 function catalogResource(request: Request) {
   const path = new URL(request.url).pathname.replace(/\/$/, "");
@@ -46,6 +47,10 @@ export const Route = createFileRoute("/api/v1/inventory/$")({
   server: {
     handlers: {
       GET: ({ request }) => {
+        if (
+          new URL(request.url).pathname.replace(/\/$/, "") === "/api/v1/inventory/encounter-quotes"
+        )
+          return encounterQuotesResponse(request);
         if (
           new URL(request.url).pathname.replace(/\/$/, "") ===
           "/api/v1/inventory/encounter-prescriptions"
@@ -108,6 +113,10 @@ export const Route = createFileRoute("/api/v1/inventory/$")({
           : inventoryResponse(request);
       },
       POST: ({ request }) => {
+        if (
+          new URL(request.url).pathname.replace(/\/$/, "") === "/api/v1/inventory/encounter-quotes"
+        )
+          return encounterQuotesResponse(request);
         if (
           new URL(request.url).pathname.replace(/\/$/, "") ===
           "/api/v1/inventory/encounter-prescriptions"

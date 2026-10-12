@@ -36,6 +36,7 @@ import { careEncounterResponse } from "./care-encounter";
 import { clinicalProblemsResponse } from "./clinical-problems";
 import { clinicalAlertsResponse } from "./clinical-alerts";
 import { encounterPrescriptionsResponse } from "./encounter-prescriptions";
+import { encounterQuotesResponse } from "./encounter-quotes";
 vi.mock("@vercel/blob", () => ({
   put: vi.fn(async (pathname: string) => ({ pathname })),
   del: vi.fn(async () => undefined),
@@ -2235,6 +2236,81 @@ describe("care appointments", () => {
         )
       ).rows,
     ).toEqual([{ action: "CREATE" }, { action: "FINALIZE" }]);
+    const pricing = await getPool().query<{ id: string }>(
+      `INSERT INTO inventory_pricing_presentations(
+         organization_id,product_id,name,base_unit,total_base_quantity,acquisition_cost,
+         technical_loss_percent,additional_presentation_cost,minimum_measurable_volume_ml,
+         beyond_use_hours,pricing_status,cost_source,cost_valid_on,assumptions_confirmed,
+         validated_at,validated_by_actor,validated_by_user_id,created_by_user_id)
+       VALUES('a1100000-0000-4000-8000-000000000001',$1,$2,'MG',20,100,10,0,0.01,24,
+         'VALIDATED','Documento sintético','2026-10-12',true,now(),'Profissional Agenda Sintético',$3,$3)
+       RETURNING id`,
+      [
+        prescribedProduct.rows[0]!.id,
+        `Apresentação sintética ${randomUUID()}`,
+        professional.rows[0]!.id,
+      ],
+    );
+    const pricedDose = await getPool().query<{ id: string }>(
+      `INSERT INTO inventory_pricing_doses(presentation_id,name,dose_quantity,sale_price,material_cost)
+       VALUES($1,'Dose sintética 2,5 mg',2.5,200,2) RETURNING id`,
+      [pricing.rows[0]!.id],
+    );
+    const quotePost = (value: unknown, sessionCookie = professionalCookie) =>
+      encounterQuotesResponse(
+        new Request(`${origin}/api/v1/inventory/encounter-quotes`, {
+          method: "POST",
+          headers: { cookie: sessionCookie, origin, "Content-Type": "application/json" },
+          body: JSON.stringify(value),
+        }),
+      );
+    const quoteDraft = {
+      action: "SAVE_DRAFT",
+      appointmentId: body.id,
+      selections: [
+        {
+          prescriptionItemId: prescriptionDraft.items[0]!.id,
+          pricingDoseId: pricedDose.rows[0]!.id,
+          quantity: 4,
+        },
+      ],
+      commercialNotes: "Condição comercial sintética.",
+      version: null,
+    };
+    expect((await quotePost(quoteDraft)).status).toBe(201);
+    expect((await quotePost({ ...quoteDraft, action: "ISSUE", version: 0 })).status).toBe(200);
+    expect((await quotePost({ ...quoteDraft, version: 1 })).status).toBe(409);
+    const quoteGet = await encounterQuotesResponse(
+      new Request(`${origin}/api/v1/inventory/encounter-quotes?appointmentId=${body.id}`, {
+        headers: { cookie: professionalCookie },
+      }),
+    );
+    expect(quoteGet.status).toBe(200);
+    expect((await quoteGet.json()).data.quote).toEqual(
+      expect.objectContaining({
+        status: "ISSUED",
+        totalSale: "800.00",
+        estimatedCost: "63.5556",
+        grossResult: "736.4444",
+      }),
+    );
+    await expect(
+      getPool().query(
+        `UPDATE inventory_encounter_quotes SET commercial_notes='alteração indevida'
+         WHERE appointment_id=$1`,
+        [body.id],
+      ),
+    ).rejects.toThrow(/immutable/);
+    expect(
+      (
+        await getPool().query(
+          `SELECT action FROM inventory_encounter_quote_changes
+           WHERE quote_id=(SELECT id FROM inventory_encounter_quotes WHERE appointment_id=$1)
+           ORDER BY created_at`,
+          [body.id],
+        )
+      ).rows,
+    ).toEqual([{ action: "CREATE" }, { action: "ISSUE" }]);
     const storedNote = await getPool().query(
       `SELECT status,author_name AS "authorName",professional_council AS council,
         council_number AS "councilNumber",version,

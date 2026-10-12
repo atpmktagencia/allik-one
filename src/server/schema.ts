@@ -800,6 +800,83 @@ export const encounterPrescriptionChanges = pgTable(
   ],
 );
 
+export const encounterQuotes = pgTable(
+  "inventory_encounter_quotes",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id),
+    unitId: uuid("unit_id")
+      .notNull()
+      .references(() => units.id),
+    appointmentId: uuid("appointment_id")
+      .notNull()
+      .unique()
+      .references(() => careAppointments.id),
+    patientId: uuid("patient_id")
+      .notNull()
+      .references(() => patients.id),
+    prescriptionId: uuid("prescription_id")
+      .notNull()
+      .unique()
+      .references(() => encounterPrescriptions.id),
+    createdByUserId: uuid("created_by_user_id")
+      .notNull()
+      .references(() => users.id),
+    items: jsonb("items").notNull().default([]),
+    commercialNotes: text("commercial_notes").notNull().default(""),
+    totalSale: numeric("total_sale", { precision: 14, scale: 2 }).notNull().default("0"),
+    estimatedCost: numeric("estimated_cost", { precision: 14, scale: 4 }).notNull().default("0"),
+    grossResult: numeric("gross_result", { precision: 14, scale: 4 }).notNull().default("0"),
+    status: text("status").notNull().default("DRAFT"),
+    version: integer("version").notNull().default(0),
+    issuedAt: timestamp("issued_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("encounter_quote_patient_history").on(t.patientId, t.createdAt),
+    index("encounter_quote_unit_history").on(t.unitId, t.createdAt),
+    check("encounter_quote_status_valid", sql`${t.status} IN ('DRAFT','ISSUED')`),
+    check("encounter_quote_version_nonnegative", sql`${t.version}>=0`),
+    check("encounter_quote_totals_nonnegative", sql`${t.totalSale}>=0 AND ${t.estimatedCost}>=0`),
+    check(
+      "encounter_quote_items_valid",
+      sql`jsonb_typeof(${t.items})='array' AND jsonb_array_length(${t.items})<=50`,
+    ),
+    check("encounter_quote_notes_valid", sql`char_length(${t.commercialNotes})<=3000`),
+    check(
+      "encounter_quote_issued_valid",
+      sql`(${t.status}='DRAFT' AND ${t.issuedAt} IS NULL) OR (${t.status}='ISSUED' AND ${t.issuedAt} IS NOT NULL AND jsonb_array_length(${t.items})>0)`,
+    ),
+  ],
+);
+
+export const encounterQuoteChanges = pgTable(
+  "inventory_encounter_quote_changes",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id),
+    quoteId: uuid("quote_id")
+      .notNull()
+      .references(() => encounterQuotes.id),
+    action: text("action").notNull(),
+    beforeData: jsonb("before_data"),
+    afterData: jsonb("after_data").notNull(),
+    actorUserId: uuid("actor_user_id")
+      .notNull()
+      .references(() => users.id),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("encounter_quote_change_history").on(t.quoteId, t.createdAt),
+    check("encounter_quote_change_action_valid", sql`${t.action} IN ('CREATE','UPDATE','ISSUE')`),
+  ],
+);
+
 export const patientClinicalProblems = pgTable(
   "inventory_patient_clinical_problems",
   {
