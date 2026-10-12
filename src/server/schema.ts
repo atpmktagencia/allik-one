@@ -671,6 +671,90 @@ export const clinicalNoteChanges = pgTable(
   ],
 );
 
+export const patientClinicalProblems = pgTable(
+  "inventory_patient_clinical_problems",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id),
+    unitId: uuid("unit_id")
+      .notNull()
+      .references(() => units.id),
+    patientId: uuid("patient_id")
+      .notNull()
+      .references(() => patients.id),
+    description: text("description").notNull(),
+    icd10Code: text("icd10_code"),
+    onsetOn: date("onset_on"),
+    resolvedOn: date("resolved_on"),
+    status: text("status").notNull().default("ACTIVE"),
+    notes: text("notes").notNull().default(""),
+    authorUserId: uuid("author_user_id")
+      .notNull()
+      .references(() => users.id),
+    authorName: text("author_name").notNull(),
+    professionalCouncil: text("professional_council").notNull(),
+    councilNumber: text("council_number").notNull(),
+    councilRegion: text("council_region").notNull(),
+    version: integer("version").notNull().default(0),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("clinical_problem_patient_history").on(t.patientId, t.status, t.createdAt),
+    index("clinical_problem_unit_history").on(t.unitId, t.createdAt),
+    check(
+      "clinical_problem_description_valid",
+      sql`char_length(trim(${t.description})) BETWEEN 3 AND 300`,
+    ),
+    check(
+      "clinical_problem_icd_valid",
+      sql`${t.icd10Code} IS NULL OR ${t.icd10Code} ~ '^[A-Z][0-9]{2}(\\.[A-Z0-9]{1,4})?$'`,
+    ),
+    check("clinical_problem_status_valid", sql`${t.status} IN ('ACTIVE','RESOLVED','INACTIVE')`),
+    check("clinical_problem_notes_valid", sql`char_length(${t.notes})<=2000`),
+    check(
+      "clinical_problem_dates_valid",
+      sql`${t.resolvedOn} IS NULL OR ${t.onsetOn} IS NULL OR ${t.resolvedOn}>=${t.onsetOn}`,
+    ),
+    check(
+      "clinical_problem_resolution_valid",
+      sql`${t.status}<>'RESOLVED' OR ${t.resolvedOn} IS NOT NULL`,
+    ),
+    check("clinical_problem_version_nonnegative", sql`${t.version}>=0`),
+  ],
+);
+
+export const patientClinicalProblemChanges = pgTable(
+  "inventory_patient_clinical_problem_changes",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id),
+    problemId: uuid("problem_id")
+      .notNull()
+      .references(() => patientClinicalProblems.id),
+    action: text("action").notNull(),
+    beforeData: jsonb("before_data"),
+    afterData: jsonb("after_data").notNull(),
+    reason: text("reason").notNull(),
+    actorUserId: uuid("actor_user_id")
+      .notNull()
+      .references(() => users.id),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("clinical_problem_change_history").on(t.problemId, t.createdAt),
+    check("clinical_problem_change_action_valid", sql`${t.action} IN ('CREATE','UPDATE')`),
+    check(
+      "clinical_problem_change_reason_valid",
+      sql`char_length(trim(${t.reason})) BETWEEN 10 AND 500`,
+    ),
+  ],
+);
+
 export const patientTreatments = pgTable(
   "inventory_patient_treatments",
   {

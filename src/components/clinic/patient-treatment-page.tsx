@@ -4,6 +4,7 @@ import { ArrowLeft, FileText, Plus, Stethoscope } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { useInventory } from "@/data/inventory-api";
 import { InventoryState } from "./inventory-state";
 import { PageHeader } from "./page-kit";
@@ -122,6 +123,22 @@ type Payload = {
     appointmentStartsAt: string;
     careTypeName: string;
   }>;
+  clinicalProblems: Array<{
+    id: string;
+    description: string;
+    icd10Code: string | null;
+    onsetOn: string | null;
+    resolvedOn: string | null;
+    status: "ACTIVE" | "RESOLVED" | "INACTIVE";
+    notes: string;
+    authorName: string;
+    professionalCouncil: string;
+    councilNumber: string;
+    councilRegion: string;
+    version: number;
+    updatedAt: string;
+  }>;
+  canManageClinicalProblems: boolean;
   canManage: boolean;
   canConsume: boolean;
 };
@@ -157,6 +174,17 @@ const prescriptionLabels: Record<string, string> = {
   REVOKED: "Revogada",
   LEGACY_REVIEW: "Metadados pendentes",
 };
+const blankProblem = {
+  id: "",
+  description: "",
+  icd10Code: "",
+  onsetOn: "",
+  resolvedOn: "",
+  status: "ACTIVE" as "ACTIVE" | "RESOLVED" | "INACTIVE",
+  notes: "",
+  reason: "Registro clínico incluído após avaliação profissional.",
+  version: 0,
+};
 
 export function PatientTreatmentPage({ patientId }: { patientId: string }) {
   const query = useInventory<Payload>(`patient-detail?patientId=${patientId}`);
@@ -165,6 +193,8 @@ export function PatientTreatmentPage({ patientId }: { patientId: string }) {
   const [pending, setPending] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [problemFormOpen, setProblemFormOpen] = useState(false);
+  const [problem, setProblem] = useState(blankProblem);
   const [purchase, setPurchase] = useState({
     treatmentId: "",
     purchasedQuantity: "",
@@ -194,6 +224,54 @@ export function PatientTreatmentPage({ patientId }: { patientId: string }) {
     );
   const data = query.data!;
   const clinicalHistory = data.clinicalHistory ?? [];
+  const clinicalProblems = data.clinicalProblems ?? [];
+  async function saveClinicalProblem(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setPending(true);
+    setError("");
+    setMessage("");
+    try {
+      const response = await fetch("/api/v1/inventory/clinical-problems", {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: problem.id ? "UPDATE" : "CREATE",
+          ...problem,
+          id: problem.id || crypto.randomUUID(),
+          patientId,
+          icd10Code: problem.icd10Code || null,
+          onsetOn: problem.onsetOn || null,
+          resolvedOn: problem.resolvedOn || null,
+        }),
+      });
+      const result = (await response.json()) as { error?: string };
+      if (!response.ok) throw new Error(result.error ?? "Não foi possível salvar o registro.");
+      await query.refetch();
+      setProblem(blankProblem);
+      setProblemFormOpen(false);
+      setMessage("Problema ou antecedente clínico salvo com auditoria.");
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Falha de conexão.");
+    } finally {
+      setPending(false);
+    }
+  }
+
+  function editClinicalProblem(item: Payload["clinicalProblems"][number]) {
+    setProblem({
+      id: item.id,
+      description: item.description,
+      icd10Code: item.icd10Code ?? "",
+      onsetOn: item.onsetOn ?? "",
+      resolvedOn: item.resolvedOn ?? "",
+      status: item.status,
+      notes: item.notes,
+      reason: "Correção ou atualização justificada do registro clínico.",
+      version: item.version,
+    });
+    setProblemFormOpen(true);
+  }
   async function save(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setPending(true);
@@ -398,6 +476,156 @@ export function PatientTreatmentPage({ patientId }: { patientId: string }) {
           {error || message}
         </div>
       )}
+      <section className="space-y-4 rounded-xl border bg-card p-5">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h2 className="font-semibold">Problemas e antecedentes clínicos</h2>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Registros estruturados com CID-10 opcional, situação e autoria profissional.
+            </p>
+          </div>
+          {data.canManageClinicalProblems ? (
+            <Button
+              variant="outline"
+              onClick={() => {
+                setProblem(blankProblem);
+                setProblemFormOpen(true);
+              }}
+            >
+              <Plus /> Adicionar registro
+            </Button>
+          ) : null}
+        </div>
+        {problemFormOpen && data.canManageClinicalProblems ? (
+          <form onSubmit={saveClinicalProblem} className="space-y-4 rounded-lg border p-4">
+            <div className="grid gap-4 md:grid-cols-2">
+              <label className="space-y-1 text-sm font-medium md:col-span-2">
+                Problema ou antecedente
+                <Input
+                  required
+                  minLength={3}
+                  maxLength={300}
+                  value={problem.description}
+                  onChange={(event) => setProblem({ ...problem, description: event.target.value })}
+                />
+              </label>
+              <label className="space-y-1 text-sm font-medium">
+                CID-10 (opcional)
+                <Input
+                  maxLength={8}
+                  placeholder="Ex.: E11.9"
+                  value={problem.icd10Code}
+                  onChange={(event) =>
+                    setProblem({ ...problem, icd10Code: event.target.value.toUpperCase() })
+                  }
+                />
+              </label>
+              <label className="space-y-1 text-sm font-medium">
+                Situação
+                <select
+                  className="h-10 w-full rounded-md border bg-background px-3"
+                  value={problem.status}
+                  onChange={(event) =>
+                    setProblem({ ...problem, status: event.target.value as typeof problem.status })
+                  }
+                >
+                  <option value="ACTIVE">Ativo</option>
+                  <option value="RESOLVED">Resolvido</option>
+                  <option value="INACTIVE">Inativo/Histórico</option>
+                </select>
+              </label>
+              <label className="space-y-1 text-sm font-medium">
+                Início conhecido (opcional)
+                <Input
+                  type="date"
+                  value={problem.onsetOn}
+                  onChange={(event) => setProblem({ ...problem, onsetOn: event.target.value })}
+                />
+              </label>
+              <label className="space-y-1 text-sm font-medium">
+                Data de resolução {problem.status === "RESOLVED" ? "(obrigatória)" : "(opcional)"}
+                <Input
+                  type="date"
+                  required={problem.status === "RESOLVED"}
+                  value={problem.resolvedOn}
+                  onChange={(event) => setProblem({ ...problem, resolvedOn: event.target.value })}
+                />
+              </label>
+              <label className="space-y-1 text-sm font-medium md:col-span-2">
+                Observações clínicas limitadas
+                <Textarea
+                  maxLength={2000}
+                  rows={3}
+                  value={problem.notes}
+                  onChange={(event) => setProblem({ ...problem, notes: event.target.value })}
+                />
+              </label>
+              <label className="space-y-1 text-sm font-medium md:col-span-2">
+                Motivo da inclusão ou alteração
+                <Input
+                  required
+                  minLength={10}
+                  maxLength={500}
+                  value={problem.reason}
+                  onChange={(event) => setProblem({ ...problem, reason: event.target.value })}
+                />
+              </label>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Button disabled={pending}>{pending ? "Salvando…" : "Salvar registro"}</Button>
+              <Button
+                type="button"
+                variant="ghost"
+                disabled={pending}
+                onClick={() => setProblemFormOpen(false)}
+              >
+                Cancelar
+              </Button>
+            </div>
+          </form>
+        ) : null}
+        {clinicalProblems.length ? (
+          <div className="grid gap-3 lg:grid-cols-2">
+            {clinicalProblems.map((item) => (
+              <article key={item.id} className="rounded-lg border p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="font-medium">{item.description}</p>
+                      <Badge variant={item.status === "ACTIVE" ? "default" : "secondary"}>
+                        {item.status === "ACTIVE"
+                          ? "Ativo"
+                          : item.status === "RESOLVED"
+                            ? "Resolvido"
+                            : "Histórico"}
+                      </Badge>
+                      {item.icd10Code ? (
+                        <Badge variant="outline">CID-10 {item.icd10Code}</Badge>
+                      ) : null}
+                    </div>
+                    <p className="mt-2 text-xs text-muted-foreground">
+                      {item.authorName} · {item.professionalCouncil} {item.councilNumber}/
+                      {item.councilRegion}
+                    </p>
+                    {item.notes ? (
+                      <p className="mt-3 whitespace-pre-wrap text-sm">{item.notes}</p>
+                    ) : null}
+                  </div>
+                  {data.canManageClinicalProblems ? (
+                    <Button variant="ghost" size="sm" onClick={() => editClinicalProblem(item)}>
+                      Editar
+                    </Button>
+                  ) : null}
+                </div>
+              </article>
+            ))}
+          </div>
+        ) : (
+          <p className="rounded-lg bg-muted p-4 text-sm text-muted-foreground">
+            Nenhum problema ou antecedente clínico registrado.
+          </p>
+        )}
+      </section>
       <section className="space-y-4 rounded-xl border bg-card p-5">
         <div>
           <h2 className="flex items-center gap-2 font-semibold">

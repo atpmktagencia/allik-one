@@ -33,6 +33,7 @@ import { patientPurchaseNeedsResponse } from "./patient-purchase-needs";
 import { careAppointmentsResponse } from "./care-appointments";
 import { careSettingsResponse } from "./care-settings";
 import { careEncounterResponse } from "./care-encounter";
+import { clinicalProblemsResponse } from "./clinical-problems";
 vi.mock("@vercel/blob", () => ({
   put: vi.fn(async (pathname: string) => ({ pathname })),
   del: vi.fn(async () => undefined),
@@ -2117,6 +2118,57 @@ describe("care appointments", () => {
         authorName: "Profissional Agenda Sintético",
       }),
     ]);
+    const problemId = randomUUID();
+    const clinicalProblem = {
+      action: "CREATE",
+      id: problemId,
+      patientId,
+      description: "Antecedente clínico sintético",
+      icd10Code: "Z00.0",
+      onsetOn: "2026-01-10",
+      resolvedOn: null,
+      status: "ACTIVE",
+      notes: "Registro criado exclusivamente para o teste integrado.",
+      reason: "Inclusão após avaliação profissional sintética.",
+      version: 0,
+    };
+    const problemPost = (value: unknown, sessionCookie = professionalCookie) =>
+      clinicalProblemsResponse(
+        new Request(`${origin}/api/v1/inventory/clinical-problems`, {
+          method: "POST",
+          headers: { cookie: sessionCookie, origin, "Content-Type": "application/json" },
+          body: JSON.stringify(value),
+        }),
+      );
+    expect((await problemPost(clinicalProblem)).status).toBe(201);
+    expect(
+      (
+        await problemPost({
+          ...clinicalProblem,
+          action: "UPDATE",
+          status: "RESOLVED",
+          resolvedOn: "2026-02-10",
+          reason: "Resolução registrada após reavaliação profissional.",
+        })
+      ).status,
+    ).toBe(200);
+    expect((await problemPost({ ...clinicalProblem, action: "UPDATE" })).status).toBe(409);
+    const record = await patientDetailResponse(
+      new Request(`${origin}/api/v1/inventory/patient-detail?patientId=${patientId}`, {
+        headers: { cookie: professionalCookie },
+      }),
+    );
+    expect((await record.json()).data.clinicalProblems).toEqual([
+      expect.objectContaining({
+        id: problemId,
+        status: "RESOLVED",
+        icd10Code: "Z00.0",
+        version: 1,
+      }),
+    ]);
+    await expect(
+      getPool().query("DELETE FROM inventory_patient_clinical_problems WHERE id=$1", [problemId]),
+    ).rejects.toThrow(/cannot be deleted/);
     await expect(
       getPool().query(
         "UPDATE inventory_clinical_notes SET evolution='alterada' WHERE appointment_id=$1",

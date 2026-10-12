@@ -54,6 +54,7 @@ export async function patientDetailResponse(request: Request) {
       unitDemand,
       openStock,
       clinicalHistory,
+      clinicalProblems,
     ] = await Promise.all([
       getPool().query(
         `SELECT t.id,t.product_id AS "productId",p.name AS "productName",p.sku,
@@ -150,6 +151,17 @@ export async function patientDetailResponse(request: Request) {
          LEFT JOIN inventory_care_types ct ON ct.organization_id=a.organization_id AND ct.code=a.care_type
          WHERE n.patient_id=$1 AND n.organization_id=$2 AND n.unit_id=$3 AND n.status='FINAL'
          ORDER BY n.finalized_at DESC,n.id DESC LIMIT 100`,
+        [patientId, auth.organizationId, patient.primaryUnitId],
+      ),
+      getPool().query(
+        `SELECT id,description,icd10_code AS "icd10Code",onset_on::text AS "onsetOn",
+          resolved_on::text AS "resolvedOn",status,notes,author_name AS "authorName",
+          professional_council AS "professionalCouncil",council_number AS "councilNumber",
+          council_region AS "councilRegion",version,created_at AS "createdAt",updated_at AS "updatedAt"
+         FROM inventory_patient_clinical_problems
+         WHERE patient_id=$1 AND organization_id=$2 AND unit_id=$3
+         ORDER BY CASE status WHEN 'ACTIVE' THEN 0 WHEN 'RESOLVED' THEN 1 ELSE 2 END,
+           updated_at DESC,id DESC LIMIT 200`,
         [patientId, auth.organizationId, patient.primaryUnitId],
       ),
     ]);
@@ -266,6 +278,12 @@ export async function patientDetailResponse(request: Request) {
           supplySummaries: summaries,
           locations: locations.rows,
           clinicalHistory: clinicalHistory.rows,
+          clinicalProblems: clinicalProblems.rows,
+          canManageClinicalProblems:
+            Boolean(auth.user.id) &&
+            !auth.preview &&
+            !auth.integration &&
+            can(auth, "patients.clinical.manage", String(patient.primaryUnitId)),
           canManage: can(auth, "patients.manage", String(patient.primaryUnitId)),
           canConsume:
             can(auth, "patients.read", String(patient.primaryUnitId)) &&
