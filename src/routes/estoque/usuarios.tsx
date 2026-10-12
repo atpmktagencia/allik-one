@@ -10,6 +10,10 @@ type User = {
   email: string;
   role: string;
   active: boolean;
+  profession?: string | null;
+  professionalCouncil?: string | null;
+  councilNumber?: string | null;
+  councilRegion?: string | null;
   units: Unit[];
 };
 export const Route = createFileRoute("/estoque/usuarios")({ component: UserAdministration });
@@ -21,6 +25,9 @@ export function UserAdministration() {
     email: "",
     profession: "",
     title: "",
+    professionalCouncil: "",
+    councilNumber: "",
+    councilRegion: "",
     role: "VIEWER",
     unitIds: [] as string[],
   });
@@ -57,6 +64,9 @@ export function UserAdministration() {
           email: form.email,
           profession: form.profession || undefined,
           title: form.title || undefined,
+          professionalCouncil: form.professionalCouncil || undefined,
+          councilNumber: form.councilNumber || undefined,
+          councilRegion: form.councilRegion || undefined,
           role: form.role,
           unitIds: form.unitIds,
         }),
@@ -67,7 +77,17 @@ export function UserAdministration() {
       const link = `${window.location.origin}${body.data.activationPath}`;
       await navigator.clipboard.writeText(link);
       setMessage("Usuário criado. O link de ativação de uso único foi copiado.");
-      setForm({ name: "", email: "", profession: "", title: "", role: "VIEWER", unitIds: [] });
+      setForm({
+        name: "",
+        email: "",
+        profession: "",
+        title: "",
+        professionalCouncil: "",
+        councilNumber: "",
+        councilRegion: "",
+        role: "VIEWER",
+        unitIds: [],
+      });
       await load();
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Falha de conexão.");
@@ -110,6 +130,38 @@ export function UserAdministration() {
           placeholder="Função"
           value={form.title}
           onChange={(event) => setForm({ ...form, title: event.target.value })}
+        />
+        <select
+          aria-label="Conselho profissional"
+          className="h-10 rounded-md border bg-background px-3"
+          value={form.professionalCouncil}
+          required={Boolean(form.profession)}
+          onChange={(event) => setForm({ ...form, professionalCouncil: event.target.value })}
+        >
+          <option value="">Sem conselho profissional</option>
+          {["CRM", "COREN", "CREFITO", "CRN", "CRF", "CRO", "CRP", "OUTRO"].map((council) => (
+            <option key={council} value={council}>
+              {council}
+            </option>
+          ))}
+        </select>
+        <Input
+          aria-label="Número do conselho"
+          placeholder="Número do conselho"
+          required={Boolean(form.profession)}
+          value={form.councilNumber}
+          onChange={(event) => setForm({ ...form, councilNumber: event.target.value })}
+        />
+        <Input
+          aria-label="UF do conselho"
+          placeholder="UF do conselho, ex.: CE"
+          maxLength={2}
+          minLength={2}
+          required={Boolean(form.profession)}
+          value={form.councilRegion}
+          onChange={(event) =>
+            setForm({ ...form, councilRegion: event.target.value.toUpperCase() })
+          }
         />
         <select
           aria-label="Perfil de acesso"
@@ -169,6 +221,7 @@ export function UserAdministration() {
             <tr className="bg-muted/50 text-left">
               <th className="p-3">Pessoa</th>
               <th className="p-3">Perfil</th>
+              <th className="p-3">Registro profissional</th>
               <th className="p-3">Unidades</th>
               <th className="p-3">Status</th>
             </tr>
@@ -182,6 +235,11 @@ export function UserAdministration() {
                   <span className="text-muted-foreground">{user.email}</span>
                 </td>
                 <td className="p-3">{user.role}</td>
+                <td className="p-3">
+                  {user.professionalCouncil && user.councilNumber && user.councilRegion
+                    ? `${user.professionalCouncil} ${user.councilNumber}/${user.councilRegion}`
+                    : "—"}
+                </td>
                 <td className="p-3">{user.units.map((unit) => unit.name).join(", ") || "—"}</td>
                 <td className="p-3">{user.active ? "Ativo" : "Inativo"}</td>
               </tr>

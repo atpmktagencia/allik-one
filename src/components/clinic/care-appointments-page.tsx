@@ -52,6 +52,9 @@ type Payload = {
     id: string;
     name: string;
     profession: string | null;
+    professionalCouncil: string | null;
+    councilNumber: string | null;
+    councilRegion: string | null;
     unitId: string | null;
   }>;
   units: Array<{ id: string; name: string }>;
@@ -257,8 +260,8 @@ export function CareAppointmentsPage({ preselectedPatientId }: { preselectedPati
     event.preventDefault();
     setPending(true);
     setError("");
-    const startsAt = new Date(`${form.date}T${form.startsAt}:00`).toISOString();
-    const endsAt = new Date(`${form.date}T${form.endsAt}:00`).toISOString();
+    const startsAt = new Date(`${form.date}T${form.startsAt}:00-03:00`).toISOString();
+    const endsAt = new Date(`${form.date}T${form.endsAt}:00-03:00`).toISOString();
     try {
       const response = await fetch("/api/v1/inventory/care-appointments", {
         method: "POST",
@@ -509,6 +512,9 @@ export function CareAppointmentsPage({ preselectedPatientId }: { preselectedPati
                     <option key={`${p.id}-${p.unitId}`} value={p.id}>
                       {p.name}
                       {p.profession ? ` · ${p.profession}` : ""}
+                      {p.professionalCouncil && p.councilNumber && p.councilRegion
+                        ? ` · ${p.professionalCouncil} ${p.councilNumber}/${p.councilRegion}`
+                        : ""}
                     </option>
                   ))}
               </select>

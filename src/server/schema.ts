@@ -55,6 +55,9 @@ export const users = pgTable(
     email: text("email").notNull(),
     profession: text("profession"),
     title: text("title"),
+    professionalCouncil: text("professional_council"),
+    councilNumber: text("council_number"),
+    councilRegion: text("council_region"),
     passwordHash: text("password_hash"),
     active: boolean("active").notNull().default(true),
     sessionVersion: integer("session_version").notNull().default(0),
@@ -64,6 +67,10 @@ export const users = pgTable(
   (t) => [
     uniqueIndex("inventory_user_email_case_unique").on(sql`lower(${t.email})`),
     check("inventory_user_session_version_nonnegative", sql`${t.sessionVersion} >= 0`),
+    check(
+      "inventory_user_professional_council_complete",
+      sql`(${t.professionalCouncil} IS NULL AND ${t.councilNumber} IS NULL AND ${t.councilRegion} IS NULL) OR (char_length(trim(${t.professionalCouncil})) BETWEEN 2 AND 20 AND char_length(trim(${t.councilNumber})) BETWEEN 2 AND 30 AND ${t.councilRegion} ~ '^[A-Z]{2}$')`,
+    ),
   ],
 );
 

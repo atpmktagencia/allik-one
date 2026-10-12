@@ -120,7 +120,9 @@ export async function careAppointmentsResponse(request: Request) {
           [auth.organizationId, unitId, unrestricted, auth.unitIds],
         ),
         pool.query(
-          `SELECT DISTINCT usr.id,usr.name,usr.profession,ua.unit_id AS "unitId"
+          `SELECT DISTINCT usr.id,usr.name,usr.profession,
+           usr.professional_council AS "professionalCouncil",usr.council_number AS "councilNumber",
+           usr.council_region AS "councilRegion",ua.unit_id AS "unitId"
          FROM inventory_users usr JOIN inventory_memberships m ON m.user_id=usr.id
          LEFT JOIN inventory_unit_access ua ON ua.membership_id=m.id
          WHERE m.organization_id=$1 AND m.active AND usr.active

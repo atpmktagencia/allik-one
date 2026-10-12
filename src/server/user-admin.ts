@@ -11,6 +11,9 @@ const createUser = z.object({
   email: z.string().trim().email().max(254),
   profession: z.string().trim().max(100).optional(),
   title: z.string().trim().max(150).optional(),
+  professionalCouncil: z.string().trim().min(2).max(20).optional(),
+  councilNumber: z.string().trim().min(2).max(30).optional(),
+  councilRegion: z.string().trim().length(2).toUpperCase().optional(),
   role: z.enum(roles),
   unitIds: z.array(z.string().uuid()).max(20),
 });
@@ -46,7 +49,9 @@ export async function userAdminResponse(request: Request) {
     return Response.json({ error: "Acesso negado." }, { status: 403, headers });
   if (request.method === "GET") {
     const result = await getPool().query(
-      `SELECT u.id,u.name,u.email,u.profession,u.title,u.active,m.role,
+      `SELECT u.id,u.name,u.email,u.profession,u.title,
+       u.professional_council AS "professionalCouncil",u.council_number AS "councilNumber",
+       u.council_region AS "councilRegion",u.active,m.role,
        COALESCE(jsonb_agg(jsonb_build_object('id',un.id,'name',un.name) ORDER BY un.name) FILTER (WHERE un.id IS NOT NULL),'[]') AS units
        FROM inventory_users u JOIN inventory_memberships m ON m.user_id=u.id
        LEFT JOIN inventory_unit_access ua ON ua.membership_id=m.id LEFT JOIN inventory_units un ON un.id=ua.unit_id
@@ -70,6 +75,18 @@ export async function userAdminResponse(request: Request) {
     return Response.json({ error: "Confira os dados do usuário." }, { status: 400, headers });
   const input = parsed.data;
   if (input.action === "CREATE") {
+    const councilFields = [
+      input.professionalCouncil,
+      input.councilNumber,
+      input.councilRegion,
+    ].filter(Boolean).length;
+    if ((input.profession && councilFields !== 3) || (!input.profession && councilFields !== 0))
+      return Response.json(
+        {
+          error: "Profissionais de saúde exigem profissão, conselho, número e UF do registro.",
+        },
+        { status: 400, headers },
+      );
     if (input.role === "SUPER_ADMIN")
       return Response.json(
         { error: "A criação de outro superadministrador exige o bootstrap controlado." },
@@ -90,8 +107,18 @@ export async function userAdminResponse(request: Request) {
         );
       }
       const user = await client.query(
-        "INSERT INTO inventory_users(name,email,profession,title) VALUES($1,lower($2),$3,$4) RETURNING id",
-        [input.name, input.email, input.profession ?? null, input.title ?? null],
+        `INSERT INTO inventory_users(
+          name,email,profession,title,professional_council,council_number,council_region
+        ) VALUES($1,lower($2),$3,$4,$5,$6,$7) RETURNING id`,
+        [
+          input.name,
+          input.email,
+          input.profession ?? null,
+          input.title ?? null,
+          input.professionalCouncil?.toUpperCase() ?? null,
+          input.councilNumber ?? null,
+          input.councilRegion ?? null,
+        ],
       );
       const membership = await client.query(
         "INSERT INTO inventory_memberships(user_id,organization_id,role) VALUES($1,$2,$3) RETURNING id",

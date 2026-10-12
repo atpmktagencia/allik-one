@@ -39,7 +39,15 @@ export async function careSettingsResponse(request: Request) {
         [auth.organizationId],
       ),
       getPool().query(
-        `SELECT DISTINCT u.id,u.name,u.email,u.profession,u.title FROM inventory_users u JOIN inventory_memberships m ON m.user_id=u.id LEFT JOIN inventory_unit_access ua ON ua.membership_id=m.id WHERE m.organization_id=$1 AND m.active AND u.active AND NULLIF(trim(u.profession),'') IS NOT NULL AND m.role IN ('SUPER_ADMIN','PARTNER_ADMIN','INVENTORY_MANAGER','UNIT_MANAGER') AND ($2::boolean OR ua.unit_id=ANY($3::uuid[])) ORDER BY u.name`,
+        `SELECT DISTINCT u.id,u.name,u.email,u.profession,u.title,
+         u.professional_council AS "professionalCouncil",u.council_number AS "councilNumber",
+         u.council_region AS "councilRegion"
+         FROM inventory_users u JOIN inventory_memberships m ON m.user_id=u.id
+         LEFT JOIN inventory_unit_access ua ON ua.membership_id=m.id
+         WHERE m.organization_id=$1 AND m.active AND u.active
+           AND NULLIF(trim(u.profession),'') IS NOT NULL
+           AND m.role IN ('SUPER_ADMIN','PARTNER_ADMIN','INVENTORY_MANAGER','UNIT_MANAGER')
+           AND ($2::boolean OR ua.unit_id=ANY($3::uuid[])) ORDER BY u.name`,
         [auth.organizationId, unrestricted, auth.unitIds],
       ),
     ]);

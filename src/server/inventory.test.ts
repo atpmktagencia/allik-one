@@ -2639,6 +2639,42 @@ describe("Lot traceability", () => {
   });
 });
 describe("Pilot invitation lifecycle", () => {
+  it("requires and stores a complete professional council registration", async () => {
+    const fortaleza = "a1100000-0000-4000-8000-000000000101";
+    const adminCookie = await scopedCookie(fortaleza, "SUPER_ADMIN");
+    const create = (body: unknown) =>
+      userAdminResponse(
+        new Request(`${origin}/api/v1/inventory/users`, {
+          method: "POST",
+          headers: { cookie: adminCookie, origin, "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        }),
+      );
+    const base = {
+      action: "CREATE",
+      name: "Profissional Conselho",
+      email: `${randomUUID()}@example.test`,
+      profession: "Médico",
+      role: "UNIT_MANAGER",
+      unitIds: [fortaleza],
+    };
+    expect((await create(base)).status).toBe(400);
+    const created = await create({
+      ...base,
+      professionalCouncil: "CRM",
+      councilNumber: "12345",
+      councilRegion: "CE",
+    });
+    expect(created.status).toBe(201);
+    const userId = (await created.json()).data.id;
+    const stored = await getPool().query(
+      `SELECT professional_council AS council,council_number AS number,council_region AS region
+       FROM inventory_users WHERE id=$1`,
+      [userId],
+    );
+    expect(stored.rows).toEqual([{ council: "CRM", number: "12345", region: "CE" }]);
+  });
+
   it("revokes pending invitations when a user is deactivated", async () => {
     const fortaleza = "a1100000-0000-4000-8000-000000000101";
     const adminCookie = await scopedCookie(fortaleza, "SUPER_ADMIN");

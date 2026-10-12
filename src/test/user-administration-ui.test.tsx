@@ -49,12 +49,27 @@ describe("User administration UI", () => {
     fireEvent.change(screen.getByLabelText("E-mail"), {
       target: { value: "multi@allik.test" },
     });
+    fireEvent.change(screen.getByLabelText("Profissão"), { target: { value: "Médico" } });
+    fireEvent.change(screen.getByLabelText("Conselho profissional"), {
+      target: { value: "CRM" },
+    });
+    fireEvent.change(screen.getByLabelText("Número do conselho"), {
+      target: { value: "12345" },
+    });
+    fireEvent.change(screen.getByLabelText("UF do conselho"), { target: { value: "ce" } });
     fireEvent.click(await screen.findByLabelText("Fortaleza"));
     fireEvent.click(screen.getByLabelText("Juazeiro do Norte"));
     fireEvent.click(screen.getByRole("button", { name: "Criar e copiar convite" }));
 
     await waitFor(() =>
       expect(submittedBody?.["unitIds"]).toEqual([unitIds.fortaleza, unitIds.juazeiro]),
+    );
+    expect(submittedBody).toEqual(
+      expect.objectContaining({
+        professionalCouncil: "CRM",
+        councilNumber: "12345",
+        councilRegion: "CE",
+      }),
     );
   });
 });

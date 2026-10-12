@@ -17,6 +17,9 @@ type Payload = {
     name: string;
     email: string;
     profession: string | null;
+    professionalCouncil: string | null;
+    councilNumber: string | null;
+    councilRegion: string | null;
     title: string | null;
   }>;
   canManageUnits: boolean;
@@ -184,7 +187,7 @@ export function CareSettingsPage() {
                 {data.professionals
                   .map(
                     (professional) =>
-                      `${professional.name}${professional.profession ? ` · ${professional.profession}` : ""}`,
+                      `${professional.name}${professional.profession ? ` · ${professional.profession}` : ""}${professional.professionalCouncil && professional.councilNumber && professional.councilRegion ? ` · ${professional.professionalCouncil} ${professional.councilNumber}/${professional.councilRegion}` : ""}`,
                   )
                   .join(" · ") || "Nenhum profissional cadastrado"}
               </p>
