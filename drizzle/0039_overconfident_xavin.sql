@@ -1,0 +1,2 @@
+ALTER TABLE "inventory_care_appointment_changes" DROP CONSTRAINT "care_appointment_change_action_valid";--> statement-breakpoint
+ALTER TABLE "inventory_care_appointment_changes" ADD CONSTRAINT "care_appointment_change_action_valid" CHECK ("inventory_care_appointment_changes"."action" IN ('CREATE','UPDATE','RESCHEDULE','REASSIGN','STATUS'));

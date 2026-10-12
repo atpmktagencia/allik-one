@@ -62,6 +62,8 @@ describe("Care encounter UI", () => {
             schedule: [],
             canManage: true,
             canAuthorClinicalNote: true,
+            canClaimClinicalNote: false,
+            clinicalAuthorBlockReason: null,
             clinicalNote: null,
             clinicalAlerts: [],
           },

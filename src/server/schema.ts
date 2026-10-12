@@ -581,7 +581,7 @@ export const careAppointmentChanges = pgTable(
     index("care_appointment_change_history").on(t.appointmentId, t.createdAt),
     check(
       "care_appointment_change_action_valid",
-      sql`${t.action} IN ('CREATE','UPDATE','RESCHEDULE','STATUS')`,
+      sql`${t.action} IN ('CREATE','UPDATE','RESCHEDULE','REASSIGN','STATUS')`,
     ),
   ],
 );

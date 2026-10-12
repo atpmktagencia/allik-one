@@ -2064,6 +2064,48 @@ describe("care appointments", () => {
         canManage: true,
       }),
     );
+    const takeover = await getPool().query<{ id: string }>(
+      `INSERT INTO inventory_users(name,email,profession,professional_council,council_number,council_region)
+       VALUES('Profissional Substituto Sintético',$1,'Médico','CRM','54321','CE') RETURNING id`,
+      [`${randomUUID()}@example.test`],
+    );
+    await getPool().query(
+      `INSERT INTO inventory_memberships(user_id,organization_id,role)
+       VALUES($1,'a1100000-0000-4000-8000-000000000001','SUPER_ADMIN')`,
+      [takeover.rows[0]!.id],
+    );
+    const takeoverToken = randomUUID();
+    await getPool().query(
+      "INSERT INTO inventory_sessions(user_id,token_hash,session_version,expires_at) VALUES($1,$2,0,now()+interval '1 hour')",
+      [takeover.rows[0]!.id, hashToken(takeoverToken)],
+    );
+    const claim = (sessionCookie: string, version: number) =>
+      careEncounterResponse(
+        new Request(`${origin}/api/v1/inventory/care-encounter`, {
+          method: "POST",
+          headers: { cookie: sessionCookie, origin, "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "CLAIM", appointmentId: body.id, version }),
+        }),
+      );
+    expect((await claim(`allik_inventory_session=${takeoverToken}`, 2)).status).toBe(200);
+    expect((await claim(professionalCookie, 3)).status).toBe(200);
+    expect(
+      (
+        await getPool().query(
+          "SELECT action,reason FROM inventory_care_appointment_changes WHERE appointment_id=$1 AND action='REASSIGN' ORDER BY created_at",
+          [body.id],
+        )
+      ).rows,
+    ).toEqual([
+      expect.objectContaining({
+        action: "REASSIGN",
+        reason: expect.stringContaining("Profissional Substituto Sintético"),
+      }),
+      expect.objectContaining({
+        action: "REASSIGN",
+        reason: expect.stringContaining("Profissional Agenda Sintético"),
+      }),
+    ]);
     const clinicalPost = (value: unknown, sessionCookie = professionalCookie) =>
       careEncounterResponse(
         new Request(`${origin}/api/v1/inventory/care-encounter`, {
@@ -2263,6 +2305,8 @@ describe("care appointments", () => {
       expect.objectContaining({ action: "CREATE" }),
       expect.objectContaining({ action: "RESCHEDULE" }),
       expect.objectContaining({ action: "STATUS" }),
+      expect.objectContaining({ action: "REASSIGN", actor: "Profissional Substituto Sintético" }),
+      expect.objectContaining({ action: "REASSIGN", actor: "Profissional Agenda Sintético" }),
     ]);
     await getPool().query(
       `UPDATE inventory_care_appointments
@@ -2276,7 +2320,7 @@ describe("care appointments", () => {
           ...rescheduled,
           action: "UPDATE_STATUS",
           status: "IN_PROGRESS",
-          version: 2,
+          version: 4,
           reason: "Atendimento iniciado durante o teste integrado.",
         })
       ).status,
@@ -2287,7 +2331,7 @@ describe("care appointments", () => {
           ...rescheduled,
           action: "UPDATE_STATUS",
           status: "COMPLETED",
-          version: 3,
+          version: 5,
           reason: "Atendimento concluído durante o teste integrado.",
         })
       ).status,
@@ -2298,7 +2342,7 @@ describe("care appointments", () => {
           ...rescheduled,
           action: "UPDATE",
           status: "COMPLETED",
-          version: 4,
+          version: 6,
           reason: "Tentativa de remarcar atendimento já concluído.",
         })
       ).status,

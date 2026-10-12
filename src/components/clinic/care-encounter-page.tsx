@@ -63,6 +63,8 @@ type Payload = {
   }>;
   canManage: boolean;
   canAuthorClinicalNote: boolean;
+  canClaimClinicalNote: boolean;
+  clinicalAuthorBlockReason: string | null;
   clinicalNote: null | {
     id: string;
     evolution: string;
@@ -119,6 +121,7 @@ const actionLabels: Record<string, string> = {
   CREATE: "Agendamento criado",
   UPDATE: "Agendamento atualizado",
   RESCHEDULE: "Atendimento remarcado",
+  REASSIGN: "Profissional responsável alterado",
   STATUS: "Situação atualizada",
 };
 const scheduleLabels: Record<string, string> = {
@@ -343,6 +346,34 @@ export function CareEncounterPage({ appointmentId }: { appointmentId: string }) 
       if (!response.ok) throw new Error(result.error ?? "Não foi possível salvar a evolução.");
       await query.refetch();
       setMessage(action === "FINALIZE" ? "Evolução finalizada e assinada." : "Rascunho salvo.");
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Falha de conexão.");
+    } finally {
+      setPending(false);
+    }
+  }
+
+  async function claimClinicalNote() {
+    if (
+      !window.confirm(
+        `Assumir este atendimento no lugar de ${appointment.professionalName}? A alteração ficará registrada no histórico.`,
+      )
+    )
+      return;
+    setPending(true);
+    setError("");
+    setMessage("");
+    try {
+      const response = await fetch("/api/v1/inventory/care-encounter", {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "CLAIM", appointmentId, version: appointment.version }),
+      });
+      const result = (await response.json()) as { error?: string };
+      if (!response.ok) throw new Error(result.error ?? "Não foi possível assumir o atendimento.");
+      await query.refetch();
+      setMessage("Atendimento atribuído ao seu perfil. Você já pode registrar a evolução.");
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Falha de conexão.");
     } finally {
@@ -666,10 +697,19 @@ export function CareEncounterPage({ appointmentId }: { appointmentId: string }) 
           </p>
         ) : null}
         {!data.canAuthorClinicalNote && !data.clinicalNote ? (
-          <p className="rounded-lg bg-muted p-3 text-sm text-muted-foreground">
-            Somente o profissional responsável, usando sua conta individual e com conselho completo,
-            pode registrar esta evolução.
-          </p>
+          <div className="space-y-3 rounded-lg bg-muted p-3 text-sm text-muted-foreground">
+            <p>{data.clinicalAuthorBlockReason}</p>
+            {data.canClaimClinicalNote ? (
+              <Button
+                type="button"
+                variant="outline"
+                disabled={pending}
+                onClick={claimClinicalNote}
+              >
+                Assumir atendimento com meu perfil
+              </Button>
+            ) : null}
+          </div>
         ) : null}
         {data.canAuthorClinicalNote && data.clinicalNote?.status !== "FINAL" ? (
           <div className="flex flex-wrap gap-2">

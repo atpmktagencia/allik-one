@@ -33,6 +33,11 @@ const clinicalInput = z.object({
   heightCm: z.number().min(30).max(250).nullable().default(null),
   version: z.number().int().nonnegative().nullable(),
 });
+const claimInput = z.object({
+  action: z.literal("CLAIM"),
+  appointmentId: z.string().uuid(),
+  version: z.number().int().nonnegative(),
+});
 
 export async function careEncounterResponse(request: Request) {
   const auth = await authenticate(request);
@@ -43,7 +48,20 @@ export async function careEncounterResponse(request: Request) {
   if (!["GET", "POST"].includes(request.method))
     return Response.json({ error: "Método não permitido." }, { status: 405, headers });
 
-  if (request.method === "POST") return saveClinicalNote(request, auth);
+  if (request.method === "POST") {
+    const origin = request.headers.get("origin");
+    if (origin && origin !== new URL(request.url).origin)
+      return Response.json({ error: "Origem não autorizada." }, { status: 403, headers });
+    let body: unknown;
+    try {
+      body = await request.json();
+    } catch {
+      return Response.json({ error: "Requisição inválida." }, { status: 400, headers });
+    }
+    const claim = claimInput.safeParse(body);
+    if (claim.success) return claimAppointment(claim.data, auth);
+    return saveClinicalNote(body, auth);
+  }
 
   const appointmentId = new URL(request.url).searchParams.get("appointmentId");
   if (!appointmentId || !uuidPattern.test(appointmentId))
@@ -127,6 +145,24 @@ export async function careEncounterResponse(request: Request) {
     ),
   ]);
 
+  const isAssignedProfessional = auth.user.id === String(appointment["professionalUserId"]);
+  const hasClinicalPermission = can(auth, "patients.clinical.manage", unitId);
+  const hasCompleteCouncil = Boolean(
+    appointment["professionalCouncil"] &&
+    appointment["councilNumber"] &&
+    appointment["councilRegion"],
+  );
+  const canAuthorClinicalNote =
+    Boolean(auth.user.id) && hasClinicalPermission && isAssignedProfessional && hasCompleteCouncil;
+  const canClaimClinicalNote =
+    Boolean(auth.user.id) &&
+    !auth.preview &&
+    !auth.integration &&
+    hasClinicalPermission &&
+    !isAssignedProfessional &&
+    !clinicalNote.rows[0] &&
+    !["COMPLETED", "NO_SHOW", "CANCELED"].includes(String(appointment["status"]));
+
   return Response.json(
     {
       data: {
@@ -137,10 +173,17 @@ export async function careEncounterResponse(request: Request) {
         canManage: can(auth, "patients.manage", unitId),
         clinicalNote: clinicalNote.rows[0] ?? null,
         clinicalAlerts: clinicalAlerts.rows,
-        canAuthorClinicalNote:
-          Boolean(auth.user.id) &&
-          can(auth, "patients.clinical.manage", unitId) &&
-          auth.user.id === String(appointment["professionalUserId"]),
+        canAuthorClinicalNote,
+        canClaimClinicalNote,
+        clinicalAuthorBlockReason: canAuthorClinicalNote
+          ? null
+          : !hasClinicalPermission
+            ? "Seu perfil não possui permissão clínica nesta unidade."
+            : !isAssignedProfessional
+              ? `Este atendimento está atribuído a ${String(appointment["professionalName"])}.`
+              : !hasCompleteCouncil
+                ? "Complete seu conselho profissional antes de registrar a evolução."
+                : "Este atendimento não permite uma nova evolução.",
       },
     },
     { headers },
@@ -148,12 +191,9 @@ export async function careEncounterResponse(request: Request) {
 }
 
 async function saveClinicalNote(
-  request: Request,
+  body: unknown,
   auth: NonNullable<Awaited<ReturnType<typeof authenticate>>>,
 ) {
-  const origin = request.headers.get("origin");
-  if (origin && origin !== new URL(request.url).origin)
-    return Response.json({ error: "Origem não autorizada." }, { status: 403, headers });
   if (!can(auth, "patients.clinical.manage"))
     return Response.json({ error: "Acesso negado." }, { status: 403, headers });
   if (!auth.user.id || auth.integration || auth.preview)
@@ -163,7 +203,7 @@ async function saveClinicalNote(
     );
   let parsed: z.infer<typeof clinicalInput>;
   try {
-    parsed = clinicalInput.parse(await request.json());
+    parsed = clinicalInput.parse(body);
   } catch {
     return Response.json({ error: "Dados da evolução inválidos." }, { status: 400, headers });
   }
@@ -369,6 +409,113 @@ async function saveClinicalNote(
       { error: "Não foi possível salvar a evolução." },
       { status: 500, headers },
     );
+  } finally {
+    client.release();
+  }
+}
+
+async function claimAppointment(
+  input: z.infer<typeof claimInput>,
+  auth: NonNullable<Awaited<ReturnType<typeof authenticate>>>,
+) {
+  if (!auth.user.id || auth.preview || auth.integration)
+    return Response.json(
+      { error: "Use uma conta profissional individual para assumir o atendimento." },
+      { status: 403, headers },
+    );
+  const client = await getPool().connect();
+  try {
+    await client.query("BEGIN");
+    const result = await client.query(
+      `SELECT a.*,u.name AS assigned_professional_name
+       FROM inventory_care_appointments a
+       JOIN inventory_users u ON u.id=a.professional_user_id
+       WHERE a.id=$1 AND a.organization_id=$2 FOR UPDATE OF a`,
+      [input.appointmentId, auth.organizationId],
+    );
+    const appointment = result.rows[0];
+    if (!appointment || !can(auth, "patients.clinical.manage", appointment.unit_id))
+      throw new Error("NOT_FOUND");
+    if (Number(appointment.version) !== input.version) throw new Error("STALE");
+    if (appointment.professional_user_id === auth.user.id) throw new Error("ALREADY_ASSIGNED");
+    if (["COMPLETED", "NO_SHOW", "CANCELED"].includes(appointment.status))
+      throw new Error("TERMINAL");
+    await client.query("SELECT pg_advisory_xact_lock(hashtextextended($1,0))", [
+      `care-professional:${auth.organizationId}:${auth.user.id}`,
+    ]);
+    const author = await client.query(
+      `SELECT name,professional_council,council_number,council_region
+       FROM inventory_users WHERE id=$1 AND active FOR SHARE`,
+      [auth.user.id],
+    );
+    const professional = author.rows[0];
+    if (
+      !professional?.professional_council ||
+      !professional.council_number ||
+      !professional.council_region
+    )
+      throw new Error("INCOMPLETE_COUNCIL");
+    const existingNote = await client.query(
+      "SELECT 1 FROM inventory_clinical_notes WHERE appointment_id=$1 FOR SHARE",
+      [input.appointmentId],
+    );
+    if (existingNote.rowCount) throw new Error("NOTE_EXISTS");
+    const conflict = await client.query(
+      `SELECT 1 FROM inventory_care_appointments
+       WHERE organization_id=$1 AND professional_user_id=$2 AND id<>$3
+         AND status NOT IN ('CANCELED','NO_SHOW') AND starts_at<$5 AND ends_at>$4
+       LIMIT 1 FOR SHARE`,
+      [
+        auth.organizationId,
+        auth.user.id,
+        input.appointmentId,
+        appointment.starts_at,
+        appointment.ends_at,
+      ],
+    );
+    if (conflict.rowCount) throw new Error("CONFLICT");
+    const updated = await client.query(
+      `UPDATE inventory_care_appointments SET professional_user_id=$2,updated_by_user_id=$2,
+       version=version+1,updated_at=now() WHERE id=$1 RETURNING *`,
+      [input.appointmentId, auth.user.id],
+    );
+    const acting = actor(auth);
+    await client.query(
+      `INSERT INTO inventory_care_appointment_changes
+       (organization_id,appointment_id,action,before_data,after_data,reason,actor,actor_user_id)
+       VALUES($1,$2,'REASSIGN',$3,$4,$5,$6,$7)`,
+      [
+        auth.organizationId,
+        input.appointmentId,
+        appointment,
+        updated.rows[0],
+        `Responsabilidade clínica assumida por ${professional.name}. Profissional anterior: ${appointment.assigned_professional_name}.`,
+        acting.name,
+        acting.userId,
+      ],
+    );
+    await client.query("COMMIT");
+    return Response.json({ data: { id: input.appointmentId } }, { headers });
+  } catch (error) {
+    await client.query("ROLLBACK").catch(() => {});
+    const reason = error instanceof Error ? error.message : "";
+    const response =
+      reason === "NOT_FOUND"
+        ? ["Atendimento não encontrado.", 404]
+        : reason === "STALE"
+          ? ["O atendimento mudou. Atualize a página e tente novamente.", 409]
+          : reason === "INCOMPLETE_COUNCIL"
+            ? ["Complete seu conselho profissional antes de assumir o atendimento.", 409]
+            : reason === "NOTE_EXISTS"
+              ? ["Este atendimento já possui evolução e não pode trocar de responsável.", 409]
+              : reason === "CONFLICT"
+                ? ["Você já possui outro atendimento neste horário.", 409]
+                : reason === "TERMINAL"
+                  ? ["Atendimentos encerrados não podem trocar de responsável.", 409]
+                  : reason === "ALREADY_ASSIGNED"
+                    ? ["Este atendimento já está atribuído a você.", 409]
+                    : ["Não foi possível assumir o atendimento.", 503];
+    return Response.json({ error: response[0] }, { status: response[1] as number, headers });
   } finally {
     client.release();
   }
