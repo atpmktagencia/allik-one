@@ -2075,6 +2075,13 @@ describe("care appointments", () => {
       appointmentId: body.id,
       evolution: "Paciente avaliado durante atendimento sintético.",
       conduct: "Manter acompanhamento operacional.",
+      systolicPressure: 120,
+      diastolicPressure: 80,
+      heartRate: 72,
+      oxygenSaturation: 98,
+      temperatureC: 36.5,
+      weightKg: 70.5,
+      heightCm: 175,
       version: null,
     };
     expect((await clinicalPost(draft)).status).toBe(201);
@@ -2094,6 +2101,21 @@ describe("care appointments", () => {
         councilNumber: "12345",
         version: 1,
       },
+    ]);
+    const longitudinal = await patientDetailResponse(
+      new Request(`${origin}/api/v1/inventory/patient-detail?patientId=${patientId}`, {
+        headers: { cookie: professionalCookie },
+      }),
+    );
+    expect(longitudinal.status).toBe(200);
+    expect((await longitudinal.json()).data.clinicalHistory).toEqual([
+      expect.objectContaining({
+        appointmentId: body.id,
+        evolution: "Paciente avaliado durante atendimento sintético.",
+        systolicPressure: 120,
+        diastolicPressure: 80,
+        authorName: "Profissional Agenda Sintético",
+      }),
     ]);
     await expect(
       getPool().query(

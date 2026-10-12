@@ -1,6 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import { useState, type FormEvent } from "react";
-import { ArrowLeft, FileText, Plus } from "lucide-react";
+import { ArrowLeft, FileText, Plus, Stethoscope } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -102,6 +102,26 @@ type Payload = {
     unitRequiredPresentationUnits: number | null;
     unitShortageUnits: number | null;
   }>;
+  clinicalHistory: Array<{
+    id: string;
+    appointmentId: string;
+    evolution: string;
+    conduct: string;
+    authorName: string;
+    professionalCouncil: string;
+    councilNumber: string;
+    councilRegion: string;
+    systolicPressure: number | null;
+    diastolicPressure: number | null;
+    heartRate: number | null;
+    oxygenSaturation: string | null;
+    temperatureC: string | null;
+    weightKg: string | null;
+    heightCm: string | null;
+    finalizedAt: string;
+    appointmentStartsAt: string;
+    careTypeName: string;
+  }>;
   canManage: boolean;
   canConsume: boolean;
 };
@@ -173,6 +193,7 @@ export function PatientTreatmentPage({ patientId }: { patientId: string }) {
       <InventoryState pending={query.isPending} error={query.error} retry={() => query.refetch()} />
     );
   const data = query.data!;
+  const clinicalHistory = data.clinicalHistory ?? [];
   async function save(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setPending(true);
@@ -377,6 +398,64 @@ export function PatientTreatmentPage({ patientId }: { patientId: string }) {
           {error || message}
         </div>
       )}
+      <section className="space-y-4 rounded-xl border bg-card p-5">
+        <div>
+          <h2 className="flex items-center gap-2 font-semibold">
+            <Stethoscope className="size-4" /> Prontuário longitudinal
+          </h2>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Evoluções finalizadas, assinadas e ordenadas da mais recente para a mais antiga.
+          </p>
+        </div>
+        {clinicalHistory.length ? (
+          <div className="space-y-4">
+            {clinicalHistory.map((note) => (
+              <article key={note.id} className="rounded-lg border p-4">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <p className="font-medium">{note.careTypeName}</p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {new Intl.DateTimeFormat("pt-BR", {
+                        dateStyle: "medium",
+                        timeStyle: "short",
+                        timeZone: "America/Fortaleza",
+                      }).format(new Date(note.finalizedAt))}
+                      {" · "}
+                      {note.authorName} · {note.professionalCouncil} {note.councilNumber}/
+                      {note.councilRegion}
+                    </p>
+                  </div>
+                  <Button asChild variant="outline" size="sm">
+                    <Link
+                      to="/atendimentos/$appointmentId"
+                      params={{ appointmentId: note.appointmentId }}
+                    >
+                      Abrir atendimento
+                    </Link>
+                  </Button>
+                </div>
+                <div className="mt-4 grid gap-4 md:grid-cols-2">
+                  <div>
+                    <p className="text-xs font-medium text-muted-foreground">Evolução</p>
+                    <p className="mt-1 whitespace-pre-wrap text-sm">{note.evolution}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs font-medium text-muted-foreground">Conduta</p>
+                    <p className="mt-1 whitespace-pre-wrap text-sm">
+                      {note.conduct || "Não informada."}
+                    </p>
+                  </div>
+                </div>
+                <VitalsSummary note={note} />
+              </article>
+            ))}
+          </div>
+        ) : (
+          <p className="rounded-lg bg-muted p-4 text-sm text-muted-foreground">
+            Ainda não há evoluções clínicas finalizadas para este paciente.
+          </p>
+        )}
+      </section>
       {open && data.canManage && (
         <form onSubmit={save} className="space-y-4 rounded-xl border bg-card p-5">
           <h2 className="font-semibold">Tratamento prescrito</h2>
@@ -1026,4 +1105,26 @@ export function PatientTreatmentPage({ patientId }: { patientId: string }) {
       </section>
     </div>
   );
+}
+
+function VitalsSummary({ note }: { note: Payload["clinicalHistory"][number] }) {
+  const values = [
+    note.systolicPressure && note.diastolicPressure
+      ? `PA ${note.systolicPressure}/${note.diastolicPressure} mmHg`
+      : null,
+    note.heartRate ? `FC ${note.heartRate} bpm` : null,
+    note.oxygenSaturation ? `SpO₂ ${note.oxygenSaturation}%` : null,
+    note.temperatureC ? `Temperatura ${note.temperatureC} °C` : null,
+    note.weightKg ? `Peso ${note.weightKg} kg` : null,
+    note.heightCm ? `Altura ${note.heightCm} cm` : null,
+  ].filter(Boolean);
+  return values.length ? (
+    <div className="mt-4 flex flex-wrap gap-2">
+      {values.map((value) => (
+        <Badge key={value} variant="secondary">
+          {value}
+        </Badge>
+      ))}
+    </div>
+  ) : null;
 }

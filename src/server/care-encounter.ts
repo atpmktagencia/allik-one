@@ -10,6 +10,13 @@ const clinicalInput = z.object({
   appointmentId: z.string().uuid(),
   evolution: z.string().trim().max(20000),
   conduct: z.string().trim().max(10000),
+  systolicPressure: z.number().int().min(40).max(300).nullable().default(null),
+  diastolicPressure: z.number().int().min(20).max(200).nullable().default(null),
+  heartRate: z.number().int().min(20).max(300).nullable().default(null),
+  oxygenSaturation: z.number().min(50).max(100).nullable().default(null),
+  temperatureC: z.number().min(30).max(45).nullable().default(null),
+  weightKg: z.number().positive().max(500).nullable().default(null),
+  heightCm: z.number().min(30).max(250).nullable().default(null),
   version: z.number().int().nonnegative().nullable(),
 });
 
@@ -81,7 +88,11 @@ export async function careEncounterResponse(request: Request) {
     pool.query(
       `SELECT id,evolution,conduct,status,version,author_name AS "authorName",
         professional_council AS "professionalCouncil",council_number AS "councilNumber",
-        council_region AS "councilRegion",finalized_at AS "finalizedAt",updated_at AS "updatedAt"
+        council_region AS "councilRegion",systolic_pressure AS "systolicPressure",
+        diastolic_pressure AS "diastolicPressure",heart_rate AS "heartRate",
+        oxygen_saturation AS "oxygenSaturation",temperature_c AS "temperatureC",
+        weight_kg AS "weightKg",height_cm AS "heightCm",
+        finalized_at AS "finalizedAt",updated_at AS "updatedAt"
        FROM inventory_clinical_notes WHERE appointment_id=$1 AND organization_id=$2`,
       [appointmentId, auth.organizationId],
     ),
@@ -197,15 +208,31 @@ async function saveClinicalNote(
     const noteResult = current
       ? await client.query(
           `UPDATE inventory_clinical_notes SET evolution=$2,conduct=$3,status=$4,
+             systolic_pressure=$5,diastolic_pressure=$6,heart_rate=$7,oxygen_saturation=$8,
+             temperature_c=$9,weight_kg=$10,height_cm=$11,
              finalized_at=CASE WHEN $4='FINAL' THEN now() ELSE NULL END,version=version+1,updated_at=now()
            WHERE id=$1 RETURNING *`,
-          [current.id, parsed.evolution, parsed.conduct, final ? "FINAL" : "DRAFT"],
+          [
+            current.id,
+            parsed.evolution,
+            parsed.conduct,
+            final ? "FINAL" : "DRAFT",
+            parsed.systolicPressure,
+            parsed.diastolicPressure,
+            parsed.heartRate,
+            parsed.oxygenSaturation,
+            parsed.temperatureC,
+            parsed.weightKg,
+            parsed.heightCm,
+          ],
         )
       : await client.query(
           `INSERT INTO inventory_clinical_notes(organization_id,unit_id,appointment_id,patient_id,
              author_user_id,author_name,professional_council,council_number,council_region,
-             evolution,conduct,status,finalized_at)
-           VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,CASE WHEN $12='FINAL' THEN now() ELSE NULL END)
+             evolution,conduct,status,systolic_pressure,diastolic_pressure,heart_rate,
+             oxygen_saturation,temperature_c,weight_kg,height_cm,finalized_at)
+           VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,
+             CASE WHEN $12='FINAL' THEN now() ELSE NULL END)
            RETURNING *`,
           [
             auth.organizationId,
@@ -220,6 +247,13 @@ async function saveClinicalNote(
             parsed.evolution,
             parsed.conduct,
             final ? "FINAL" : "DRAFT",
+            parsed.systolicPressure,
+            parsed.diastolicPressure,
+            parsed.heartRate,
+            parsed.oxygenSaturation,
+            parsed.temperatureC,
+            parsed.weightKg,
+            parsed.heightCm,
           ],
         );
     const note = noteResult.rows[0];
@@ -236,6 +270,7 @@ async function saveClinicalNote(
               conduct: current.conduct,
               status: current.status,
               version: current.version,
+              vitals: clinicalVitals(current),
             }
           : null,
         {
@@ -243,6 +278,7 @@ async function saveClinicalNote(
           conduct: note.conduct,
           status: note.status,
           version: note.version,
+          vitals: clinicalVitals(note),
         },
         auth.user.id,
       ],
@@ -265,4 +301,16 @@ async function saveClinicalNote(
   } finally {
     client.release();
   }
+}
+
+function clinicalVitals(row: Record<string, unknown>) {
+  return {
+    systolicPressure: row["systolic_pressure"],
+    diastolicPressure: row["diastolic_pressure"],
+    heartRate: row["heart_rate"],
+    oxygenSaturation: row["oxygen_saturation"],
+    temperatureC: row["temperature_c"],
+    weightKg: row["weight_kg"],
+    heightCm: row["height_cm"],
+  };
 }

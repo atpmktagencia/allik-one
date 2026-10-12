@@ -612,6 +612,13 @@ export const clinicalNotes = pgTable(
     councilRegion: text("council_region").notNull(),
     evolution: text("evolution").notNull().default(""),
     conduct: text("conduct").notNull().default(""),
+    systolicPressure: integer("systolic_pressure"),
+    diastolicPressure: integer("diastolic_pressure"),
+    heartRate: integer("heart_rate"),
+    oxygenSaturation: numeric("oxygen_saturation", { precision: 5, scale: 2 }),
+    temperatureC: numeric("temperature_c", { precision: 4, scale: 1 }),
+    weightKg: numeric("weight_kg", { precision: 6, scale: 2 }),
+    heightCm: numeric("height_cm", { precision: 5, scale: 1 }),
     status: text("status").notNull().default("DRAFT"),
     version: integer("version").notNull().default(0),
     finalizedAt: timestamp("finalized_at", { withTimezone: true }),
@@ -625,6 +632,14 @@ export const clinicalNotes = pgTable(
     check("clinical_note_version_nonnegative", sql`${t.version}>=0`),
     check("clinical_note_evolution_valid", sql`char_length(${t.evolution})<=20000`),
     check("clinical_note_conduct_valid", sql`char_length(${t.conduct})<=10000`),
+    check(
+      "clinical_note_pressure_valid",
+      sql`(${t.systolicPressure} IS NULL OR ${t.systolicPressure} BETWEEN 40 AND 300) AND (${t.diastolicPressure} IS NULL OR ${t.diastolicPressure} BETWEEN 20 AND 200)`,
+    ),
+    check(
+      "clinical_note_vitals_valid",
+      sql`(${t.heartRate} IS NULL OR ${t.heartRate} BETWEEN 20 AND 300) AND (${t.oxygenSaturation} IS NULL OR ${t.oxygenSaturation} BETWEEN 50 AND 100) AND (${t.temperatureC} IS NULL OR ${t.temperatureC} BETWEEN 30 AND 45) AND (${t.weightKg} IS NULL OR ${t.weightKg}>0 AND ${t.weightKg}<=500) AND (${t.heightCm} IS NULL OR ${t.heightCm} BETWEEN 30 AND 250)`,
+    ),
     check(
       "clinical_note_final_valid",
       sql`(${t.status}='DRAFT' AND ${t.finalizedAt} IS NULL) OR (${t.status}='FINAL' AND ${t.finalizedAt} IS NOT NULL AND char_length(trim(${t.evolution}))>=10)`,

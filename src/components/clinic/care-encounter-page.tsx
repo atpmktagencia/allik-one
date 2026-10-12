@@ -3,6 +3,7 @@ import { ArrowLeft, CalendarClock, ClipboardList, History, UserRound } from "luc
 import { useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useInventory } from "@/data/inventory-api";
 import { InventoryState } from "./inventory-state";
@@ -65,6 +66,13 @@ type Payload = {
     professionalCouncil: string;
     councilNumber: string;
     councilRegion: string;
+    systolicPressure: number | null;
+    diastolicPressure: number | null;
+    heartRate: number | null;
+    oxygenSaturation: string | null;
+    temperatureC: string | null;
+    weightKg: string | null;
+    heightCm: string | null;
     finalizedAt: string | null;
     updatedAt: string;
   };
@@ -104,6 +112,15 @@ export function CareEncounterPage({ appointmentId }: { appointmentId: string }) 
   const [error, setError] = useState("");
   const [evolution, setEvolution] = useState("");
   const [conduct, setConduct] = useState("");
+  const [vitals, setVitals] = useState({
+    systolicPressure: "",
+    diastolicPressure: "",
+    heartRate: "",
+    oxygenSaturation: "",
+    temperatureC: "",
+    weightKg: "",
+    heightCm: "",
+  });
   const [loadedNoteId, setLoadedNoteId] = useState<string | null | undefined>(undefined);
   const loadedNote = query.data?.clinicalNote;
   useEffect(() => {
@@ -111,6 +128,15 @@ export function CareEncounterPage({ appointmentId }: { appointmentId: string }) 
     setLoadedNoteId(loadedNote?.id ?? null);
     setEvolution(loadedNote?.evolution ?? "");
     setConduct(loadedNote?.conduct ?? "");
+    setVitals({
+      systolicPressure: String(loadedNote?.systolicPressure ?? ""),
+      diastolicPressure: String(loadedNote?.diastolicPressure ?? ""),
+      heartRate: String(loadedNote?.heartRate ?? ""),
+      oxygenSaturation: String(loadedNote?.oxygenSaturation ?? ""),
+      temperatureC: String(loadedNote?.temperatureC ?? ""),
+      weightKg: String(loadedNote?.weightKg ?? ""),
+      heightCm: String(loadedNote?.heightCm ?? ""),
+    });
   }, [loadedNote, loadedNoteId, query.data]);
   if (query.isPending || query.error)
     return (
@@ -140,6 +166,12 @@ export function CareEncounterPage({ appointmentId }: { appointmentId: string }) 
           appointmentId,
           evolution,
           conduct,
+          ...Object.fromEntries(
+            Object.entries(vitals).map(([key, value]) => [
+              key,
+              value === "" ? null : Number(value),
+            ]),
+          ),
           version: data.clinicalNote?.version ?? null,
         }),
       });
@@ -254,6 +286,81 @@ export function CareEncounterPage({ appointmentId }: { appointmentId: string }) 
             placeholder="Registre a evolução do atendimento."
           />
         </label>
+        <div>
+          <p className="mb-2 text-sm font-medium">Sinais vitais</p>
+          <fieldset
+            disabled={!data.canAuthorClinicalNote || data.clinicalNote?.status === "FINAL"}
+            className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4"
+          >
+            <VitalInput
+              label="Pressão sistólica"
+              suffix="mmHg"
+              field="systolicPressure"
+              value={vitals.systolicPressure}
+              setVitals={setVitals}
+              min={40}
+              max={300}
+            />
+            <VitalInput
+              label="Pressão diastólica"
+              suffix="mmHg"
+              field="diastolicPressure"
+              value={vitals.diastolicPressure}
+              setVitals={setVitals}
+              min={20}
+              max={200}
+            />
+            <VitalInput
+              label="Frequência cardíaca"
+              suffix="bpm"
+              field="heartRate"
+              value={vitals.heartRate}
+              setVitals={setVitals}
+              min={20}
+              max={300}
+            />
+            <VitalInput
+              label="Saturação"
+              suffix="%"
+              field="oxygenSaturation"
+              value={vitals.oxygenSaturation}
+              setVitals={setVitals}
+              min={50}
+              max={100}
+              step="0.1"
+            />
+            <VitalInput
+              label="Temperatura"
+              suffix="°C"
+              field="temperatureC"
+              value={vitals.temperatureC}
+              setVitals={setVitals}
+              min={30}
+              max={45}
+              step="0.1"
+            />
+            <VitalInput
+              label="Peso"
+              suffix="kg"
+              field="weightKg"
+              value={vitals.weightKg}
+              setVitals={setVitals}
+              min={0.01}
+              max={500}
+              step="0.01"
+            />
+            <VitalInput
+              label="Altura"
+              suffix="cm"
+              field="heightCm"
+              value={vitals.heightCm}
+              setVitals={setVitals}
+              min={30}
+              max={250}
+              step="0.1"
+            />
+          </fieldset>
+        </div>
         <label className="block space-y-2 text-sm font-medium">
           Conduta
           <Textarea
@@ -404,5 +511,49 @@ function Info({ label, value }: { label: string; value: string }) {
       <dt className="text-xs text-muted-foreground">{label}</dt>
       <dd className="mt-1 font-medium">{value}</dd>
     </div>
+  );
+}
+
+type Vitals = {
+  systolicPressure: string;
+  diastolicPressure: string;
+  heartRate: string;
+  oxygenSaturation: string;
+  temperatureC: string;
+  weightKg: string;
+  heightCm: string;
+};
+
+function VitalInput({
+  label,
+  suffix,
+  field,
+  value,
+  setVitals,
+  min,
+  max,
+  step = "1",
+}: {
+  label: string;
+  suffix: string;
+  field: keyof Vitals;
+  value: string;
+  setVitals: React.Dispatch<React.SetStateAction<Vitals>>;
+  min: number;
+  max: number;
+  step?: string;
+}) {
+  return (
+    <label className="space-y-1 text-xs text-muted-foreground">
+      {label} ({suffix})
+      <Input
+        type="number"
+        value={value}
+        min={min}
+        max={max}
+        step={step}
+        onChange={(event) => setVitals((current) => ({ ...current, [field]: event.target.value }))}
+      />
+    </label>
   );
 }

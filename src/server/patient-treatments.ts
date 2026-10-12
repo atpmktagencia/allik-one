@@ -53,6 +53,7 @@ export async function patientDetailResponse(request: Request) {
       locations,
       unitDemand,
       openStock,
+      clinicalHistory,
     ] = await Promise.all([
       getPool().query(
         `SELECT t.id,t.product_id AS "productId",p.name AS "productName",p.sku,
@@ -134,6 +135,22 @@ export async function patientDetailResponse(request: Request) {
          WHERE unit_id=$1 AND status='OPEN' AND usable_until>now()
          GROUP BY product_id,upper(base_unit)`,
         [patient.primaryUnitId],
+      ),
+      getPool().query(
+        `SELECT n.id,n.appointment_id AS "appointmentId",n.evolution,n.conduct,
+          n.author_name AS "authorName",n.professional_council AS "professionalCouncil",
+          n.council_number AS "councilNumber",n.council_region AS "councilRegion",
+          n.systolic_pressure AS "systolicPressure",n.diastolic_pressure AS "diastolicPressure",
+          n.heart_rate AS "heartRate",n.oxygen_saturation AS "oxygenSaturation",
+          n.temperature_c AS "temperatureC",n.weight_kg AS "weightKg",n.height_cm AS "heightCm",
+          n.finalized_at AS "finalizedAt",a.starts_at AS "appointmentStartsAt",
+          COALESCE(ct.name,a.other_care_type,a.care_type) AS "careTypeName"
+         FROM inventory_clinical_notes n
+         JOIN inventory_care_appointments a ON a.id=n.appointment_id
+         LEFT JOIN inventory_care_types ct ON ct.organization_id=a.organization_id AND ct.code=a.care_type
+         WHERE n.patient_id=$1 AND n.organization_id=$2 AND n.unit_id=$3 AND n.status='FINAL'
+         ORDER BY n.finalized_at DESC,n.id DESC LIMIT 100`,
+        [patientId, auth.organizationId, patient.primaryUnitId],
       ),
     ]);
     const purchaseRows = purchases.rows as Array<Record<string, unknown>>;
@@ -248,6 +265,7 @@ export async function patientDetailResponse(request: Request) {
           schedule: scheduleRows,
           supplySummaries: summaries,
           locations: locations.rows,
+          clinicalHistory: clinicalHistory.rows,
           canManage: can(auth, "patients.manage", String(patient.primaryUnitId)),
           canConsume:
             can(auth, "patients.read", String(patient.primaryUnitId)) &&

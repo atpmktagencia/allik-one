@@ -239,6 +239,13 @@
       "when": 1793408400000,
       "tag": "0033_smooth_gorilla_man",
       "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "7",
+      "when": 1793494800000,
+      "tag": "0034_conscious_punisher",
+      "breakpoints": true
     }
   ]
 }
