@@ -253,6 +253,7 @@ function SidebarContent({
 
 export function AppShell({ children }: { children: ReactNode }) {
   const path = useRouterState({ select: (state) => state.location.pathname });
+  const focusedEncounter = path.startsWith("/atendimentos/");
   const [mobileOpen, setMobileOpen] = useState(false);
   const [identity, setIdentity] = useState<Identity | null>(null);
   const [unitId, setUnitId] = useState("");
@@ -288,10 +289,12 @@ export function AppShell({ children }: { children: ReactNode }) {
     : (pageTitles[path] ?? "Allik One");
   return (
     <div className="min-h-screen bg-background">
-      <aside className="fixed inset-y-0 left-0 z-30 hidden w-[248px] border-r border-sidebar-border lg:block">
-        <SidebarContent identity={identity} />
-      </aside>
-      <div className="min-w-0 lg:pl-[248px]">
+      {!focusedEncounter ? (
+        <aside className="fixed inset-y-0 left-0 z-30 hidden w-[248px] border-r border-sidebar-border lg:block">
+          <SidebarContent identity={identity} />
+        </aside>
+      ) : null}
+      <div className={cn("min-w-0", !focusedEncounter && "lg:pl-[248px]")}>
         <header className="sticky top-0 z-20 border-b border-border bg-background/95 backdrop-blur">
           <div className="grid min-h-16 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 px-4 lg:px-7">
             <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
@@ -299,7 +302,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="min-h-11 min-w-11 lg:hidden"
+                  className={cn("min-h-11 min-w-11", !focusedEncounter && "lg:hidden")}
                   aria-label="Abrir menu"
                 >
                   <Menu />
@@ -313,7 +316,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                 <SidebarContent identity={identity} onNavigate={() => setMobileOpen(false)} />
               </SheetContent>
             </Sheet>
-            <div className="hidden min-w-0 lg:block">
+            <div className={cn("min-w-0", !focusedEncounter && "hidden lg:block")}>
               <p className="text-[11px] font-medium uppercase tracking-widest text-muted-foreground">
                 Allik One · Operação de estoque
               </p>
@@ -379,7 +382,14 @@ export function AppShell({ children }: { children: ReactNode }) {
             </div>
           </div>
         </header>
-        <main className="mx-auto w-full max-w-[1600px] p-4 sm:p-6 lg:p-8">{children}</main>
+        <main
+          className={cn(
+            "mx-auto w-full",
+            focusedEncounter ? "max-w-none p-0" : "max-w-[1600px] p-4 sm:p-6 lg:p-8",
+          )}
+        >
+          {children}
+        </main>
       </div>
     </div>
   );

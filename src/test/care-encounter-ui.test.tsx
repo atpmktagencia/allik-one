@@ -85,6 +85,16 @@ describe("Care encounter UI", () => {
     expect(
       await screen.findByRole("heading", { name: "Paciente Operacional" }),
     ).toBeInTheDocument();
+    const clinicalNavigation = screen.getAllByRole("navigation", {
+      name: "Seções do atendimento",
+    });
+    expect(clinicalNavigation).toHaveLength(2);
+    expect(clinicalNavigation[0]!.querySelector('a[href="#prescricao"]')).toHaveTextContent(
+      "Prescrição",
+    );
+    expect(clinicalNavigation[0]!.querySelector('a[href="#orcamento"]')).toHaveTextContent(
+      "Orçamento",
+    );
     expect(screen.getByText("CRM 12345/CE")).toBeInTheDocument();
     fireEvent.change(screen.getByLabelText(/Peso/), { target: { value: "70" } });
     fireEvent.change(screen.getByLabelText(/Altura/), { target: { value: "175" } });
