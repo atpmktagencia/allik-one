@@ -73,6 +73,14 @@ type Payload = {
     familyHistory: string;
     habits: string;
     systemsReview: string;
+    generalExam: string;
+    cardiovascularExam: string;
+    respiratoryExam: string;
+    abdominalExam: string;
+    neurologicalExam: string;
+    musculoskeletalExam: string;
+    skinExam: string;
+    otherExam: string;
     status: "DRAFT" | "FINAL";
     version: number;
     authorName: string;
@@ -141,6 +149,16 @@ export function CareEncounterPage({ appointmentId }: { appointmentId: string }) 
     habits: "",
     systemsReview: "",
   });
+  const [physicalExam, setPhysicalExam] = useState({
+    generalExam: "",
+    cardiovascularExam: "",
+    respiratoryExam: "",
+    abdominalExam: "",
+    neurologicalExam: "",
+    musculoskeletalExam: "",
+    skinExam: "",
+    otherExam: "",
+  });
   const [vitals, setVitals] = useState({
     systolicPressure: "",
     diastolicPressure: "",
@@ -164,6 +182,16 @@ export function CareEncounterPage({ appointmentId }: { appointmentId: string }) 
       familyHistory: loadedNote?.familyHistory ?? "",
       habits: loadedNote?.habits ?? "",
       systemsReview: loadedNote?.systemsReview ?? "",
+    });
+    setPhysicalExam({
+      generalExam: loadedNote?.generalExam ?? "",
+      cardiovascularExam: loadedNote?.cardiovascularExam ?? "",
+      respiratoryExam: loadedNote?.respiratoryExam ?? "",
+      abdominalExam: loadedNote?.abdominalExam ?? "",
+      neurologicalExam: loadedNote?.neurologicalExam ?? "",
+      musculoskeletalExam: loadedNote?.musculoskeletalExam ?? "",
+      skinExam: loadedNote?.skinExam ?? "",
+      otherExam: loadedNote?.otherExam ?? "",
     });
     setVitals({
       systolicPressure: String(loadedNote?.systolicPressure ?? ""),
@@ -204,6 +232,7 @@ export function CareEncounterPage({ appointmentId }: { appointmentId: string }) 
           evolution,
           conduct,
           ...anamnesis,
+          ...physicalExam,
           ...Object.fromEntries(
             Object.entries(vitals).map(([key, value]) => [
               key,
@@ -484,6 +513,65 @@ export function CareEncounterPage({ appointmentId }: { appointmentId: string }) 
             />
           </fieldset>
         </div>
+        <div>
+          <h3 className="font-medium">Exame físico</h3>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Registre somente os sistemas examinados neste atendimento.
+          </p>
+          <fieldset
+            disabled={!data.canAuthorClinicalNote || data.clinicalNote?.status === "FINAL"}
+            className="mt-3 grid gap-4 md:grid-cols-2"
+          >
+            <PhysicalExamField
+              label="Estado geral"
+              field="generalExam"
+              value={physicalExam.generalExam}
+              setPhysicalExam={setPhysicalExam}
+            />
+            <PhysicalExamField
+              label="Cardiovascular"
+              field="cardiovascularExam"
+              value={physicalExam.cardiovascularExam}
+              setPhysicalExam={setPhysicalExam}
+            />
+            <PhysicalExamField
+              label="Respiratório"
+              field="respiratoryExam"
+              value={physicalExam.respiratoryExam}
+              setPhysicalExam={setPhysicalExam}
+            />
+            <PhysicalExamField
+              label="Abdominal"
+              field="abdominalExam"
+              value={physicalExam.abdominalExam}
+              setPhysicalExam={setPhysicalExam}
+            />
+            <PhysicalExamField
+              label="Neurológico"
+              field="neurologicalExam"
+              value={physicalExam.neurologicalExam}
+              setPhysicalExam={setPhysicalExam}
+            />
+            <PhysicalExamField
+              label="Musculoesquelético"
+              field="musculoskeletalExam"
+              value={physicalExam.musculoskeletalExam}
+              setPhysicalExam={setPhysicalExam}
+            />
+            <PhysicalExamField
+              label="Pele e anexos"
+              field="skinExam"
+              value={physicalExam.skinExam}
+              setPhysicalExam={setPhysicalExam}
+            />
+            <PhysicalExamField
+              label="Outros achados"
+              field="otherExam"
+              value={physicalExam.otherExam}
+              setPhysicalExam={setPhysicalExam}
+            />
+          </fieldset>
+        </div>
         <label className="block space-y-2 text-sm font-medium">
           Conduta
           <Textarea
@@ -655,6 +743,43 @@ type Anamnesis = {
   habits: string;
   systemsReview: string;
 };
+
+type PhysicalExam = {
+  generalExam: string;
+  cardiovascularExam: string;
+  respiratoryExam: string;
+  abdominalExam: string;
+  neurologicalExam: string;
+  musculoskeletalExam: string;
+  skinExam: string;
+  otherExam: string;
+};
+
+function PhysicalExamField({
+  label,
+  field,
+  value,
+  setPhysicalExam,
+}: {
+  label: string;
+  field: keyof PhysicalExam;
+  value: string;
+  setPhysicalExam: React.Dispatch<React.SetStateAction<PhysicalExam>>;
+}) {
+  return (
+    <label className="space-y-1 text-sm font-medium">
+      {label}
+      <Textarea
+        rows={3}
+        maxLength={5000}
+        value={value}
+        onChange={(event) =>
+          setPhysicalExam((current) => ({ ...current, [field]: event.target.value }))
+        }
+      />
+    </label>
+  );
+}
 
 function AnamnesisField({
   label,

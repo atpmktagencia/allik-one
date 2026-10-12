@@ -16,6 +16,14 @@ const clinicalInput = z.object({
   familyHistory: z.string().trim().max(10000).default(""),
   habits: z.string().trim().max(5000).default(""),
   systemsReview: z.string().trim().max(10000).default(""),
+  generalExam: z.string().trim().max(5000).default(""),
+  cardiovascularExam: z.string().trim().max(5000).default(""),
+  respiratoryExam: z.string().trim().max(5000).default(""),
+  abdominalExam: z.string().trim().max(5000).default(""),
+  neurologicalExam: z.string().trim().max(5000).default(""),
+  musculoskeletalExam: z.string().trim().max(5000).default(""),
+  skinExam: z.string().trim().max(5000).default(""),
+  otherExam: z.string().trim().max(5000).default(""),
   systolicPressure: z.number().int().min(40).max(300).nullable().default(null),
   diastolicPressure: z.number().int().min(20).max(200).nullable().default(null),
   heartRate: z.number().int().min(20).max(300).nullable().default(null),
@@ -95,6 +103,10 @@ export async function careEncounterResponse(request: Request) {
       `SELECT id,evolution,conduct,chief_complaint AS "chiefComplaint",
         current_history AS "currentHistory",personal_history AS "personalHistory",
         family_history AS "familyHistory",habits,systems_review AS "systemsReview",
+        general_exam AS "generalExam",cardiovascular_exam AS "cardiovascularExam",
+        respiratory_exam AS "respiratoryExam",abdominal_exam AS "abdominalExam",
+        neurological_exam AS "neurologicalExam",musculoskeletal_exam AS "musculoskeletalExam",
+        skin_exam AS "skinExam",other_exam AS "otherExam",
         status,version,author_name AS "authorName",
         professional_council AS "professionalCouncil",council_number AS "councilNumber",
         council_region AS "councilRegion",systolic_pressure AS "systolicPressure",
@@ -230,6 +242,8 @@ async function saveClinicalNote(
              temperature_c=$9,weight_kg=$10,height_cm=$11,
              chief_complaint=$12,current_history=$13,personal_history=$14,family_history=$15,
              habits=$16,systems_review=$17,
+             general_exam=$18,cardiovascular_exam=$19,respiratory_exam=$20,abdominal_exam=$21,
+             neurological_exam=$22,musculoskeletal_exam=$23,skin_exam=$24,other_exam=$25,
              finalized_at=CASE WHEN $4='FINAL' THEN now() ELSE NULL END,version=version+1,updated_at=now()
            WHERE id=$1 RETURNING *`,
           [
@@ -250,6 +264,14 @@ async function saveClinicalNote(
             parsed.familyHistory,
             parsed.habits,
             parsed.systemsReview,
+            parsed.generalExam,
+            parsed.cardiovascularExam,
+            parsed.respiratoryExam,
+            parsed.abdominalExam,
+            parsed.neurologicalExam,
+            parsed.musculoskeletalExam,
+            parsed.skinExam,
+            parsed.otherExam,
           ],
         )
       : await client.query(
@@ -257,9 +279,12 @@ async function saveClinicalNote(
              author_user_id,author_name,professional_council,council_number,council_region,
              evolution,conduct,status,systolic_pressure,diastolic_pressure,heart_rate,
              oxygen_saturation,temperature_c,weight_kg,height_cm,chief_complaint,current_history,
-             personal_history,family_history,habits,systems_review,finalized_at)
+             personal_history,family_history,habits,systems_review,general_exam,cardiovascular_exam,
+             respiratory_exam,abdominal_exam,neurological_exam,musculoskeletal_exam,skin_exam,
+             other_exam,finalized_at)
            VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,
              $20,$21,$22,$23,$24,$25,
+             $26,$27,$28,$29,$30,$31,$32,$33,
              CASE WHEN $12='FINAL' THEN now() ELSE NULL END)
            RETURNING *`,
           [
@@ -288,6 +313,14 @@ async function saveClinicalNote(
             parsed.familyHistory,
             parsed.habits,
             parsed.systemsReview,
+            parsed.generalExam,
+            parsed.cardiovascularExam,
+            parsed.respiratoryExam,
+            parsed.abdominalExam,
+            parsed.neurologicalExam,
+            parsed.musculoskeletalExam,
+            parsed.skinExam,
+            parsed.otherExam,
           ],
         );
     const note = noteResult.rows[0];
@@ -306,6 +339,7 @@ async function saveClinicalNote(
               version: current.version,
               vitals: clinicalVitals(current),
               anamnesis: clinicalAnamnesis(current),
+              physicalExam: clinicalPhysicalExam(current),
             }
           : null,
         {
@@ -315,6 +349,7 @@ async function saveClinicalNote(
           version: note.version,
           vitals: clinicalVitals(note),
           anamnesis: clinicalAnamnesis(note),
+          physicalExam: clinicalPhysicalExam(note),
         },
         auth.user.id,
       ],
@@ -359,5 +394,18 @@ function clinicalAnamnesis(row: Record<string, unknown>) {
     familyHistory: row["family_history"],
     habits: row["habits"],
     systemsReview: row["systems_review"],
+  };
+}
+
+function clinicalPhysicalExam(row: Record<string, unknown>) {
+  return {
+    generalExam: row["general_exam"],
+    cardiovascularExam: row["cardiovascular_exam"],
+    respiratoryExam: row["respiratory_exam"],
+    abdominalExam: row["abdominal_exam"],
+    neurologicalExam: row["neurological_exam"],
+    musculoskeletalExam: row["musculoskeletal_exam"],
+    skinExam: row["skin_exam"],
+    otherExam: row["other_exam"],
   };
 }

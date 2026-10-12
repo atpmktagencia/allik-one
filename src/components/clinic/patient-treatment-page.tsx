@@ -114,6 +114,14 @@ type Payload = {
     familyHistory: string;
     habits: string;
     systemsReview: string;
+    generalExam: string;
+    cardiovascularExam: string;
+    respiratoryExam: string;
+    abdominalExam: string;
+    neurologicalExam: string;
+    musculoskeletalExam: string;
+    skinExam: string;
+    otherExam: string;
     authorName: string;
     professionalCouncil: string;
     councilNumber: string;
@@ -943,6 +951,7 @@ export function PatientTreatmentPage({ patientId }: { patientId: string }) {
                   </div>
                 </div>
                 <ClinicalAnamnesis note={note} />
+                <ClinicalPhysicalExam note={note} />
                 <VitalsSummary note={note} />
               </article>
             ))}
@@ -1643,6 +1652,34 @@ function ClinicalAnamnesis({ note }: { note: Payload["clinicalHistory"][number] 
           <p className="mt-1 whitespace-pre-wrap text-sm">{value}</p>
         </div>
       ))}
+    </div>
+  ) : null;
+}
+
+function ClinicalPhysicalExam({ note }: { note: Payload["clinicalHistory"][number] }) {
+  const fields = [
+    ["Estado geral", note.generalExam],
+    ["Cardiovascular", note.cardiovascularExam],
+    ["Respiratório", note.respiratoryExam],
+    ["Abdominal", note.abdominalExam],
+    ["Neurológico", note.neurologicalExam],
+    ["Musculoesquelético", note.musculoskeletalExam],
+    ["Pele e anexos", note.skinExam],
+    ["Outros achados", note.otherExam],
+  ].filter((field) => field[1]);
+  return fields.length ? (
+    <div className="mt-4">
+      <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+        Exame físico
+      </p>
+      <div className="grid gap-3 rounded-lg border p-4 md:grid-cols-2">
+        {fields.map(([label, value]) => (
+          <div key={label}>
+            <p className="text-xs font-medium text-muted-foreground">{label}</p>
+            <p className="mt-1 whitespace-pre-wrap text-sm">{value}</p>
+          </div>
+        ))}
+      </div>
     </div>
   ) : null;
 }
