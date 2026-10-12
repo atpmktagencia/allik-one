@@ -77,12 +77,20 @@ export async function careAppointmentsResponse(request: Request) {
     const to = url.searchParams.get("to");
     const professionalId = url.searchParams.get("professionalId");
     const status = url.searchParams.get("status");
+    const patientId = url.searchParams.get("patientId");
+    const rawPatientSearch = url.searchParams.get("patientSearch")?.trim() ?? "";
     if (!from || !to || Number.isNaN(Date.parse(from)) || Number.isNaN(Date.parse(to)))
       return Response.json({ error: "Período inválido." }, { status: 400, headers });
     if (professionalId && !uuidPattern.test(professionalId))
       return Response.json({ error: "Profissional inválido." }, { status: 400, headers });
     if (status && !appointmentStatuses.has(status))
       return Response.json({ error: "Situação inválida." }, { status: 400, headers });
+    if (patientId && !uuidPattern.test(patientId))
+      return Response.json({ error: "Paciente inválido." }, { status: 400, headers });
+    if (rawPatientSearch.length > 100)
+      return Response.json({ error: "Busca de paciente muito longa." }, { status: 400, headers });
+    const patientSearch = rawPatientSearch.length >= 2 ? rawPatientSearch : null;
+    const patientSearchDigits = patientSearch?.replace(/\D/g, "") || null;
     const unrestricted = canAccessAllUnits(auth);
     const pool = getPool();
     const [appointments, patients, professionals, units, careTypes, rooms, resources] =
@@ -112,12 +120,28 @@ export async function careAppointmentsResponse(request: Request) {
           ],
         ),
         pool.query(
-          `SELECT id,primary_unit_id AS "unitId",full_name AS "fullName",phone,email,
-          document_number AS "documentNumber",internal_code AS "internalCode"
+          `SELECT id,primary_unit_id AS "unitId",full_name AS "fullName",phone,
+          internal_code AS "internalCode"
          FROM inventory_patients WHERE organization_id=$1 AND active
            AND ($2::uuid IS NULL OR primary_unit_id=$2) AND ($3::boolean OR primary_unit_id=ANY($4::uuid[]))
-         ORDER BY lower(full_name) LIMIT 1000`,
-          [auth.organizationId, unitId, unrestricted, auth.unitIds],
+           AND (($5::uuid IS NOT NULL AND id=$5) OR ($6::text IS NOT NULL AND (
+             full_name ILIKE '%' || $6 || '%' OR internal_code ILIKE '%' || $6 || '%'
+             OR COALESCE(document_number,'') ILIKE '%' || $6 || '%'
+             OR ($7::text IS NOT NULL AND (
+               regexp_replace(COALESCE(phone,''),'[^0-9]','','g') LIKE '%' || $7 || '%'
+               OR regexp_replace(COALESCE(document_number,''),'[^0-9]','','g') LIKE '%' || $7 || '%'
+             ))
+           )))
+         ORDER BY CASE WHEN id=$5 THEN 0 ELSE 1 END,lower(full_name) LIMIT 20`,
+          [
+            auth.organizationId,
+            unitId,
+            unrestricted,
+            auth.unitIds,
+            patientId,
+            patientSearch,
+            patientSearchDigits,
+          ],
         ),
         pool.query(
           `SELECT DISTINCT usr.id,usr.name,usr.profession,

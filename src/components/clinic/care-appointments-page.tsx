@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import { useDeferredValue, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import {
   CalendarDays,
   CheckCircle2,
@@ -44,8 +44,6 @@ type Payload = {
     unitId: string;
     fullName: string;
     phone: string | null;
-    email: string | null;
-    documentNumber: string | null;
     internalCode: string;
   }>;
   professionals: Array<{
@@ -156,8 +154,6 @@ export function CareAppointmentsPage({ preselectedPatientId }: { preselectedPati
   const range = rangeFor(view, focus);
   const [professionalFilter, setProfessionalFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
-  const resource = `care-appointments?from=${encodeURIComponent(range.from.toISOString())}&to=${encodeURIComponent(range.to.toISOString())}${professionalFilter ? `&professionalId=${encodeURIComponent(professionalFilter)}` : ""}${statusFilter ? `&status=${encodeURIComponent(statusFilter)}` : ""}`;
-  const query = useInventory<Payload>(resource);
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Appointment | null>(null);
   const [patientSearch, setPatientSearch] = useState("");
@@ -165,24 +161,28 @@ export function CareAppointmentsPage({ preselectedPatientId }: { preselectedPati
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [form, setForm] = useState<AppointmentForm>(blankAppointmentForm);
+  const deferredPatientSearch = useDeferredValue(patientSearch.trim());
+  const searchedPatient = deferredPatientSearch.length >= 2 ? deferredPatientSearch : "";
+  const selectedPatientId = form.patientId || preselectedPatientId || "";
+  const resource = `care-appointments?from=${encodeURIComponent(range.from.toISOString())}&to=${encodeURIComponent(range.to.toISOString())}${professionalFilter ? `&professionalId=${encodeURIComponent(professionalFilter)}` : ""}${statusFilter ? `&status=${encodeURIComponent(statusFilter)}` : ""}${searchedPatient ? `&patientSearch=${encodeURIComponent(searchedPatient)}` : ""}${selectedPatientId ? `&patientId=${encodeURIComponent(selectedPatientId)}` : ""}`;
+  const query = useInventory<Payload>(resource);
   const restoredPatient = useRef(false);
   const patients = useMemo(() => {
-    const term = patientSearch.trim().toLocaleLowerCase("pt-BR");
-    return (query.data?.patients ?? []).filter(
-      (patient) =>
-        (!form.unitId || patient.unitId === form.unitId) &&
-        (!term ||
-          [
-            patient.fullName,
-            patient.documentNumber,
-            patient.phone,
-            patient.email,
-            patient.internalCode,
-          ]
-            .filter(Boolean)
-            .some((value) => value!.toLocaleLowerCase("pt-BR").includes(term))),
+    const available = (query.data?.patients ?? []).filter(
+      (patient) => !form.unitId || patient.unitId === form.unitId,
     );
-  }, [form.unitId, patientSearch, query.data?.patients]);
+    if (!editing || available.some((patient) => patient.id === editing.patientId)) return available;
+    return [
+      ...available,
+      {
+        id: editing.patientId,
+        unitId: editing.unitId,
+        fullName: editing.patientName,
+        phone: editing.phone,
+        internalCode: "",
+      },
+    ];
+  }, [editing, form.unitId, query.data?.patients]);
   useEffect(() => {
     if (!preselectedPatientId || restoredPatient.current || !query.data) return;
     const patient = query.data.patients.find((item) => item.id === preselectedPatientId);
@@ -525,9 +525,17 @@ export function CareAppointmentsPage({ preselectedPatientId }: { preselectedPati
               <Input
                 type="search"
                 placeholder="Nome, CPF, telefone ou código"
+                maxLength={100}
                 value={patientSearch}
                 onChange={(e) => setPatientSearch(e.target.value)}
               />
+              <span className="block text-xs font-normal text-muted-foreground">
+                {patientSearch.trim().length === 1
+                  ? "Digite pelo menos 2 caracteres."
+                  : query.isFetching
+                    ? "Buscando…"
+                    : "A busca consulta a base da unidade selecionada."}
+              </span>
             </label>
             <label className="space-y-1 text-sm font-medium">
               Paciente

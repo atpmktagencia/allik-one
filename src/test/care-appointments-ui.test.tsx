@@ -32,16 +32,18 @@ function mount() {
 describe("Care appointments UI", () => {
   it("opens the patient and sends an audited status transition", async () => {
     const writes: Array<Record<string, unknown>> = [];
+    const reads: string[] = [];
     const unitId = "11111111-1111-4111-8111-111111111111";
     const patientId = "22222222-2222-4222-8222-222222222222";
     const professionalId = "33333333-3333-4333-8333-333333333333";
     vi.stubGlobal(
       "fetch",
-      vi.fn(async (_input: string | URL | Request, init?: RequestInit) => {
+      vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
         if (init?.method === "POST") {
           writes.push(JSON.parse(String(init.body)) as Record<string, unknown>);
           return Response.json({ data: { id: "44444444-4444-4444-8444-444444444444" } });
         }
+        reads.push(String(input));
         return Response.json({
           data: {
             appointments: [
@@ -97,6 +99,16 @@ describe("Care appointments UI", () => {
     mount();
 
     expect(await screen.findByRole("link", { name: "Paciente Agenda" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Novo agendamento" }));
+    const patientSearch = screen.getByRole("searchbox", { name: /^Buscar paciente/ });
+    patientSearch.focus();
+    fireEvent.change(patientSearch, {
+      target: { value: "Agenda" },
+    });
+    await waitFor(() =>
+      expect(reads.some((url) => url.includes("patientSearch=Agenda"))).toBe(true),
+    );
+    expect(screen.getByRole("searchbox", { name: /^Buscar paciente/ })).toHaveFocus();
     fireEvent.click(screen.getByRole("button", { name: "Confirmar" }));
     await waitFor(() =>
       expect(writes).toContainEqual(

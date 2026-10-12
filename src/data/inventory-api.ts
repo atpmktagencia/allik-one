@@ -68,9 +68,20 @@ export async function fetchInventory<T>(resource: string): Promise<T> {
   return body.data as T;
 }
 export function useInventory<T>(resource: string) {
+  const requestPath = withSelectedUnit(`/api/v1/inventory/${resource}`);
   return useQuery({
-    queryKey: ["inventory", resource],
-    queryFn: () => fetchInventory<T>(resource),
+    queryKey: ["inventory", requestPath],
+    queryFn: async () => {
+      const response = await fetch(requestPath, { credentials: "same-origin" });
+      const body = (await response.json()) as { data?: T; error?: string };
+      if (!response.ok)
+        throw new InventoryError(
+          body.error ?? "Não foi possível consultar o estoque.",
+          response.status,
+        );
+      return body.data as T;
+    },
+    placeholderData: (previous) => previous,
     retry: false,
     staleTime: 15000,
   });
