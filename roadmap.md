@@ -34,17 +34,17 @@ comercial.
 
 ## Próximas entregas
 
-- [ ] Consolidar diagnósticos/hipóteses, plano clínico e retorno no prontuário longitudinal.
+- [x] Consolidar diagnósticos/hipóteses, plano clínico e retorno no prontuário longitudinal.
 - [ ] Implementar prescrição de tratamento durante o atendimento, vinculada ao profissional,
-  paciente e versão imutável do encontro.
+      paciente e versão imutável do encontro.
 - [ ] Gerar orçamento a partir da prescrição, mostrando apresentação, dose, quantidade prevista,
-  materiais, perda técnica, custo, preço aprovado e total estimado.
+      materiais, perda técnica, custo, preço aprovado e total estimado.
 - [ ] Manter prescrição clínica e orçamento comercial como registros separados e auditáveis; o
-  orçamento não pode alterar automaticamente a conduta ou a prescrição.
+      orçamento não pode alterar automaticamente a conduta ou a prescrição.
 - [ ] Permitir converter orçamento aceito em tratamento/reserva sem duplicar paciente, produto ou
-  dose e sem baixar estoque antes da aplicação/consumo real.
+      dose e sem baixar estoque antes da aplicação/consumo real.
 - [ ] Revisar impressão/exportação, assinatura profissional e trilha de versões antes de liberar
-  receitas ou documentos clínicos definitivos.
+      receitas ou documentos clínicos definitivos.
 - [ ] Executar auditoria externa e E2E clínico completo antes da promoção para a versão estável.
 
 ## Critérios para prescrição com orçamento

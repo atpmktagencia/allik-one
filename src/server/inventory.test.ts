@@ -2119,6 +2119,10 @@ describe("care appointments", () => {
       appointmentId: body.id,
       evolution: "Paciente avaliado durante atendimento sintético.",
       conduct: "Manter acompanhamento operacional.",
+      diagnosticHypotheses: "Hipótese clínica sintética em avaliação.",
+      clinicalPlan: "Solicitar exames sintéticos e acompanhar evolução.",
+      returnRecommendation: "Retorno após os exames sintéticos.",
+      returnOn: "2026-11-12",
       chiefComplaint: "Avaliação clínica sintética.",
       currentHistory: "História atual registrada apenas para o teste integrado.",
       personalHistory: "Antecedente pessoal sintético.",
@@ -2150,7 +2154,10 @@ describe("care appointments", () => {
     expect((await clinicalPost({ ...draft, version: 3 })).status).toBe(409);
     const storedNote = await getPool().query(
       `SELECT status,author_name AS "authorName",professional_council AS council,
-        council_number AS "councilNumber",version FROM inventory_clinical_notes WHERE appointment_id=$1`,
+        council_number AS "councilNumber",version,
+        diagnostic_hypotheses AS "diagnosticHypotheses",clinical_plan AS "clinicalPlan",
+        return_on::text AS "returnOn"
+       FROM inventory_clinical_notes WHERE appointment_id=$1`,
       [body.id],
     );
     expect(storedNote.rows).toEqual([
@@ -2160,6 +2167,9 @@ describe("care appointments", () => {
         council: "CRM",
         councilNumber: "12345",
         version: 3,
+        diagnosticHypotheses: "Hipótese clínica sintética em avaliação.",
+        clinicalPlan: "Solicitar exames sintéticos e acompanhar evolução.",
+        returnOn: "2026-11-12",
       },
     ]);
     const longitudinal = await patientDetailResponse(
@@ -2172,6 +2182,10 @@ describe("care appointments", () => {
       expect.objectContaining({
         appointmentId: body.id,
         evolution: "Paciente avaliado durante atendimento sintético.",
+        diagnosticHypotheses: "Hipótese clínica sintética em avaliação.",
+        clinicalPlan: "Solicitar exames sintéticos e acompanhar evolução.",
+        returnRecommendation: "Retorno após os exames sintéticos.",
+        returnOn: "2026-11-12",
         chiefComplaint: "Avaliação clínica sintética.",
         currentHistory: "História atual registrada apenas para o teste integrado.",
         generalExam: "Estado geral sintético preservado.",

@@ -76,6 +76,10 @@ type Payload = {
     id: string;
     evolution: string;
     conduct: string;
+    diagnosticHypotheses: string;
+    clinicalPlan: string;
+    returnRecommendation: string;
+    returnOn: string | null;
     chiefComplaint: string;
     currentHistory: string;
     personalHistory: string;
@@ -247,6 +251,12 @@ export function CareEncounterPage({ appointmentId }: { appointmentId: string }) 
   const [error, setError] = useState("");
   const [evolution, setEvolution] = useState("");
   const [conduct, setConduct] = useState("");
+  const [clinicalClosure, setClinicalClosure] = useState({
+    diagnosticHypotheses: "",
+    clinicalPlan: "",
+    returnRecommendation: "",
+    returnOn: "",
+  });
   const [anamnesis, setAnamnesis] = useState({
     chiefComplaint: "",
     currentHistory: "",
@@ -282,6 +292,12 @@ export function CareEncounterPage({ appointmentId }: { appointmentId: string }) 
     setLoadedNoteId(loadedNote?.id ?? null);
     setEvolution(loadedNote?.evolution ?? "");
     setConduct(loadedNote?.conduct ?? "");
+    setClinicalClosure({
+      diagnosticHypotheses: loadedNote?.diagnosticHypotheses ?? "",
+      clinicalPlan: loadedNote?.clinicalPlan ?? "",
+      returnRecommendation: loadedNote?.returnRecommendation ?? "",
+      returnOn: loadedNote?.returnOn ?? "",
+    });
     setAnamnesis({
       chiefComplaint: loadedNote?.chiefComplaint ?? "",
       currentHistory: loadedNote?.currentHistory ?? "",
@@ -338,6 +354,8 @@ export function CareEncounterPage({ appointmentId }: { appointmentId: string }) 
           appointmentId,
           evolution,
           conduct,
+          ...clinicalClosure,
+          returnOn: clinicalClosure.returnOn || null,
           ...anamnesis,
           ...physicalExam,
           ...Object.fromEntries(
@@ -694,6 +712,76 @@ export function CareEncounterPage({ appointmentId }: { appointmentId: string }) 
             </AccordionContent>
           </AccordionItem>
         </Accordion>
+        <section className="space-y-4 rounded-lg border p-4">
+          <div>
+            <h3 className="font-semibold">Avaliação e plano clínico</h3>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Registre as hipóteses como avaliação do atendimento; elas não são convertidas
+              automaticamente em diagnóstico definitivo.
+            </p>
+          </div>
+          <label className="block space-y-2 text-sm font-medium">
+            Hipóteses ou diagnósticos do atendimento
+            <Textarea
+              value={clinicalClosure.diagnosticHypotheses}
+              onChange={(event) =>
+                setClinicalClosure((current) => ({
+                  ...current,
+                  diagnosticHypotheses: event.target.value,
+                }))
+              }
+              disabled={!data.canAuthorClinicalNote || data.clinicalNote?.status === "FINAL"}
+              rows={4}
+              maxLength={10000}
+              placeholder="Descreva hipóteses, diagnósticos avaliados e diferenciais relevantes."
+            />
+          </label>
+          <label className="block space-y-2 text-sm font-medium">
+            Plano clínico
+            <Textarea
+              value={clinicalClosure.clinicalPlan}
+              onChange={(event) =>
+                setClinicalClosure((current) => ({
+                  ...current,
+                  clinicalPlan: event.target.value,
+                }))
+              }
+              disabled={!data.canAuthorClinicalNote || data.clinicalNote?.status === "FINAL"}
+              rows={4}
+              maxLength={10000}
+              placeholder="Registre o plano de investigação, acompanhamento e orientações."
+            />
+          </label>
+          <div className="grid gap-4 md:grid-cols-[1fr_220px]">
+            <label className="block space-y-2 text-sm font-medium">
+              Recomendação para o retorno
+              <Textarea
+                value={clinicalClosure.returnRecommendation}
+                onChange={(event) =>
+                  setClinicalClosure((current) => ({
+                    ...current,
+                    returnRecommendation: event.target.value,
+                  }))
+                }
+                disabled={!data.canAuthorClinicalNote || data.clinicalNote?.status === "FINAL"}
+                rows={3}
+                maxLength={2000}
+                placeholder="Ex.: retornar após os exames ou em quatro semanas."
+              />
+            </label>
+            <label className="block space-y-2 text-sm font-medium">
+              Data sugerida
+              <Input
+                type="date"
+                value={clinicalClosure.returnOn}
+                onChange={(event) =>
+                  setClinicalClosure((current) => ({ ...current, returnOn: event.target.value }))
+                }
+                disabled={!data.canAuthorClinicalNote || data.clinicalNote?.status === "FINAL"}
+              />
+            </label>
+          </div>
+        </section>
         <label className="block space-y-2 text-sm font-medium">
           Conduta
           <Textarea

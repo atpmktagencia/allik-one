@@ -10,6 +10,10 @@ const clinicalInput = z.object({
   appointmentId: z.string().uuid(),
   evolution: z.string().trim().max(20000),
   conduct: z.string().trim().max(10000),
+  diagnosticHypotheses: z.string().trim().max(10000).default(""),
+  clinicalPlan: z.string().trim().max(10000).default(""),
+  returnRecommendation: z.string().trim().max(2000).default(""),
+  returnOn: z.string().date().nullable().default(null),
   chiefComplaint: z.string().trim().max(2000).default(""),
   currentHistory: z.string().trim().max(10000).default(""),
   personalHistory: z.string().trim().max(10000).default(""),
@@ -118,7 +122,9 @@ export async function careEncounterResponse(request: Request) {
       [patientId, auth.organizationId, unitId],
     ),
     pool.query(
-      `SELECT id,evolution,conduct,chief_complaint AS "chiefComplaint",
+      `SELECT id,evolution,conduct,diagnostic_hypotheses AS "diagnosticHypotheses",
+        clinical_plan AS "clinicalPlan",return_recommendation AS "returnRecommendation",
+        return_on::text AS "returnOn",chief_complaint AS "chiefComplaint",
         current_history AS "currentHistory",personal_history AS "personalHistory",
         family_history AS "familyHistory",habits,systems_review AS "systemsReview",
         general_exam AS "generalExam",cardiovascular_exam AS "cardiovascularExam",
@@ -290,6 +296,7 @@ async function saveClinicalNote(
              habits=$16,systems_review=$17,
              general_exam=$18,cardiovascular_exam=$19,respiratory_exam=$20,abdominal_exam=$21,
              neurological_exam=$22,musculoskeletal_exam=$23,skin_exam=$24,other_exam=$25,
+             diagnostic_hypotheses=$26,clinical_plan=$27,return_recommendation=$28,return_on=$29,
              finalized_at=CASE WHEN $4='FINAL' THEN now() ELSE NULL END,version=version+1,updated_at=now()
            WHERE id=$1 RETURNING *`,
           [
@@ -318,6 +325,10 @@ async function saveClinicalNote(
             parsed.musculoskeletalExam,
             parsed.skinExam,
             parsed.otherExam,
+            parsed.diagnosticHypotheses,
+            parsed.clinicalPlan,
+            parsed.returnRecommendation,
+            parsed.returnOn,
           ],
         )
       : await client.query(
@@ -327,10 +338,11 @@ async function saveClinicalNote(
              oxygen_saturation,temperature_c,weight_kg,height_cm,chief_complaint,current_history,
              personal_history,family_history,habits,systems_review,general_exam,cardiovascular_exam,
              respiratory_exam,abdominal_exam,neurological_exam,musculoskeletal_exam,skin_exam,
-             other_exam,finalized_at)
+             other_exam,diagnostic_hypotheses,clinical_plan,return_recommendation,return_on,
+             finalized_at)
            VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,
              $20,$21,$22,$23,$24,$25,
-             $26,$27,$28,$29,$30,$31,$32,$33,
+             $26,$27,$28,$29,$30,$31,$32,$33,$34,$35,$36,$37,
              CASE WHEN $12='FINAL' THEN now() ELSE NULL END)
            RETURNING *`,
           [
@@ -367,6 +379,10 @@ async function saveClinicalNote(
             parsed.musculoskeletalExam,
             parsed.skinExam,
             parsed.otherExam,
+            parsed.diagnosticHypotheses,
+            parsed.clinicalPlan,
+            parsed.returnRecommendation,
+            parsed.returnOn,
           ],
         );
     const note = noteResult.rows[0];
@@ -386,6 +402,7 @@ async function saveClinicalNote(
               vitals: clinicalVitals(current),
               anamnesis: clinicalAnamnesis(current),
               physicalExam: clinicalPhysicalExam(current),
+              closure: clinicalClosure(current),
             }
           : null,
         {
@@ -396,6 +413,7 @@ async function saveClinicalNote(
           vitals: clinicalVitals(note),
           anamnesis: clinicalAnamnesis(note),
           physicalExam: clinicalPhysicalExam(note),
+          closure: clinicalClosure(note),
         },
         auth.user.id,
       ],
@@ -581,5 +599,14 @@ function clinicalPhysicalExam(row: Record<string, unknown>) {
     musculoskeletalExam: row["musculoskeletal_exam"],
     skinExam: row["skin_exam"],
     otherExam: row["other_exam"],
+  };
+}
+
+function clinicalClosure(row: Record<string, unknown>) {
+  return {
+    diagnosticHypotheses: row["diagnostic_hypotheses"],
+    clinicalPlan: row["clinical_plan"],
+    returnRecommendation: row["return_recommendation"],
+    returnOn: row["return_on"],
   };
 }

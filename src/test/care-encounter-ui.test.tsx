@@ -94,6 +94,11 @@ describe("Care encounter UI", () => {
     );
     expect(screen.queryByRole("textbox", { name: "Motivo da consulta" })).not.toBeInTheDocument();
     expect(screen.getByRole("textbox", { name: "Conduta" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("textbox", { name: "Hipóteses ou diagnósticos do atendimento" }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("textbox", { name: "Plano clínico" })).toBeInTheDocument();
+    expect(screen.getByLabelText("Data sugerida")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Anamnese estruturada" }));
     fireEvent.click(screen.getByRole("button", { name: "Motivo da consulta" }));
     expect(screen.getByRole("textbox", { name: "Motivo da consulta" })).toBeInTheDocument();

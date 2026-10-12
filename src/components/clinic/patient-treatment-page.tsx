@@ -108,6 +108,10 @@ type Payload = {
     appointmentId: string;
     evolution: string;
     conduct: string;
+    diagnosticHypotheses: string;
+    clinicalPlan: string;
+    returnRecommendation: string;
+    returnOn: string | null;
     chiefComplaint: string;
     currentHistory: string;
     personalHistory: string;
@@ -950,6 +954,23 @@ export function PatientTreatmentPage({ patientId }: { patientId: string }) {
                     </p>
                   </div>
                 </div>
+                {(note.diagnosticHypotheses ||
+                  note.clinicalPlan ||
+                  note.returnRecommendation ||
+                  note.returnOn) && (
+                  <div className="mt-4 grid gap-4 rounded-lg bg-muted p-4 md:grid-cols-2">
+                    <ClinicalText
+                      label="Hipóteses ou diagnósticos"
+                      value={note.diagnosticHypotheses}
+                    />
+                    <ClinicalText label="Plano clínico" value={note.clinicalPlan} />
+                    <ClinicalText label="Retorno recomendado" value={note.returnRecommendation} />
+                    <ClinicalText
+                      label="Data sugerida para retorno"
+                      value={note.returnOn ? note.returnOn.split("-").reverse().join("/") : ""}
+                    />
+                  </div>
+                )}
                 <ClinicalAnamnesis note={note} />
                 <ClinicalPhysicalExam note={note} />
                 <VitalsSummary note={note} />
@@ -1609,6 +1630,15 @@ export function PatientTreatmentPage({ patientId }: { patientId: string }) {
           </p>
         )}
       </section>
+    </div>
+  );
+}
+
+function ClinicalText({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <p className="text-xs font-medium text-muted-foreground">{label}</p>
+      <p className="mt-1 whitespace-pre-wrap text-sm">{value || "Não informado."}</p>
     </div>
   );
 }
