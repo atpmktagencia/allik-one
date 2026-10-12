@@ -9,6 +9,7 @@ import {
 import { getPool } from "./db";
 
 const cookieName = "allik_inventory_session";
+const previewOptOutCookieName = "allik_inventory_preview_opt_out";
 const previewLifetimeSeconds = 60 * 60 * 8;
 const pilotLifetimeSeconds = 60 * 60 * 12;
 function derivePassword(
@@ -154,17 +155,20 @@ function equal(a: string, b: string) {
     createHash("sha256").update(b).digest(),
   );
 }
-function cookie(request: Request) {
+function namedCookie(request: Request, name: string) {
   return request.headers
     .get("cookie")
     ?.split(";")
     .map((value) => value.trim())
-    .find((value) => value.startsWith(`${cookieName}=`))
-    ?.slice(cookieName.length + 1);
+    .find((value) => value.startsWith(`${name}=`))
+    ?.slice(name.length + 1);
 }
-function secureCookie(request: Request, value: string, maxAge: number) {
+function cookie(request: Request) {
+  return namedCookie(request, cookieName);
+}
+function secureCookie(request: Request, value: string, maxAge: number, name = cookieName) {
   const secure = new URL(request.url).protocol === "https:" ? "; Secure" : "";
-  return `${cookieName}=${value}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${maxAge}${secure}`;
+  return `${name}=${value}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${maxAge}${secure}`;
 }
 export function hashToken(token: string) {
   return createHash("sha256").update(token).digest("hex");
@@ -336,7 +340,8 @@ export async function authenticate(request: Request): Promise<AuthContext | null
       };
     }
   }
-  if (isPreviewLoginDisabled() || hasPreviewSession(request))
+  const previewAutoLoginAllowed = namedCookie(request, previewOptOutCookieName) !== "1";
+  if ((isPreviewLoginDisabled() && previewAutoLoginAllowed) || hasPreviewSession(request))
     return {
       user: { id: null, name: "Operador do Preview", email: null },
       membershipId: null,
@@ -420,15 +425,10 @@ export async function pilotLogin(request: Request) {
     `WITH created AS (INSERT INTO inventory_sessions(user_id,token_hash,session_version,expires_at) VALUES($1,$2,$3,now()+make_interval(secs=>$4)) RETURNING user_id) INSERT INTO inventory_auth_events(user_id,event) SELECT user_id,'LOGIN_SUCCESS' FROM created`,
     [row.id, hashToken(token), row.session_version, pilotLifetimeSeconds],
   );
-  return Response.json(
-    { ok: true },
-    {
-      headers: {
-        "Cache-Control": "no-store",
-        "Set-Cookie": secureCookie(request, token, pilotLifetimeSeconds),
-      },
-    },
-  );
+  const headers = new Headers({ "Cache-Control": "no-store" });
+  headers.append("Set-Cookie", secureCookie(request, token, pilotLifetimeSeconds));
+  headers.append("Set-Cookie", secureCookie(request, "", 0, previewOptOutCookieName));
+  return Response.json({ ok: true }, { headers });
 }
 
 export async function logout(request: Request) {
@@ -440,10 +440,13 @@ export async function logout(request: Request) {
       `WITH revoked AS (UPDATE inventory_sessions SET revoked_at=COALESCE(revoked_at,now()) WHERE token_hash=$1 RETURNING user_id) INSERT INTO inventory_auth_events(user_id,event) SELECT user_id,'LOGOUT' FROM revoked`,
       [hashToken(rawToken)],
     );
-  return Response.json(
-    { ok: true },
-    { headers: { "Cache-Control": "no-store", "Set-Cookie": secureCookie(request, "", 0) } },
+  const headers = new Headers({ "Cache-Control": "no-store" });
+  headers.append("Set-Cookie", secureCookie(request, "", 0));
+  headers.append(
+    "Set-Cookie",
+    secureCookie(request, "1", previewLifetimeSeconds, previewOptOutCookieName),
   );
+  return Response.json({ ok: true }, { headers });
 }
 
 export async function sessionResponse(request: Request) {

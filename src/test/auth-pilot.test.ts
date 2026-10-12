@@ -85,6 +85,21 @@ describe("pilot authentication and authorization", () => {
     });
     vi.unstubAllEnvs();
   });
+  it("does not restore the automatic Preview operator after explicit logout", async () => {
+    vi.stubEnv("INVENTORY_DISABLE_PREVIEW_LOGIN", "true");
+    vi.stubEnv("INVENTORY_PREVIEW_DATA_CLASSIFICATION", "synthetic");
+    vi.stubEnv("INVENTORY_ENVIRONMENT", "preview");
+    vi.stubEnv("VERCEL_ENV", "preview");
+
+    const authenticated = await authenticate(
+      new Request("https://preview.example.test/api", {
+        headers: { cookie: "allik_inventory_preview_opt_out=1" },
+      }),
+    );
+
+    expect(authenticated).toBeNull();
+    vi.unstubAllEnvs();
+  });
   it("keeps application login enabled when Preview data is not explicitly synthetic", () => {
     vi.stubEnv("INVENTORY_DISABLE_PREVIEW_LOGIN", "true");
     vi.stubEnv("INVENTORY_ENVIRONMENT", "preview");
