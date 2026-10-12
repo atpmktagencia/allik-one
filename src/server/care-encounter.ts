@@ -175,15 +175,21 @@ export async function careEncounterResponse(request: Request) {
         clinicalAlerts: clinicalAlerts.rows,
         canAuthorClinicalNote,
         canClaimClinicalNote,
+        needsProfessionalRegistration:
+          Boolean(auth.user.id) && isAssignedProfessional && !hasCompleteCouncil,
         clinicalAuthorBlockReason: canAuthorClinicalNote
           ? null
           : !hasClinicalPermission
             ? "Seu perfil não possui permissão clínica nesta unidade."
-            : !isAssignedProfessional
-              ? `Este atendimento está atribuído a ${String(appointment["professionalName"])}.`
-              : !hasCompleteCouncil
-                ? "Complete seu conselho profissional antes de registrar a evolução."
-                : "Este atendimento não permite uma nova evolução.",
+            : clinicalNote.rows[0]?.status === "FINAL"
+              ? "Esta evolução já foi finalizada e é imutável."
+              : ["NO_SHOW", "CANCELED"].includes(String(appointment["status"]))
+                ? "Atendimentos cancelados ou com falta não aceitam evolução clínica."
+                : !isAssignedProfessional
+                  ? `Este atendimento está atribuído a ${String(appointment["professionalName"])}.`
+                  : !hasCompleteCouncil
+                    ? "Complete seu conselho profissional antes de registrar a evolução."
+                    : "Este atendimento não permite uma nova evolução.",
       },
     },
     { headers },

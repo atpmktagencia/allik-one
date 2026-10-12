@@ -64,6 +64,7 @@ type Payload = {
   canManage: boolean;
   canAuthorClinicalNote: boolean;
   canClaimClinicalNote: boolean;
+  needsProfessionalRegistration: boolean;
   clinicalAuthorBlockReason: string | null;
   clinicalNote: null | {
     id: string;
@@ -696,7 +697,7 @@ export function CareEncounterPage({ appointmentId }: { appointmentId: string }) 
               : ` · salva em ${dateTime(data.clinicalNote.updatedAt)}`}
           </p>
         ) : null}
-        {!data.canAuthorClinicalNote && !data.clinicalNote ? (
+        {!data.canAuthorClinicalNote ? (
           <div className="space-y-3 rounded-lg bg-muted p-3 text-sm text-muted-foreground">
             <p>{data.clinicalAuthorBlockReason}</p>
             {data.canClaimClinicalNote ? (
@@ -707,6 +708,11 @@ export function CareEncounterPage({ appointmentId }: { appointmentId: string }) 
                 onClick={claimClinicalNote}
               >
                 Assumir atendimento com meu perfil
+              </Button>
+            ) : null}
+            {data.needsProfessionalRegistration ? (
+              <Button asChild type="button" variant="outline">
+                <Link to="/estoque/usuarios">Completar meu registro profissional</Link>
               </Button>
             ) : null}
           </div>

@@ -63,6 +63,7 @@ describe("Care encounter UI", () => {
             canManage: true,
             canAuthorClinicalNote: true,
             canClaimClinicalNote: false,
+            needsProfessionalRegistration: false,
             clinicalAuthorBlockReason: null,
             clinicalNote: null,
             clinicalAlerts: [],
@@ -101,5 +102,76 @@ describe("Care encounter UI", () => {
         }),
       ),
     );
+  });
+
+  it("shows reassignment when another professional owns an existing draft", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        Response.json({
+          data: {
+            appointment: {
+              id: "44444444-4444-4444-8444-444444444444",
+              unitId: "11111111-1111-4111-8111-111111111111",
+              unitName: "Fortaleza",
+              patientId: "22222222-2222-4222-8222-222222222222",
+              patientName: "Paciente com Rascunho",
+              patientCode: "PAC-000002",
+              professionalUserId: "33333333-3333-4333-8333-333333333333",
+              professionalName: "Outro Profissional",
+              professionalCouncil: "CRM",
+              councilNumber: "12345",
+              councilRegion: "CE",
+              careType: "CONSULTATION",
+              careTypeName: "Consulta",
+              otherCareType: null,
+              startsAt: "2026-10-12T00:00:00.000Z",
+              endsAt: "2026-10-12T01:00:00.000Z",
+              room: "Consultório 1",
+              chair: null,
+              resourceName: null,
+              notes: "",
+              status: "COMPLETED",
+              version: 1,
+            },
+            changes: [],
+            treatments: [],
+            schedule: [],
+            canManage: true,
+            canAuthorClinicalNote: false,
+            canClaimClinicalNote: true,
+            needsProfessionalRegistration: false,
+            clinicalAuthorBlockReason: "Este atendimento está atribuído a Outro Profissional.",
+            clinicalNote: {
+              id: "55555555-5555-4555-8555-555555555555",
+              status: "DRAFT",
+              version: 0,
+              evolution: "Rascunho preservado.",
+              conduct: "",
+              authorName: "Outro Profissional",
+              professionalCouncil: "CRM",
+              councilNumber: "12345",
+              councilRegion: "CE",
+              finalizedAt: null,
+              updatedAt: "2026-10-12T00:30:00.000Z",
+            },
+            clinicalAlerts: [],
+          },
+        }),
+      ),
+    );
+    render(
+      <QueryClientProvider
+        client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
+      >
+        <CareEncounterPage appointmentId="44444444-4444-4444-8444-444444444444" />
+      </QueryClientProvider>,
+    );
+    expect(
+      await screen.findByText("Este atendimento está atribuído a Outro Profissional."),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Assumir atendimento com meu perfil" }),
+    ).toBeInTheDocument();
   });
 });
