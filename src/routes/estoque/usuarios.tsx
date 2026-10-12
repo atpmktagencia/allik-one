@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState, type FormEvent } from "react";
-import { Pencil } from "lucide-react";
+import { KeyRound, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
@@ -120,6 +120,33 @@ export function UserAdministration() {
       }
       resetForm();
       await load();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Falha de conexão.");
+    } finally {
+      setPending(false);
+    }
+  }
+  async function resetPassword(user: User) {
+    setPending(true);
+    setError("");
+    setMessage("");
+    try {
+      const response = await fetch("/api/v1/inventory/users", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "REINVITE", userId: user.id }),
+      });
+      const body = (await response.json()) as {
+        error?: string;
+        data?: { activationPath?: string };
+      };
+      if (!response.ok || !body.data?.activationPath)
+        throw new Error(body.error ?? "Não foi possível gerar o link de redefinição.");
+      const link = `${window.location.origin}${body.data.activationPath}`;
+      await navigator.clipboard.writeText(link);
+      setMessage(
+        `Link de redefinição para ${user.name} copiado. Ele é de uso único e expira em 72 horas.`,
+      );
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Falha de conexão.");
     } finally {
@@ -292,9 +319,26 @@ export function UserAdministration() {
                 <td className="p-3">{user.units.map((unit) => unit.name).join(", ") || "—"}</td>
                 <td className="p-3">{user.active ? "Ativo" : "Inativo"}</td>
                 <td className="p-3">
-                  <Button size="sm" variant="outline" onClick={() => startEdit(user)}>
-                    <Pencil className="mr-1.5 size-3.5" /> Editar
-                  </Button>
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={pending}
+                      onClick={() => startEdit(user)}
+                    >
+                      <Pencil className="mr-1.5 size-3.5" /> Editar
+                    </Button>
+                    {user.active ? (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        disabled={pending}
+                        onClick={() => resetPassword(user)}
+                      >
+                        <KeyRound className="mr-1.5 size-3.5" /> Redefinir senha
+                      </Button>
+                    ) : null}
+                  </div>
                 </td>
               </tr>
             ))}

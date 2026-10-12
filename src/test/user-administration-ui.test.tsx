@@ -138,4 +138,46 @@ describe("User administration UI", () => {
       ),
     );
   });
+
+  it("copies a one-time password reset link for an active user", async () => {
+    const userId = "33333333-3333-4333-8333-333333333333";
+    let submittedBody: Record<string, unknown> | undefined;
+    const writeText = vi.fn(async () => undefined);
+    Object.defineProperty(navigator, "clipboard", {
+      configurable: true,
+      value: { writeText },
+    });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
+        if (init?.method === "POST") {
+          submittedBody = JSON.parse(String(init.body)) as Record<string, unknown>;
+          return Response.json({
+            data: { activationPath: "/estoque/ativar?token=reset-token" },
+          });
+        }
+        if (String(input).endsWith("/api/inventory-session"))
+          return Response.json({ data: { units: [] } });
+        return Response.json({
+          data: [
+            {
+              id: userId,
+              name: "Profissional Ativo",
+              email: "ativo@allik.test",
+              role: "PARTNER_ADMIN",
+              active: true,
+              units: [],
+            },
+          ],
+        });
+      }),
+    );
+    render(<UserAdministration />);
+    fireEvent.click(await screen.findByRole("button", { name: "Redefinir senha" }));
+    await waitFor(() => expect(submittedBody).toEqual({ action: "REINVITE", userId }));
+    expect(writeText).toHaveBeenCalledWith(
+      `${window.location.origin}/estoque/ativar?token=reset-token`,
+    );
+    expect(await screen.findByRole("status")).toHaveTextContent("expira em 72 horas");
+  });
 });
