@@ -10,6 +10,8 @@ import {
 } from "@/server/auth";
 
 vi.mock("@tanstack/react-start/server-only", () => ({}));
+const query = vi.hoisted(() => vi.fn());
+vi.mock("@/server/db", () => ({ getPool: () => ({ query }) }));
 const context = (role: AuthContext["role"], unitIds = ["unit-fortaleza"]): AuthContext => ({
   user: { id: "user-1", name: "Pessoa", email: "pessoa@example.test" },
   membershipId: "membership-1",
@@ -47,6 +49,39 @@ describe("pilot authentication and authorization", () => {
       user: { name: "Operador do Preview" },
       role: "SUPER_ADMIN",
       preview: true,
+    });
+    vi.unstubAllEnvs();
+  });
+  it("prefers an individual session over the automatic Preview operator", async () => {
+    vi.stubEnv("INVENTORY_DISABLE_PREVIEW_LOGIN", "true");
+    vi.stubEnv("INVENTORY_PREVIEW_DATA_CLASSIFICATION", "synthetic");
+    vi.stubEnv("INVENTORY_ENVIRONMENT", "preview");
+    vi.stubEnv("VERCEL_ENV", "preview");
+    query.mockResolvedValueOnce({
+      rowCount: 1,
+      rows: [
+        {
+          id: "user-marcos",
+          name: "Marcos",
+          email: "marcos@example.test",
+          membership_id: "membership-marcos",
+          organization_id: "organization-allik",
+          role: "PARTNER_ADMIN",
+          unit_ids: ["unit-fortaleza", "unit-juazeiro"],
+        },
+      ],
+    });
+
+    const authenticated = await authenticate(
+      new Request("https://preview.example.test/api", {
+        headers: { cookie: "allik_inventory_session=individual-session-token" },
+      }),
+    );
+
+    expect(authenticated).toMatchObject({
+      user: { id: "user-marcos", name: "Marcos" },
+      role: "PARTNER_ADMIN",
+      preview: false,
     });
     vi.unstubAllEnvs();
   });

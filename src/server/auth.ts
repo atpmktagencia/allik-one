@@ -302,6 +302,40 @@ export async function authenticate(request: Request): Promise<AuthContext | null
       integration: { id: row.id, name: row.name, permissions: row.permissions },
     };
   }
+  const rawToken = cookie(request);
+  if (rawToken && !rawToken.includes(".")) {
+    const result = await getPool().query(
+      `SELECT u.id,u.name,u.email,m.id AS membership_id,m.organization_id,m.role,
+        COALESCE(array_agg(ua.unit_id::text) FILTER (WHERE ua.unit_id IS NOT NULL),'{}') AS unit_ids
+       FROM inventory_sessions s JOIN inventory_users u ON u.id=s.user_id
+       JOIN inventory_memberships m ON m.user_id=u.id AND m.active
+       LEFT JOIN inventory_unit_access ua ON ua.membership_id=m.id
+       WHERE s.token_hash=$1 AND s.revoked_at IS NULL AND s.expires_at>now()
+         AND s.session_version=u.session_version AND u.active
+       GROUP BY u.id,u.name,u.email,m.id,m.organization_id,m.role,s.id`,
+      [hashToken(rawToken)],
+    );
+    if (result.rowCount) {
+      const row = result.rows[0] as {
+        id: string;
+        name: string;
+        email: string;
+        membership_id: string;
+        organization_id: string;
+        role: Role;
+        unit_ids: string[];
+      };
+      return {
+        user: { id: row.id, name: row.name, email: row.email },
+        membershipId: row.membership_id,
+        organizationId: row.organization_id,
+        role: row.role,
+        unitIds: row.unit_ids,
+        preview: false,
+        integration: null,
+      };
+    }
+  }
   if (isPreviewLoginDisabled() || hasPreviewSession(request))
     return {
       user: { id: null, name: "Operador do Preview", email: null },
@@ -312,38 +346,7 @@ export async function authenticate(request: Request): Promise<AuthContext | null
       preview: true,
       integration: null,
     };
-  const rawToken = cookie(request);
-  if (!rawToken || rawToken.includes(".")) return null;
-  const result = await getPool().query(
-    `SELECT u.id,u.name,u.email,m.id AS membership_id,m.organization_id,m.role,
-      COALESCE(array_agg(ua.unit_id::text) FILTER (WHERE ua.unit_id IS NOT NULL),'{}') AS unit_ids
-     FROM inventory_sessions s JOIN inventory_users u ON u.id=s.user_id
-     JOIN inventory_memberships m ON m.user_id=u.id AND m.active
-     LEFT JOIN inventory_unit_access ua ON ua.membership_id=m.id
-     WHERE s.token_hash=$1 AND s.revoked_at IS NULL AND s.expires_at>now()
-       AND s.session_version=u.session_version AND u.active
-     GROUP BY u.id,u.name,u.email,m.id,m.organization_id,m.role,s.id`,
-    [hashToken(rawToken)],
-  );
-  if (!result.rowCount) return null;
-  const row = result.rows[0] as {
-    id: string;
-    name: string;
-    email: string;
-    membership_id: string;
-    organization_id: string;
-    role: Role;
-    unit_ids: string[];
-  };
-  return {
-    user: { id: row.id, name: row.name, email: row.email },
-    membershipId: row.membership_id,
-    organizationId: row.organization_id,
-    role: row.role,
-    unitIds: row.unit_ids,
-    preview: false,
-    integration: null,
-  };
+  return null;
 }
 
 export function can(context: AuthContext, permission: Permission, unitId?: string | null) {
