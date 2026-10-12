@@ -1614,6 +1614,9 @@ export function PatientTreatmentPage({ patientId }: { patientId: string }) {
 }
 
 function VitalsSummary({ note }: { note: Payload["clinicalHistory"][number] }) {
+  const weight = Number(note.weightKg);
+  const heightMeters = Number(note.heightCm) / 100;
+  const bmi = weight > 0 && heightMeters > 0 ? weight / heightMeters ** 2 : null;
   const values = [
     note.systolicPressure && note.diastolicPressure
       ? `PA ${note.systolicPressure}/${note.diastolicPressure} mmHg`
@@ -1623,6 +1626,7 @@ function VitalsSummary({ note }: { note: Payload["clinicalHistory"][number] }) {
     note.temperatureC ? `Temperatura ${note.temperatureC} °C` : null,
     note.weightKg ? `Peso ${note.weightKg} kg` : null,
     note.heightCm ? `Altura ${note.heightCm} cm` : null,
+    bmi && Number.isFinite(bmi) ? `IMC ${bmi.toFixed(1)}` : null,
   ].filter(Boolean);
   return values.length ? (
     <div className="mt-4 flex flex-wrap gap-2">

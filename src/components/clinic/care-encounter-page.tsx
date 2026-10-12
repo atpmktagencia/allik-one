@@ -127,6 +127,102 @@ const scheduleLabels: Record<string, string> = {
   CONSUMED: "Consumida",
   CANCELED: "Cancelada",
 };
+const anamnesisTemplates = {
+  sevenPillars: {
+    label: "Anamnese 7 pilares (Tarso)",
+    content: `ANAMNESE 7 PILARES (TARSO)
+
+1. SONO
+- Hora de início do sono:
+- Quantidade de horas:
+- Sono contínuo ou com interrupções:
+- Nível de disposição ao acordar:
+
+2. CONTROLE DO ESTRESSE / ANSIEDADE
+- Nível de ansiedade:
+- Insônia:
+- Uso atual ou anterior de medicamentos alopáticos ou fitoterápicos para ansiedade:
+- Psicoterapia atual ou anterior:
+- Já recebeu de alguém a observação de que possui ansiedade:
+
+3. ATIVIDADE FÍSICA
+- Horário:
+- Frequência:
+- Intensidade e uso de frequencímetro/smartwatch:
+- Objetivo:
+- Nível de energia no treino:
+- Nível de força:
+- Nível de resistência:
+
+4. ALIMENTAÇÃO
+- Recordatório de 24 horas:
+- Alimentos pró-inflamatórios:
+- FODMAP:
+- Intolerâncias e alergias:
+
+5. INTESTINO
+- Epigastralgia:
+- Gases:
+- Empachamento:
+- Obstipação:
+- Diarreia:
+- Dor em cólica:
+- Frequência de dejeções:
+- Escala de Bristol:
+
+6. MITOCÔNDRIA
+- Fadiga:
+- Intolerância ao exercício:
+- Dores musculares difusas não relacionadas a trauma:
+- Redução de performance física:
+- Redução de performance cognitiva:
+
+7. HOMEOSTASE HORMONAL
+- Disposição ao acordar:
+- Acorda cansado:
+- Irritabilidade:
+- Déficit de memória:
+- Oscilação do humor:
+- Intolerância a ruído:
+- Tristeza sem causa aparente:
+- Poder de tomada de decisão:`,
+  },
+  healthyLongevity: {
+    label: "Anamnese Longevidade Saudável",
+    content: `ANAMNESE LONGEVIDADE SAUDÁVEL
+
+1. Queixa principal:
+2. Sono/despertar — dificuldade para iniciar ou manter o sono, sonhos e como acorda:
+3. Energia — fadiga ao acordar, horários de fadiga e picos de energia:
+4. Intestino:
+5. Memória:
+6. Peso/composição corporal:
+7. Desempenho sexual:
+8. Atividade física:
+9. Compulsão por doces:
+10. Antecedentes pessoais:
+11. Antecedentes familiares — IAM, AVC, câncer e Alzheimer:
+12. Fármacos em uso:
+13. Nota para a saúde atual, de 1 a 10:
+14. Exames:
+15. Programa proposto:`,
+  },
+  pedroNeuro: {
+    label: "Anamnese Pedro Neuro",
+    content: `ANAMNESE PEDRO NEURO
+
+ATO 1 — PROBLEMAS: QUEIXA PRINCIPAL, EXPECTATIVA, QUESTIONÁRIOS E CONEXÃO
+1. Identificar a queixa principal, as expectativas e o perfil do paciente:
+2. História sucinta do paciente:
+
+ATO 2 — MAP
+3. Organização dos sintomas por mecanismos:
+4. Registro das três fases da consulta — problemas, soluções e prática:
+
+ATO 3 — ORIENTAÇÕES, RECEITAS E REQUISIÇÕES
+5. Parceria terapêutica e orientações estabelecidas:`,
+  },
+} as const;
 const dateTime = (value: string) =>
   new Intl.DateTimeFormat("pt-BR", {
     dateStyle: "medium",
@@ -169,6 +265,7 @@ export function CareEncounterPage({ appointmentId }: { appointmentId: string }) 
     heightCm: "",
   });
   const [loadedNoteId, setLoadedNoteId] = useState<string | null | undefined>(undefined);
+  const [selectedTemplate, setSelectedTemplate] = useState("");
   const loadedNote = query.data?.clinicalNote;
   useEffect(() => {
     if (!query.data || loadedNoteId === (loadedNote?.id ?? null)) return;
@@ -251,6 +348,17 @@ export function CareEncounterPage({ appointmentId }: { appointmentId: string }) 
     } finally {
       setPending(false);
     }
+  }
+
+  function applyAnamnesisTemplate() {
+    const template = anamnesisTemplates[selectedTemplate as keyof typeof anamnesisTemplates];
+    if (!template) return;
+    if (
+      evolution.trim() &&
+      !window.confirm("Substituir o texto atual da evolução pelo roteiro selecionado?")
+    )
+      return;
+    setEvolution(template.content);
   }
 
   async function updateStatus(status: string) {
@@ -374,6 +482,46 @@ export function CareEncounterPage({ appointmentId }: { appointmentId: string }) 
                 : "Não iniciada"}
           </Badge>
         </div>
+        <VitalsSection
+          vitals={vitals}
+          setVitals={setVitals}
+          disabled={!data.canAuthorClinicalNote || data.clinicalNote?.status === "FINAL"}
+        />
+        <div className="space-y-2">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
+            <label className="flex-1 space-y-1 text-sm font-medium">
+              Pré-preencher evolução com roteiro
+              <select
+                className="h-10 w-full rounded-md border bg-background px-3 font-normal"
+                value={selectedTemplate}
+                disabled={!data.canAuthorClinicalNote || data.clinicalNote?.status === "FINAL"}
+                onChange={(event) => setSelectedTemplate(event.target.value)}
+              >
+                <option value="">Selecione um roteiro opcional</option>
+                {Object.entries(anamnesisTemplates).map(([key, template]) => (
+                  <option key={key} value={key}>
+                    {template.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={
+                !selectedTemplate ||
+                !data.canAuthorClinicalNote ||
+                data.clinicalNote?.status === "FINAL"
+              }
+              onClick={applyAnamnesisTemplate}
+            >
+              Aplicar roteiro
+            </Button>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            O roteiro é inserido na evolução como texto editável e não substitui avaliação clínica.
+          </p>
+        </div>
         <label className="block space-y-2 text-sm font-medium">
           Evolução
           <Textarea
@@ -435,81 +583,6 @@ export function CareEncounterPage({ appointmentId }: { appointmentId: string }) 
               value={anamnesis.systemsReview}
               maxLength={10000}
               setAnamnesis={setAnamnesis}
-            />
-          </fieldset>
-        </div>
-        <div>
-          <p className="mb-2 text-sm font-medium">Sinais vitais</p>
-          <fieldset
-            disabled={!data.canAuthorClinicalNote || data.clinicalNote?.status === "FINAL"}
-            className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4"
-          >
-            <VitalInput
-              label="Pressão sistólica"
-              suffix="mmHg"
-              field="systolicPressure"
-              value={vitals.systolicPressure}
-              setVitals={setVitals}
-              min={40}
-              max={300}
-            />
-            <VitalInput
-              label="Pressão diastólica"
-              suffix="mmHg"
-              field="diastolicPressure"
-              value={vitals.diastolicPressure}
-              setVitals={setVitals}
-              min={20}
-              max={200}
-            />
-            <VitalInput
-              label="Frequência cardíaca"
-              suffix="bpm"
-              field="heartRate"
-              value={vitals.heartRate}
-              setVitals={setVitals}
-              min={20}
-              max={300}
-            />
-            <VitalInput
-              label="Saturação"
-              suffix="%"
-              field="oxygenSaturation"
-              value={vitals.oxygenSaturation}
-              setVitals={setVitals}
-              min={50}
-              max={100}
-              step="0.1"
-            />
-            <VitalInput
-              label="Temperatura"
-              suffix="°C"
-              field="temperatureC"
-              value={vitals.temperatureC}
-              setVitals={setVitals}
-              min={30}
-              max={45}
-              step="0.1"
-            />
-            <VitalInput
-              label="Peso"
-              suffix="kg"
-              field="weightKg"
-              value={vitals.weightKg}
-              setVitals={setVitals}
-              min={0.01}
-              max={500}
-              step="0.01"
-            />
-            <VitalInput
-              label="Altura"
-              suffix="cm"
-              field="heightCm"
-              value={vitals.heightCm}
-              setVitals={setVitals}
-              min={30}
-              max={250}
-              step="0.1"
             />
           </fieldset>
         </div>
@@ -806,6 +879,99 @@ function AnamnesisField({
         }
       />
     </label>
+  );
+}
+
+function VitalsSection({
+  vitals,
+  setVitals,
+  disabled,
+}: {
+  vitals: Vitals;
+  setVitals: React.Dispatch<React.SetStateAction<Vitals>>;
+  disabled: boolean;
+}) {
+  const weight = Number(vitals.weightKg);
+  const heightMeters = Number(vitals.heightCm) / 100;
+  const bmi = weight > 0 && heightMeters > 0 ? weight / heightMeters ** 2 : null;
+  return (
+    <div className="rounded-lg border p-4">
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+        <h3 className="font-medium">Sinais vitais</h3>
+        <Badge variant="outline">
+          IMC: {bmi && Number.isFinite(bmi) ? bmi.toFixed(1) : "aguardando peso e altura"}
+        </Badge>
+      </div>
+      <fieldset disabled={disabled} className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <VitalInput
+          label="Pressão sistólica"
+          suffix="mmHg"
+          field="systolicPressure"
+          value={vitals.systolicPressure}
+          setVitals={setVitals}
+          min={40}
+          max={300}
+        />
+        <VitalInput
+          label="Pressão diastólica"
+          suffix="mmHg"
+          field="diastolicPressure"
+          value={vitals.diastolicPressure}
+          setVitals={setVitals}
+          min={20}
+          max={200}
+        />
+        <VitalInput
+          label="Frequência cardíaca"
+          suffix="bpm"
+          field="heartRate"
+          value={vitals.heartRate}
+          setVitals={setVitals}
+          min={20}
+          max={300}
+        />
+        <VitalInput
+          label="Saturação"
+          suffix="%"
+          field="oxygenSaturation"
+          value={vitals.oxygenSaturation}
+          setVitals={setVitals}
+          min={50}
+          max={100}
+          step="0.1"
+        />
+        <VitalInput
+          label="Temperatura"
+          suffix="°C"
+          field="temperatureC"
+          value={vitals.temperatureC}
+          setVitals={setVitals}
+          min={30}
+          max={45}
+          step="0.1"
+        />
+        <VitalInput
+          label="Peso"
+          suffix="kg"
+          field="weightKg"
+          value={vitals.weightKg}
+          setVitals={setVitals}
+          min={0.01}
+          max={500}
+          step="0.01"
+        />
+        <VitalInput
+          label="Altura"
+          suffix="cm"
+          field="heightCm"
+          value={vitals.heightCm}
+          setVitals={setVitals}
+          min={30}
+          max={250}
+          step="0.1"
+        />
+      </fieldset>
+    </div>
   );
 }
 

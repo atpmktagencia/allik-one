@@ -61,6 +61,9 @@ describe("Care encounter UI", () => {
             treatments: [],
             schedule: [],
             canManage: true,
+            canAuthorClinicalNote: true,
+            clinicalNote: null,
+            clinicalAlerts: [],
           },
         });
       }),
@@ -76,6 +79,16 @@ describe("Care encounter UI", () => {
       await screen.findByRole("heading", { name: "Paciente Operacional" }),
     ).toBeInTheDocument();
     expect(screen.getByText("CRM 12345/CE")).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText(/Peso/), { target: { value: "70" } });
+    fireEvent.change(screen.getByLabelText(/Altura/), { target: { value: "175" } });
+    expect(screen.getByText("IMC: 22.9")).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText("Pré-preencher evolução com roteiro"), {
+      target: { value: "healthyLongevity" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Aplicar roteiro" }));
+    expect((screen.getByLabelText("Evolução") as HTMLTextAreaElement).value).toContain(
+      "ANAMNESE LONGEVIDADE SAUDÁVEL",
+    );
     fireEvent.click(screen.getByRole("button", { name: "Concluir atendimento" }));
     await waitFor(() =>
       expect(writes).toContainEqual(
