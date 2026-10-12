@@ -32,6 +32,7 @@ import { patientScheduleResponse } from "./patient-schedule";
 import { patientPurchaseNeedsResponse } from "./patient-purchase-needs";
 import { careAppointmentsResponse } from "./care-appointments";
 import { careSettingsResponse } from "./care-settings";
+import { careEncounterResponse } from "./care-encounter";
 vi.mock("@vercel/blob", () => ({
   put: vi.fn(async (pathname: string) => ({ pathname })),
   del: vi.fn(async () => undefined),
@@ -2038,6 +2039,33 @@ describe("care appointments", () => {
         internalCode: `AGENDA-${patientId.slice(0, 8)}`,
       },
     ]);
+    const encounter = await careEncounterResponse(
+      new Request(`${origin}/api/v1/inventory/care-encounter?appointmentId=${body.id}`, {
+        headers: { cookie },
+      }),
+    );
+    expect(encounter.status).toBe(200);
+    expect((await encounter.json()).data).toEqual(
+      expect.objectContaining({
+        appointment: expect.objectContaining({
+          id: body.id,
+          patientId,
+          patientName: "Paciente Agenda Sintético",
+          unitId,
+        }),
+        canManage: true,
+      }),
+    );
+    const juazeiroManager = await scopedCookie(juazeiro, "UNIT_MANAGER");
+    expect(
+      (
+        await careEncounterResponse(
+          new Request(`${origin}/api/v1/inventory/care-encounter?appointmentId=${body.id}`, {
+            headers: { cookie: juazeiroManager },
+          }),
+        )
+      ).status,
+    ).toBe(404);
     const audit = await getPool().query(
       "SELECT action,actor FROM inventory_care_appointment_changes WHERE appointment_id=$1",
       [body.id],

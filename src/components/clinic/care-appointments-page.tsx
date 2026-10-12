@@ -370,6 +370,11 @@ export function CareAppointmentsPage({ preselectedPatientId }: { preselectedPati
       </span>
       {data.canManage ? (
         <div className="mt-3 flex flex-wrap gap-2">
+          <Button asChild size="sm">
+            <Link to="/atendimentos/$appointmentId" params={{ appointmentId: item.id }}>
+              Abrir atendimento
+            </Link>
+          </Button>
           {!["COMPLETED", "NO_SHOW", "CANCELED"].includes(item.status) ? (
             <Button size="sm" variant="outline" disabled={pending} onClick={() => startEdit(item)}>
               <Pencil className="mr-1.5 size-3.5" /> Abrir/editar
@@ -421,7 +426,13 @@ export function CareAppointmentsPage({ preselectedPatientId }: { preselectedPati
             </Button>
           ) : null}
         </div>
-      ) : null}
+      ) : (
+        <Button asChild size="sm" variant="outline" className="mt-3">
+          <Link to="/atendimentos/$appointmentId" params={{ appointmentId: item.id }}>
+            Ver atendimento
+          </Link>
+        </Button>
+      )}
     </article>
   );
   return (

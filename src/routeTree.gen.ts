@@ -25,6 +25,7 @@ import { Route as ApiInventoryActivationRouteImport } from './routes/api/invento
 import { Route as ApiInventorySessionRouteImport } from './routes/api/inventory-session'
 import { Route as AplicacoesIndexRouteImport } from './routes/aplicacoes/index'
 import { Route as AplicacoesNovaRouteImport } from './routes/aplicacoes/nova'
+import { Route as AtendimentosAppointmentIdRouteImport } from './routes/atendimentos.$appointmentId'
 import { Route as EstoqueIndexRouteImport } from './routes/estoque/index'
 import { Route as EstoqueAcessoRouteImport } from './routes/estoque/acesso'
 import { Route as EstoqueAtivarRouteImport } from './routes/estoque/ativar'
@@ -126,6 +127,12 @@ const AplicacoesNovaRoute = AplicacoesNovaRouteImport.update({
   path: '/nova',
   getParentRoute: () => AplicacoesRoute,
 } as any)
+const AtendimentosAppointmentIdRoute =
+  AtendimentosAppointmentIdRouteImport.update({
+    id: '/atendimentos/$appointmentId',
+    path: '/atendimentos/$appointmentId',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const EstoqueIndexRoute = EstoqueIndexRouteImport.update({
   id: '/',
   path: '/',
@@ -246,6 +253,7 @@ export interface FileRoutesByFullPath {
   '/api/inventory-activation': typeof ApiInventoryActivationRoute
   '/api/inventory-session': typeof ApiInventorySessionRoute
   '/aplicacoes/nova': typeof AplicacoesNovaRoute
+  '/atendimentos/$appointmentId': typeof AtendimentosAppointmentIdRoute
   '/estoque/acesso': typeof EstoqueAcessoRoute
   '/estoque/ativar': typeof EstoqueAtivarRoute
   '/estoque/cadastros': typeof EstoqueCadastrosRoute
@@ -281,6 +289,7 @@ export interface FileRoutesByTo {
   '/api/inventory-activation': typeof ApiInventoryActivationRoute
   '/api/inventory-session': typeof ApiInventorySessionRoute
   '/aplicacoes/nova': typeof AplicacoesNovaRoute
+  '/atendimentos/$appointmentId': typeof AtendimentosAppointmentIdRoute
   '/estoque/acesso': typeof EstoqueAcessoRoute
   '/estoque/ativar': typeof EstoqueAtivarRoute
   '/estoque/cadastros': typeof EstoqueCadastrosRoute
@@ -320,6 +329,7 @@ export interface FileRoutesById {
   '/api/inventory-activation': typeof ApiInventoryActivationRoute
   '/api/inventory-session': typeof ApiInventorySessionRoute
   '/aplicacoes/nova': typeof AplicacoesNovaRoute
+  '/atendimentos/$appointmentId': typeof AtendimentosAppointmentIdRoute
   '/estoque/acesso': typeof EstoqueAcessoRoute
   '/estoque/ativar': typeof EstoqueAtivarRoute
   '/estoque/cadastros': typeof EstoqueCadastrosRoute
@@ -360,6 +370,7 @@ export interface FileRouteTypes {
     | '/api/inventory-activation'
     | '/api/inventory-session'
     | '/aplicacoes/nova'
+    | '/atendimentos/$appointmentId'
     | '/estoque/acesso'
     | '/estoque/ativar'
     | '/estoque/cadastros'
@@ -395,6 +406,7 @@ export interface FileRouteTypes {
     | '/api/inventory-activation'
     | '/api/inventory-session'
     | '/aplicacoes/nova'
+    | '/atendimentos/$appointmentId'
     | '/estoque/acesso'
     | '/estoque/ativar'
     | '/estoque/cadastros'
@@ -433,6 +445,7 @@ export interface FileRouteTypes {
     | '/api/inventory-activation'
     | '/api/inventory-session'
     | '/aplicacoes/nova'
+    | '/atendimentos/$appointmentId'
     | '/estoque/acesso'
     | '/estoque/ativar'
     | '/estoque/cadastros'
@@ -471,6 +484,7 @@ export interface RootRouteChildren {
   VendasRoute: typeof VendasRoute
   ApiInventoryActivationRoute: typeof ApiInventoryActivationRoute
   ApiInventorySessionRoute: typeof ApiInventorySessionRoute
+  AtendimentosAppointmentIdRoute: typeof AtendimentosAppointmentIdRoute
   ApiV1InventorySplatRoute: typeof ApiV1InventorySplatRoute
   ApiV1InventoryPrescriptionsPrescriptionIdRoute: typeof ApiV1InventoryPrescriptionsPrescriptionIdRoute
 }
@@ -588,6 +602,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/aplicacoes/nova'
       preLoaderRoute: typeof AplicacoesNovaRouteImport
       parentRoute: typeof AplicacoesRoute
+    }
+    '/atendimentos/$appointmentId': {
+      id: '/atendimentos/$appointmentId'
+      path: '/atendimentos/$appointmentId'
+      fullPath: '/atendimentos/$appointmentId'
+      preLoaderRoute: typeof AtendimentosAppointmentIdRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/estoque/': {
       id: '/estoque/'
@@ -816,6 +837,7 @@ const rootRouteChildren: RootRouteChildren = {
   VendasRoute: VendasRoute,
   ApiInventoryActivationRoute: ApiInventoryActivationRoute,
   ApiInventorySessionRoute: ApiInventorySessionRoute,
+  AtendimentosAppointmentIdRoute: AtendimentosAppointmentIdRoute,
   ApiV1InventorySplatRoute: ApiV1InventorySplatRoute,
   ApiV1InventoryPrescriptionsPrescriptionIdRoute:
     ApiV1InventoryPrescriptionsPrescriptionIdRoute,
