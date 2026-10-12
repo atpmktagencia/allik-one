@@ -72,4 +72,70 @@ describe("User administration UI", () => {
       }),
     );
   });
+
+  it("edits an existing professional registration and unit access", async () => {
+    const fortaleza = "11111111-1111-4111-8111-111111111111";
+    const juazeiro = "22222222-2222-4222-8222-222222222222";
+    const userId = "33333333-3333-4333-8333-333333333333";
+    let submittedBody: Record<string, unknown> | undefined;
+    vi.stubGlobal("scrollTo", vi.fn());
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
+        if (init?.method === "POST") {
+          submittedBody = JSON.parse(String(init.body)) as Record<string, unknown>;
+          return Response.json({ data: { id: userId } });
+        }
+        if (String(input).endsWith("/api/inventory-session"))
+          return Response.json({
+            data: {
+              units: [
+                { id: fortaleza, name: "Fortaleza" },
+                { id: juazeiro, name: "Juazeiro do Norte" },
+              ],
+            },
+          });
+        return Response.json({
+          data: [
+            {
+              id: userId,
+              name: "Profissional Existente",
+              email: "profissional@allik.test",
+              role: "UNIT_MANAGER",
+              active: true,
+              profession: null,
+              title: null,
+              professionalCouncil: null,
+              councilNumber: null,
+              councilRegion: null,
+              units: [{ id: fortaleza, name: "Fortaleza" }],
+            },
+          ],
+        });
+      }),
+    );
+    render(<UserAdministration />);
+    fireEvent.click(await screen.findByRole("button", { name: "Editar" }));
+    fireEvent.change(screen.getByLabelText("Profissão"), { target: { value: "Médico" } });
+    fireEvent.change(screen.getByLabelText("Conselho profissional"), {
+      target: { value: "CRM" },
+    });
+    fireEvent.change(screen.getByLabelText("Número do conselho"), {
+      target: { value: "98765" },
+    });
+    fireEvent.change(screen.getByLabelText("UF do conselho"), { target: { value: "CE" } });
+    fireEvent.click(screen.getByLabelText("Juazeiro do Norte"));
+    fireEvent.click(screen.getByRole("button", { name: "Salvar alterações" }));
+    await waitFor(() =>
+      expect(submittedBody).toEqual(
+        expect.objectContaining({
+          action: "UPDATE",
+          userId,
+          professionalCouncil: "CRM",
+          councilNumber: "98765",
+          unitIds: [fortaleza, juazeiro],
+        }),
+      ),
+    );
+  });
 });

@@ -21,6 +21,22 @@ const updateUser = z.object({
   action: z.enum(["ACTIVATE", "DEACTIVATE", "REINVITE"]),
   userId: z.string().uuid(),
 });
+const editUser = createUser.omit({ action: true }).extend({
+  action: z.literal("UPDATE"),
+  userId: z.string().uuid(),
+  role: z.enum(roles),
+});
+
+function hasValidProfessionalRegistry(
+  input: z.infer<typeof createUser> | z.infer<typeof editUser>,
+) {
+  const councilFields = [
+    input.professionalCouncil,
+    input.councilNumber,
+    input.councilRegion,
+  ].filter(Boolean).length;
+  return !((input.profession && councilFields !== 3) || (!input.profession && councilFields !== 0));
+}
 
 async function createInvite(
   userId: string,
@@ -70,17 +86,12 @@ export async function userAdminResponse(request: Request) {
   } catch {
     return Response.json({ error: "Requisição inválida." }, { status: 400, headers });
   }
-  const parsed = z.discriminatedUnion("action", [createUser, updateUser]).safeParse(body);
+  const parsed = z.discriminatedUnion("action", [createUser, editUser, updateUser]).safeParse(body);
   if (!parsed.success)
     return Response.json({ error: "Confira os dados do usuário." }, { status: 400, headers });
   const input = parsed.data;
   if (input.action === "CREATE") {
-    const councilFields = [
-      input.professionalCouncil,
-      input.councilNumber,
-      input.councilRegion,
-    ].filter(Boolean).length;
-    if ((input.profession && councilFields !== 3) || (!input.profession && councilFields !== 0))
+    if (!hasValidProfessionalRegistry(input))
       return Response.json(
         {
           error: "Profissionais de saúde exigem profissão, conselho, número e UF do registro.",
@@ -147,6 +158,110 @@ export async function userAdminResponse(request: Request) {
         },
         { status: code === "23505" ? 409 : 503, headers },
       );
+    } finally {
+      client.release();
+    }
+  }
+  if (input.action === "UPDATE") {
+    if (!hasValidProfessionalRegistry(input))
+      return Response.json(
+        { error: "Profissionais de saúde exigem profissão, conselho, número e UF do registro." },
+        { status: 400, headers },
+      );
+    const client = await getPool().connect();
+    try {
+      await client.query("BEGIN");
+      const target = await client.query(
+        `SELECT u.id,u.name,u.email,u.profession,u.title,
+          u.professional_council AS "professionalCouncil",u.council_number AS "councilNumber",
+          u.council_region AS "councilRegion",m.id AS "membershipId",m.role
+         FROM inventory_users u JOIN inventory_memberships m ON m.user_id=u.id
+         WHERE u.id=$1 AND m.organization_id=$2 FOR UPDATE OF u,m`,
+        [input.userId, auth.organizationId],
+      );
+      const before = target.rows[0];
+      if (!before) throw new Error("NOT_FOUND");
+      if (before.role === "SUPER_ADMIN" && input.role !== "SUPER_ADMIN")
+        throw new Error("PROTECTED_ROLE");
+      if (before.role !== "SUPER_ADMIN" && input.role === "SUPER_ADMIN")
+        throw new Error("PROTECTED_ROLE");
+      const currentUnits = await client.query<{ unitId: string }>(
+        `SELECT unit_id AS "unitId" FROM inventory_unit_access
+         WHERE membership_id=$1 ORDER BY unit_id FOR UPDATE`,
+        [before.membershipId],
+      );
+      before.unitIds = currentUnits.rows.map((row) => row.unitId);
+      const validUnits = await client.query(
+        "SELECT id FROM inventory_units WHERE organization_id=$1 AND active AND id=ANY($2::uuid[])",
+        [auth.organizationId, input.unitIds],
+      );
+      if (validUnits.rowCount !== new Set(input.unitIds).size) throw new Error("INVALID_UNIT");
+      const normalizedUnitIds = [...new Set(input.unitIds)].sort();
+      const scopeChanged =
+        before.role !== input.role ||
+        JSON.stringify(before.unitIds ?? []) !== JSON.stringify(normalizedUnitIds);
+      await client.query(
+        `UPDATE inventory_users SET name=$2,email=lower($3),profession=$4,title=$5,
+          professional_council=$6,council_number=$7,council_region=$8,
+          session_version=session_version+CASE WHEN $9 THEN 1 ELSE 0 END,updated_at=now()
+         WHERE id=$1`,
+        [
+          input.userId,
+          input.name,
+          input.email,
+          input.profession ?? null,
+          input.title ?? null,
+          input.professionalCouncil?.toUpperCase() ?? null,
+          input.councilNumber ?? null,
+          input.councilRegion ?? null,
+          scopeChanged,
+        ],
+      );
+      await client.query("UPDATE inventory_memberships SET role=$2,updated_at=now() WHERE id=$1", [
+        before.membershipId,
+        input.role,
+      ]);
+      await client.query("DELETE FROM inventory_unit_access WHERE membership_id=$1", [
+        before.membershipId,
+      ]);
+      for (const unitId of normalizedUnitIds)
+        await client.query(
+          "INSERT INTO inventory_unit_access(membership_id,unit_id) VALUES($1,$2)",
+          [before.membershipId, unitId],
+        );
+      const after = {
+        name: input.name,
+        email: input.email.toLowerCase(),
+        profession: input.profession ?? null,
+        title: input.title ?? null,
+        professionalCouncil: input.professionalCouncil?.toUpperCase() ?? null,
+        councilNumber: input.councilNumber ?? null,
+        councilRegion: input.councilRegion ?? null,
+        role: input.role,
+        unitIds: normalizedUnitIds,
+      };
+      await client.query(
+        `INSERT INTO inventory_user_changes(organization_id,user_id,before_data,after_data,actor_user_id)
+         VALUES($1,$2,$3,$4,$5)`,
+        [auth.organizationId, input.userId, before, after, auth.user.id],
+      );
+      await client.query("COMMIT");
+      return Response.json({ data: { id: input.userId } }, { headers });
+    } catch (error) {
+      await client.query("ROLLBACK").catch(() => {});
+      const message = error instanceof Error ? error.message : "";
+      const code = error && typeof error === "object" && "code" in error ? String(error.code) : "";
+      const response =
+        message === "NOT_FOUND"
+          ? ["Usuário não encontrado.", 404]
+          : message === "PROTECTED_ROLE"
+            ? ["O perfil SUPER_ADMIN não pode ser atribuído ou removido por esta tela.", 403]
+            : message === "INVALID_UNIT"
+              ? ["Uma unidade informada é inválida.", 400]
+              : code === "23505"
+                ? ["Este e-mail já está cadastrado.", 409]
+                : ["Não foi possível atualizar o usuário.", 503];
+      return Response.json({ error: response[0] }, { status: response[1] as number, headers });
     } finally {
       client.release();
     }

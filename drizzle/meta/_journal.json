@@ -225,6 +225,13 @@
       "when": 1793235600000,
       "tag": "0031_schema_snapshot_baseline",
       "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "7",
+      "when": 1793322000000,
+      "tag": "0032_user_profile_audit",
+      "breakpoints": true
     }
   ]
 }

@@ -157,6 +157,24 @@ export const authEvents = pgTable("inventory_auth_events", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
+export const userChanges = pgTable(
+  "inventory_user_changes",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id),
+    beforeData: jsonb("before_data").notNull(),
+    afterData: jsonb("after_data").notNull(),
+    actorUserId: uuid("actor_user_id").references(() => users.id),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("inventory_user_change_history").on(t.userId, t.createdAt)],
+);
+
 export const apiCredentials = pgTable(
   "inventory_api_credentials",
   {

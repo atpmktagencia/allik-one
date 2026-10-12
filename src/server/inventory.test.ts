@@ -2720,6 +2720,49 @@ describe("Pilot invitation lifecycle", () => {
       [userId],
     );
     expect(stored.rows).toEqual([{ council: "CRM", number: "12345", region: "CE" }]);
+    const updated = await create({
+      action: "UPDATE",
+      userId,
+      name: "Profissional Conselho Corrigido",
+      email: base.email,
+      profession: "Médico",
+      title: "Profissional da saúde",
+      professionalCouncil: "CRM",
+      councilNumber: "54321",
+      councilRegion: "CE",
+      role: "UNIT_MANAGER",
+      unitIds: [fortaleza, "a1100000-0000-4000-8000-000000000102"],
+    });
+    expect(updated.status).toBe(200);
+    expect(
+      (
+        await getPool().query(
+          `SELECT u.name,u.council_number AS number,m.role,count(ua.unit_id)::integer AS units
+           FROM inventory_users u JOIN inventory_memberships m ON m.user_id=u.id
+           LEFT JOIN inventory_unit_access ua ON ua.membership_id=m.id
+           WHERE u.id=$1 GROUP BY u.id,m.id`,
+          [userId],
+        )
+      ).rows,
+    ).toEqual([
+      {
+        name: "Profissional Conselho Corrigido",
+        number: "54321",
+        role: "UNIT_MANAGER",
+        units: 2,
+      },
+    ]);
+    expect(
+      (
+        await getPool().query(
+          "SELECT count(*)::integer AS count FROM inventory_user_changes WHERE user_id=$1",
+          [userId],
+        )
+      ).rows[0].count,
+    ).toBe(1);
+    await expect(
+      getPool().query("DELETE FROM inventory_user_changes WHERE user_id=$1", [userId]),
+    ).rejects.toThrow();
   });
 
   it("revokes pending invitations when a user is deactivated", async () => {
