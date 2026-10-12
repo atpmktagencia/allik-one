@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import {
   authenticate,
   can,
+  canAccessAllUnits,
   hashPassword,
   isPreviewLoginDisabled,
   verifyPassword,
@@ -22,6 +23,7 @@ const context = (role: AuthContext["role"], unitIds = ["unit-fortaleza"]): AuthC
 describe("pilot authentication and authorization", () => {
   it("disables Preview login only inside a Vercel Preview deployment", () => {
     vi.stubEnv("INVENTORY_DISABLE_PREVIEW_LOGIN", "true");
+    vi.stubEnv("INVENTORY_PREVIEW_DATA_CLASSIFICATION", "synthetic");
     vi.stubEnv("INVENTORY_ENVIRONMENT", "preview");
     vi.stubEnv("VERCEL_ENV", "preview");
     expect(isPreviewLoginDisabled()).toBe(true);
@@ -35,6 +37,7 @@ describe("pilot authentication and authorization", () => {
   });
   it("grants the isolated Preview operator without an application cookie", async () => {
     vi.stubEnv("INVENTORY_DISABLE_PREVIEW_LOGIN", "true");
+    vi.stubEnv("INVENTORY_PREVIEW_DATA_CLASSIFICATION", "synthetic");
     vi.stubEnv("INVENTORY_ENVIRONMENT", "preview");
     vi.stubEnv("VERCEL_ENV", "preview");
 
@@ -45,6 +48,14 @@ describe("pilot authentication and authorization", () => {
       role: "SUPER_ADMIN",
       preview: true,
     });
+    vi.unstubAllEnvs();
+  });
+  it("keeps application login enabled when Preview data is not explicitly synthetic", () => {
+    vi.stubEnv("INVENTORY_DISABLE_PREVIEW_LOGIN", "true");
+    vi.stubEnv("INVENTORY_ENVIRONMENT", "preview");
+    vi.stubEnv("VERCEL_ENV", "preview");
+    vi.stubEnv("INVENTORY_PREVIEW_DATA_CLASSIFICATION", "pilot");
+    expect(isPreviewLoginDisabled()).toBe(false);
     vi.unstubAllEnvs();
   });
   it("hashes passwords with a random salt and verifies without storing plaintext", async () => {
@@ -61,6 +72,8 @@ describe("pilot authentication and authorization", () => {
     expect(can(context("FINANCE"), "inventory.adjust", "unit-fortaleza")).toBe(false);
     expect(can(context("VIEWER"), "inventory.receive", "unit-fortaleza")).toBe(false);
     expect(can(context("SUPER_ADMIN", []), "inventory.adjust", "unit-juazeiro")).toBe(true);
+    expect(canAccessAllUnits(context("SUPER_ADMIN", []))).toBe(true);
+    expect(canAccessAllUnits(context("PARTNER_ADMIN"))).toBe(false);
   });
   it("limits an integration even when its technical role is super admin", () => {
     const integration = {

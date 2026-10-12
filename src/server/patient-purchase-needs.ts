@@ -1,5 +1,5 @@
 import "@tanstack/react-start/server-only";
-import { authenticate, can } from "./auth";
+import { authenticate, can, canAccessAllUnits } from "./auth";
 import { getPool } from "./db";
 
 const headers = { "Cache-Control": "private, no-store", Vary: "Cookie, Authorization" };
@@ -100,7 +100,7 @@ export async function patientPurchaseNeedsResponse(request: Request) {
     return Response.json({ error: "Filtros de compra inválidos." }, { status: 400, headers });
   if (requestedUnit && !can(auth, "inventory.purchase.manage", requestedUnit))
     return Response.json({ error: "Unidade não autorizada." }, { status: 403, headers });
-  const unrestricted = auth.preview || auth.role === "SUPER_ADMIN" || auth.role === "PARTNER_ADMIN";
+  const unrestricted = canAccessAllUnits(auth);
   const pool = getPool();
   const [demand, openStock] = await Promise.all([
     pool.query(

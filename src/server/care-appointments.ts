@@ -1,6 +1,6 @@
 import "@tanstack/react-start/server-only";
 import type { PoolClient } from "pg";
-import { actor, authenticate, can } from "./auth";
+import { actor, authenticate, can, canAccessAllUnits } from "./auth";
 import { getPool } from "./db";
 import { careAppointmentInput } from "../data/care-appointment-input";
 
@@ -27,6 +27,7 @@ async function hasConflict(
   client: PoolClient,
   input: {
     id: string;
+    organizationId: string;
     unitId: string;
     professionalUserId: string;
     startsAt: string;
@@ -38,13 +39,14 @@ async function hasConflict(
 ) {
   const result = await client.query(
     `SELECT id FROM inventory_care_appointments
-     WHERE id<>$1 AND unit_id=$2 AND status NOT IN ('CANCELED','NO_SHOW')
-       AND starts_at<$4 AND ends_at>$3
-       AND (professional_user_id=$5 OR (lower(room)=lower($6) AND
-         (($7::text IS NULL AND resource_name IS NULL) OR lower(resource_name)=lower($7))))
+     WHERE id<>$1 AND organization_id=$2 AND status NOT IN ('CANCELED','NO_SHOW')
+       AND starts_at<$5 AND ends_at>$4
+       AND (professional_user_id=$6 OR (unit_id=$3 AND lower(room)=lower($7) AND
+         (($8::text IS NULL AND resource_name IS NULL) OR lower(resource_name)=lower($8))))
      LIMIT 1 FOR UPDATE`,
     [
       input.id,
+      input.organizationId,
       input.unitId,
       input.startsAt,
       input.endsAt,
@@ -81,8 +83,7 @@ export async function careAppointmentsResponse(request: Request) {
       return Response.json({ error: "Profissional inválido." }, { status: 400, headers });
     if (status && !appointmentStatuses.has(status))
       return Response.json({ error: "Situação inválida." }, { status: 400, headers });
-    const unrestricted =
-      auth.preview || auth.role === "SUPER_ADMIN" || auth.role === "PARTNER_ADMIN";
+    const unrestricted = canAccessAllUnits(auth);
     const pool = getPool();
     const [appointments, patients, professionals, units, careTypes, rooms, resources] =
       await Promise.all([
@@ -123,9 +124,9 @@ export async function careAppointmentsResponse(request: Request) {
          FROM inventory_users usr JOIN inventory_memberships m ON m.user_id=usr.id
          LEFT JOIN inventory_unit_access ua ON ua.membership_id=m.id
          WHERE m.organization_id=$1 AND m.active AND usr.active
-           AND (m.role IN ('SUPER_ADMIN','PARTNER_ADMIN') OR ua.unit_id IS NOT NULL)
+           AND (m.role='SUPER_ADMIN' OR ua.unit_id IS NOT NULL)
            AND ($2::boolean OR ua.unit_id=ANY($3::uuid[]))
-           AND ($4::uuid IS NULL OR m.role IN ('SUPER_ADMIN','PARTNER_ADMIN') OR ua.unit_id=$4)
+           AND ($4::uuid IS NULL OR m.role='SUPER_ADMIN' OR ua.unit_id=$4)
          ORDER BY usr.name`,
           [auth.organizationId, unrestricted, auth.unitIds, unitId],
         ),
@@ -189,7 +190,10 @@ export async function careAppointmentsResponse(request: Request) {
   try {
     await client.query("BEGIN");
     await client.query("SELECT pg_advisory_xact_lock(hashtextextended($1,0))", [
-      `care:${input.unitId}:${input.startsAt.slice(0, 10)}`,
+      `care-professional:${auth.organizationId}:${input.professionalUserId}`,
+    ]);
+    await client.query("SELECT pg_advisory_xact_lock(hashtextextended($1,0))", [
+      `care-resource:${auth.organizationId}:${input.unitId}:${input.room.toLowerCase()}:${input.resourceName?.toLowerCase() ?? "room"}`,
     ]);
     let before: unknown = null;
     let result;
@@ -210,7 +214,7 @@ export async function careAppointmentsResponse(request: Request) {
          AND EXISTS(SELECT 1 FROM inventory_users u JOIN inventory_memberships m ON m.user_id=u.id
            LEFT JOIN inventory_unit_access ua ON ua.membership_id=m.id
            WHERE u.id=$4 AND u.active AND m.organization_id=$2 AND m.active
-             AND (m.role IN ('SUPER_ADMIN','PARTNER_ADMIN') OR ua.unit_id=$3)) FOR SHARE`,
+             AND (m.role='SUPER_ADMIN' OR ua.unit_id=$3)) FOR SHARE`,
         [input.patientId, auth.organizationId, input.unitId, input.professionalUserId],
       );
       if (!scope.rowCount) throw new Error("INVALID_SCOPE");
@@ -231,7 +235,8 @@ export async function careAppointmentsResponse(request: Request) {
       if (!configuredRoom.rowCount) throw new Error("INVALID_ROOM");
     }
     if (input.action === "CREATE") {
-      if (await hasConflict(client, input)) throw new Error("CONFLICT");
+      if (await hasConflict(client, { ...input, organizationId: auth.organizationId }))
+        throw new Error("CONFLICT");
       result = await client.query(
         `INSERT INTO inventory_care_appointments(id,organization_id,unit_id,patient_id,professional_user_id,
           care_type,other_care_type,starts_at,ends_at,room,chair,resource_name,notes,status,created_by_user_id,updated_by_user_id)
@@ -256,7 +261,10 @@ export async function careAppointmentsResponse(request: Request) {
       );
     } else if (input.action === "UPDATE") {
       if (currentRow?.["status"] !== input.status) throw new Error("INVALID_STATUS");
-      if (await hasConflict(client, input)) throw new Error("CONFLICT");
+      if (["COMPLETED", "NO_SHOW", "CANCELED"].includes(String(currentRow?.["status"])))
+        throw new Error("TERMINAL_STATUS");
+      if (await hasConflict(client, { ...input, organizationId: auth.organizationId }))
+        throw new Error("CONFLICT");
       result = await client.query(
         `UPDATE inventory_care_appointments SET patient_id=$2,professional_user_id=$3,care_type=$4,
          other_care_type=$5,starts_at=$6,ends_at=$7,room=$8,chair=$9,resource_name=$10,notes=$11,
@@ -316,9 +324,11 @@ export async function careAppointmentsResponse(request: Request) {
             ? ["Agendamento não encontrado.", 404]
             : message === "INVALID_STATUS"
               ? ["Esta mudança de situação não é permitida.", 409]
-              : ["INVALID_SCOPE", "INVALID_TYPE", "INVALID_ROOM"].includes(message)
-                ? ["Paciente, profissional, tipo ou sala inválido para esta unidade.", 400]
-                : ["Não foi possível salvar o agendamento.", 503];
+              : message === "TERMINAL_STATUS"
+                ? ["Atendimentos encerrados não podem ser alterados.", 409]
+                : ["INVALID_SCOPE", "INVALID_TYPE", "INVALID_ROOM"].includes(message)
+                  ? ["Paciente, profissional, tipo ou sala inválido para esta unidade.", 400]
+                  : ["Não foi possível salvar o agendamento.", 503];
     return Response.json({ error: response[0] }, { status: response[1] as number, headers });
   } finally {
     client.release();

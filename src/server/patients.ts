@@ -1,6 +1,6 @@
 import "@tanstack/react-start/server-only";
 import { del, put } from "@vercel/blob";
-import { actor, authenticate, can } from "./auth";
+import { actor, authenticate, can, canAccessAllUnits } from "./auth";
 import { getPool } from "./db";
 import { patientInput } from "../data/patient-input";
 
@@ -114,8 +114,7 @@ export async function patientsResponse(request: Request) {
     const searchDigits = search?.replace(/\D/g, "") || null;
     if (requestedUnit && !can(auth, "patients.read", requestedUnit))
       return Response.json({ error: "Unidade não autorizada." }, { status: 403, headers });
-    const unrestricted =
-      auth.preview || auth.role === "SUPER_ADMIN" || auth.role === "PARTNER_ADMIN";
+    const unrestricted = canAccessAllUnits(auth);
     const pool = getPool();
     const [result, availableUnits] = await Promise.all([
       pool.query(
@@ -205,8 +204,8 @@ export async function patientsResponse(request: Request) {
 
     let before: unknown = null;
     let result;
-    const consentAt = input.consentStatus === "PENDING" ? null : new Date();
-    const consentUser = input.consentStatus === "PENDING" ? null : auth.user.id;
+    let consentAt: Date | null = input.consentStatus === "PENDING" ? null : new Date();
+    let consentUser: string | null = input.consentStatus === "PENDING" ? null : auth.user.id;
     if (input.action === "CREATE") {
       await client.query("SELECT pg_advisory_xact_lock(hashtextextended($1,0))", [
         `patient-code:${auth.organizationId}`,
@@ -269,18 +268,21 @@ export async function patientsResponse(request: Request) {
         );
       }
       before = current.rows[0];
+      if (current.rows[0].consent_status === input.consentStatus) {
+        consentAt = current.rows[0].consent_recorded_at;
+        consentUser = current.rows[0].consent_recorded_by_user_id;
+      }
       result = await client.query(
-        `UPDATE inventory_patients SET primary_unit_id=$3,internal_code=$4,full_name=$5,
-          phone=$6,phone2=$7,email=$8,document_type=$9,document_number=$10,no_document=$11,
-          birth_date=$12,insurance_data=$13,additional_data=$14,private_data=$15,active=$16,
-          consent_status=$17,consent_recorded_at=$18,consent_recorded_by_user_id=$19,
-          updated_by_user_id=$20,version=version+1,updated_at=now()
+        `UPDATE inventory_patients SET primary_unit_id=$3,full_name=$4,
+          phone=$5,phone2=$6,email=$7,document_type=$8,document_number=$9,no_document=$10,
+          birth_date=$11,insurance_data=$12,additional_data=$13,private_data=$14,active=$15,
+          consent_status=$16,consent_recorded_at=$17,consent_recorded_by_user_id=$18,
+          updated_by_user_id=$19,version=version+1,updated_at=now()
          WHERE id=$1 AND organization_id=$2 RETURNING *`,
         [
           input.id,
           auth.organizationId,
           input.primaryUnitId,
-          input.internalCode,
           input.fullName,
           optional(input.phone),
           optional(input.phone2),

@@ -1240,6 +1240,99 @@ describe("operational patients", () => {
       }),
     ]);
   });
+
+  it("keeps patient codes immutable, preserves consent evidence and scopes partners", async () => {
+    const fortaleza = "a1100000-0000-4000-8000-000000000101";
+    const juazeiro = "a1100000-0000-4000-8000-000000000102";
+    const managerCookie = await scopedCookie(fortaleza, "UNIT_MANAGER");
+    const patientId = randomUUID();
+    const marker = patientId.slice(0, 8);
+    const body = {
+      action: "CREATE",
+      id: patientId,
+      primaryUnitId: fortaleza,
+      internalCode: "",
+      fullName: `Paciente Imutável ${marker}`,
+      phone: "85999990001",
+      email: `${marker}@example.test`,
+      active: true,
+      consentStatus: "PENDING",
+      version: 0,
+      reason: "Cadastro para validar código e consentimento imutáveis.",
+    };
+    const post = (value: unknown) =>
+      patientsResponse(
+        new Request(`${origin}/api/v1/inventory/patients`, {
+          method: "POST",
+          headers: { cookie: managerCookie, origin, "Content-Type": "application/json" },
+          body: JSON.stringify(value),
+        }),
+      );
+    expect((await post(body)).status).toBe(201);
+    const created = await getPool().query(
+      `SELECT internal_code,consent_recorded_at,consent_recorded_by_user_id
+       FROM inventory_patients WHERE id=$1`,
+      [patientId],
+    );
+    const originalCode = created.rows[0].internal_code;
+
+    expect(
+      (
+        await post({
+          ...body,
+          action: "UPDATE",
+          internalCode: "PAC-999999",
+          consentStatus: "RECORDED",
+          reason: "Consentimento registrado no teste de preservação.",
+        })
+      ).status,
+    ).toBe(200);
+    const recorded = await getPool().query(
+      `SELECT internal_code,consent_recorded_at,consent_recorded_by_user_id
+       FROM inventory_patients WHERE id=$1`,
+      [patientId],
+    );
+    expect(recorded.rows[0].internal_code).toBe(originalCode);
+    expect(recorded.rows[0].consent_recorded_at).not.toBeNull();
+    expect(recorded.rows[0].consent_recorded_by_user_id).not.toBeNull();
+
+    expect(
+      (
+        await post({
+          ...body,
+          action: "UPDATE",
+          version: 1,
+          internalCode: "PAC-888888",
+          consentStatus: "RECORDED",
+          fullName: `Paciente Editado ${marker}`,
+          reason: "Edição cadastral sem alterar evidência do consentimento.",
+        })
+      ).status,
+    ).toBe(200);
+    const edited = await getPool().query(
+      `SELECT internal_code,consent_recorded_at,consent_recorded_by_user_id
+       FROM inventory_patients WHERE id=$1`,
+      [patientId],
+    );
+    expect(edited.rows[0]).toEqual(recorded.rows[0]);
+
+    const foreignId = randomUUID();
+    await getPool().query(
+      `INSERT INTO inventory_patients(id,organization_id,primary_unit_id,internal_code,full_name)
+       VALUES($1,'a1100000-0000-4000-8000-000000000001',$2,$3,$4)`,
+      [foreignId, juazeiro, `SCOPE-${foreignId.slice(0, 8)}`, `Paciente Escopo ${marker}`],
+    );
+    const partnerCookie = await scopedCookie(fortaleza, "PARTNER_ADMIN");
+    const scoped = await patientsResponse(
+      new Request(`${origin}/api/v1/inventory/patients?search=${marker}`, {
+        headers: { cookie: partnerCookie },
+      }),
+    );
+    expect(scoped.status).toBe(200);
+    expect(
+      (await scoped.json()).data.patients.map((patient: { id: string }) => patient.id),
+    ).toEqual([patientId]);
+  });
 });
 
 describe("PostgreSQL receiving", () => {
@@ -1723,11 +1816,14 @@ describe("care appointments", () => {
     const unitId = "a1100000-0000-4000-8000-000000000101";
     const patientId = randomUUID();
     const professional = await getPool().query<{ id: string }>(
-      `SELECT u.id FROM inventory_users u JOIN inventory_memberships m ON m.user_id=u.id
-       WHERE m.organization_id='a1100000-0000-4000-8000-000000000001' AND u.active AND m.active
-         AND (m.role IN ('SUPER_ADMIN','PARTNER_ADMIN') OR EXISTS(
-           SELECT 1 FROM inventory_unit_access ua WHERE ua.membership_id=m.id AND ua.unit_id='a1100000-0000-4000-8000-000000000101'))
-       LIMIT 1`,
+      `INSERT INTO inventory_users(name,email,profession)
+       VALUES('Profissional Agenda Sintético',$1,'Médico') RETURNING id`,
+      [`${randomUUID()}@example.test`],
+    );
+    await getPool().query(
+      `INSERT INTO inventory_memberships(user_id,organization_id,role)
+       VALUES($1,'a1100000-0000-4000-8000-000000000001','SUPER_ADMIN')`,
+      [professional.rows[0]!.id],
     );
     await getPool().query(
       `INSERT INTO inventory_patients(id,organization_id,primary_unit_id,internal_code,full_name,phone,email)
@@ -1773,6 +1869,32 @@ describe("care appointments", () => {
         }),
       );
     expect((await send(body)).status).toBe(201);
+    const juazeiro = "a1100000-0000-4000-8000-000000000102";
+    const otherPatientId = randomUUID();
+    await getPool().query(
+      `INSERT INTO inventory_patients(id,organization_id,primary_unit_id,internal_code,full_name)
+       VALUES($1,'a1100000-0000-4000-8000-000000000001',$2,$3,'Paciente Agenda Juazeiro')`,
+      [otherPatientId, juazeiro, `AGENDA-${otherPatientId.slice(0, 8)}`],
+    );
+    const otherRoomName = `Sala Juazeiro ${otherPatientId.slice(0, 8)}`;
+    await getPool().query(
+      `INSERT INTO inventory_care_rooms(organization_id,unit_id,name)
+       VALUES('a1100000-0000-4000-8000-000000000001',$1,$2)`,
+      [juazeiro, otherRoomName],
+    );
+    expect(
+      (
+        await send({
+          ...body,
+          id: randomUUID(),
+          unitId: juazeiro,
+          patientId: otherPatientId,
+          room: otherRoomName,
+          resourceName: null,
+          reason: "Conflito simultâneo do profissional entre duas unidades.",
+        })
+      ).status,
+    ).toBe(409);
     expect((await send({ ...body, id: randomUUID() })).status).toBe(409);
     const rescheduled = {
       ...body,
@@ -1830,6 +1952,39 @@ describe("care appointments", () => {
       expect.objectContaining({ action: "RESCHEDULE" }),
       expect.objectContaining({ action: "STATUS" }),
     ]);
+    expect(
+      (
+        await send({
+          ...rescheduled,
+          action: "UPDATE_STATUS",
+          status: "IN_PROGRESS",
+          version: 2,
+          reason: "Atendimento iniciado durante o teste integrado.",
+        })
+      ).status,
+    ).toBe(200);
+    expect(
+      (
+        await send({
+          ...rescheduled,
+          action: "UPDATE_STATUS",
+          status: "COMPLETED",
+          version: 3,
+          reason: "Atendimento concluído durante o teste integrado.",
+        })
+      ).status,
+    ).toBe(200);
+    expect(
+      (
+        await send({
+          ...rescheduled,
+          action: "UPDATE",
+          status: "COMPLETED",
+          version: 4,
+          reason: "Tentativa de remarcar atendimento já concluído.",
+        })
+      ).status,
+    ).toBe(409);
   });
 });
 

@@ -130,6 +130,7 @@ function previewConfig() {
 export function isPreviewLoginDisabled() {
   return (
     process.env["INVENTORY_DISABLE_PREVIEW_LOGIN"] === "true" &&
+    process.env["INVENTORY_PREVIEW_DATA_CLASSIFICATION"] === "synthetic" &&
     process.env["INVENTORY_ENVIRONMENT"] === "preview" &&
     process.env["VERCEL_ENV"] === "preview"
   );
@@ -340,6 +341,11 @@ export function can(context: AuthContext, permission: Permission, unitId?: strin
   if (!permissions[context.role].has(permission)) return false;
   if (!unitId || context.preview || context.role === "SUPER_ADMIN") return true;
   return context.unitIds.includes(unitId);
+}
+
+/** Only Preview and SUPER_ADMIN have organization-wide operational scope. */
+export function canAccessAllUnits(context: AuthContext) {
+  return context.preview || context.role === "SUPER_ADMIN";
 }
 
 export function actor(context: AuthContext) {

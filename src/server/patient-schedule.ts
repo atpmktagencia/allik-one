@@ -1,6 +1,6 @@
 import "@tanstack/react-start/server-only";
 import type { PoolClient } from "pg";
-import { actor, authenticate, can } from "./auth";
+import { actor, authenticate, can, canAccessAllUnits } from "./auth";
 import { getPool } from "./db";
 import { scheduleOperationInput } from "../data/schedule-operation-input";
 
@@ -147,7 +147,7 @@ export async function patientScheduleResponse(request: Request) {
   if (requestedUnit && !can(auth, "patients.read", requestedUnit))
     return Response.json({ error: "Unidade não autorizada." }, { status: 403, headers });
 
-  const unrestricted = auth.preview || auth.role === "SUPER_ADMIN" || auth.role === "PARTNER_ADMIN";
+  const unrestricted = canAccessAllUnits(auth);
   const result = await getPool().query(
     `WITH physical_stock AS (
        SELECT loc.unit_id,l.product_id,COALESCE(sum(b.quantity),0) AS units

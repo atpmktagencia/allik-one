@@ -1,6 +1,6 @@
 import "@tanstack/react-start/server-only";
 import type { PoolClient } from "pg";
-import { actor, authenticate, can } from "./auth";
+import { actor, authenticate, can, canAccessAllUnits } from "./auth";
 import { getPool } from "./db";
 import { openPresentationInput } from "../data/open-presentation-input";
 
@@ -22,8 +22,7 @@ export async function openPresentationResponse(request: Request) {
       return Response.json({ error: "Acesso negado." }, { status: 403, headers });
     if (requestedUnit && !can(auth, "inventory.read", requestedUnit))
       return Response.json({ error: "Unidade não autorizada." }, { status: 403, headers });
-    const unrestricted =
-      auth.preview || auth.role === "SUPER_ADMIN" || auth.role === "PARTNER_ADMIN";
+    const unrestricted = canAccessAllUnits(auth);
     const result = await getPool().query(
       `SELECT op.id,op.unit_id AS "unitId",u.name AS "unitName",op.location_id AS "locationId",
         loc.name AS "locationName",op.product_id AS "productId",p.name AS "productName",p.sku,

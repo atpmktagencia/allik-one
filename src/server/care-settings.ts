@@ -1,5 +1,5 @@
 import "@tanstack/react-start/server-only";
-import { authenticate, can } from "./auth";
+import { authenticate, can, canAccessAllUnits } from "./auth";
 import { getPool } from "./db";
 import { careSettingsInput } from "../data/care-settings-input";
 
@@ -19,7 +19,7 @@ export async function careSettingsResponse(request: Request) {
     return Response.json({ error: "Entre para acessar configurações." }, { status: 401, headers });
   if (!can(auth, "organization.read"))
     return Response.json({ error: "Acesso negado." }, { status: 403, headers });
-  const unrestricted = auth.preview || auth.role === "SUPER_ADMIN" || auth.role === "PARTNER_ADMIN";
+  const unrestricted = canAccessAllUnits(auth);
   if (request.method === "GET") {
     const [units, rooms, resources, types, professionals] = await Promise.all([
       getPool().query(
