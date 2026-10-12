@@ -384,9 +384,7 @@ export function CareEncounterPage({ appointmentId }: { appointmentId: string }) 
   async function saveClinicalNote(action: "SAVE_DRAFT" | "FINALIZE") {
     if (
       action === "FINALIZE" &&
-      !window.confirm(
-        "Finalizar e assinar esta evolução? Depois disso, o conteúdo não poderá ser alterado.",
-      )
+      !window.confirm("Finalizar esta evolução? Depois disso, o conteúdo não poderá ser alterado.")
     )
       return;
     setPending(true);
@@ -417,7 +415,7 @@ export function CareEncounterPage({ appointmentId }: { appointmentId: string }) 
       });
       await readInventoryResponse(response, "Não foi possível salvar a evolução.");
       await query.refetch();
-      setMessage(action === "FINALIZE" ? "Evolução finalizada e assinada." : "Rascunho salvo.");
+      setMessage(action === "FINALIZE" ? "Evolução finalizada." : "Rascunho salvo.");
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Falha de conexão.");
     } finally {
@@ -457,7 +455,7 @@ export function CareEncounterPage({ appointmentId }: { appointmentId: string }) 
     if (!template) return;
     if (
       evolution.trim() &&
-      !window.confirm("Substituir o texto atual da evolução pelo roteiro selecionado?")
+      !window.confirm("Substituir a evolução atual pelo modelo de anamnese selecionado?")
     )
       return;
     setEvolution(template.content);
@@ -621,14 +619,14 @@ export function CareEncounterPage({ appointmentId }: { appointmentId: string }) 
             <div className="space-y-2">
               <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
                 <label className="flex-1 space-y-1 text-sm font-medium">
-                  Pré-preencher evolução com roteiro
+                  Escolha um modelo de anamnese
                   <select
                     className="h-10 w-full rounded-md border bg-background px-3 font-normal"
                     value={selectedTemplate}
                     disabled={!data.canAuthorClinicalNote || data.clinicalNote?.status === "FINAL"}
                     onChange={(event) => setSelectedTemplate(event.target.value)}
                   >
-                    <option value="">Selecione um roteiro opcional</option>
+                    <option value="">Selecione um modelo de anamnese (opcional)</option>
                     {Object.entries(anamnesisTemplates).map(([key, template]) => (
                       <option key={key} value={key}>
                         {template.label}
@@ -646,12 +644,12 @@ export function CareEncounterPage({ appointmentId }: { appointmentId: string }) 
                   }
                   onClick={applyAnamnesisTemplate}
                 >
-                  Aplicar roteiro
+                  Inserir modelo
                 </Button>
               </div>
               <p className="text-xs text-muted-foreground">
-                O roteiro é inserido na evolução como texto editável e não substitui avaliação
-                clínica.
+                O modelo será inserido como texto editável na evolução e não substitui o julgamento
+                clínico.
               </p>
             </div>
             <label className="block space-y-2 text-sm font-medium">
@@ -662,7 +660,7 @@ export function CareEncounterPage({ appointmentId }: { appointmentId: string }) 
                 disabled={!data.canAuthorClinicalNote || data.clinicalNote?.status === "FINAL"}
                 rows={16}
                 maxLength={20000}
-                placeholder="Registre a evolução do atendimento."
+                placeholder="Registre a evolução clínica."
                 className="min-h-[420px] resize-y text-base leading-relaxed"
               />
             </label>
@@ -805,7 +803,7 @@ export function CareEncounterPage({ appointmentId }: { appointmentId: string }) 
                 </p>
               </div>
               <label className="block space-y-2 text-sm font-medium">
-                Hipóteses ou diagnósticos do atendimento
+                Hipóteses diagnósticas e diagnósticos
                 <Textarea
                   value={clinicalClosure.diagnosticHypotheses}
                   onChange={(event) =>
@@ -817,7 +815,7 @@ export function CareEncounterPage({ appointmentId }: { appointmentId: string }) 
                   disabled={!data.canAuthorClinicalNote || data.clinicalNote?.status === "FINAL"}
                   rows={4}
                   maxLength={10000}
-                  placeholder="Descreva hipóteses, diagnósticos avaliados e diferenciais relevantes."
+                  placeholder="Descreva as hipóteses diagnósticas, os diagnósticos estabelecidos e os diagnósticos diferenciais relevantes."
                 />
               </label>
               <label className="block space-y-2 text-sm font-medium">
@@ -833,12 +831,12 @@ export function CareEncounterPage({ appointmentId }: { appointmentId: string }) 
                   disabled={!data.canAuthorClinicalNote || data.clinicalNote?.status === "FINAL"}
                   rows={4}
                   maxLength={10000}
-                  placeholder="Registre o plano de investigação, acompanhamento e orientações."
+                  placeholder="Registre o plano diagnóstico, terapêutico, de acompanhamento e as orientações."
                 />
               </label>
               <div className="grid gap-4 md:grid-cols-[1fr_220px]">
                 <label className="block space-y-2 text-sm font-medium">
-                  Recomendação para o retorno
+                  Orientações para retorno
                   <Textarea
                     value={clinicalClosure.returnRecommendation}
                     onChange={(event) =>
@@ -854,7 +852,7 @@ export function CareEncounterPage({ appointmentId }: { appointmentId: string }) 
                   />
                 </label>
                 <label className="block space-y-2 text-sm font-medium">
-                  Data sugerida
+                  Data prevista para retorno
                   <Input
                     type="date"
                     value={clinicalClosure.returnOn}
@@ -877,7 +875,7 @@ export function CareEncounterPage({ appointmentId }: { appointmentId: string }) 
                 disabled={!data.canAuthorClinicalNote || data.clinicalNote?.status === "FINAL"}
                 rows={4}
                 maxLength={10000}
-                placeholder="Registre a conduta definida neste atendimento."
+                placeholder="Registre a conduta clínica adotada."
               />
             </label>
             {data.clinicalNote ? (
@@ -899,7 +897,7 @@ export function CareEncounterPage({ appointmentId }: { appointmentId: string }) 
                     disabled={pending}
                     onClick={claimClinicalNote}
                   >
-                    Assumir atendimento com meu perfil
+                    Assumir responsabilidade pelo atendimento
                   </Button>
                 ) : null}
                 {data.needsProfessionalRegistration ? (
@@ -922,7 +920,7 @@ export function CareEncounterPage({ appointmentId }: { appointmentId: string }) 
                   disabled={pending || evolution.trim().length < 10}
                   onClick={() => saveClinicalNote("FINALIZE")}
                 >
-                  {pending ? "Finalizando…" : "Finalizar e assinar"}
+                  {pending ? "Finalizando…" : "Finalizar evolução"}
                 </Button>
               </div>
             ) : null}
@@ -961,13 +959,13 @@ export function CareEncounterPage({ appointmentId }: { appointmentId: string }) 
               </div>
               <Button asChild variant="outline">
                 <Link to="/pacientes/$patientId" params={{ patientId: appointment.patientId }}>
-                  <UserRound /> Abrir plano operacional do paciente
+                  <UserRound /> Abrir cadastro clínico do paciente
                 </Link>
               </Button>
             </section>
             <section className="space-y-4 rounded-xl border bg-card p-5">
               <h2 className="flex items-center gap-2 font-semibold">
-                <ClipboardList className="size-4" /> Tratamentos ativos
+                <ClipboardList className="size-4" /> Planos terapêuticos ativos
               </h2>
               {data.treatments.length ? (
                 <div className="space-y-3">
@@ -982,14 +980,8 @@ export function CareEncounterPage({ appointmentId }: { appointmentId: string }) 
                   ))}
                 </div>
               ) : (
-                <p className="text-sm text-muted-foreground">
-                  Nenhum tratamento operacional cadastrado.
-                </p>
+                <p className="text-sm text-muted-foreground">Nenhum plano terapêutico ativo.</p>
               )}
-              <p className="rounded-lg bg-muted p-3 text-xs text-muted-foreground">
-                Tratamentos e consumo permanecem operacionais; prescrição e assinatura digital serão
-                etapas próprias.
-              </p>
             </section>
           </div>
           <div className="grid gap-5 xl:grid-cols-2">

@@ -99,20 +99,20 @@ describe("Care encounter UI", () => {
     fireEvent.change(screen.getByLabelText(/Peso/), { target: { value: "70" } });
     fireEvent.change(screen.getByLabelText(/Altura/), { target: { value: "175" } });
     expect(screen.getByText("IMC: 22.9")).toBeInTheDocument();
-    fireEvent.change(screen.getByLabelText("Pré-preencher evolução com roteiro"), {
+    fireEvent.change(screen.getByLabelText("Escolha um modelo de anamnese"), {
       target: { value: "healthyLongevity" },
     });
-    fireEvent.click(screen.getByRole("button", { name: "Aplicar roteiro" }));
+    fireEvent.click(screen.getByRole("button", { name: "Inserir modelo" }));
     expect((screen.getByLabelText("Evolução") as HTMLTextAreaElement).value).toContain(
       "ANAMNESE LONGEVIDADE SAUDÁVEL",
     );
     expect(screen.queryByRole("textbox", { name: "Motivo da consulta" })).not.toBeInTheDocument();
     expect(screen.getByRole("textbox", { name: "Conduta" })).toBeInTheDocument();
     expect(
-      screen.getByRole("textbox", { name: "Hipóteses ou diagnósticos do atendimento" }),
+      screen.getByRole("textbox", { name: "Hipóteses diagnósticas e diagnósticos" }),
     ).toBeInTheDocument();
     expect(screen.getByRole("textbox", { name: "Plano clínico" })).toBeInTheDocument();
-    expect(screen.getByLabelText("Data sugerida")).toBeInTheDocument();
+    expect(screen.getByLabelText("Data prevista para retorno")).toBeInTheDocument();
     expect(await screen.findByText("Prescrição do atendimento")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Adicionar item" }));
     expect(screen.getByLabelText("Intervalo da frequência do item 1")).toHaveValue(1);
@@ -206,7 +206,7 @@ describe("Care encounter UI", () => {
       await screen.findByText("Este atendimento está atribuído a Outro Profissional."),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: "Assumir atendimento com meu perfil" }),
+      screen.getByRole("button", { name: "Assumir responsabilidade pelo atendimento" }),
     ).toBeInTheDocument();
   });
 });

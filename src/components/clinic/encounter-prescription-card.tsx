@@ -125,7 +125,7 @@ export function EncounterPrescriptionCard({ appointmentId }: { appointmentId: st
       });
       await readInventoryResponse(response, "Não foi possível salvar a prescrição.");
       await query.refetch();
-      setMessage(action === "FINALIZE" ? "Prescrição finalizada e assinada." : "Rascunho salvo.");
+      setMessage(action === "FINALIZE" ? "Prescrição finalizada." : "Rascunho salvo.");
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Falha de conexão.");
     } finally {
@@ -139,7 +139,7 @@ export function EncounterPrescriptionCard({ appointmentId }: { appointmentId: st
         <div>
           <h2 className="font-semibold">Prescrição do atendimento</h2>
           <p className="mt-1 text-xs text-muted-foreground">
-            Registro clínico. Não reserva produtos, calcula valores ou baixa estoque.
+            Registro terapêutico. Não reserva produtos, calcula valores ou baixa estoque.
           </p>
         </div>
         <Badge variant="outline">
@@ -189,7 +189,7 @@ export function EncounterPrescriptionCard({ appointmentId }: { appointmentId: st
                       });
                     }}
                   >
-                    <option value="">Outro medicamento ou tratamento</option>
+                    <option value="">Medicamento ou item não cadastrado</option>
                     {data.products.map((product) => (
                       <option key={product.id} value={product.id}>
                         {product.name} · {product.sku}
@@ -394,7 +394,7 @@ export function EncounterPrescriptionCard({ appointmentId }: { appointmentId: st
                 </fieldset>
               </div>
               <label className="block space-y-1 text-sm font-medium">
-                Orientações deste item
+                Orientações adicionais
                 <Textarea
                   value={item.instructions}
                   rows={3}
@@ -407,7 +407,7 @@ export function EncounterPrescriptionCard({ appointmentId }: { appointmentId: st
         </div>
       ) : (
         <p className="rounded-lg bg-muted p-4 text-sm text-muted-foreground">
-          Nenhum item prescrito neste atendimento.
+          Nenhum item adicionado à prescrição.
         </p>
       )}
       {!disabled ? (
@@ -441,7 +441,7 @@ export function EncounterPrescriptionCard({ appointmentId }: { appointmentId: st
             {pending ? "Salvando…" : "Salvar rascunho"}
           </Button>
           <Button disabled={pending || items.length === 0} onClick={() => save("FINALIZE")}>
-            {pending ? "Finalizando…" : "Finalizar e assinar prescrição"}
+            {pending ? "Finalizando…" : "Finalizar prescrição"}
           </Button>
         </div>
       ) : null}
