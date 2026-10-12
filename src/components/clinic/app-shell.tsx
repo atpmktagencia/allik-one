@@ -295,43 +295,48 @@ export function AppShell({ children }: { children: ReactNode }) {
         </aside>
       ) : null}
       <div className={cn("min-w-0", !focusedEncounter && "lg:pl-[248px]")}>
-        <header className="sticky top-0 z-20 border-b border-border bg-background/95 backdrop-blur">
-          <div className="grid min-h-16 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 px-4 lg:px-7">
-            <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
-              <SheetTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className={cn("min-h-11 min-w-11", !focusedEncounter && "lg:hidden")}
-                  aria-label="Abrir menu"
+        <header className="sticky top-0 z-30 border-b border-border bg-background/95 backdrop-blur">
+          <div className="flex h-16 min-w-0 items-center gap-2 px-3 sm:gap-4 sm:px-4 lg:px-7">
+            <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-3">
+              <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
+                <SheetTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className={cn("min-h-11 min-w-11", !focusedEncounter && "lg:hidden")}
+                    aria-label="Abrir menu"
+                  >
+                    <Menu />
+                  </Button>
+                </SheetTrigger>
+                <SheetContent
+                  side="left"
+                  className="w-[286px] border-sidebar-border bg-sidebar p-0"
                 >
-                  <Menu />
-                </Button>
-              </SheetTrigger>
-              <SheetContent side="left" className="w-[286px] border-sidebar-border bg-sidebar p-0">
-                <SheetTitle className="sr-only">Navegação principal</SheetTitle>
-                <SheetDescription className="sr-only">
-                  Áreas operacionais do Allik One
-                </SheetDescription>
-                <SidebarContent identity={identity} onNavigate={() => setMobileOpen(false)} />
-              </SheetContent>
-            </Sheet>
-            <div className={cn("min-w-0", !focusedEncounter && "hidden lg:block")}>
-              <p className="text-[11px] font-medium uppercase tracking-widest text-muted-foreground">
-                Allik One · Operação de estoque
-              </p>
-              <p className="truncate font-display text-base font-semibold text-foreground">
-                {title}
-              </p>
+                  <SheetTitle className="sr-only">Navegação principal</SheetTitle>
+                  <SheetDescription className="sr-only">
+                    Áreas operacionais do Allik One
+                  </SheetDescription>
+                  <SidebarContent identity={identity} onNavigate={() => setMobileOpen(false)} />
+                </SheetContent>
+              </Sheet>
+              <div className={cn("min-w-0", !focusedEncounter && "hidden lg:block")}>
+                <p className="hidden text-[11px] font-medium uppercase tracking-widest text-muted-foreground sm:block">
+                  Allik One · Operação de estoque
+                </p>
+                <p className="truncate font-display text-sm font-semibold text-foreground sm:text-base">
+                  {title}
+                </p>
+              </div>
             </div>
-            <div className="flex min-w-0 justify-center">
+            <div className="flex min-w-0 shrink-0 justify-center">
               {identity ? (
                 <label className="flex items-center gap-2 text-sm">
-                  <span className="hidden text-muted-foreground sm:inline">Unidade</span>
+                  <span className="hidden text-muted-foreground md:inline">Unidade</span>
                   <select
                     id="inventory-unit"
                     aria-label="Unidade atual"
-                    className="h-9 max-w-52 rounded-md border bg-background px-3"
+                    className="h-9 w-[132px] rounded-md border bg-background px-2 text-sm sm:w-auto sm:max-w-52 sm:px-3"
                     value={unitId}
                     onChange={(event) => {
                       const value = event.target.value;
@@ -350,13 +355,13 @@ export function AppShell({ children }: { children: ReactNode }) {
                 </label>
               ) : null}
             </div>
-            <div className="flex min-w-0 items-center justify-end gap-3 text-right">
+            <div className="flex min-w-0 shrink-0 items-center justify-end gap-2 text-right sm:gap-3">
               {identity ? (
                 <>
-                  <p className="hidden max-w-44 truncate text-sm font-medium text-foreground sm:block sm:max-w-none">
+                  <p className="hidden max-w-44 truncate text-sm font-medium text-foreground lg:block xl:max-w-none">
                     {identity.user.name}
                   </p>
-                  <p className="hidden text-xs text-muted-foreground xl:block">
+                  <p className="hidden text-xs text-muted-foreground 2xl:block">
                     {roleLabels[identity.role] ?? identity.role} · Piloto operacional
                   </p>
                 </>
@@ -367,6 +372,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                 <Button
                   variant="outline"
                   size="sm"
+                  className="hidden sm:inline-flex"
                   onClick={async () => {
                     await fetch("/api/inventory-session", {
                       method: "DELETE",

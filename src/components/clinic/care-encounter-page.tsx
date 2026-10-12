@@ -25,7 +25,6 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { readInventoryResponse, useInventory } from "@/data/inventory-api";
 import { InventoryState } from "./inventory-state";
-import { PageHeader } from "./page-kit";
 import { EncounterPrescriptionCard } from "./encounter-prescription-card";
 import { EncounterQuoteCard } from "./encounter-quote-card";
 
@@ -166,8 +165,8 @@ function EncounterNavigation({ mobile = false }: { mobile?: boolean }) {
       aria-label="Seções do atendimento"
       className={
         mobile
-          ? "flex gap-1 overflow-x-auto border-y bg-background px-4 py-2 xl:hidden"
-          : "sticky top-24 hidden self-start xl:block"
+          ? "sticky top-16 z-10 flex gap-1 overflow-x-auto border-b bg-background/95 px-3 py-2 shadow-sm backdrop-blur lg:hidden"
+          : "sticky top-40 hidden self-start lg:block"
       }
     >
       {!mobile ? (
@@ -498,8 +497,8 @@ export function CareEncounterPage({ appointmentId }: { appointmentId: string }) 
 
   return (
     <div className="min-h-screen bg-muted/20">
-      <div className="sticky top-16 z-10 border-b bg-background/95 backdrop-blur">
-        <div className="mx-auto flex max-w-[1500px] items-center gap-4 px-4 py-4 sm:px-6 lg:px-8">
+      <div className="border-b bg-background lg:sticky lg:top-16 lg:z-20">
+        <div className="mx-auto flex max-w-[1320px] items-center gap-3 px-4 py-3 sm:px-6 lg:px-8">
           <Button
             asChild
             variant="ghost"
@@ -512,23 +511,25 @@ export function CareEncounterPage({ appointmentId }: { appointmentId: string }) 
             </Link>
           </Button>
           <div className="min-w-0 flex-1">
-            <PageHeader
-              eyebrow={`${appointment.patientCode} · ${appointment.unitName}`}
-              title={appointment.patientName}
-              description={`${appointment.careTypeName} · ${dateTime(appointment.startsAt)} · ${appointment.professionalName}`}
-              action={
-                <Badge variant="outline">
-                  {statusLabels[appointment.status] ?? appointment.status}
-                </Badge>
-              }
-            />
+            <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
+              <h1 className="truncate font-display text-lg font-semibold text-foreground sm:text-xl">
+                {appointment.patientName}
+              </h1>
+              <Badge variant="outline" className="shrink-0">
+                {statusLabels[appointment.status] ?? appointment.status}
+              </Badge>
+            </div>
+            <p className="mt-0.5 truncate text-xs text-muted-foreground sm:text-sm">
+              {appointment.patientCode} · {appointment.unitName} · {appointment.careTypeName} ·{" "}
+              {dateTime(appointment.startsAt)} · {appointment.professionalName}
+            </p>
           </div>
         </div>
       </div>
       <EncounterNavigation mobile />
-      <div className="mx-auto grid max-w-[1500px] gap-8 px-4 py-6 sm:px-6 lg:px-8 xl:grid-cols-[220px_minmax(0,1fr)]">
+      <div className="mx-auto grid max-w-[1320px] gap-6 px-4 py-5 sm:px-6 lg:grid-cols-[210px_minmax(0,960px)] lg:px-8 lg:py-7">
         <EncounterNavigation />
-        <main className="min-w-0 space-y-6">
+        <div className="min-w-0 space-y-5">
           <section id="resumo" className="scroll-mt-40 space-y-4">
             {(message || error) && (
               <div
@@ -1028,7 +1029,7 @@ export function CareEncounterPage({ appointmentId }: { appointmentId: string }) 
               ))}
             </section>
           </div>
-        </main>
+        </div>
       </div>
     </div>
   );
