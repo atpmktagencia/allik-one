@@ -33,6 +33,10 @@ type PricingOption = {
 
 type QuoteItem = {
   prescriptionItemId: string;
+  productId: string | null;
+  medicationName: string;
+  doseQuantity: number;
+  doseUnit: string;
   pricingDoseId: string;
   pricingDoseName: string;
   presentationName: string;
@@ -52,16 +56,39 @@ type Payload = {
     totalSale: string;
     estimatedCost: string;
     grossResult: string;
-    status: "DRAFT" | "ISSUED";
+    status: "DRAFT" | "ISSUED" | "APPROVED" | "DECLINED" | "PAID";
     version: number;
     issuedAt: string | null;
+    approvedAt: string | null;
+    declinedAt: string | null;
+    paidAt: string | null;
+    paymentMethod: string | null;
+    paymentReference: string | null;
   };
   pricingOptions: PricingOption[];
   canManage: boolean;
+  canApprove: boolean;
+  canDecline: boolean;
+  canRegisterPayment: boolean;
 };
 
 type Selection = { prescriptionItemId: string; pricingDoseId: string; quantity: number };
 const money = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
+const statusLabels = {
+  DRAFT: "Rascunho",
+  ISSUED: "Emitido · aguardando decisão",
+  APPROVED: "Aprovado · aguardando pagamento",
+  DECLINED: "Recusado",
+  PAID: "Pago",
+};
+const paymentMethods = {
+  PIX: "Pix",
+  CASH: "Dinheiro",
+  CREDIT_CARD: "Cartão de crédito",
+  DEBIT_CARD: "Cartão de débito",
+  BANK_TRANSFER: "Transferência bancária",
+  OTHER: "Outro",
+};
 
 function matches(item: PrescriptionItem, option: PricingOption) {
   return (
@@ -94,6 +121,10 @@ export function EncounterQuoteCard({ appointmentId }: { appointmentId: string })
   const [pending, setPending] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [paymentMethod, setPaymentMethod] = useState("PIX");
+  const [paymentDate, setPaymentDate] = useState("");
+  const [paymentReference, setPaymentReference] = useState("");
+  const [paymentReason, setPaymentReason] = useState("");
   const loaded = query.data?.quote;
 
   useEffect(() => {
@@ -147,7 +178,7 @@ export function EncounterQuoteCard({ appointmentId }: { appointmentId: string })
       <InventoryState pending={query.isPending} error={query.error} retry={() => query.refetch()} />
     );
   const data = query.data!;
-  if (!data.prescription || data.prescription.status !== "FINAL")
+  if (!data.quote && (!data.prescription || data.prescription.status !== "FINAL"))
     return (
       <section className="rounded-xl border bg-card p-5">
         <h2 className="font-semibold">Orçamento do tratamento</h2>
@@ -157,8 +188,32 @@ export function EncounterQuoteCard({ appointmentId }: { appointmentId: string })
       </section>
     );
 
-  const issued = data.quote?.status === "ISSUED";
-  const complete = selections.length === data.prescription.items.length;
+  const issued = Boolean(data.quote && data.quote.status !== "DRAFT");
+  const displayedItems: PrescriptionItem[] =
+    issued || !data.prescription
+      ? (data.quote?.items ?? []).map((item) => ({
+          id: item.prescriptionItemId,
+          productId: item.productId,
+          medicationName: item.medicationName,
+          doseQuantity: item.doseQuantity,
+          doseUnit: item.doseUnit,
+          plannedAdministrations: item.quantity,
+        }))
+      : data.prescription.items;
+  const complete =
+    Boolean(data.prescription?.items.length) &&
+    displayedItems.every((item) => {
+      const selection = selections.find(({ prescriptionItemId }) => prescriptionItemId === item.id);
+      return Boolean(
+        selection &&
+        Number.isInteger(selection.quantity) &&
+        selection.quantity >= 1 &&
+        selection.quantity <= 1000 &&
+        data.pricingOptions.some(
+          (option) => option.id === selection.pricingDoseId && matches(item, option),
+        ),
+      );
+    });
 
   function updateSelection(item: PrescriptionItem, values: Partial<Selection>) {
     setSelections((current) => {
@@ -210,6 +265,59 @@ export function EncounterQuoteCard({ appointmentId }: { appointmentId: string })
     }
   }
 
+  async function transition(action: "APPROVE" | "DECLINE" | "REGISTER_PAYMENT") {
+    if (!data.quote || pending) return;
+    if (action === "REGISTER_PAYMENT" && (!paymentDate || !paymentReason.trim())) {
+      setError("Informe a data do pagamento e o motivo do registro manual.");
+      return;
+    }
+    const confirmation =
+      action === "APPROVE"
+        ? "Registrar a aprovação do paciente para este orçamento?"
+        : action === "DECLINE"
+          ? "Registrar a recusa deste orçamento?"
+          : "Confirmar o pagamento integral informado? Este registro é manual e não verifica a transação bancária.";
+    if (!window.confirm(confirmation)) return;
+    setPending(true);
+    setError("");
+    setMessage("");
+    try {
+      const response = await fetch("/api/v1/inventory/encounter-quotes", {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action,
+          appointmentId,
+          version: data.quote.version,
+          ...(action === "REGISTER_PAYMENT"
+            ? {
+                payment: {
+                  method: paymentMethod,
+                  paidAt: new Date(paymentDate).toISOString(),
+                  reference: paymentReference.trim(),
+                  reason: paymentReason.trim(),
+                },
+              }
+            : {}),
+        }),
+      });
+      await readInventoryResponse(response, "Não foi possível atualizar o orçamento.");
+      await query.refetch();
+      setMessage(
+        action === "APPROVE"
+          ? "Aprovação do paciente registrada."
+          : action === "DECLINE"
+            ? "Recusa do orçamento registrada."
+            : "Pagamento registrado. Nenhuma aplicação foi agendada automaticamente.",
+      );
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Falha de conexão.");
+    } finally {
+      setPending(false);
+    }
+  }
+
   return (
     <section className="space-y-4 rounded-xl border bg-card p-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -219,15 +327,26 @@ export function EncounterQuoteCard({ appointmentId }: { appointmentId: string })
             Registro comercial separado da prescrição. Não reserva nem baixa estoque.
           </p>
         </div>
-        <Badge variant="outline">{issued ? "Emitido" : data.quote ? "Rascunho" : "Novo"}</Badge>
+        <Badge variant="outline">{data.quote ? statusLabels[data.quote.status] : "Novo"}</Badge>
       </div>
       {(message || error) && (
         <div role={error ? "alert" : "status"} className="rounded-lg border px-4 py-3 text-sm">
           {error || message}
         </div>
       )}
+      {pending ? (
+        <p role="status" className="text-sm text-muted-foreground">
+          Atualizando orçamento…
+        </p>
+      ) : null}
+      {data.quote?.approvedAt || data.quote?.declinedAt ? (
+        <p className="text-sm text-muted-foreground">
+          {data.quote.declinedAt ? "Recusa registrada" : "Aprovação registrada"} em{" "}
+          {new Date(data.quote.declinedAt ?? data.quote.approvedAt!).toLocaleString("pt-BR")}
+        </p>
+      ) : null}
       <div className="space-y-3">
-        {data.prescription.items.map((item) => {
+        {displayedItems.map((item) => {
           const options = data.pricingOptions.filter((option) => matches(item, option));
           const selection = selections.find(
             ({ prescriptionItemId }) => prescriptionItemId === item.id,
@@ -261,7 +380,7 @@ export function EncounterQuoteCard({ appointmentId }: { appointmentId: string })
                   Precificação validada
                   <select
                     className="h-10 w-full rounded-md border bg-background px-3 text-sm font-normal"
-                    disabled={!data.canManage}
+                    disabled={pending || !data.canManage}
                     value={selection?.pricingDoseId ?? ""}
                     onChange={(event) =>
                       updateSelection(item, { pricingDoseId: event.target.value })
@@ -287,7 +406,7 @@ export function EncounterQuoteCard({ appointmentId }: { appointmentId: string })
                   type="number"
                   min="1"
                   max="1000"
-                  disabled={issued || !data.canManage || !options.length}
+                  disabled={pending || issued || !data.canManage || !options.length}
                   value={selection?.quantity ?? item.plannedAdministrations ?? 1}
                   onChange={(event) =>
                     updateSelection(item, { quantity: Number(event.target.value) })
@@ -323,7 +442,7 @@ export function EncounterQuoteCard({ appointmentId }: { appointmentId: string })
         <Textarea
           rows={3}
           maxLength={3000}
-          disabled={issued || !data.canManage}
+          disabled={pending || issued || !data.canManage}
           value={commercialNotes}
           onChange={(event) => setCommercialNotes(event.target.value)}
         />
@@ -343,6 +462,95 @@ export function EncounterQuoteCard({ appointmentId }: { appointmentId: string })
             </p>
           ) : null}
         </div>
+      ) : null}
+      {data.quote?.status === "ISSUED" && (data.canApprove || data.canDecline) ? (
+        <div className="space-y-3 rounded-lg border p-4">
+          <p className="text-sm text-muted-foreground">
+            Registre a decisão após a confirmação do paciente.
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {data.canApprove && (
+              <Button disabled={pending} onClick={() => transition("APPROVE")}>
+                Registrar aprovação
+              </Button>
+            )}
+            {data.canDecline && (
+              <Button variant="outline" disabled={pending} onClick={() => transition("DECLINE")}>
+                Registrar recusa
+              </Button>
+            )}
+          </div>
+        </div>
+      ) : null}
+      {data.quote?.status === "APPROVED" && data.canRegisterPayment ? (
+        <div className="space-y-3 rounded-lg border p-4">
+          <h3 className="text-sm font-semibold">Registrar pagamento integral</h3>
+          <p className="text-xs text-muted-foreground">
+            Valor: {money.format(Number(data.quote.totalSale))}. Confirme o recebimento antes de
+            registrar.
+          </p>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <label className="space-y-1 text-sm">
+              Forma de pagamento
+              <select
+                className="h-10 w-full rounded-md border bg-background px-3 text-sm"
+                disabled={pending}
+                value={paymentMethod}
+                onChange={(event) => setPaymentMethod(event.target.value)}
+              >
+                {Object.entries(paymentMethods).map(([value, label]) => (
+                  <option key={value} value={value}>
+                    {label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="space-y-1 text-sm">
+              Data e hora do pagamento
+              <Input
+                type="datetime-local"
+                required
+                disabled={pending}
+                value={paymentDate}
+                onChange={(event) => setPaymentDate(event.target.value)}
+              />
+            </label>
+            <label className="space-y-1 text-sm">
+              Referência ou comprovante (opcional)
+              <Input
+                maxLength={200}
+                disabled={pending}
+                value={paymentReference}
+                onChange={(event) => setPaymentReference(event.target.value)}
+              />
+            </label>
+            <label className="space-y-1 text-sm">
+              Motivo do registro manual
+              <Input
+                required
+                maxLength={1000}
+                disabled={pending}
+                value={paymentReason}
+                onChange={(event) => setPaymentReason(event.target.value)}
+                placeholder="Ex.: recebimento confirmado pela recepção"
+              />
+            </label>
+          </div>
+          <Button
+            disabled={pending || !paymentDate || !paymentReason.trim()}
+            onClick={() => transition("REGISTER_PAYMENT")}
+          >
+            {pending ? "Registrando…" : "Confirmar pagamento"}
+          </Button>
+        </div>
+      ) : null}
+      {data.quote?.paidAt ? (
+        <p className="text-sm text-muted-foreground">
+          Pagamento registrado em {new Date(data.quote.paidAt).toLocaleString("pt-BR")} ·{" "}
+          {paymentMethods[data.quote.paymentMethod as keyof typeof paymentMethods] ??
+            data.quote.paymentMethod}
+          {data.quote.paymentReference ? ` · Referência: ${data.quote.paymentReference}` : ""}
+        </p>
       ) : null}
     </section>
   );

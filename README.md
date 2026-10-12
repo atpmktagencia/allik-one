@@ -201,5 +201,13 @@ O Milestone 1 só é encerrado após validar o deployment com PostgreSQL na Verc
 
 ## Sincronização
 
+### Evolução clínica — próximos marcos
+
+- Milestone 13: aprovação/recusa do orçamento emitido e registro manual do pagamento integral, com escopo por unidade, controle de versão e auditoria. Valores emitidos permanecem congelados; registrar pagamento não movimenta estoque.
+- Milestone 14: ativação do plano terapêutico e programação das aplicações a partir da primeira data, frequência estruturada e quantidade contratada; confirmação da agenda pela equipe antes de reservar estoque.
+- Milestone 15: documentos independentes por atendimento, modelos reutilizáveis de prescrição e solicitação de exames, visualização e impressão.
+- Milestone 16: histórico longitudinal do paciente, evoluções, planos terapêuticos, documentos e aplicações.
+- Milestone 17: assinatura eletrônica de documentos, integridade e validação.
+
 Projeto Lovable: https://lovable.dev/projects/d9d8071f-e34a-4e1b-8e4d-5b845dc82c23
 Não reescreva histórico publicado. A alteração do nome do repositório no GitHub e do projeto/domínio Vercel é independente do nome visível da aplicação.

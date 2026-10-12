@@ -75,9 +75,9 @@
     0 1px 2px oklch(0.129 0.042 264.695 / 0.04), 0 8px 24px oklch(0.129 0.042 264.695 / 0.035);
   --shadow-panel: 0 14px 36px oklch(0.129 0.042 264.695 / 0.12);
   --font-display:
-    InterVariable, Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    "Inter Variable", Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   --font-sans:
-    InterVariable, Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    "Inter Variable", Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
 
 :root {

@@ -309,6 +309,13 @@
       "when": 1794272400000,
       "tag": "0043_spotty_silver_surfer",
       "breakpoints": true
+    },
+    {
+      "idx": 44,
+      "version": "7",
+      "when": 1791839965706,
+      "tag": "0044_awesome_cable",
+      "breakpoints": true
     }
   ]
 }

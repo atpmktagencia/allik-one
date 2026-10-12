@@ -117,6 +117,7 @@ async function scopedCookie(unitId: string, role = "VIEWER") {
   return `allik_inventory_session=${token}`;
 }
 
+
 describe("revocable integration credentials", () => {
   it("creates a scoped secret, audits its use and revokes it immediately", async () => {
     const adminCookie = await scopedCookie("a1100000-0000-4000-8000-000000000101", "SUPER_ADMIN");
@@ -3397,5 +3398,260 @@ describe("Inventory API", () => {
   it("returns empty data for a valid unmatched filter", async () => {
     const body = await (await inventoryResponse(request(`stock?productId=${randomUUID()}`))).json();
     expect(body.data).toEqual([]);
+  });
+});
+
+describe("encounter quote commercial lifecycle", () => {
+  const unitId = "a1100000-0000-4000-8000-000000000101";
+  async function issuedQuote() {
+    const sessionCookie = await scopedCookie(unitId, "FINANCE");
+    const actor = await getPool().query<{ user_id: string }>(
+      "SELECT user_id FROM inventory_sessions WHERE token_hash=$1",
+      [hashToken(sessionCookie.split("=")[1]!)],
+    );
+    const userId = actor.rows[0]!.user_id;
+    const patientId = randomUUID();
+    const appointmentId = randomUUID();
+    const prescriptionId = randomUUID();
+    const quoteId = randomUUID();
+    await getPool().query(
+      `INSERT INTO inventory_patients(id,organization_id,primary_unit_id,internal_code,full_name,phone,email)
+       VALUES($1,'a1100000-0000-4000-8000-000000000001',$2,$3,'Paciente comercial sintético','+5585999999999','quote@example.test')`,
+      [patientId, unitId, `QUOTE-${patientId.slice(0, 8)}`],
+    );
+    await getPool().query(
+      `INSERT INTO inventory_care_appointments(id,organization_id,unit_id,patient_id,professional_user_id,care_type,starts_at,ends_at,room)
+       VALUES($1,'a1100000-0000-4000-8000-000000000001',$2,$3,$4,'CONSULTATION','2028-01-10T12:00:00Z','2028-01-10T13:00:00Z',$5)`,
+      [appointmentId, unitId, patientId, userId, `Sala ${appointmentId.slice(0, 8)}`],
+    );
+    const items = [
+      { id: randomUUID(), medicationName: "Medicamento sintético", quantity: 4, salePrice: 200 },
+    ];
+    await getPool().query(
+      `INSERT INTO inventory_encounter_prescriptions(id,organization_id,unit_id,appointment_id,patient_id,author_user_id,author_name,professional_council,council_number,council_region,items,status,finalized_at)
+       VALUES($1,'a1100000-0000-4000-8000-000000000001',$2,$3,$4,$5,'Profissional sintético','CRM','12345','CE',$6,'FINAL',now())`,
+      [prescriptionId, unitId, appointmentId, patientId, userId, JSON.stringify(items)],
+    );
+    await getPool().query(
+      `INSERT INTO inventory_encounter_quotes(id,organization_id,unit_id,appointment_id,patient_id,prescription_id,created_by_user_id,items,total_sale,estimated_cost,gross_result,status,issued_at,version)
+       VALUES($1,'a1100000-0000-4000-8000-000000000001',$2,$3,$4,$5,$6,$7,800,100,700,'ISSUED',now(),1)`,
+      [quoteId, unitId, appointmentId, patientId, prescriptionId, userId, JSON.stringify(items)],
+    );
+    const post = (value: unknown, credential = sessionCookie) =>
+      encounterQuotesResponse(
+        new Request(`${origin}/api/v1/inventory/encounter-quotes`, {
+          method: "POST",
+          headers: { cookie: credential, origin, "Content-Type": "application/json" },
+          body: JSON.stringify(value),
+        }),
+      );
+    return { appointmentId, quoteId, userId, sessionCookie, items, post };
+  }
+
+  it("approves and records full payment with independent authorship, immutable prices and unchanged stock", async () => {
+    const f = await issuedQuote();
+    const financeRead = await encounterQuotesResponse(
+      new Request(`${origin}/api/v1/inventory/encounter-quotes?appointmentId=${f.appointmentId}`, {
+        headers: { cookie: f.sessionCookie },
+      }),
+    );
+    expect(financeRead.status).toBe(200);
+    const financeData = (await financeRead.json()).data;
+    expect(financeData.prescription).toBeNull();
+    expect(financeData.pricingOptions).toEqual([]);
+    const stock = async () =>
+      (
+        await getPool().query(
+          `SELECT (SELECT count(*)::int FROM inventory_movements) AS movements,
+        (SELECT coalesce(jsonb_agg(to_jsonb(b) ORDER BY lot_id,location_id),'[]'::jsonb) FROM inventory_balances b) AS balances`,
+        )
+      ).rows;
+    const beforeStock = await stock();
+    const payment = {
+      method: "PIX",
+      paidAt: "2026-10-12T15:00:00Z",
+      reference: "Comprovante sintético",
+      reason: "Pagamento integral confirmado.",
+    };
+    expect(
+      (
+        await f.post({
+          action: "REGISTER_PAYMENT",
+          appointmentId: f.appointmentId,
+          version: 1,
+          payment,
+        })
+      ).status,
+    ).toBe(409);
+    expect(
+      (
+        await f.post({
+          action: "APPROVE",
+          appointmentId: f.appointmentId,
+          version: 1,
+          reason: "Paciente aprovou o orçamento.",
+        })
+      ).status,
+    ).toBe(200);
+    expect(
+      (await f.post({ action: "APPROVE", appointmentId: f.appointmentId, version: 1 })).status,
+    ).toBe(409);
+    const secondCookie = await scopedCookie(unitId, "FINANCE");
+    const secondActor = (
+      await getPool().query<{ user_id: string }>(
+        "SELECT user_id FROM inventory_sessions WHERE token_hash=$1",
+        [hashToken(secondCookie.split("=")[1]!)],
+      )
+    ).rows[0]!.user_id;
+    expect(
+      (
+        await f.post(
+          { action: "REGISTER_PAYMENT", appointmentId: f.appointmentId, version: 2 },
+          secondCookie,
+        )
+      ).status,
+    ).toBe(400);
+    expect(
+      (
+        await f.post(
+          { action: "REGISTER_PAYMENT", appointmentId: f.appointmentId, version: 2, payment },
+          secondCookie,
+        )
+      ).status,
+    ).toBe(200);
+    expect(
+      (
+        await f.post(
+          { action: "REGISTER_PAYMENT", appointmentId: f.appointmentId, version: 3, payment },
+          secondCookie,
+        )
+      ).status,
+    ).toBe(409);
+    const stored = (
+      await getPool().query(
+        "SELECT status,version,items,total_sale::text,estimated_cost::text,payment_method FROM inventory_encounter_quotes WHERE id=$1",
+        [f.quoteId],
+      )
+    ).rows[0];
+    expect(stored).toEqual(
+      expect.objectContaining({
+        status: "PAID",
+        version: 3,
+        items: f.items,
+        total_sale: "800.00",
+        estimated_cost: "100.0000",
+        payment_method: "PIX",
+      }),
+    );
+    expect(
+      (
+        await getPool().query(
+          "SELECT action,actor_user_id FROM inventory_encounter_quote_changes WHERE quote_id=$1 ORDER BY created_at",
+          [f.quoteId],
+        )
+      ).rows,
+    ).toEqual([
+      { action: "APPROVE", actor_user_id: f.userId },
+      { action: "REGISTER_PAYMENT", actor_user_id: secondActor },
+    ]);
+    await expect(
+      getPool().query("UPDATE inventory_encounter_quotes SET total_sale=1 WHERE id=$1", [
+        f.quoteId,
+      ]),
+    ).rejects.toThrow(/immutable/);
+    await expect(
+      getPool().query("DELETE FROM inventory_encounter_quote_changes WHERE quote_id=$1", [
+        f.quoteId,
+      ]),
+    ).rejects.toThrow();
+    expect(await stock()).toEqual(beforeStock);
+  });
+
+  it("keeps declined quotes terminal and rejects payment", async () => {
+    const f = await issuedQuote();
+    expect(
+      (
+        await f.post({
+          action: "DECLINE",
+          appointmentId: f.appointmentId,
+          version: 1,
+          reason: "Paciente recusou o orçamento.",
+        })
+      ).status,
+    ).toBe(200);
+    expect(
+      (await f.post({ action: "APPROVE", appointmentId: f.appointmentId, version: 2 })).status,
+    ).toBe(409);
+    expect(
+      (
+        await f.post({
+          action: "REGISTER_PAYMENT",
+          appointmentId: f.appointmentId,
+          version: 2,
+          payment: {
+            method: "CASH",
+            paidAt: "2026-10-12T15:00:00Z",
+            reason: "Tentativa de pagamento.",
+          },
+        })
+      ).status,
+    ).toBe(409);
+    expect(
+      (
+        await getPool().query("SELECT status,version FROM inventory_encounter_quotes WHERE id=$1", [
+          f.quoteId,
+        ])
+      ).rows,
+    ).toEqual([{ status: "DECLINED", version: 2 }]);
+  });
+
+  it("serializes simultaneous decisions and records only the winning decision", async () => {
+    const f = await issuedQuote();
+    const secondCookie = await scopedCookie(unitId, "FINANCE");
+    const responses = await Promise.all([
+      f.post({ action: "APPROVE", appointmentId: f.appointmentId, version: 1 }),
+      f.post({ action: "DECLINE", appointmentId: f.appointmentId, version: 1 }, secondCookie),
+    ]);
+    expect(responses.map((response) => response.status).sort()).toEqual([200, 409]);
+    const stored = (
+      await getPool().query("SELECT status,version FROM inventory_encounter_quotes WHERE id=$1", [
+        f.quoteId,
+      ])
+    ).rows[0];
+    expect(stored.version).toBe(2);
+    expect(stored.status).toBe(responses[0]!.status === 200 ? "APPROVED" : "DECLINED");
+    expect(
+      (
+        await getPool().query(
+          "SELECT count(*)::int AS count FROM inventory_encounter_quote_changes WHERE quote_id=$1",
+          [f.quoteId],
+        )
+      ).rows[0].count,
+    ).toBe(1);
+  });
+
+  it("rejects viewer, unauthorized unit and anonymous preview commercial actions", async () => {
+    const f = await issuedQuote();
+    const viewer = await scopedCookie(unitId, "VIEWER");
+    const otherUnit = await scopedCookie("a1100000-0000-4000-8000-000000000102", "FINANCE");
+    const action = { action: "APPROVE", appointmentId: f.appointmentId, version: 1 };
+    expect((await f.post(action, viewer)).status).toBe(403);
+    expect((await f.post(action, otherUnit)).status).toBe(403);
+    expect((await f.post(action, cookie)).status).toBe(403);
+    expect(
+      (
+        await getPool().query("SELECT status,version FROM inventory_encounter_quotes WHERE id=$1", [
+          f.quoteId,
+        ])
+      ).rows,
+    ).toEqual([{ status: "ISSUED", version: 1 }]);
+    expect(
+      (
+        await getPool().query(
+          "SELECT count(*)::int AS count FROM inventory_encounter_quote_changes WHERE quote_id=$1",
+          [f.quoteId],
+        )
+      ).rows[0].count,
+    ).toBe(0);
   });
 });

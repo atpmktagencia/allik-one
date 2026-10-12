@@ -51,6 +51,7 @@ export type Permission =
   | "patients.manage"
   | "patients.private.read"
   | "patients.clinical.manage"
+  | "quotes.manage"
   | "users.manage"
   | "organization.read";
 export type AuthContext = {
@@ -80,6 +81,7 @@ const allPermissions: Permission[] = [
   "patients.manage",
   "patients.private.read",
   "patients.clinical.manage",
+  "quotes.manage",
   "users.manage",
   "organization.read",
 ];
@@ -92,7 +94,8 @@ const permissions: Record<Role, ReadonlySet<Permission>> = {
         permission !== "users.manage" &&
         permission !== "patients.manage" &&
         permission !== "patients.private.read" &&
-        permission !== "patients.clinical.manage",
+        permission !== "patients.clinical.manage" &&
+        permission !== "quotes.manage",
     ),
   ),
   UNIT_MANAGER: new Set([
@@ -112,9 +115,11 @@ const permissions: Record<Role, ReadonlySet<Permission>> = {
     "patients.manage",
     "patients.private.read",
     "patients.clinical.manage",
+    "quotes.manage",
     "organization.read",
   ]),
   FINANCE: new Set([
+    "quotes.manage",
     "inventory.read",
     "inventory.purchase.manage",
     "inventory.trace",

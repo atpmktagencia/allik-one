@@ -832,13 +832,21 @@ export const encounterQuotes = pgTable(
     status: text("status").notNull().default("DRAFT"),
     version: integer("version").notNull().default(0),
     issuedAt: timestamp("issued_at", { withTimezone: true }),
+    approvedAt: timestamp("approved_at", { withTimezone: true }),
+    declinedAt: timestamp("declined_at", { withTimezone: true }),
+    paidAt: timestamp("paid_at", { withTimezone: true }),
+    paymentMethod: text("payment_method"),
+    paymentReference: text("payment_reference"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
     index("encounter_quote_patient_history").on(t.patientId, t.createdAt),
     index("encounter_quote_unit_history").on(t.unitId, t.createdAt),
-    check("encounter_quote_status_valid", sql`${t.status} IN ('DRAFT','ISSUED')`),
+    check(
+      "encounter_quote_status_valid",
+      sql`${t.status} IN ('DRAFT','ISSUED','APPROVED','DECLINED','PAID')`,
+    ),
     check("encounter_quote_version_nonnegative", sql`${t.version}>=0`),
     check("encounter_quote_totals_nonnegative", sql`${t.totalSale}>=0 AND ${t.estimatedCost}>=0`),
     check(
@@ -848,7 +856,15 @@ export const encounterQuotes = pgTable(
     check("encounter_quote_notes_valid", sql`char_length(${t.commercialNotes})<=3000`),
     check(
       "encounter_quote_issued_valid",
-      sql`(${t.status}='DRAFT' AND ${t.issuedAt} IS NULL) OR (${t.status}='ISSUED' AND ${t.issuedAt} IS NOT NULL AND jsonb_array_length(${t.items})>0)`,
+      sql`(${t.status}='DRAFT' AND ${t.issuedAt} IS NULL) OR (${t.status}<>'DRAFT' AND ${t.issuedAt} IS NOT NULL AND jsonb_array_length(${t.items})>0)`,
+    ),
+    check(
+      "encounter_quote_lifecycle_valid",
+      sql`(${t.status} IN ('DRAFT','ISSUED') AND ${t.approvedAt} IS NULL AND ${t.declinedAt} IS NULL AND ${t.paidAt} IS NULL) OR (${t.status}='APPROVED' AND ${t.approvedAt} IS NOT NULL AND ${t.declinedAt} IS NULL AND ${t.paidAt} IS NULL) OR (${t.status}='DECLINED' AND ${t.declinedAt} IS NOT NULL AND ${t.approvedAt} IS NULL AND ${t.paidAt} IS NULL) OR (${t.status}='PAID' AND ${t.approvedAt} IS NOT NULL AND ${t.declinedAt} IS NULL AND ${t.paidAt} IS NOT NULL)`,
+    ),
+    check(
+      "encounter_quote_payment_valid",
+      sql`(${t.status}<>'PAID' AND ${t.paymentMethod} IS NULL AND ${t.paymentReference} IS NULL) OR (${t.status}='PAID' AND ${t.paymentMethod} IS NOT NULL AND ${t.paymentMethod} IN ('PIX','CASH','CREDIT_CARD','DEBIT_CARD','BANK_TRANSFER','OTHER') AND char_length(coalesce(${t.paymentReference},''))<=500)`,
     ),
   ],
 );
@@ -873,7 +889,10 @@ export const encounterQuoteChanges = pgTable(
   },
   (t) => [
     index("encounter_quote_change_history").on(t.quoteId, t.createdAt),
-    check("encounter_quote_change_action_valid", sql`${t.action} IN ('CREATE','UPDATE','ISSUE')`),
+    check(
+      "encounter_quote_change_action_valid",
+      sql`${t.action} IN ('CREATE','UPDATE','ISSUE','APPROVE','DECLINE','REGISTER_PAYMENT')`,
+    ),
   ],
 );
 
