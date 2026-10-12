@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
+import { readFile } from "node:fs/promises";
 
 function run(overrides) {
   const env = { ...process.env };
@@ -58,4 +59,15 @@ test("production maintenance flags never trigger database work during a build", 
   });
   assert.equal(result.status, 0);
   assert.doesNotMatch(result.stdout + result.stderr, /must-not-connect/);
+});
+
+test("migration journal timestamps remain strictly increasing", async () => {
+  const journal = JSON.parse(await readFile("drizzle/meta/_journal.json", "utf8"));
+  const entries = journal.entries;
+  for (let index = 1; index < entries.length; index += 1) {
+    assert.ok(
+      entries[index].when > entries[index - 1].when,
+      `${entries[index].tag} must be newer than ${entries[index - 1].tag}`,
+    );
+  }
 });
