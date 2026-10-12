@@ -68,6 +68,14 @@ describe("pilot authentication and authorization", () => {
   });
   it("enforces role and unit together", () => {
     expect(can(context("INVENTORY_MANAGER"), "inventory.adjust", "unit-fortaleza")).toBe(true);
+    expect(can(context("INVENTORY_MANAGER"), "patients.read", "unit-fortaleza")).toBe(true);
+    expect(can(context("INVENTORY_MANAGER"), "patients.private.read", "unit-fortaleza")).toBe(
+      false,
+    );
+    expect(can(context("INVENTORY_MANAGER"), "patients.clinical.manage", "unit-fortaleza")).toBe(
+      false,
+    );
+    expect(can(context("UNIT_MANAGER"), "patients.private.read", "unit-fortaleza")).toBe(true);
     expect(can(context("INVENTORY_MANAGER"), "inventory.adjust", "unit-juazeiro")).toBe(false);
     expect(can(context("FINANCE"), "inventory.adjust", "unit-fortaleza")).toBe(false);
     expect(can(context("VIEWER"), "inventory.receive", "unit-fortaleza")).toBe(false);

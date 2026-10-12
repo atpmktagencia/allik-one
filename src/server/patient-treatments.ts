@@ -32,7 +32,7 @@ export async function patientDetailResponse(request: Request) {
   const auth = await authenticate(request);
   if (!auth)
     return Response.json({ error: "Entre para acessar pacientes." }, { status: 401, headers });
-  if (!can(auth, "patients.read"))
+  if (!can(auth, "patients.private.read"))
     return Response.json({ error: "Acesso negado." }, { status: 403, headers });
   const patientId = new URL(request.url).searchParams.get("patientId");
   if (!patientId)
@@ -262,7 +262,10 @@ export async function patientDetailResponse(request: Request) {
     return Response.json({ error: "Método não permitido." }, { status: 405, headers });
   if (request.headers.get("origin") !== new URL(request.url).origin)
     return Response.json({ error: "Origem não autorizada." }, { status: 403, headers });
-  if (!can(auth, "patients.manage", String(patient.primaryUnitId)))
+  if (
+    !can(auth, "patients.manage", String(patient.primaryUnitId)) ||
+    !can(auth, "patients.clinical.manage", String(patient.primaryUnitId))
+  )
     return Response.json(
       { error: "Sem permissão para alterar tratamentos." },
       { status: 403, headers },
@@ -720,14 +723,14 @@ async function uploadPrescription(
 
 export async function prescriptionDownloadResponse(request: Request, prescriptionId: string) {
   const auth = await authenticate(request);
-  if (!auth || !can(auth, "patients.read"))
+  if (!auth || !can(auth, "patients.private.read"))
     return Response.json({ error: "Acesso negado." }, { status: auth ? 403 : 401, headers });
   const result = await getPool().query(
     `SELECT d.blob_pathname,d.original_filename,d.content_type,p.primary_unit_id FROM inventory_patient_prescriptions d JOIN inventory_patients p ON p.id=d.patient_id WHERE d.id=$1 AND d.organization_id=$2`,
     [prescriptionId, auth.organizationId],
   );
   const document = result.rows[0];
-  if (!document || !can(auth, "patients.read", String(document.primary_unit_id)))
+  if (!document || !can(auth, "patients.private.read", String(document.primary_unit_id)))
     return Response.json({ error: "Documento não encontrado." }, { status: 404, headers });
   const blob = await get(String(document.blob_pathname), { access: "private" });
   if (!blob || blob.statusCode !== 200)

@@ -30,7 +30,11 @@ export async function patientApplicationResponse(request: Request) {
   const auth = await authenticate(request);
   if (!auth)
     return Response.json({ error: "Entre para registrar a aplicação." }, { status: 401, headers });
-  if (!can(auth, "inventory.consume") || !can(auth, "patients.read"))
+  if (
+    !can(auth, "inventory.consume") ||
+    !can(auth, "patients.read") ||
+    !can(auth, "patients.clinical.manage")
+  )
     return Response.json({ error: "Acesso negado." }, { status: 403, headers });
   if (request.method !== "POST")
     return Response.json({ error: "Método não permitido." }, { status: 405, headers });
@@ -70,7 +74,8 @@ export async function patientApplicationResponse(request: Request) {
     const schedule = scheduleResult.rows[0];
     if (
       !can(auth, "inventory.consume", String(schedule.unit_id)) ||
-      !can(auth, "patients.read", String(schedule.unit_id))
+      !can(auth, "patients.read", String(schedule.unit_id)) ||
+      !can(auth, "patients.clinical.manage", String(schedule.unit_id))
     )
       throw new PatientApplicationDenied("Unidade não autorizada para esta aplicação.");
     const replay = await replayOrConflict(client, input.operationId, input.scheduleId, hash);

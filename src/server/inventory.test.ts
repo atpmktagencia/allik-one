@@ -601,6 +601,17 @@ describe("operational patients", () => {
         )
       ).status,
     ).toBe(404);
+    const inventoryManager = await scopedCookie(fortaleza, "INVENTORY_MANAGER");
+    expect(
+      (
+        await prescriptionDownloadResponse(
+          new Request(`${origin}/api/v1/inventory/prescriptions/${activePrescriptionId}`, {
+            headers: { cookie: inventoryManager },
+          }),
+          activePrescriptionId,
+        )
+      ).status,
+    ).toBe(403);
     vi.mocked(getBlob).mockResolvedValueOnce({
       statusCode: 200,
       stream: new ReadableStream({
@@ -1257,6 +1268,7 @@ describe("operational patients", () => {
       email: `${marker}@example.test`,
       active: true,
       consentStatus: "PENDING",
+      privateData: { allergies: ["Alergia sintética"], vegan: null, notes: "Nota privada" },
       version: 0,
       reason: "Cadastro para validar código e consentimento imutáveis.",
     };
@@ -1295,6 +1307,29 @@ describe("operational patients", () => {
     expect(recorded.rows[0].internal_code).toBe(originalCode);
     expect(recorded.rows[0].consent_recorded_at).not.toBeNull();
     expect(recorded.rows[0].consent_recorded_by_user_id).not.toBeNull();
+
+    const inventoryManager = await scopedCookie(fortaleza, "INVENTORY_MANAGER");
+    const redacted = await patientsResponse(
+      new Request(`${origin}/api/v1/inventory/patients?search=${marker}`, {
+        headers: { cookie: inventoryManager },
+      }),
+    );
+    expect(redacted.status).toBe(200);
+    expect((await redacted.json()).data).toEqual(
+      expect.objectContaining({
+        canReadPrivate: false,
+        patients: [expect.objectContaining({ id: patientId, privateData: {} })],
+      }),
+    );
+    expect(
+      (
+        await patientDetailResponse(
+          new Request(`${origin}/api/v1/inventory/patient-detail?patientId=${patientId}`, {
+            headers: { cookie: inventoryManager },
+          }),
+        )
+      ).status,
+    ).toBe(403);
 
     expect(
       (
@@ -1869,6 +1904,47 @@ describe("care appointments", () => {
         }),
       );
     expect((await send(body)).status).toBe(201);
+    expect(
+      (
+        await send({
+          ...body,
+          id: randomUUID(),
+          startsAt: "2020-01-01T12:00:00.000Z",
+          endsAt: "2020-01-01T13:00:00.000Z",
+          reason: "Tentativa de criar atendimento em uma data passada.",
+        })
+      ).status,
+    ).toBe(400);
+    expect(
+      (
+        await send({
+          ...body,
+          action: "UPDATE_STATUS",
+          status: "NO_SHOW",
+          reason: "Tentativa de registrar falta antes do fim do atendimento.",
+        })
+      ).status,
+    ).toBe(409);
+    const financeProfessional = await getPool().query<{ id: string }>(
+      `INSERT INTO inventory_users(name,email,profession)
+       VALUES('Financeiro não clínico',$1,'Médico') RETURNING id`,
+      [`${randomUUID()}@example.test`],
+    );
+    await getPool().query(
+      `INSERT INTO inventory_memberships(user_id,organization_id,role)
+       VALUES($1,'a1100000-0000-4000-8000-000000000001','FINANCE')`,
+      [financeProfessional.rows[0]!.id],
+    );
+    expect(
+      (
+        await send({
+          ...body,
+          id: randomUUID(),
+          professionalUserId: financeProfessional.rows[0]!.id,
+          reason: "Tentativa de selecionar perfil financeiro como profissional.",
+        })
+      ).status,
+    ).toBe(400);
     const juazeiro = "a1100000-0000-4000-8000-000000000102";
     const otherPatientId = randomUUID();
     await getPool().query(
@@ -1952,6 +2028,12 @@ describe("care appointments", () => {
       expect.objectContaining({ action: "RESCHEDULE" }),
       expect.objectContaining({ action: "STATUS" }),
     ]);
+    await getPool().query(
+      `UPDATE inventory_care_appointments
+       SET starts_at=now()-interval '2 hours',ends_at=now()-interval '1 hour'
+       WHERE id=$1`,
+      [body.id],
+    );
     expect(
       (
         await send({

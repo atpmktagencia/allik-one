@@ -115,6 +115,7 @@ export async function patientsResponse(request: Request) {
     if (requestedUnit && !can(auth, "patients.read", requestedUnit))
       return Response.json({ error: "Unidade não autorizada." }, { status: 403, headers });
     const unrestricted = canAccessAllUnits(auth);
+    const canReadPrivate = can(auth, "patients.private.read");
     const pool = getPool();
     const [result, availableUnits] = await Promise.all([
       pool.query(
@@ -122,7 +123,8 @@ export async function patientsResponse(request: Request) {
         p.internal_code AS "internalCode",p.full_name AS "fullName",p.phone,p.phone2,p.email,
         p.document_type AS "documentType",p.document_number AS "documentNumber",
         p.no_document AS "noDocument",p.birth_date::text AS "birthDate",
-        p.insurance_data AS insurance,p.additional_data AS additional,p.private_data AS "privateData",p.active,
+        p.insurance_data AS insurance,p.additional_data AS additional,
+        CASE WHEN $7::boolean THEN p.private_data ELSE '{}'::jsonb END AS "privateData",p.active,
         p.consent_status AS "consentStatus",p.consent_recorded_at AS "consentRecordedAt",
         p.version,p.created_at AS "createdAt",p.updated_at AS "updatedAt"
        FROM inventory_patients p JOIN inventory_units u ON u.id=p.primary_unit_id
@@ -139,7 +141,15 @@ export async function patientsResponse(request: Request) {
              OR regexp_replace(COALESCE(p.document_number,''),'[^0-9]','','g') LIKE '%'||$6||'%'
            )))
        ORDER BY p.active DESC,lower(p.full_name),p.id LIMIT 500`,
-        [auth.organizationId, requestedUnit, unrestricted, auth.unitIds, search, searchDigits],
+        [
+          auth.organizationId,
+          requestedUnit,
+          unrestricted,
+          auth.unitIds,
+          search,
+          searchDigits,
+          canReadPrivate,
+        ],
       ),
       pool.query(
         `SELECT id,name FROM inventory_units
@@ -155,6 +165,7 @@ export async function patientsResponse(request: Request) {
           patients: result.rows,
           units: availableUnits.rows,
           canManage: can(auth, "patients.manage"),
+          canReadPrivate,
         },
       },
       { headers },

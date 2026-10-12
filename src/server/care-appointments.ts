@@ -124,6 +124,8 @@ export async function careAppointmentsResponse(request: Request) {
          FROM inventory_users usr JOIN inventory_memberships m ON m.user_id=usr.id
          LEFT JOIN inventory_unit_access ua ON ua.membership_id=m.id
          WHERE m.organization_id=$1 AND m.active AND usr.active
+           AND NULLIF(trim(usr.profession),'') IS NOT NULL
+           AND m.role IN ('SUPER_ADMIN','PARTNER_ADMIN','INVENTORY_MANAGER','UNIT_MANAGER')
            AND (m.role='SUPER_ADMIN' OR ua.unit_id IS NOT NULL)
            AND ($2::boolean OR ua.unit_id=ANY($3::uuid[]))
            AND ($4::uuid IS NULL OR m.role='SUPER_ADMIN' OR ua.unit_id=$4)
@@ -186,6 +188,11 @@ export async function careAppointmentsResponse(request: Request) {
   const input = parsed.data;
   if (!can(auth, "patients.manage", input.unitId))
     return Response.json({ error: "Unidade não autorizada." }, { status: 403, headers });
+  if (input.action !== "UPDATE_STATUS" && Date.parse(input.startsAt) < Date.now() - 5 * 60 * 1000)
+    return Response.json(
+      { error: "Não é possível criar ou remarcar um atendimento no passado." },
+      { status: 400, headers },
+    );
   const client = await getPool().connect();
   try {
     await client.query("BEGIN");
@@ -214,6 +221,8 @@ export async function careAppointmentsResponse(request: Request) {
          AND EXISTS(SELECT 1 FROM inventory_users u JOIN inventory_memberships m ON m.user_id=u.id
            LEFT JOIN inventory_unit_access ua ON ua.membership_id=m.id
            WHERE u.id=$4 AND u.active AND m.organization_id=$2 AND m.active
+             AND NULLIF(trim(u.profession),'') IS NOT NULL
+             AND m.role IN ('SUPER_ADMIN','PARTNER_ADMIN','INVENTORY_MANAGER','UNIT_MANAGER')
              AND (m.role='SUPER_ADMIN' OR ua.unit_id=$3)) FOR SHARE`,
         [input.patientId, auth.organizationId, input.unitId, input.professionalUserId],
       );
@@ -288,6 +297,15 @@ export async function careAppointmentsResponse(request: Request) {
       const currentStatus = String(currentRow?.["status"] ?? "");
       if (!allowedStatusTransitions[currentStatus]?.has(input.status))
         throw new Error("INVALID_STATUS");
+      const now = Date.now();
+      const currentStartsAt = new Date(String(currentRow?.["starts_at"])).getTime();
+      const currentEndsAt = new Date(String(currentRow?.["ends_at"])).getTime();
+      if (
+        (input.status === "IN_PROGRESS" && now < currentStartsAt - 15 * 60 * 1000) ||
+        (input.status === "COMPLETED" && now < currentStartsAt) ||
+        (input.status === "NO_SHOW" && now < currentEndsAt)
+      )
+        throw new Error("TOO_EARLY");
       result = await client.query(
         "UPDATE inventory_care_appointments SET status=$2,updated_by_user_id=$3,version=version+1,updated_at=now() WHERE id=$1 RETURNING *",
         [input.id, input.status, auth.user.id],
@@ -326,9 +344,11 @@ export async function careAppointmentsResponse(request: Request) {
               ? ["Esta mudança de situação não é permitida.", 409]
               : message === "TERMINAL_STATUS"
                 ? ["Atendimentos encerrados não podem ser alterados.", 409]
-                : ["INVALID_SCOPE", "INVALID_TYPE", "INVALID_ROOM"].includes(message)
-                  ? ["Paciente, profissional, tipo ou sala inválido para esta unidade.", 400]
-                  : ["Não foi possível salvar o agendamento.", 503];
+                : message === "TOO_EARLY"
+                  ? ["Esta situação ainda não pode ser registrada antes do horário previsto.", 409]
+                  : ["INVALID_SCOPE", "INVALID_TYPE", "INVALID_ROOM"].includes(message)
+                    ? ["Paciente, profissional, tipo ou sala inválido para esta unidade.", 400]
+                    : ["Não foi possível salvar o agendamento.", 503];
     return Response.json({ error: response[0] }, { status: response[1] as number, headers });
   } finally {
     client.release();
