@@ -14,9 +14,11 @@ const input = z.object({
   content: z.string().trim().max(30000),
   version: z.number().int().nonnegative().nullable().default(null),
 });
-const fields = `id,type,title,content,status,version,author_name AS "authorName",
-  professional_council AS "professionalCouncil",council_number AS "councilNumber",
-  council_region AS "councilRegion",finalized_at AS "finalizedAt",updated_at AS "updatedAt"`;
+const fields = `id,type,title,content,status,version,
+  CASE WHEN final_snapshot IS NOT NULL THEN final_snapshot->>'authorName' ELSE author_name END AS "authorName",
+  CASE WHEN final_snapshot IS NOT NULL THEN final_snapshot->>'professionalCouncil' ELSE professional_council END AS "professionalCouncil",
+  CASE WHEN final_snapshot IS NOT NULL THEN final_snapshot->>'councilNumber' ELSE council_number END AS "councilNumber",
+  CASE WHEN final_snapshot IS NOT NULL THEN final_snapshot->>'councilRegion' ELSE council_region END AS "councilRegion",finalized_at AS "finalizedAt",updated_at AS "updatedAt"`;
 const escapeHtml = (value: unknown) =>
   String(value ?? "").replace(
     /[&<>"']/g,
@@ -43,7 +45,26 @@ export async function encounterDocumentsResponse(request: Request) {
       if (!doc || !can(auth, "patients.private.read", doc.unit_id))
         return fail("Documento não encontrado.", 404);
       if (doc.status !== "FINAL") return fail("Finalize o documento antes de imprimir.", 409);
-      const html = `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escapeHtml(doc.title)}</title><style>body{font:16px Arial,sans-serif;color:#111;margin:40px auto;max-width:800px;padding:0 24px}header{border-bottom:1px solid #ddd;padding-bottom:20px}article{white-space:pre-wrap;line-height:1.6;margin:32px 0}footer{border-top:1px solid #ddd;padding-top:20px;font-size:13px}@media print{body{margin:0;max-width:none}}</style></head><body><header><p>Allik One · ${escapeHtml(doc.unit_name)}</p><h1>${escapeHtml(doc.title)}</h1><p>Paciente: ${escapeHtml(doc.full_name)} · ${escapeHtml(doc.internal_code)}</p></header><article>${escapeHtml(doc.content)}</article><footer><p>${escapeHtml(doc.author_name)} · ${escapeHtml(doc.professional_council)} ${escapeHtml(doc.council_number)}/${escapeHtml(doc.council_region)}</p><p>Finalizado em ${escapeHtml(new Date(doc.finalized_at).toLocaleString("pt-BR", { timeZone: "America/Fortaleza" }))}</p><p>Documento finalizado no sistema. Não possui assinatura eletrônica. A validade da prescrição exige assinatura profissional adequada.</p></footer></body></html>`;
+      const snapshot = doc.final_snapshot;
+      const rendered = snapshot
+        ? {
+            ...doc,
+            full_name: snapshot.patientName,
+            internal_code: snapshot.patientCode,
+            unit_name: snapshot.unitName,
+            author_name: snapshot.authorName,
+            professional_council: snapshot.professionalCouncil,
+            council_number: snapshot.councilNumber,
+            council_region: snapshot.councilRegion,
+            title: snapshot.title,
+            content: snapshot.content,
+            finalized_at: snapshot.finalizedAt,
+          }
+        : doc;
+      const legacyNotice = snapshot
+        ? ""
+        : "<p>Documento legado: o cabeçalho do paciente e da unidade usa o cadastro atual; não foi congelado na finalização.</p>";
+      const html = `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escapeHtml(rendered.title)}</title><style>body{font:16px Arial,sans-serif;color:#111;margin:40px auto;max-width:800px;padding:0 24px}header{border-bottom:1px solid #ddd;padding-bottom:20px}article{white-space:pre-wrap;line-height:1.6;margin:32px 0}footer{border-top:1px solid #ddd;padding-top:20px;font-size:13px}@media print{body{margin:0;max-width:none}}</style></head><body><header><p>Allik One · ${escapeHtml(rendered.unit_name)}</p><h1>${escapeHtml(rendered.title)}</h1><p>Paciente: ${escapeHtml(rendered.full_name)} · ${escapeHtml(rendered.internal_code)}</p></header><article>${escapeHtml(rendered.content)}</article><footer><p>${escapeHtml(rendered.author_name)} · ${escapeHtml(rendered.professional_council)} ${escapeHtml(rendered.council_number)}/${escapeHtml(rendered.council_region)}</p><p>Finalizado em ${escapeHtml(new Date(rendered.finalized_at).toLocaleString("pt-BR", { timeZone: "America/Fortaleza" }))}</p><p>Documento finalizado no sistema. Não possui assinatura eletrônica. A validade da prescrição exige assinatura profissional adequada.</p>${legacyNotice}</footer></body></html>`;
       return new Response(html, {
         headers: {
           ...headers,
@@ -162,14 +183,43 @@ export async function encounterDocumentsResponse(request: Request) {
     if ((previous ? Number(previous.version) : null) !== data.version) throw new Error("STALE");
     if (previous && previous.type !== data.type) throw new Error("TYPE");
     const final = data.action === "FINALIZE";
+    let finalSnapshot = null;
+    if (final) {
+      const identities = await client.query(
+        `SELECT p.full_name,p.internal_code,n.name AS unit_name,u.name AS author_name,
+          u.professional_council,u.council_number,u.council_region,transaction_timestamp() AS finalized_at
+         FROM inventory_patients p JOIN inventory_units n ON n.id=$2 AND n.organization_id=$4
+         JOIN inventory_users u ON u.id=$3
+         WHERE p.id=$1 AND p.organization_id=$4 FOR SHARE OF p,n,u`,
+        [appointment.patient_id, appointment.unit_id, auth.user.id, auth.organizationId],
+      );
+      const identity = identities.rows[0];
+      if (!identity) throw new Error("NOT_FOUND");
+      if (!identity.professional_council || !identity.council_number || !identity.council_region)
+        throw new Error("COUNCIL");
+      finalSnapshot = {
+        snapshotVersion: 1,
+        patientName: identity.full_name,
+        patientCode: identity.internal_code,
+        unitName: identity.unit_name,
+        authorName: identity.author_name,
+        professionalCouncil: identity.professional_council,
+        councilNumber: identity.council_number,
+        councilRegion: identity.council_region,
+        title: data.title,
+        type: data.type,
+        content: data.content,
+        finalizedAt: identity.finalized_at.toISOString(),
+      };
+    }
     const saved = previous
       ? await client.query(
-          `UPDATE inventory_encounter_documents SET title=$2,content=$3,status=$4,version=version+1,updated_at=now(),finalized_at=CASE WHEN $4='FINAL' THEN now() ELSE NULL END WHERE id=$1 RETURNING *`,
-          [previous.id, data.title, data.content, final ? "FINAL" : "DRAFT"],
+          `UPDATE inventory_encounter_documents SET title=$2,content=$3,status=$4,version=version+1,updated_at=now(),final_snapshot=$5,finalized_at=CASE WHEN $4='FINAL' THEN now() ELSE NULL END WHERE id=$1 RETURNING *`,
+          [previous.id, data.title, data.content, final ? "FINAL" : "DRAFT", finalSnapshot],
         )
       : await client.query(
-          `INSERT INTO inventory_encounter_documents(organization_id,unit_id,appointment_id,patient_id,author_user_id,author_name,professional_council,council_number,council_region,type,title,content,status,finalized_at)
-        VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,CASE WHEN $13='FINAL' THEN now() ELSE NULL END) RETURNING *`,
+          `INSERT INTO inventory_encounter_documents(organization_id,unit_id,appointment_id,patient_id,author_user_id,author_name,professional_council,council_number,council_region,type,title,content,status,finalized_at,final_snapshot)
+        VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,CASE WHEN $13='FINAL' THEN now() ELSE NULL END,$14) RETURNING *`,
           [
             auth.organizationId,
             appointment.unit_id,
@@ -184,6 +234,7 @@ export async function encounterDocumentsResponse(request: Request) {
             data.title,
             data.content,
             final ? "FINAL" : "DRAFT",
+            finalSnapshot,
           ],
         );
     const document = saved.rows[0];

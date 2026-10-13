@@ -215,5 +215,7 @@ O Milestone 1 só é encerrado após validar o deployment com PostgreSQL na Verc
   O prontuário em `/pacientes/:patientId/prontuario` reúne agendamentos, evoluções finalizadas, prescrições estruturadas finalizadas, receitas e pedidos de exames finais, planos e aplicações. A consulta é protegida por organização e unidade em cada fonte, com paginação determinística e filtros. Rascunhos clínicos permanecem no atendimento; a linha do tempo não os apresenta como documentos finais.
 - Milestone 17: assinatura eletrônica de documentos, integridade e validação.
 
+  A preparação 17A congela a identificação do paciente, unidade, profissional/conselho e conteúdo nos documentos novos quando são finalizados. Documentos finais legados permanecem intactos e a impressão identifica o cabeçalho obtido do cadastro atual. A assinatura eletrônica depende da escolha e integração do provedor/certificado; finalização e impressão no navegador continuam sem assinatura digital.
+
 Projeto Lovable: https://lovable.dev/projects/d9d8071f-e34a-4e1b-8e4d-5b845dc82c23
 Não reescreva histórico publicado. A alteração do nome do repositório no GitHub e do projeto/domínio Vercel é independente do nome visível da aplicação.

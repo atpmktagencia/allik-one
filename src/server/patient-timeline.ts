@@ -125,7 +125,8 @@ export async function patientTimelineResponse(request: Request) {
           FROM jsonb_array_elements(s.items) WITH ORDINALITY entries(item,ord))||E'\n'||s.general_instructions
       FROM inventory_encounter_prescriptions s JOIN inventory_units u ON u.id=s.unit_id AND u.organization_id=s.organization_id WHERE ${scope} AND s.status='FINAL'
       UNION ALL
-      SELECT s.id,'DOCUMENT',s.finalized_at,s.title,s.author_name,u.name,s.status,s.appointment_id,s.id,
+      SELECT s.id,'DOCUMENT',s.finalized_at,s.title,coalesce(s.final_snapshot->>'authorName',s.author_name),
+        coalesce(s.final_snapshot->>'unitName',u.name),s.status,s.appointment_id,s.id,
         CASE WHEN s.type='EXAM_REQUEST' THEN 'Solicitação de exames' ELSE 'Receita' END,s.content
       FROM inventory_encounter_documents s JOIN inventory_units u ON u.id=s.unit_id AND u.organization_id=s.organization_id WHERE ${scope} AND s.status='FINAL'
       UNION ALL

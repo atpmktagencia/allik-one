@@ -828,6 +828,7 @@ export const encounterDocuments = pgTable(
     content: text("content").notNull(),
     status: text("status").notNull().default("DRAFT"),
     version: integer("version").notNull().default(0),
+    finalSnapshot: jsonb("final_snapshot"),
     finalizedAt: timestamp("finalized_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
@@ -836,6 +837,22 @@ export const encounterDocuments = pgTable(
     index("encounter_document_history").on(t.appointmentId, t.createdAt),
     check("encounter_document_type_valid", sql`${t.type} IN ('PRESCRIPTION','EXAM_REQUEST')`),
     check("encounter_document_status_valid", sql`${t.status} IN ('DRAFT','FINAL')`),
+    check(
+      "encounter_document_snapshot_valid",
+      sql`${t.finalSnapshot} IS NULL OR COALESCE((${t.status}='FINAL' AND jsonb_typeof(${t.finalSnapshot})='object'
+        AND ${t.finalSnapshot} ?& ARRAY['snapshotVersion','patientName','patientCode','unitName','authorName','professionalCouncil','councilNumber','councilRegion','title','type','content','finalizedAt']
+        AND jsonb_typeof(${t.finalSnapshot}->'patientName')='string'
+        AND jsonb_typeof(${t.finalSnapshot}->'patientCode')='string'
+        AND jsonb_typeof(${t.finalSnapshot}->'unitName')='string'
+        AND jsonb_typeof(${t.finalSnapshot}->'authorName')='string'
+        AND jsonb_typeof(${t.finalSnapshot}->'professionalCouncil')='string'
+        AND jsonb_typeof(${t.finalSnapshot}->'councilNumber')='string'
+        AND jsonb_typeof(${t.finalSnapshot}->'councilRegion')='string'
+        AND jsonb_typeof(${t.finalSnapshot}->'finalizedAt')='string'
+        AND ${t.finalSnapshot}->>'snapshotVersion'='1'
+        AND ${t.finalSnapshot}->>'title'=${t.title} AND ${t.finalSnapshot}->>'type'=${t.type}
+        AND ${t.finalSnapshot}->>'content'=${t.content}),false)`,
+    ),
     check("encounter_document_version_valid", sql`${t.version}>=0`),
     check(
       "encounter_document_text_valid",

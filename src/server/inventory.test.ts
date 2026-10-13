@@ -4455,3 +4455,120 @@ describe("patient longitudinal clinical timeline", () => {
     }
   });
 });
+
+it("preserves historical treatment unit scope after changing a patient's primary unit", async () => {
+  const org = "a1100000-0000-4000-8000-000000000001";
+  const oldUnit = "a1100000-0000-4000-8000-000000000102";
+  const newUnit = "a1100000-0000-4000-8000-000000000101";
+  const patientId = randomUUID(),
+    treatmentId = randomUUID();
+  const product = await fixture();
+  await getPool().query(
+    `INSERT INTO inventory_patients(id,organization_id,primary_unit_id,internal_code,full_name) VALUES($1,$2,$3,$4,'Paciente transferido sintético')`,
+    [patientId, org, oldUnit, patientId],
+  );
+  await getPool().query(
+    `INSERT INTO inventory_patient_treatments(id,organization_id,patient_id,unit_id,product_id,dose_quantity,dose_unit,route,frequency_every_days,first_scheduled_on,status) VALUES($1,$2,$3,$4,$5,1,'UNIT','IM',7,current_date,'ACTIVE')`,
+    [treatmentId, org, patientId, oldUnit, product.productId],
+  );
+  const schedule = (
+    await getPool().query(
+      `INSERT INTO inventory_patient_treatment_schedule(organization_id,patient_id,treatment_id,unit_id,product_id,sequence,scheduled_on,dose_quantity,dose_unit) VALUES($1,$2,$3,$4,$5,1,current_date,1,'UNIT') RETURNING id,version`,
+      [org, patientId, treatmentId, oldUnit, product.productId],
+    )
+  ).rows[0];
+  const historicalPrescription = (
+    await getPool().query(
+      `INSERT INTO inventory_patient_prescriptions(organization_id,patient_id,treatment_id,blob_pathname,original_filename,content_type,size_bytes) VALUES($1,$2,$3,$4,'historico.pdf','application/pdf',100) RETURNING id`,
+      [org, patientId, treatmentId, `prescriptions/test/${randomUUID()}.pdf`],
+    )
+  ).rows[0];
+  await getPool().query("UPDATE inventory_patients SET primary_unit_id=$2 WHERE id=$1", [
+    patientId,
+    newUnit,
+  ]);
+  const credential = await scopedCookie(newUnit, "PARTNER_ADMIN");
+  const url = `${origin}/api/v1/inventory/patient-detail?patientId=${patientId}`;
+  const detail = (
+    await (
+      await patientDetailResponse(new Request(url, { headers: { cookie: credential } }))
+    ).json()
+  ).data;
+  expect(detail.treatments).toEqual([]);
+  expect(detail.schedule).toEqual([]);
+  expect(detail.prescriptions).toEqual([]);
+  expect(
+    (
+      await prescriptionDownloadResponse(
+        new Request(url, { headers: { cookie: credential } }),
+        historicalPrescription.id,
+      )
+    ).status,
+  ).toBe(403);
+  const post = (body: unknown) =>
+    patientDetailResponse(
+      new Request(url, {
+        method: "POST",
+        headers: { cookie: credential, origin, "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      }),
+    );
+  expect(
+    (
+      await post({
+        action: "UPDATE_SCHEDULE_STATUS",
+        patientId,
+        scheduleId: schedule.id,
+        status: "CANCELED",
+        version: schedule.version,
+        reason: "Teste de autorização após transferência.",
+      })
+    ).status,
+  ).toBe(403);
+  expect(
+    (
+      await post({
+        action: "CREATE_PURCHASE",
+        id: randomUUID(),
+        patientId,
+        treatmentId,
+        purchasedQuantity: 1,
+        totalValue: 10,
+        reference: "teste-transferencia",
+        purchasedOn: "2026-10-13",
+        reason: "Teste de autorização após transferência.",
+      })
+    ).status,
+  ).toBe(403);
+  expect(
+    (
+      await post({
+        action: "UPDATE_TREATMENT",
+        id: treatmentId,
+        patientId,
+        productId: product.productId,
+        doseQuantity: 2,
+        doseUnit: "UNIT",
+        route: "IM",
+        frequencyEveryDays: 7,
+        firstScheduledOn: "2026-10-13",
+        plannedAdministrations: null,
+        status: "ACTIVE",
+        version: 0,
+        reason: "Teste de autorização após transferência.",
+      })
+    ).status,
+  ).toBe(403);
+  expect(
+    (
+      await getPool().query("SELECT status FROM inventory_patient_treatment_schedule WHERE id=$1", [
+        schedule.id,
+      ])
+    ).rows[0].status,
+  ).toBe("PLANNED");
+  const admin = await scopedCookie(newUnit, "SUPER_ADMIN");
+  const consolidated = (
+    await (await patientDetailResponse(new Request(url, { headers: { cookie: admin } }))).json()
+  ).data;
+  expect(consolidated.treatments.map((t: { id: string }) => t.id)).toContain(treatmentId);
+});

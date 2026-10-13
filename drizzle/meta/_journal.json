@@ -337,6 +337,13 @@
       "when": 1794272400004,
       "tag": "0047_massive_midnight",
       "breakpoints": true
+    },
+    {
+      "idx": 48,
+      "version": "7",
+      "when": 1794272400005,
+      "tag": "0048_lowly_cloak",
+      "breakpoints": true
     }
   ]
 }

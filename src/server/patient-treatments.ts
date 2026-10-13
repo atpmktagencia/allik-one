@@ -1,6 +1,6 @@
 import "@tanstack/react-start/server-only";
 import { del, get, put } from "@vercel/blob";
-import { actor, authenticate, can, type AuthContext } from "./auth";
+import { actor, authenticate, can, canAccessAllUnits, type AuthContext } from "./auth";
 import { getPool } from "./db";
 import { treatmentInput } from "../data/treatment-input";
 import { patientSupplyInput, type PatientSupplyInput } from "../data/patient-supply-input";
@@ -63,8 +63,8 @@ export async function patientDetailResponse(request: Request) {
           t.frequency_every_days AS "frequencyEveryDays",t.frequency_every AS "frequencyEvery",t.frequency_unit AS "frequencyUnit",t.first_scheduled_on AS "firstScheduledOn",
           t.planned_administrations AS "plannedAdministrations",t.status,t.version
          FROM inventory_patient_treatments t JOIN inventory_products p ON p.id=t.product_id
-         WHERE t.patient_id=$1 AND t.organization_id=$2 ORDER BY t.first_scheduled_on,t.created_at`,
-        [patientId, auth.organizationId],
+         WHERE t.patient_id=$1 AND t.organization_id=$2 AND ($3::boolean OR t.unit_id=ANY($4::uuid[])) ORDER BY t.first_scheduled_on,t.created_at`,
+        [patientId, auth.organizationId, canAccessAllUnits(auth), auth.unitIds],
       ),
       getPool().query(
         `SELECT id,treatment_id AS "treatmentId",original_filename AS "originalFilename",
@@ -79,9 +79,9 @@ export async function patientDetailResponse(request: Request) {
             THEN 'VALID' WHEN document_status='ACTIVE' AND valid_until<current_date THEN 'EXPIRED'
             WHEN document_status='ACTIVE' AND issued_on>current_date THEN 'NOT_YET_VALID'
             ELSE document_status END AS "effectiveStatus"
-         FROM inventory_patient_prescriptions WHERE patient_id=$1 AND organization_id=$2
+         FROM inventory_patient_prescriptions WHERE patient_id=$1 AND organization_id=$2 AND treatment_id IN (SELECT id FROM inventory_patient_treatments WHERE organization_id=$2 AND ($3::boolean OR unit_id=ANY($4::uuid[])))
          ORDER BY treatment_id,version DESC,uploaded_at DESC`,
-        [patientId, auth.organizationId],
+        [patientId, auth.organizationId, canAccessAllUnits(auth), auth.unitIds],
       ),
       getPool().query(
         `SELECT id,name,sku,unit FROM inventory_products
@@ -89,8 +89,8 @@ export async function patientDetailResponse(request: Request) {
         [auth.organizationId],
       ),
       getPool().query(
-        `SELECT id,treatment_id AS "treatmentId",purchased_quantity AS "purchasedQuantity",quantity_unit AS "quantityUnit",total_value AS "totalValue",reference,purchased_on::text AS "purchasedOn",created_at AS "createdAt" FROM inventory_patient_treatment_purchases WHERE patient_id=$1 AND organization_id=$2 ORDER BY purchased_on,created_at`,
-        [patientId, auth.organizationId],
+        `SELECT id,treatment_id AS "treatmentId",purchased_quantity AS "purchasedQuantity",quantity_unit AS "quantityUnit",total_value AS "totalValue",reference,purchased_on::text AS "purchasedOn",created_at AS "createdAt" FROM inventory_patient_treatment_purchases WHERE patient_id=$1 AND organization_id=$2 AND ($3::boolean OR unit_id=ANY($4::uuid[])) ORDER BY purchased_on,created_at`,
+        [patientId, auth.organizationId, canAccessAllUnits(auth), auth.unitIds],
       ),
       getPool().query(
         `SELECT s.id,s.treatment_id AS "treatmentId",s.sequence,s.scheduled_on::text AS "scheduledOn",
@@ -106,8 +106,8 @@ export async function patientDetailResponse(request: Request) {
           a.created_at AS "administeredAt"
          FROM inventory_patient_treatment_schedule s
          LEFT JOIN inventory_patient_applications a ON a.schedule_id=s.id
-         WHERE s.patient_id=$1 AND s.organization_id=$2 ORDER BY s.scheduled_on,s.sequence`,
-        [patientId, auth.organizationId],
+         WHERE s.patient_id=$1 AND s.organization_id=$2 AND ($3::boolean OR s.unit_id=ANY($4::uuid[])) ORDER BY s.scheduled_on,s.sequence`,
+        [patientId, auth.organizationId, canAccessAllUnits(auth), auth.unitIds],
       ),
       getPool().query(
         `SELECT DISTINCT ON (product_id,upper(base_unit)) product_id AS "productId",upper(base_unit) AS "baseUnit",name,total_base_quantity AS "totalBaseQuantity",technical_loss_percent AS "technicalLossPercent",total_volume_ml AS "totalVolumeMl" FROM inventory_pricing_presentations WHERE organization_id=$1 AND active AND product_id IS NOT NULL ORDER BY product_id,upper(base_unit),pricing_status DESC,updated_at DESC`,
@@ -411,6 +411,10 @@ export async function patientDetailResponse(request: Request) {
         await client.query("ROLLBACK");
         return Response.json({ error: "Tratamento não encontrado." }, { status: 404, headers });
       }
+      if (!can(auth, "patients.clinical.manage", current.rows[0].unit_id)) {
+        await client.query("ROLLBACK");
+        return Response.json({ error: "Unidade não autorizada." }, { status: 403, headers });
+      }
       if (current.rows[0].version !== input.version) {
         await client.query("ROLLBACK");
         return Response.json(
@@ -487,12 +491,16 @@ async function updatePatientSupply(
     await client.query("BEGIN");
     if (input.action === "CREATE_PURCHASE") {
       const treatment = await client.query(
-        "SELECT id,dose_unit FROM inventory_patient_treatments WHERE id=$1 AND patient_id=$2 AND organization_id=$3 FOR SHARE",
+        "SELECT id,dose_unit,unit_id FROM inventory_patient_treatments WHERE id=$1 AND patient_id=$2 AND organization_id=$3 FOR SHARE",
         [input.treatmentId, patient["id"], auth.organizationId],
       );
       if (!treatment.rowCount) {
         await client.query("ROLLBACK");
         return Response.json({ error: "Tratamento inválido." }, { status: 400, headers });
+      }
+      if (!can(auth, "patients.clinical.manage", treatment.rows[0].unit_id)) {
+        await client.query("ROLLBACK");
+        return Response.json({ error: "Unidade não autorizada." }, { status: 403, headers });
       }
       await client.query(
         `INSERT INTO inventory_patient_treatment_purchases(id,organization_id,patient_id,treatment_id,unit_id,purchased_quantity,quantity_unit,total_value,reference,purchased_on,reason,actor,actor_user_id) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)`,
@@ -501,7 +509,7 @@ async function updatePatientSupply(
           auth.organizationId,
           patient["id"],
           input.treatmentId,
-          patient["primaryUnitId"],
+          treatment.rows[0].unit_id,
           input.purchasedQuantity,
           treatment.rows[0].dose_unit,
           input.totalValue,
@@ -525,6 +533,10 @@ async function updatePatientSupply(
         { error: "Aplicação prevista não encontrada." },
         { status: 404, headers },
       );
+    }
+    if (!can(auth, "patients.clinical.manage", current.rows[0].unit_id)) {
+      await client.query("ROLLBACK");
+      return Response.json({ error: "Unidade não autorizada." }, { status: 403, headers });
     }
     if (current.rows[0].status === "CONSUMED") {
       await client.query("ROLLBACK");
@@ -689,11 +701,13 @@ async function uploadPrescription(
     );
   const input = metadata.data;
   const treatment = await getPool().query(
-    "SELECT id FROM inventory_patient_treatments WHERE id=$1 AND patient_id=$2 AND organization_id=$3",
+    "SELECT id,unit_id FROM inventory_patient_treatments WHERE id=$1 AND patient_id=$2 AND organization_id=$3",
     [input.treatmentId, patient["id"], auth.organizationId],
   );
   if (!treatment.rowCount)
     return Response.json({ error: "Tratamento inválido." }, { status: 400, headers });
+  if (!can(auth, "patients.clinical.manage", treatment.rows[0].unit_id))
+    return Response.json({ error: "Unidade não autorizada." }, { status: 403, headers });
   const prescriptionId = crypto.randomUUID();
   const extension =
     file.type === "application/pdf" ? "pdf" : file.type.split("/")[1]!.replace("jpeg", "jpg");
@@ -794,12 +808,14 @@ export async function prescriptionDownloadResponse(request: Request, prescriptio
   if (!auth || !can(auth, "patients.private.read"))
     return Response.json({ error: "Acesso negado." }, { status: auth ? 403 : 401, headers });
   const result = await getPool().query(
-    `SELECT d.blob_pathname,d.original_filename,d.content_type,p.primary_unit_id FROM inventory_patient_prescriptions d JOIN inventory_patients p ON p.id=d.patient_id WHERE d.id=$1 AND d.organization_id=$2`,
+    `SELECT d.blob_pathname,d.original_filename,d.content_type,p.primary_unit_id,t.unit_id FROM inventory_patient_prescriptions d JOIN inventory_patients p ON p.id=d.patient_id JOIN inventory_patient_treatments t ON t.id=d.treatment_id AND t.organization_id=d.organization_id WHERE d.id=$1 AND d.organization_id=$2`,
     [prescriptionId, auth.organizationId],
   );
   const document = result.rows[0];
   if (!document || !can(auth, "patients.private.read", String(document.primary_unit_id)))
     return Response.json({ error: "Documento não encontrado." }, { status: 404, headers });
+  if (!can(auth, "patients.private.read", String(document.unit_id)))
+    return Response.json({ error: "Unidade não autorizada." }, { status: 403, headers });
   const blob = await get(String(document.blob_pathname), { access: "private" });
   if (!blob || blob.statusCode !== 200)
     return Response.json({ error: "Documento não encontrado." }, { status: 404, headers });
