@@ -1,3 +1,4 @@
+import { useBlocker } from "@tanstack/react-router";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -5,6 +6,7 @@ import type { ReactNode } from "react";
 import { CareEncounterPage } from "@/components/clinic/care-encounter-page";
 
 vi.mock("@tanstack/react-router", () => ({
+  useBlocker: vi.fn(),
   Link: ({ children, className }: { children: ReactNode; className?: string }) => (
     <a href="#destination" className={className}>
       {children}
@@ -212,5 +214,117 @@ describe("Care encounter UI", () => {
     expect(
       screen.getByRole("button", { name: "Assumir responsabilidade pelo atendimento" }),
     ).toBeInTheDocument();
+  });
+});
+
+describe("Clinical draft concurrency", () => {
+  it("keeps the displayed version and local text through refresh and failed saves", async () => {
+    let serverVersion = 4;
+    let failSave = true;
+    const writes: Array<Record<string, unknown>> = [];
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        if (String(input).includes("encounter-documents"))
+          return Response.json({ data: { documents: [], templates: [], canAuthor: false } });
+        if (String(input).includes("encounter-prescriptions"))
+          return Response.json({ data: { prescription: null, products: [], canAuthor: false } });
+        if (init?.method === "POST") {
+          writes.push(JSON.parse(String(init.body)));
+          return failSave
+            ? Response.json({ error: "A evolução foi alterada por outra sessão." }, { status: 409 })
+            : Response.json({ data: { id: "note", version: 6 } });
+        }
+        return Response.json({
+          data: {
+            appointment: {
+              id: "appointment",
+              patientId: "patient",
+              unitName: "Fortaleza",
+              patientName: "Paciente teste",
+              patientCode: "PAC-001",
+              professionalName: "Profissional teste",
+              professionalCouncil: "CRM",
+              councilNumber: "123",
+              councilRegion: "CE",
+              startsAt: "2026-10-14T10:00:00Z",
+              endsAt: "2026-10-14T11:00:00Z",
+              status: "IN_PROGRESS",
+              version: 1,
+              careTypeName: "Consulta",
+              room: "Sala",
+            },
+            changes: [],
+            treatments: [],
+            schedule: [],
+            clinicalAlerts: [],
+            canManage: false,
+            canAuthorClinicalNote: true,
+            canClaimClinicalNote: false,
+            needsProfessionalRegistration: false,
+            clinicalAuthorBlockReason: null,
+            clinicalNote: {
+              id: "note",
+              version: serverVersion,
+              status: "DRAFT",
+              evolution: serverVersion === 4 ? "Texto inicial" : "Texto de outra sessão",
+              conduct: "",
+              authorName: "Profissional teste",
+              professionalCouncil: "CRM",
+              councilNumber: "123",
+              councilRegion: "CE",
+              updatedAt: "2026-10-14T10:00:00Z",
+            },
+          },
+        });
+      }),
+    );
+    render(
+      <QueryClientProvider client={client}>
+        <CareEncounterPage appointmentId="appointment" />
+      </QueryClientProvider>,
+    );
+    const evolution = await screen.findByRole("textbox", { name: "Evolução" });
+    await waitFor(() => expect(evolution).toHaveValue("Texto inicial"));
+    fireEvent.change(evolution, { target: { value: "Meu texto não salvo" } });
+    serverVersion = 5;
+    await client.refetchQueries();
+    expect(evolution).toHaveValue("Meu texto não salvo");
+    fireEvent.click(screen.getByRole("button", { name: "Salvar rascunho" }));
+    await screen.findByText("A evolução foi alterada por outra sessão.");
+    expect(writes[0]).toEqual(
+      expect.objectContaining({ version: 4, evolution: "Meu texto não salvo" }),
+    );
+    expect(evolution).toHaveValue("Meu texto não salvo");
+    const options = vi.mocked(useBlocker).mock.calls.at(-1)![0] as unknown as {
+      disabled: boolean;
+      enableBeforeUnload: boolean;
+      shouldBlockFn: (args: {
+        current: { pathname: string };
+        next: { pathname: string };
+      }) => boolean;
+    };
+    expect(options.disabled).toBe(false);
+    expect(options.enableBeforeUnload).toBe(true);
+    vi.stubGlobal(
+      "confirm",
+      vi.fn(() => false),
+    );
+    expect(
+      options.shouldBlockFn({
+        current: { pathname: "/atendimentos/appointment" },
+        next: { pathname: "/pacientes" },
+      }),
+    ).toBe(true);
+    failSave = false;
+    fireEvent.click(screen.getByRole("button", { name: "Salvar rascunho" }));
+    await screen.findByText("Rascunho salvo.");
+    fireEvent.change(evolution, { target: { value: "Meu próximo texto" } });
+    fireEvent.click(screen.getByRole("button", { name: "Salvar rascunho" }));
+    await waitFor(() => expect(writes).toHaveLength(3));
+    expect(writes[2]).toEqual(
+      expect.objectContaining({ version: 6, evolution: "Meu próximo texto" }),
+    );
   });
 });

@@ -180,6 +180,7 @@ async function savePrescription(
       [parsed.data.appointmentId],
     );
     const current = currentResult.rows[0];
+    if (current && current.author_user_id !== auth.user.id) throw new Error("NOT_AUTHOR");
     if (current?.status === "FINAL") throw new Error("FINAL");
     if ((current ? Number(current.version) : null) !== parsed.data.version)
       throw new Error("STALE");

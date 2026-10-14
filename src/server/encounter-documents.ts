@@ -1,3 +1,4 @@
+import { renderClinicalDocumentPdf } from "./clinical-document-pdf";
 import "@tanstack/react-start/server-only";
 import { z } from "zod";
 import { authenticate, can } from "./auth";
@@ -238,6 +239,9 @@ export async function encounterDocumentsResponse(request: Request) {
         finalizedAt: identity.finalized_at.toISOString(),
       };
     }
+    // Fail before making an unrenderable document immutable.
+    if (finalSnapshot)
+      await renderClinicalDocumentPdf({ status: "FINAL", final_snapshot: finalSnapshot });
     const saved = previous
       ? await client.query(
           `UPDATE inventory_encounter_documents SET title=$2,content=$3,status=$4,version=version+1,updated_at=now(),final_snapshot=$5,rich_content=$6,two_copies=$7,prescription_print_data=$8,finalized_at=CASE WHEN $4='FINAL' THEN now() ELSE NULL END WHERE id=$1 RETURNING *`,
@@ -295,6 +299,12 @@ export async function encounterDocumentsResponse(request: Request) {
   } catch (error) {
     await client.query("ROLLBACK").catch(() => {});
     const reason = error instanceof Error ? error.message : "";
+    if (
+      /^O PDF não suporta o caractere U\+[0-9A-F]+\. Revise o documento antes de assinar\.$/.test(
+        reason,
+      )
+    )
+      return fail(reason, 422);
     const messages: Record<string, [string, number]> = {
       NOT_FOUND: ["Documento ou atendimento não encontrado.", 404],
       NOT_AUTHOR: ["Somente o profissional responsável pode editar este documento.", 403],

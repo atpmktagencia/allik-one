@@ -52,6 +52,8 @@ const nodeSchema: z.ZodType<RichContentNode> = z.lazy(() =>
           textAlign: z.enum(["left", "center", "right", "justify"]).nullable().optional(),
           level: z.number().int().min(1).max(6).optional(),
           start: z.number().int().min(1).max(100000).optional(),
+          // Tiptap emits this default attribute; only null is accepted and it is not persisted.
+          type: z.null().optional(),
         })
         .strict()
         .optional(),
@@ -60,7 +62,19 @@ const nodeSchema: z.ZodType<RichContentNode> = z.lazy(() =>
         .max(3)
         .optional(),
     })
-    .strict(),
+    .strict()
+    .superRefine((node, ctx) => {
+      if (node.attrs?.type !== undefined && node.type !== "orderedList") {
+        ctx.addIssue({ code: "custom", message: "Atributo de lista inválido." });
+      }
+    })
+    .transform((node) => {
+      if (node.attrs && "type" in node.attrs) {
+        const { type: _listType, ...attrs } = node.attrs;
+        return { ...node, attrs };
+      }
+      return node;
+    }),
 );
 function validTree(node: RichContentNode, depth = 0): boolean {
   if (depth > 20) return false;
@@ -144,7 +158,7 @@ export const richContentSchema = z
     )
       ctx.addIssue({ code: "custom", message: "Formatação inválida." });
   })
-  .transform((value) => value as RichContentNode);
+  .transform((value) => nodeSchema.parse(value));
 export function richContentText(node: RichContentNode): string {
   if (node.type === "text") return node.text ?? "";
   if (node.type === "hardBreak") return "\n";

@@ -2,6 +2,7 @@ import "@tanstack/react-start/server-only";
 import { z } from "zod";
 import { actor, authenticate, can } from "./auth";
 import { getPool } from "./db";
+import { hasClinicalRecords } from "./clinical-record-guard";
 
 const headers = { "Cache-Control": "private, no-store", Vary: "Cookie, Authorization" };
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -132,7 +133,7 @@ export async function careEncounterResponse(request: Request) {
         respiratory_exam AS "respiratoryExam",abdominal_exam AS "abdominalExam",
         neurological_exam AS "neurologicalExam",musculoskeletal_exam AS "musculoskeletalExam",
         skin_exam AS "skinExam",other_exam AS "otherExam",
-        status,version,author_name AS "authorName",
+        status,version,author_user_id AS "authorUserId",author_name AS "authorName",
         professional_council AS "professionalCouncil",council_number AS "councilNumber",
         council_region AS "councilRegion",systolic_pressure AS "systolicPressure",
         diastolic_pressure AS "diastolicPressure",heart_rate AS "heartRate",
@@ -160,14 +161,22 @@ export async function careEncounterResponse(request: Request) {
     appointment["councilRegion"],
   );
   const canAuthorClinicalNote =
-    Boolean(auth.user.id) && hasClinicalPermission && isAssignedProfessional && hasCompleteCouncil;
+    Boolean(auth.user.id) &&
+    hasClinicalPermission &&
+    isAssignedProfessional &&
+    hasCompleteCouncil &&
+    (!clinicalNote.rows[0] || clinicalNote.rows[0].authorUserId === auth.user.id);
+  const clinicalRecords = await pool.query(
+    `SELECT EXISTS(SELECT 1 FROM inventory_clinical_notes WHERE appointment_id=$1) OR EXISTS(SELECT 1 FROM inventory_encounter_prescriptions WHERE appointment_id=$1) OR EXISTS(SELECT 1 FROM inventory_encounter_documents WHERE appointment_id=$1) AS present`,
+    [appointmentId],
+  );
   const canClaimClinicalNote =
     Boolean(auth.user.id) &&
     !auth.preview &&
     !auth.integration &&
     hasClinicalPermission &&
     !isAssignedProfessional &&
-    clinicalNote.rows[0]?.status !== "FINAL" &&
+    !clinicalRecords.rows[0].present &&
     !["NO_SHOW", "CANCELED"].includes(String(appointment["status"]));
 
   return Response.json(
@@ -272,6 +281,13 @@ async function saveClinicalNote(
       [parsed.appointmentId],
     );
     const current = currentResult.rows[0];
+    if (current && current.author_user_id !== auth.user.id) {
+      await client.query("ROLLBACK");
+      return Response.json(
+        { error: "Somente o autor pode alterar ou finalizar este rascunho." },
+        { status: 403, headers },
+      );
+    }
     if (current?.status === "FINAL") {
       await client.query("ROLLBACK");
       return Response.json(
@@ -484,7 +500,8 @@ async function claimAppointment(
       [input.appointmentId],
     );
     const existingNote = existingNoteResult.rows[0];
-    if (existingNote?.status === "FINAL") throw new Error("NOTE_FINAL");
+    if (existingNote || (await hasClinicalRecords(client, input.appointmentId)))
+      throw new Error("CLINICAL_LOCKED");
     const conflict = await client.query(
       `SELECT 1 FROM inventory_care_appointments
        WHERE organization_id=$1 AND professional_user_id=$2 AND id<>$3
@@ -504,27 +521,6 @@ async function claimAppointment(
        version=version+1,updated_at=now() WHERE id=$1 RETURNING *`,
       [input.appointmentId, auth.user.id],
     );
-    if (existingNote) {
-      const reassignedNote = await client.query(
-        `UPDATE inventory_clinical_notes SET author_user_id=$2,author_name=$3,
-         professional_council=$4,council_number=$5,council_region=$6,
-         version=version+1,updated_at=now() WHERE id=$1 RETURNING *`,
-        [
-          existingNote.id,
-          auth.user.id,
-          professional.name,
-          professional.professional_council,
-          professional.council_number,
-          professional.council_region,
-        ],
-      );
-      await client.query(
-        `INSERT INTO inventory_clinical_note_changes
-         (organization_id,clinical_note_id,action,before_data,after_data,actor_user_id)
-         VALUES($1,$2,'REASSIGN',$3,$4,$5)`,
-        [auth.organizationId, existingNote.id, existingNote, reassignedNote.rows[0], auth.user.id],
-      );
-    }
     const acting = actor(auth);
     await client.query(
       `INSERT INTO inventory_care_appointment_changes
@@ -548,19 +544,24 @@ async function claimAppointment(
     const response =
       reason === "NOT_FOUND"
         ? ["Atendimento não encontrado.", 404]
-        : reason === "STALE"
-          ? ["O atendimento mudou. Atualize a página e tente novamente.", 409]
-          : reason === "INCOMPLETE_COUNCIL"
-            ? ["Complete seu conselho profissional antes de assumir o atendimento.", 409]
-            : reason === "NOTE_FINAL"
-              ? ["A evolução finalizada é imutável e não pode trocar de responsável.", 409]
-              : reason === "CONFLICT"
-                ? ["Você já possui outro atendimento neste horário.", 409]
-                : reason === "TERMINAL"
-                  ? ["Atendimentos cancelados ou com falta não podem trocar de responsável.", 409]
-                  : reason === "ALREADY_ASSIGNED"
-                    ? ["Este atendimento já está atribuído a você.", 409]
-                    : ["Não foi possível assumir o atendimento.", 503];
+        : reason === "CLINICAL_LOCKED"
+          ? [
+              "Há registros clínicos neste atendimento. A responsabilidade e a autoria não podem ser transferidas.",
+              409,
+            ]
+          : reason === "STALE"
+            ? ["O atendimento mudou. Atualize a página e tente novamente.", 409]
+            : reason === "INCOMPLETE_COUNCIL"
+              ? ["Complete seu conselho profissional antes de assumir o atendimento.", 409]
+              : reason === "NOTE_FINAL"
+                ? ["A evolução finalizada é imutável e não pode trocar de responsável.", 409]
+                : reason === "CONFLICT"
+                  ? ["Você já possui outro atendimento neste horário.", 409]
+                  : reason === "TERMINAL"
+                    ? ["Atendimentos cancelados ou com falta não podem trocar de responsável.", 409]
+                    : reason === "ALREADY_ASSIGNED"
+                      ? ["Este atendimento já está atribuído a você.", 409]
+                      : ["Não foi possível assumir o atendimento.", 503];
     return Response.json({ error: response[0] }, { status: response[1] as number, headers });
   } finally {
     client.release();

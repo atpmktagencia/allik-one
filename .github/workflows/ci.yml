@@ -31,3 +31,5 @@ jobs:
       - run: bun run typecheck
       - run: bun run test
       - run: bun run test:integration
+      - run: bunx playwright install --with-deps chromium
+      - run: bun run test:e2e:local

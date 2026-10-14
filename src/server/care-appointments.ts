@@ -2,6 +2,7 @@ import "@tanstack/react-start/server-only";
 import type { PoolClient } from "pg";
 import { actor, authenticate, can, canAccessAllUnits } from "./auth";
 import { getPool } from "./db";
+import { hasClinicalRecords } from "./clinical-record-guard";
 import { careAppointmentInput } from "../data/care-appointment-input";
 
 const headers = { "Cache-Control": "private, no-store", Vary: "Cookie, Authorization" };
@@ -90,7 +91,9 @@ export async function careAppointmentsResponse(request: Request) {
     if (rawPatientSearch.length > 100)
       return Response.json({ error: "Busca de paciente muito longa." }, { status: 400, headers });
     const patientSearch = rawPatientSearch.length >= 2 ? rawPatientSearch : null;
-    const patientSearchDigits = patientSearch?.replace(/\D/g, "") || null;
+    const normalizedSearchDigits =
+      patientSearch && /^[+()\d\s.-]+$/.test(patientSearch) ? patientSearch.replace(/\D/g, "") : "";
+    const patientSearchDigits = normalizedSearchDigits.length >= 4 ? normalizedSearchDigits : null;
     const unrestricted = canAccessAllUnits(auth);
     const pool = getPool();
     const [appointments, patients, professionals, units, careTypes, rooms, resources] =
@@ -295,6 +298,12 @@ export async function careAppointmentsResponse(request: Request) {
         ],
       );
     } else if (input.action === "UPDATE") {
+      if (
+        (currentRow?.["patient_id"] !== input.patientId ||
+          currentRow?.["professional_user_id"] !== input.professionalUserId) &&
+        (await hasClinicalRecords(client, input.id!))
+      )
+        throw new Error("CLINICAL_LOCKED");
       if (currentRow?.["status"] !== input.status) throw new Error("INVALID_STATUS");
       if (["COMPLETED", "NO_SHOW", "CANCELED"].includes(String(currentRow?.["status"])))
         throw new Error("TERMINAL_STATUS");
@@ -356,19 +365,24 @@ export async function careAppointmentsResponse(request: Request) {
     const response =
       message === "CONFLICT"
         ? ["Profissional ou sala/poltrona já possui atendimento neste horário.", 409]
-        : message === "STALE"
-          ? ["O agendamento mudou. Recarregue e tente novamente.", 409]
-          : message === "NOT_FOUND"
-            ? ["Agendamento não encontrado.", 404]
-            : message === "INVALID_STATUS"
-              ? ["Esta mudança de situação não é permitida.", 409]
-              : message === "TERMINAL_STATUS"
-                ? ["Atendimentos encerrados não podem ser alterados.", 409]
-                : message === "TOO_EARLY"
-                  ? ["A falta só pode ser registrada após o término previsto.", 409]
-                  : ["INVALID_SCOPE", "INVALID_TYPE", "INVALID_ROOM"].includes(message)
-                    ? ["Paciente, profissional, tipo ou sala inválido para esta unidade.", 400]
-                    : ["Não foi possível salvar o agendamento.", 503];
+        : message === "CLINICAL_LOCKED"
+          ? [
+              "Este atendimento possui registros clínicos. Paciente e profissional não podem ser alterados.",
+              409,
+            ]
+          : message === "STALE"
+            ? ["O agendamento mudou. Recarregue e tente novamente.", 409]
+            : message === "NOT_FOUND"
+              ? ["Agendamento não encontrado.", 404]
+              : message === "INVALID_STATUS"
+                ? ["Esta mudança de situação não é permitida.", 409]
+                : message === "TERMINAL_STATUS"
+                  ? ["Atendimentos encerrados não podem ser alterados.", 409]
+                  : message === "TOO_EARLY"
+                    ? ["A falta só pode ser registrada após o término previsto.", 409]
+                    : ["INVALID_SCOPE", "INVALID_TYPE", "INVALID_ROOM"].includes(message)
+                      ? ["Paciente, profissional, tipo ou sala inválido para esta unidade.", 400]
+                      : ["Não foi possível salvar o agendamento.", 503];
     return Response.json({ error: response[0] }, { status: response[1] as number, headers });
   } finally {
     client.release();

@@ -1889,8 +1889,10 @@ describe("care appointments", () => {
        VALUES('a1100000-0000-4000-8000-000000000001',$1,$2,'Poltrona 1')`,
       [unitId, room.rows[0]!.id],
     );
-    const startsAt = "2026-10-20T12:00:00.000Z";
-    const endsAt = "2026-10-20T13:00:00.000Z";
+    const appointmentDay = new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10);
+    const followingDay = new Date(Date.now() + 31 * 86400000).toISOString().slice(0, 10);
+    const startsAt = `${appointmentDay}T12:00:00.000Z`;
+    const endsAt = `${appointmentDay}T13:00:00.000Z`;
     const body = {
       action: "CREATE",
       id: randomUUID(),
@@ -1989,8 +1991,8 @@ describe("care appointments", () => {
     const rescheduled = {
       ...body,
       action: "UPDATE",
-      startsAt: "2026-10-20T14:00:00.000Z",
-      endsAt: "2026-10-20T15:00:00.000Z",
+      startsAt: `${appointmentDay}T14:00:00.000Z`,
+      endsAt: `${appointmentDay}T15:00:00.000Z`,
       reason: "Atendimento remarcado durante o teste integrado.",
     };
     expect((await send(rescheduled)).status).toBe(200);
@@ -2018,7 +2020,7 @@ describe("care appointments", () => {
     ).toBe(409);
     const listed = await careAppointmentsResponse(
       new Request(
-        `${origin}/api/v1/inventory/care-appointments?unitId=${unitId}&from=2026-10-20T00:00:00.000Z&to=2026-10-21T00:00:00.000Z`,
+        `${origin}/api/v1/inventory/care-appointments?unitId=${unitId}&from=${appointmentDay}T00:00:00.000Z&to=${followingDay}T00:00:00.000Z`,
         { headers: { cookie } },
       ),
     );
@@ -2037,7 +2039,7 @@ describe("care appointments", () => {
     expect(listedData.patients).toEqual([]);
     const searched = await careAppointmentsResponse(
       new Request(
-        `${origin}/api/v1/inventory/care-appointments?unitId=${unitId}&from=2026-10-20T00:00:00.000Z&to=2026-10-21T00:00:00.000Z&patientSearch=${encodeURIComponent(documentNumber)}`,
+        `${origin}/api/v1/inventory/care-appointments?unitId=${unitId}&from=${appointmentDay}T00:00:00.000Z&to=${followingDay}T00:00:00.000Z&patientSearch=${encodeURIComponent(documentNumber)}`,
         { headers: { cookie } },
       ),
     );
@@ -2151,11 +2153,69 @@ describe("care appointments", () => {
       version: null,
     };
     expect((await clinicalPost(draft)).status).toBe(201);
-    expect((await claim(`allik_inventory_session=${takeoverToken}`, 4)).status).toBe(200);
-    expect((await claim(professionalCookie, 5)).status).toBe(200);
+    const replacementPatientId = randomUUID();
+    await getPool().query(
+      `INSERT INTO inventory_patients(id,organization_id,primary_unit_id,internal_code,full_name)
+       VALUES($1,'a1100000-0000-4000-8000-000000000001',$2,$3,'Outro paciente sintético')`,
+      [replacementPatientId, unitId, `REP-${replacementPatientId.slice(0, 12)}`],
+    );
+    for (const changedIdentity of [
+      { patientId: replacementPatientId },
+      { professionalUserId: takeover.rows[0]!.id },
+    ]) {
+      expect((await send({ ...rescheduled, ...changedIdentity, version: 4 })).status).toBe(409);
+    }
+    await expect(
+      getPool().query("UPDATE inventory_care_appointments SET patient_id=$2 WHERE id=$1", [
+        body.id,
+        replacementPatientId,
+      ]),
+    ).rejects.toThrow(/identity.*immutable/);
+    await expect(
+      getPool().query(
+        "UPDATE inventory_care_appointments SET professional_user_id=$2 WHERE id=$1",
+        [body.id, takeover.rows[0]!.id],
+      ),
+    ).rejects.toThrow(/identity.*immutable/);
+    for (const field of ["author_user_id", "author_name", "council_number"]) {
+      const replacement = field === "author_user_id" ? takeover.rows[0]!.id : "Outra autoria";
+      await expect(
+        getPool().query(`UPDATE inventory_clinical_notes SET ${field}=$2 WHERE appointment_id=$1`, [
+          body.id,
+          replacement,
+        ]),
+      ).rejects.toThrow(/identity.*immutable|author.*immutable/);
+    }
+    expect(
+      (
+        await getPool().query(
+          "SELECT patient_id,professional_user_id,version FROM inventory_care_appointments WHERE id=$1",
+          [body.id],
+        )
+      ).rows,
+    ).toEqual([
+      { patient_id: patientId, professional_user_id: professional.rows[0]!.id, version: 4 },
+    ]);
+    expect(
+      (
+        await getPool().query(
+          "SELECT author_user_id,author_name,version FROM inventory_clinical_notes WHERE appointment_id=$1",
+          [body.id],
+        )
+      ).rows,
+    ).toEqual([
+      {
+        author_user_id: professional.rows[0]!.id,
+        author_name: "Profissional Agenda Sintético",
+        version: 0,
+      },
+    ]);
+
+    expect((await claim(`allik_inventory_session=${takeoverToken}`, 4)).status).toBe(409);
+    expect((await claim(professionalCookie, 4)).status).toBe(409);
     expect((await clinicalPost({ ...draft, version: null })).status).toBe(409);
-    expect((await clinicalPost({ ...draft, action: "FINALIZE", version: 2 })).status).toBe(200);
-    expect((await clinicalPost({ ...draft, version: 3 })).status).toBe(409);
+    expect((await clinicalPost({ ...draft, action: "FINALIZE", version: 0 })).status).toBe(200);
+    expect((await clinicalPost({ ...draft, version: 1 })).status).toBe(409);
     const prescribedProduct = await getPool().query<{ id: string; name: string }>(
       `SELECT id,name FROM inventory_products
        WHERE organization_id='a1100000-0000-4000-8000-000000000001' AND active
@@ -2334,7 +2394,7 @@ describe("care appointments", () => {
         authorName: "Profissional Agenda Sintético",
         council: "CRM",
         councilNumber: "12345",
-        version: 3,
+        version: 1,
         diagnosticHypotheses: "Hipótese clínica sintética em avaliação.",
         clinicalPlan: "Solicitar exames sintéticos e acompanhar evolução.",
         returnOn: "2026-11-12",
@@ -2491,8 +2551,6 @@ describe("care appointments", () => {
       expect.objectContaining({ action: "STATUS" }),
       expect.objectContaining({ action: "REASSIGN", actor: "Profissional Substituto Sintético" }),
       expect.objectContaining({ action: "REASSIGN", actor: "Profissional Agenda Sintético" }),
-      expect.objectContaining({ action: "REASSIGN", actor: "Profissional Substituto Sintético" }),
-      expect.objectContaining({ action: "REASSIGN", actor: "Profissional Agenda Sintético" }),
     ]);
     expect(
       (
@@ -2500,7 +2558,7 @@ describe("care appointments", () => {
           ...rescheduled,
           action: "UPDATE_STATUS",
           status: "IN_PROGRESS",
-          version: 6,
+          version: 4,
           reason: "Atendimento iniciado durante o teste integrado.",
         })
       ).status,
@@ -2511,7 +2569,7 @@ describe("care appointments", () => {
           ...rescheduled,
           action: "UPDATE_STATUS",
           status: "COMPLETED",
-          version: 7,
+          version: 5,
           reason: "Atendimento concluído durante o teste integrado.",
         })
       ).status,
@@ -2522,7 +2580,7 @@ describe("care appointments", () => {
           ...rescheduled,
           action: "UPDATE",
           status: "COMPLETED",
-          version: 8,
+          version: 6,
           reason: "Tentativa de remarcar atendimento já concluído.",
         })
       ).status,
@@ -3709,6 +3767,50 @@ describe("clinical encounter documents", () => {
     return { credential, userId, appointmentId, patientId, post, get };
   }
 
+  it("freezes appointment identity and draft author with a document alone", async () => {
+    const f = await documentsFixture();
+    expect((await f.post({})).status).toBe(201);
+    const substitute = await scopedCookie(unitId, "PARTNER_ADMIN");
+    const substituteId = (
+      await getPool().query<{ user_id: string }>(
+        "SELECT user_id FROM inventory_sessions WHERE token_hash=$1",
+        [hashToken(substitute.split("=")[1]!)],
+      )
+    ).rows[0]!.user_id;
+    await getPool().query(
+      "UPDATE inventory_users SET professional_council='CRM',council_number='45678',council_region='CE' WHERE id=$1",
+      [substituteId],
+    );
+    const claimResponse = await careEncounterResponse(
+      new Request(`${origin}/api/v1/inventory/care-encounter`, {
+        method: "POST",
+        headers: { cookie: substitute, origin, "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "CLAIM", appointmentId: f.appointmentId, version: 0 }),
+      }),
+    );
+    expect(claimResponse.status).toBe(409);
+    await expect(
+      getPool().query(
+        "UPDATE inventory_care_appointments SET professional_user_id=$2 WHERE id=$1",
+        [f.appointmentId, substituteId],
+      ),
+    ).rejects.toThrow(/identity.*immutable/);
+    await expect(
+      getPool().query(
+        "UPDATE inventory_encounter_documents SET author_user_id=$2 WHERE appointment_id=$1",
+        [f.appointmentId, substituteId],
+      ),
+    ).rejects.toThrow(/identity.*immutable|author.*immutable/);
+    expect(
+      (
+        await getPool().query(
+          "SELECT author_user_id,status,version FROM inventory_encounter_documents WHERE appointment_id=$1",
+          [f.appointmentId],
+        )
+      ).rows,
+    ).toEqual([{ author_user_id: f.userId, status: "DRAFT", version: 0 }]);
+  });
+
   it("keeps independent documents, final authorship and commercial records unchanged", async () => {
     const f = await documentsFixture();
     const first = await f.post({});
@@ -3792,6 +3894,35 @@ describe("clinical encounter documents", () => {
         )
       ).rows[0].count,
     ).toBe(0);
+  });
+
+  it("rejects unsupported print glyphs before finalization without changing the draft", async () => {
+    const f = await documentsFixture();
+    expect((await f.post({ content: "Orientação 医" })).status).toBe(201);
+    const document = (await (await f.get()).json()).data.documents[0];
+    const response = await f.post({
+      action: "FINALIZE",
+      documentId: document.id,
+      version: document.version,
+      content: "Orientação 医",
+    });
+    expect(response.status).toBe(422);
+    expect(
+      (
+        await getPool().query(
+          "SELECT status,version,content,finalized_at FROM inventory_encounter_documents WHERE id=$1",
+          [document.id],
+        )
+      ).rows,
+    ).toEqual([{ status: "DRAFT", version: 0, content: "Orientação 医", finalized_at: null }]);
+    expect(
+      (
+        await getPool().query(
+          "SELECT action FROM inventory_encounter_document_changes WHERE document_id=$1 ORDER BY created_at",
+          [document.id],
+        )
+      ).rows,
+    ).toEqual([{ action: "CREATE" }]);
   });
 
   it("enforces assigned clinician, council registration, individual identity and unit isolation", async () => {

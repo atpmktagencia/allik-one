@@ -111,7 +111,9 @@ export async function patientsResponse(request: Request) {
     if (rawSearch.length > 100)
       return Response.json({ error: "Busca inválida." }, { status: 400, headers });
     const search = rawSearch.length >= 2 ? rawSearch : null;
-    const searchDigits = search?.replace(/\D/g, "") || null;
+    const normalizedSearchDigits =
+      search && /^[+()\d\s.-]+$/.test(search) ? search.replace(/\D/g, "") : "";
+    const searchDigits = normalizedSearchDigits.length >= 4 ? normalizedSearchDigits : null;
     if (requestedUnit && !can(auth, "patients.read", requestedUnit))
       return Response.json({ error: "Unidade não autorizada." }, { status: 403, headers });
     const unrestricted = canAccessAllUnits(auth);

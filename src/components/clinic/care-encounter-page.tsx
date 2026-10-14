@@ -1,4 +1,4 @@
-import { Link } from "@tanstack/react-router";
+import { Link, useBlocker } from "@tanstack/react-router";
 import "./clinical-workspace.css";
 import {
   AlertTriangle,
@@ -339,28 +339,58 @@ export function CareEncounterPage({ appointmentId }: { appointmentId: string }) 
     heightCm: "",
   });
   const [loadedNoteId, setLoadedNoteId] = useState<string | null | undefined>(undefined);
+  const [loadedAppointmentId, setLoadedAppointmentId] = useState<string | null>(null);
+  const [displayedVersion, setDisplayedVersion] = useState<number | null>(null);
+  const [savedForm, setSavedForm] = useState<string | null>(null);
+  const formSnapshot = JSON.stringify({
+    evolution,
+    conduct,
+    clinicalClosure,
+    anamnesis,
+    physicalExam,
+    vitals,
+  });
+  const dirty = savedForm !== null && savedForm !== formSnapshot;
+  useBlocker({
+    disabled: !dirty,
+    enableBeforeUnload: dirty,
+    shouldBlockFn: ({ current, next }) =>
+      current.pathname !== next.pathname &&
+      !window.confirm("Há alterações não salvas na evolução. Deseja sair e descartá-las?"),
+  });
   const [selectedTemplate, setSelectedTemplate] = useState("");
   const loadedNote = query.data?.clinicalNote;
   useEffect(() => {
-    if (!query.data || loadedNoteId === (loadedNote?.id ?? null)) return;
+    if (!query.data) return;
+    if (
+      loadedAppointmentId === query.data.appointment.id &&
+      (loadedNoteId === (loadedNote?.id ?? null) || dirty)
+    )
+      return;
+    setLoadedAppointmentId(query.data.appointment.id);
     setLoadedNoteId(loadedNote?.id ?? null);
-    setEvolution(loadedNote?.evolution ?? "");
-    setConduct(loadedNote?.conduct ?? "");
-    setClinicalClosure({
+    setDisplayedVersion(loadedNote?.version ?? null);
+    const evolution = loadedNote?.evolution ?? "";
+    setEvolution(evolution);
+    const conduct = loadedNote?.conduct ?? "";
+    setConduct(conduct);
+    const clinicalClosure = {
       diagnosticHypotheses: loadedNote?.diagnosticHypotheses ?? "",
       clinicalPlan: loadedNote?.clinicalPlan ?? "",
       returnRecommendation: loadedNote?.returnRecommendation ?? "",
       returnOn: loadedNote?.returnOn ?? "",
-    });
-    setAnamnesis({
+    };
+    setClinicalClosure(clinicalClosure);
+    const anamnesis = {
       chiefComplaint: loadedNote?.chiefComplaint ?? "",
       currentHistory: loadedNote?.currentHistory ?? "",
       personalHistory: loadedNote?.personalHistory ?? "",
       familyHistory: loadedNote?.familyHistory ?? "",
       habits: loadedNote?.habits ?? "",
       systemsReview: loadedNote?.systemsReview ?? "",
-    });
-    setPhysicalExam({
+    };
+    setAnamnesis(anamnesis);
+    const physicalExam = {
       generalExam: loadedNote?.generalExam ?? "",
       cardiovascularExam: loadedNote?.cardiovascularExam ?? "",
       respiratoryExam: loadedNote?.respiratoryExam ?? "",
@@ -369,8 +399,9 @@ export function CareEncounterPage({ appointmentId }: { appointmentId: string }) 
       musculoskeletalExam: loadedNote?.musculoskeletalExam ?? "",
       skinExam: loadedNote?.skinExam ?? "",
       otherExam: loadedNote?.otherExam ?? "",
-    });
-    setVitals({
+    };
+    setPhysicalExam(physicalExam);
+    const vitals = {
       systolicPressure: String(loadedNote?.systolicPressure ?? ""),
       diastolicPressure: String(loadedNote?.diastolicPressure ?? ""),
       heartRate: String(loadedNote?.heartRate ?? ""),
@@ -378,8 +409,12 @@ export function CareEncounterPage({ appointmentId }: { appointmentId: string }) 
       temperatureC: String(loadedNote?.temperatureC ?? ""),
       weightKg: String(loadedNote?.weightKg ?? ""),
       heightCm: String(loadedNote?.heightCm ?? ""),
-    });
-  }, [loadedNote, loadedNoteId, query.data]);
+    };
+    setVitals(vitals);
+    setSavedForm(
+      JSON.stringify({ evolution, conduct, clinicalClosure, anamnesis, physicalExam, vitals }),
+    );
+  }, [loadedNote, loadedNoteId, loadedAppointmentId, query.data, dirty]);
   if (query.isPending || query.error)
     return (
       <InventoryState pending={query.isPending} error={query.error} retry={() => query.refetch()} />
@@ -416,10 +451,20 @@ export function CareEncounterPage({ appointmentId }: { appointmentId: string }) 
               value === "" ? null : Number(value),
             ]),
           ),
-          version: data.clinicalNote?.version ?? null,
+          version: displayedVersion,
         }),
       });
-      await readInventoryResponse(response, "Não foi possível salvar a evolução.");
+      const saved = await readInventoryResponse<{ id: string; version: number }>(
+        response,
+        "Não foi possível salvar a evolução.",
+      );
+      if (!saved.data || !Number.isInteger(saved.data.version))
+        throw new Error(
+          "Resposta de salvamento inválida. Seu texto foi preservado; confira o rascunho antes de tentar novamente.",
+        );
+      setDisplayedVersion(saved.data.version);
+      setLoadedNoteId(saved.data.id);
+      setSavedForm(formSnapshot);
       await query.refetch();
       setMessage(action === "FINALIZE" ? "Evolução finalizada." : "Rascunho salvo.");
     } catch (cause) {
