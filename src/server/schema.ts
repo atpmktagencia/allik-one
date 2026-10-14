@@ -3,6 +3,7 @@ import {
   type AnyPgColumn,
   boolean,
   check,
+  customType,
   date,
   integer,
   index,
@@ -913,6 +914,120 @@ export const encounterDocumentChanges = pgTable(
     ),
   ],
 );
+const signatureBytes = customType<{ data: Buffer; driverData: Buffer }>({
+  dataType() {
+    return "bytea";
+  },
+});
+export const signingIdentities = pgTable(
+  "inventory_signing_identities",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id),
+    cpfEncrypted: text("cpf_encrypted").notNull(),
+    cpfHash: text("cpf_hash").notNull(),
+    verifiedByUserId: uuid("verified_by_user_id")
+      .notNull()
+      .references(() => users.id),
+    verifiedAt: timestamp("verified_at", { withTimezone: true }).notNull().defaultNow(),
+    version: integer("version").notNull().default(0),
+  },
+  (t) => [
+    uniqueIndex("signing_identity_user_unique").on(t.organizationId, t.userId),
+    uniqueIndex("signing_identity_cpf_unique").on(t.organizationId, t.cpfHash),
+    check("signing_identity_hash_valid", sql`${t.cpfHash} ~ '^[a-f0-9]{64}$'`),
+    check("signing_identity_version_valid", sql`${t.version}>=0`),
+  ],
+);
+export const documentSignatureAttempts = pgTable(
+  "inventory_document_signature_attempts",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id),
+    unitId: uuid("unit_id")
+      .notNull()
+      .references(() => units.id),
+    documentId: uuid("document_id")
+      .notNull()
+      .references(() => encounterDocuments.id),
+    actorUserId: uuid("actor_user_id")
+      .notNull()
+      .references(() => users.id),
+    identityId: uuid("identity_id")
+      .notNull()
+      .references(() => signingIdentities.id),
+    identityVersion: integer("identity_version").notNull(),
+    cpfEncrypted: text("cpf_encrypted").notNull(),
+    operationId: uuid("operation_id").notNull(),
+    sourcePdf: signatureBytes("source_pdf").notNull(),
+    sourceSha256: text("source_sha256").notNull(),
+    stateHash: text("state_hash").notNull(),
+    providerSessionId: text("provider_session_id"),
+    providerDocumentId: text("provider_document_id"),
+    redirectUrl: text("redirect_url"),
+    status: text("status").notNull().default("PREPARING"),
+    signedPdf: signatureBytes("signed_pdf"),
+    signedSha256: text("signed_sha256"),
+    signedAt: timestamp("signed_at", { withTimezone: true }),
+    certificate: jsonb("certificate"),
+    validationEvidence: jsonb("validation_evidence"),
+    failureCode: text("failure_code"),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("signature_operation_unique").on(t.organizationId, t.operationId),
+    uniqueIndex("signature_active_document_unique")
+      .on(t.documentId)
+      .where(sql`${t.status} IN ('PREPARING','AWAITING_SIGNATURE')`),
+    uniqueIndex("signature_signed_document_unique")
+      .on(t.documentId)
+      .where(sql`${t.status}='SIGNED'`),
+    uniqueIndex("signature_provider_session_unique").on(t.providerSessionId),
+    index("signature_document_history").on(t.documentId, t.createdAt),
+    check(
+      "signature_status_valid",
+      sql`${t.status} IN ('PREPARING','AWAITING_SIGNATURE','SIGNED','FAILED','CANCELED','EXPIRED')`,
+    ),
+    check(
+      "signature_source_valid",
+      sql`octet_length(${t.sourcePdf}) BETWEEN 5 AND 5242880 AND ${t.sourceSha256} ~ '^[a-f0-9]{64}$' AND ${t.stateHash} ~ '^[a-f0-9]{64}$'`,
+    ),
+    check(
+      "signature_signed_valid",
+      sql`COALESCE(((${t.status}='SIGNED' AND ${t.signedPdf} IS NOT NULL AND octet_length(${t.signedPdf}) BETWEEN 5 AND 8388608 AND ${t.signedSha256} IS NOT NULL AND ${t.signedSha256} ~ '^[a-f0-9]{64}$' AND ${t.signedAt} IS NOT NULL AND jsonb_typeof(${t.certificate})='object' AND jsonb_typeof(${t.validationEvidence})='object' AND ${t.validationEvidence}->>'trustAnchor'='PkiBrazil' AND ${t.validationEvidence}->>'originalSha256'=${t.sourceSha256} AND ${t.validationEvidence}->>'signedSha256'=${t.signedSha256}) OR (${t.status}<>'SIGNED' AND ${t.signedPdf} IS NULL AND ${t.signedSha256} IS NULL AND ${t.signedAt} IS NULL)),false)`,
+    ),
+  ],
+);
+export const documentSignatureEvents = pgTable(
+  "inventory_document_signature_events",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id),
+    documentId: uuid("document_id")
+      .notNull()
+      .references(() => encounterDocuments.id),
+    attemptId: uuid("attempt_id").references(() => documentSignatureAttempts.id),
+    actorUserId: uuid("actor_user_id")
+      .notNull()
+      .references(() => users.id),
+    action: text("action").notNull(),
+    data: jsonb("data").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("signature_event_document_history").on(t.documentId, t.createdAt)],
+);
+
 export const clinicalDocumentTemplates = pgTable(
   "inventory_clinical_document_templates",
   {

@@ -242,3 +242,24 @@ No menu de opções da receita, **Dados da receita** distingue receita simples, 
 As duas vias são impressas lado a lado em A4 paisagem, com identificação própria. Receitas longas continuam em páginas adicionais, sem reduzir o texto até ficar ilegível. O controle especial inclui identificação do emitente e paciente, CPF/passaporte, endereços, data e assinatura, além dos campos opcionais para comprador e dispensação; antimicrobianos incluem idade/sexo e registro da dispensação. Dados e disposição foram conferidos no [modelo vigente versão 2 da Anvisa](https://www.gov.br/anvisa/pt-br/assuntos/medicamentos/controlados/sncr/receituario-fisico/modelos-vigentes/receita-de-controle-especial-rev20260313.docx/@@download/file) e na [RDC 471/2021](https://anvisalegis.datalegis.net/action/ActionDatalegis.php?acao=abrirTextoAto&cod_menu=8542&cod_modulo=310&link=S&numeroAto=00000471&orgao=RDC%2FDC%2FANVISA%2FMS&seqAto=000&tipo=RDC&valorAno=2021).
 
 A impressão não implementa notificações A/B/B2 nem numeração/registro SNCR. A assinatura digital continua pendente; gerar duas vias e preencher estes campos não equivale a emissão eletrônica com validade garantida. A migration `0050_moaning_human_torch.sql` preserva metadados e documentos finais legados.
+
+### Milestone 17B — integração de assinatura digital
+
+O documento finalizado pode gerar um PDF determinístico no servidor, revisar esse arquivo e iniciar uma sessão da página de assinatura hospedada do **Lacuna Rest PKI Core**. Essa página oferece os certificados configurados na instância, incluindo VIDaaS/BirdID quando habilitados pela Lacuna. Nenhuma senha do certificado ou chave privada entra no Allik One.
+
+Somente o autor individual, com acesso à unidade, pode iniciar, verificar ou cancelar uma tentativa. A administração individual com `users.manage` precisa conferir o CPF do profissional em **Identidade de assinatura** antes do primeiro uso. O CPF é criptografado no banco com uma chave própria, fica vinculado à conta e a alterações ficam auditadas; mudanças cancelam tentativas pendentes. O certificado usado deve corresponder a essa identidade.
+
+O servidor envia um único PDF predefinido, associa sessão/documento/autor e valida o retorno autenticado. Antes de registrar `SIGNED`, compara o SHA-256 do PDF original, inspeciona a assinatura, exige contexto ICP-Brasil, CPF/certificado correspondente e validação sem erros ou avisos. São preservados os bytes exatos do PDF assinado, hash, certificado e evidência do provedor no PostgreSQL; a URL temporária de download não é usada como armazenamento. PDF, origem da tentativa, eventos e estados finais têm proteção de imutabilidade. Cancelamento local não revoga autorizações já concedidas ao provedor.
+
+Configuração por ambiente:
+
+- `LACUNA_REST_PKI_CORE_API_KEY`: chave exclusiva do aplicativo/ambiente, com acesso às APIs de sessão, documentos e inspeção. Solicitar à Lacuna acesso de homologação e habilitação de certificados em nuvem.
+- `LACUNA_REST_PKI_CORE_URL`: endpoint suportado `https://core.pki.rest/`.
+- `SIGNATURE_PUBLIC_ORIGIN`: URL HTTPS **estável** do Preview ou da produção. O usuário deve acessar essa URL para iniciar; não usar URLs efêmeras diferentes a cada deploy. Cadastrar a rota de retorno `/atendimentos/<id>` e parâmetros permitidos com o provedor conforme a configuração de sua instância.
+- `DOCUMENT_SIGNATURE_SECRET`: segredo persistente aleatório com pelo menos 32 caracteres, separado do segredo de sessão. Guardar no gerenciamento seguro de segredos e no procedimento de recuperação; sem ele, os CPFs criptografados ficam inacessíveis. Uma troca exige reconferir as identidades e cancela/inviabiliza tentativas antigas.
+
+Use variáveis Sensitive somente no servidor, sem prefixo `VITE_`; não copiar credenciais para código ou chat. Homologação, Preview e produção devem usar credenciais e dados isolados. A chave de teste dos exemplos públicos da Lacuna não é utilizada.
+
+Sem configuração, a tela informa indisponibilidade e nenhuma sessão externa é criada. Os testes de fronteira usam respostas simuladas do provedor: eles não demonstram uma assinatura criptográfica real. O aceite final do 17B exige uma sessão de homologação com o certificado do profissional, comparação/validação do PDF recebido e conferência independente no [VALIDAR do ITI](https://validar.iti.gov.br/). Não liberar assinatura clínica oficial antes desse aceite. A assinatura não implementa numeração/notificações A/B/B2 ou registro SNCR.
+
+Referências: [sessões Rest PKI Core](https://docs.lacunasoftware.com/en-us/articles/rest-pki/core/integration/signature-sessions), [CloudHub](https://docs.lacunasoftware.com/articles/cloudhub), [contrato OpenAPI](https://docs.lacunasoftware.com/openapi/rest-pki-core.json). A geração no servidor usa a distribuição PDFKit standalone com fontes embutidas, versão fixada, para evitar carregamento dinâmico de arquivos de fonte no runtime Vercel.

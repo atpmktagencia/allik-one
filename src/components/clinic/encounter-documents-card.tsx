@@ -35,6 +35,7 @@ import {
 } from "@/lib/clinical-document-content";
 import { InventoryState } from "./inventory-state";
 import { ClinicalDocumentEditor } from "./clinical-document-editor";
+import { DocumentSignatureActions } from "./document-signature-actions";
 
 import type { PrescriptionPrintData } from "@/lib/prescription-print-data";
 const emptyPrintData: PrescriptionPrintData = {
@@ -190,7 +191,13 @@ export function EncounterDocumentsCard({ appointmentId }: { appointmentId: strin
     setFocusId(null);
   }, [appointmentId]);
   useEffect(() => {
-    if (!selectedId && query.data?.documents[0]) setSelectedId(query.data.documents[0].id);
+    if (!selectedId && query.data?.documents[0]) {
+      const callbackId = new URL(window.location.href).searchParams.get("signatureDocumentId");
+      setSelectedId(
+        query.data.documents.find((item) => item.id === callbackId)?.id ??
+          query.data.documents[0].id,
+      );
+    }
   }, [query.data, selectedId]);
   useEffect(() => {
     const dirty = Object.values(buffers).some((item) => item.dirty);
@@ -665,6 +672,9 @@ export function EncounterDocumentsCard({ appointmentId }: { appointmentId: strin
               </p>
               <p className="mt-1">Finalização não equivale a assinatura eletrônica certificada.</p>
             </div>
+            {selected.status === "FINAL" && (
+              <DocumentSignatureActions key={selected.id} documentId={selected.id} />
+            )}
             {!readonly && (
               <div className="flex flex-wrap gap-2">
                 <Button
