@@ -125,7 +125,7 @@ describe("pilot authentication and authorization", () => {
     expect(can(context("INVENTORY_MANAGER"), "patients.clinical.manage", "unit-fortaleza")).toBe(
       false,
     );
-    expect(can(context("UNIT_MANAGER"), "patients.private.read", "unit-fortaleza")).toBe(true);
+    expect(can(context("UNIT_MANAGER"), "patients.private.read", "unit-fortaleza")).toBe(false);
     expect(can(context("INVENTORY_MANAGER"), "inventory.adjust", "unit-juazeiro")).toBe(false);
     expect(can(context("FINANCE"), "inventory.adjust", "unit-fortaleza")).toBe(false);
     expect(can(context("VIEWER"), "inventory.receive", "unit-fortaleza")).toBe(false);

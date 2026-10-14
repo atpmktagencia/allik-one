@@ -4,6 +4,7 @@ import { z } from "zod";
 import type { PoolClient } from "pg";
 import { authenticate, can } from "./auth";
 import { getPool } from "./db";
+import { recordClinicalAccess } from "./clinical-access-audit";
 import { renderClinicalDocumentPdf } from "./clinical-document-pdf";
 import {
   createLacunaSignatureSession,
@@ -136,6 +137,13 @@ export async function documentSignaturesResponse(request: Request) {
           return fail("Nenhum PDF assinado disponível.", 404);
         if (signatureHash(latest.signed_pdf) !== latest.signed_sha256)
           throw new Error("STORAGE_INTEGRITY");
+        await recordClinicalAccess(auth, {
+          unitId: document.unit_id,
+          patientId: document.patient_id,
+          appointmentId: document.appointment_id,
+          documentId: document.id,
+          action: "SIGNED_DOWNLOAD",
+        });
         return new Response(new Uint8Array(latest.signed_pdf), {
           headers: {
             ...headers,
@@ -156,6 +164,13 @@ export async function documentSignaturesResponse(request: Request) {
           signatureHash(bytes) !== latest.source_sha256
         )
           throw new Error("STORAGE_INTEGRITY");
+        await recordClinicalAccess(auth, {
+          unitId: document.unit_id,
+          patientId: document.patient_id,
+          appointmentId: document.appointment_id,
+          documentId: document.id,
+          action: "PDF_SOURCE",
+        });
         return new Response(new Uint8Array(bytes), {
           headers: {
             ...headers,

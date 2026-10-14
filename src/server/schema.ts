@@ -94,7 +94,7 @@ export const memberships = pgTable(
     uniqueIndex("inventory_membership_user_organization_unique").on(t.userId, t.organizationId),
     check(
       "inventory_membership_role_valid",
-      sql`${t.role} IN ('SUPER_ADMIN','PARTNER_ADMIN','INVENTORY_MANAGER','UNIT_MANAGER','FINANCE','VIEWER')`,
+      sql`${t.role} IN ('SUPER_ADMIN','PARTNER_ADMIN','INVENTORY_MANAGER','UNIT_MANAGER','CLINICIAN','FINANCE','VIEWER')`,
     ),
   ],
 );
@@ -2189,3 +2189,38 @@ export const writeOffs = pgTable("inventory_write_offs", {
   reason: text("reason").notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
+
+export const clinicalAccessEvents = pgTable(
+  "inventory_clinical_access_events",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id),
+    unitId: uuid("unit_id")
+      .notNull()
+      .references(() => units.id),
+    patientId: uuid("patient_id")
+      .notNull()
+      .references(() => patients.id),
+    appointmentId: uuid("appointment_id").references(() => careAppointments.id),
+    documentId: uuid("document_id").references(() => encounterDocuments.id),
+    actorUserId: uuid("actor_user_id").references(() => users.id),
+    previewActor: text("preview_actor"),
+    action: text("action").notNull(),
+    resourceIds: jsonb("resource_ids").notNull().default([]),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("clinical_access_patient_time").on(t.organizationId, t.patientId, t.createdAt),
+    check(
+      "clinical_access_action_valid",
+      sql`${t.action} IN ('READ','PRINT','PDF_SOURCE','SIGNED_DOWNLOAD')`,
+    ),
+    check(
+      "clinical_access_actor_valid",
+      sql`(${t.actorUserId} IS NOT NULL AND ${t.previewActor} IS NULL) OR (${t.actorUserId} IS NULL AND ${t.previewActor} IS NOT NULL)`,
+    ),
+    check("clinical_access_resources_valid", sql`jsonb_typeof(${t.resourceIds})='array'`),
+  ],
+);

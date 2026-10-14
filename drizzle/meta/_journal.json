@@ -372,6 +372,13 @@
       "when": 1794272400009,
       "tag": "0052_clinical-authorship-guard",
       "breakpoints": true
+    },
+    {
+      "idx": 53,
+      "version": "7",
+      "when": 1794272400010,
+      "tag": "0053_clinical-access-policy",
+      "breakpoints": true
     }
   ]
 }

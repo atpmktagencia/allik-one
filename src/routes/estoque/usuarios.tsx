@@ -233,12 +233,15 @@ export function UserAdministration() {
           {[
             ...(editing?.role === "SUPER_ADMIN" ? ["SUPER_ADMIN"] : []),
             "PARTNER_ADMIN",
+            "CLINICIAN",
             "INVENTORY_MANAGER",
             "UNIT_MANAGER",
             "FINANCE",
             "VIEWER",
           ].map((role) => (
-            <option key={role}>{role}</option>
+            <option key={role} value={role}>
+              {role === "CLINICIAN" ? "Profissional de saúde" : role}
+            </option>
           ))}
         </select>
         <fieldset className="rounded-md border bg-background px-3 py-2">
@@ -310,7 +313,9 @@ export function UserAdministration() {
                   <br />
                   <span className="text-muted-foreground">{user.email}</span>
                 </td>
-                <td className="p-3">{user.role}</td>
+                <td className="p-3">
+                  {user.role === "CLINICIAN" ? "Profissional de saúde" : user.role}
+                </td>
                 <td className="p-3">
                   {user.professionalCouncil && user.councilNumber && user.councilRegion
                     ? `${user.professionalCouncil} ${user.councilNumber}/${user.councilRegion}`

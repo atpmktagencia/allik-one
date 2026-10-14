@@ -33,6 +33,7 @@ type Payload = {
   patients: Patient[];
   units: Array<{ id: string; name: string }>;
   canManage: boolean;
+  canReadPrivate?: boolean;
 };
 type PatientForm = {
   primaryUnitId: string;
@@ -120,6 +121,7 @@ export function PatientsPage({
       ? `patients?search=${encodeURIComponent(deferredSearch.trim())}`
       : "patients";
   const query = useInventory<Payload>(resource);
+  const canReadPrivate = query.data?.canReadPrivate !== false;
   const navigate = useNavigate();
   const autoCreateStarted = useRef(false);
   const [editing, setEditing] = useState<Patient | null>(null);
@@ -261,14 +263,18 @@ export function PatientsPage({
             state: form.state,
             city: form.city,
           },
-          privateData: {
-            allergies: form.allergies
-              .split(/[,\n]/)
-              .map((item) => item.trim())
-              .filter(Boolean),
-            vegan: form.vegan === "yes" ? true : form.vegan === "no" ? false : null,
-            notes: form.privateNotes,
-          },
+          ...(canReadPrivate
+            ? {
+                privateData: {
+                  allergies: form.allergies
+                    .split(/[,\n]/)
+                    .map((item) => item.trim())
+                    .filter(Boolean),
+                  vegan: form.vegan === "yes" ? true : form.vegan === "no" ? false : null,
+                  notes: form.privateNotes,
+                },
+              }
+            : {}),
           version: editing?.version ?? 0,
         }),
       });
@@ -583,43 +589,47 @@ export function PatientsPage({
                 onChange={(event) => setForm({ ...form, city: event.target.value })}
               />
             </label>
-            <div className="md:col-span-2 xl:col-span-3 border-t pt-4">
-              <h3 className="font-semibold">Informações privadas</h3>
-              <p className="text-xs text-muted-foreground">
-                Não substituem anamnese ou prontuário.
-              </p>
-            </div>
-            <label className="space-y-1.5 text-sm font-medium md:col-span-2">
-              Alergias
-              <Input
-                maxLength={1000}
-                placeholder="Separe por vírgula ou Enter"
-                value={form.allergies}
-                onChange={(event) => setForm({ ...form, allergies: event.target.value })}
-              />
-            </label>
-            <label className="space-y-1.5 text-sm font-medium">
-              Vegano
-              <select
-                className="h-10 w-full rounded-md border bg-background px-3"
-                value={form.vegan}
-                onChange={(event) =>
-                  setForm({ ...form, vegan: event.target.value as PatientForm["vegan"] })
-                }
-              >
-                <option value="">Não informado</option>
-                <option value="yes">Sim</option>
-                <option value="no">Não</option>
-              </select>
-            </label>
-            <label className="space-y-1.5 text-sm font-medium md:col-span-2 xl:col-span-3">
-              Observações privadas
-              <Input
-                maxLength={2000}
-                value={form.privateNotes}
-                onChange={(event) => setForm({ ...form, privateNotes: event.target.value })}
-              />
-            </label>
+            {canReadPrivate && (
+              <>
+                <div className="md:col-span-2 xl:col-span-3 border-t pt-4">
+                  <h3 className="font-semibold">Informações privadas</h3>
+                  <p className="text-xs text-muted-foreground">
+                    Não substituem anamnese ou prontuário.
+                  </p>
+                </div>
+                <label className="space-y-1.5 text-sm font-medium md:col-span-2">
+                  Alergias
+                  <Input
+                    maxLength={1000}
+                    placeholder="Separe por vírgula ou Enter"
+                    value={form.allergies}
+                    onChange={(event) => setForm({ ...form, allergies: event.target.value })}
+                  />
+                </label>
+                <label className="space-y-1.5 text-sm font-medium">
+                  Vegano
+                  <select
+                    className="h-10 w-full rounded-md border bg-background px-3"
+                    value={form.vegan}
+                    onChange={(event) =>
+                      setForm({ ...form, vegan: event.target.value as PatientForm["vegan"] })
+                    }
+                  >
+                    <option value="">Não informado</option>
+                    <option value="yes">Sim</option>
+                    <option value="no">Não</option>
+                  </select>
+                </label>
+                <label className="space-y-1.5 text-sm font-medium md:col-span-2 xl:col-span-3">
+                  Observações privadas
+                  <Input
+                    maxLength={2000}
+                    value={form.privateNotes}
+                    onChange={(event) => setForm({ ...form, privateNotes: event.target.value })}
+                  />
+                </label>
+              </>
+            )}
             <label className="space-y-1.5 text-sm font-medium">
               Consentimento cadastral
               <select

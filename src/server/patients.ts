@@ -203,6 +203,18 @@ export async function patientsResponse(request: Request) {
   if (!can(auth, "patients.manage", input.primaryUnitId))
     return Response.json({ error: "Unidade não autorizada." }, { status: 403, headers });
 
+  const mayManagePrivate = can(auth, "patients.private.read", input.primaryUnitId);
+  if (
+    !mayManagePrivate &&
+    ((input.privateData.allergies?.length ?? 0) > 0 ||
+      input.privateData.vegan != null ||
+      Boolean(input.privateData.notes?.trim()))
+  )
+    return Response.json(
+      { error: "Seu perfil não pode alterar informações clínicas privadas." },
+      { status: 403, headers },
+    );
+  if (!mayManagePrivate) input.privateData = { allergies: [], vegan: null, notes: "" };
   const client = await getPool().connect();
   try {
     await client.query("BEGIN");
@@ -280,6 +292,8 @@ export async function patientsResponse(request: Request) {
           { status: 409, headers },
         );
       }
+      if (!mayManagePrivate || !can(auth, "patients.private.read", currentUnit))
+        input.privateData = current.rows[0].private_data;
       before = current.rows[0];
       if (current.rows[0].consent_status === input.consentStatus) {
         consentAt = current.rows[0].consent_recorded_at;

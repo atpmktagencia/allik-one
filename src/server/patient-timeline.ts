@@ -1,6 +1,7 @@
 import "@tanstack/react-start/server-only";
 import { authenticate, can, canAccessAllUnits } from "./auth";
 import { getPool } from "./db";
+import { recordClinicalAccess } from "./clinical-access-audit";
 
 const headers = { "Cache-Control": "private, no-store", Vary: "Cookie, Authorization" };
 const kinds = [
@@ -176,6 +177,20 @@ export async function patientTimelineResponse(request: Request) {
           }),
         ).toString("base64url")
       : null;
+  try {
+    await recordClinicalAccess(auth, {
+      unitId: String(patient.primary_unit_id),
+      patientId: String(patient.id),
+      action: "READ",
+      resourceIds: rows.map((row) => String(row.id)).filter((id) => uuid.test(id)),
+    });
+  } catch {
+    console.error("CLINICAL_ACCESS_AUDIT_FAILED");
+    return Response.json(
+      { error: "Não foi possível carregar o prontuário. Tente novamente." },
+      { status: 500, headers },
+    );
+  }
   return Response.json(
     {
       data: {

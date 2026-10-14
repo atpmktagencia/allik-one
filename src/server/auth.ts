@@ -30,6 +30,7 @@ export const roles = [
   "PARTNER_ADMIN",
   "INVENTORY_MANAGER",
   "UNIT_MANAGER",
+  "CLINICIAN",
   "FINANCE",
   "VIEWER",
 ] as const;
@@ -98,6 +99,15 @@ const permissions: Record<Role, ReadonlySet<Permission>> = {
         permission !== "quotes.manage",
     ),
   ),
+  CLINICIAN: new Set([
+    "patients.read",
+    "patients.manage",
+    "patients.private.read",
+    "patients.clinical.manage",
+    "inventory.read",
+    "quotes.manage",
+    "organization.read",
+  ]),
   UNIT_MANAGER: new Set([
     "inventory.read",
     "inventory.catalog.manage",
@@ -113,8 +123,6 @@ const permissions: Record<Role, ReadonlySet<Permission>> = {
     "inventory.loss.record",
     "patients.read",
     "patients.manage",
-    "patients.private.read",
-    "patients.clinical.manage",
     "quotes.manage",
     "organization.read",
   ]),

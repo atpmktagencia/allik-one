@@ -1,3 +1,5 @@
+import { recordClinicalAccess } from "./clinical-access-audit";
+import { canWriteClinicalDocument, hasClinicalRegistration } from "./clinical-professional-policy";
 import { renderClinicalDocumentPdf } from "./clinical-document-pdf";
 import "@tanstack/react-start/server-only";
 import { z } from "zod";
@@ -61,6 +63,13 @@ export async function encounterDocumentsResponse(request: Request) {
       )
         return fail("Finalize o documento antes de imprimir.", 409);
       const html = renderClinicalDocumentPrint(doc);
+      await recordClinicalAccess(auth, {
+        unitId: doc.unit_id,
+        patientId: doc.patient_id,
+        appointmentId: doc.appointment_id,
+        documentId: doc.id,
+        action: "PRINT",
+      });
       return new Response(html, {
         headers: {
           ...headers,
@@ -87,8 +96,8 @@ export async function encounterDocumentsResponse(request: Request) {
       return fail("Atendimento não encontrado.", 404);
     const [documents, templates] = await Promise.all([
       getPool().query(
-        `SELECT ${fields},author_user_id FROM inventory_encounter_documents WHERE appointment_id=$1 AND organization_id=$2 ORDER BY created_at,id`,
-        [appointmentId, auth.organizationId],
+        `SELECT ${fields},author_user_id FROM inventory_encounter_documents WHERE appointment_id=$1 AND organization_id=$2 AND (status='FINAL' OR author_user_id=$3) ORDER BY created_at,id`,
+        [appointmentId, auth.organizationId, auth.user.id],
       ),
       getPool().query(
         `SELECT id,type,title,content,rich_content AS "richContent",two_copies AS "twoCopies" FROM inventory_clinical_document_templates WHERE organization_id=$1 AND owner_user_id=$2 ORDER BY lower(title),id`,
@@ -100,19 +109,32 @@ export async function encounterDocumentsResponse(request: Request) {
       !auth.preview &&
       !auth.integration &&
       auth.user.id === appointment.professional_user_id &&
-      appointment.professional_council &&
-      appointment.council_number &&
-      appointment.council_region &&
+      hasClinicalRegistration(appointment) &&
       !["NO_SHOW", "CANCELED"].includes(appointment.status) &&
       can(auth, "patients.clinical.manage", appointment.unit_id),
     );
+    await recordClinicalAccess(auth, {
+      unitId: appointment.unit_id,
+      patientId: appointment.patient_id,
+      appointmentId: appointment.id,
+      action: "READ",
+      resourceIds: documents.rows.map((d) => d.id),
+    });
     return Response.json(
       {
         data: {
+          allowedDocumentTypes: canAuthor
+            ? documentTypes.filter((t) =>
+                canWriteClinicalDocument(appointment.professional_council, t),
+              )
+            : [],
           documents: documents.rows.map(({ author_user_id, ...document }) => ({
             ...document,
             canEdit: Boolean(
-              canAuthor && author_user_id === auth.user.id && document.status === "DRAFT",
+              canAuthor &&
+              author_user_id === auth.user.id &&
+              document.status === "DRAFT" &&
+              canWriteClinicalDocument(appointment.professional_council, document.type),
             ),
           })),
           context: {
@@ -175,6 +197,11 @@ export async function encounterDocumentsResponse(request: Request) {
       !appointment.council_region
     )
       throw new Error("COUNCIL");
+    if (
+      !hasClinicalRegistration(appointment) ||
+      !canWriteClinicalDocument(appointment.professional_council, data.type)
+    )
+      throw new Error("PROFESSIONAL_SCOPE");
     if (["NO_SHOW", "CANCELED"].includes(appointment.status)) throw new Error("TERMINAL");
     if (data.action === "SAVE_TEMPLATE") {
       const saved = await client.query(
@@ -306,6 +333,10 @@ export async function encounterDocumentsResponse(request: Request) {
     )
       return fail(reason, 422);
     const messages: Record<string, [string, number]> = {
+      PROFESSIONAL_SCOPE: [
+        "Este tipo de documento não está disponível para seu registro profissional.",
+        403,
+      ],
       NOT_FOUND: ["Documento ou atendimento não encontrado.", 404],
       NOT_AUTHOR: ["Somente o profissional responsável pode editar este documento.", 403],
       COUNCIL: ["Complete o conselho profissional antes de criar documentos.", 409],

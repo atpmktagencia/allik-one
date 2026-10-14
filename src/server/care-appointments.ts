@@ -154,7 +154,7 @@ export async function careAppointmentsResponse(request: Request) {
          LEFT JOIN inventory_unit_access ua ON ua.membership_id=m.id
          WHERE m.organization_id=$1 AND m.active AND usr.active
            AND NULLIF(trim(usr.profession),'') IS NOT NULL
-           AND m.role IN ('SUPER_ADMIN','PARTNER_ADMIN','INVENTORY_MANAGER','UNIT_MANAGER')
+           AND m.role IN ('SUPER_ADMIN','PARTNER_ADMIN','INVENTORY_MANAGER','UNIT_MANAGER','CLINICIAN')
            AND (m.role='SUPER_ADMIN' OR ua.unit_id IS NOT NULL)
            AND ($2::boolean OR ua.unit_id=ANY($3::uuid[]))
            AND ($4::uuid IS NULL OR m.role='SUPER_ADMIN' OR ua.unit_id=$4)
@@ -251,7 +251,7 @@ export async function careAppointmentsResponse(request: Request) {
            LEFT JOIN inventory_unit_access ua ON ua.membership_id=m.id
            WHERE u.id=$4 AND u.active AND m.organization_id=$2 AND m.active
              AND NULLIF(trim(u.profession),'') IS NOT NULL
-             AND m.role IN ('SUPER_ADMIN','PARTNER_ADMIN','INVENTORY_MANAGER','UNIT_MANAGER')
+             AND m.role IN ('SUPER_ADMIN','PARTNER_ADMIN','INVENTORY_MANAGER','UNIT_MANAGER','CLINICIAN')
              AND (m.role='SUPER_ADMIN' OR ua.unit_id=$3)) FOR SHARE`,
         [input.patientId, auth.organizationId, input.unitId, input.professionalUserId],
       );

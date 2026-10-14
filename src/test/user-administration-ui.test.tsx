@@ -50,6 +50,8 @@ describe("User administration UI", () => {
       target: { value: "multi@allik.test" },
     });
     fireEvent.change(screen.getByLabelText("Profissão"), { target: { value: "Médico" } });
+    fireEvent.change(screen.getByLabelText("Perfil de acesso"), { target: { value: "CLINICIAN" } });
+    expect(screen.getByRole("option", { name: "Profissional de saúde" })).toHaveValue("CLINICIAN");
     fireEvent.change(screen.getByLabelText("Conselho profissional"), {
       target: { value: "CRM" },
     });
@@ -66,6 +68,7 @@ describe("User administration UI", () => {
     );
     expect(submittedBody).toEqual(
       expect.objectContaining({
+        role: "CLINICIAN",
         professionalCouncil: "CRM",
         councilNumber: "12345",
         councilRegion: "CE",

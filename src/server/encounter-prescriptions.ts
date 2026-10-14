@@ -1,3 +1,5 @@
+import { recordClinicalAccess } from "./clinical-access-audit";
+import { canWriteClinicalDocument, hasClinicalRegistration } from "./clinical-professional-policy";
 import "@tanstack/react-start/server-only";
 import { z } from "zod";
 import { actor, authenticate, can } from "./auth";
@@ -94,8 +96,8 @@ export async function encounterPrescriptionsResponse(request: Request) {
         council_number AS "councilNumber",council_region AS "councilRegion",
         finalized_at AS "finalizedAt",updated_at AS "updatedAt"
        FROM inventory_encounter_prescriptions
-       WHERE appointment_id=$1 AND organization_id=$2`,
-      [appointmentId, auth.organizationId],
+       WHERE appointment_id=$1 AND organization_id=$2 AND (status='FINAL' OR author_user_id=$3)`,
+      [appointmentId, auth.organizationId, auth.user.id],
     ),
     pool.query(
       `SELECT id,name,sku,unit FROM inventory_products
@@ -115,10 +117,18 @@ export async function encounterPrescriptionsResponse(request: Request) {
     !auth.integration &&
     assigned &&
     completeCouncil &&
+    canWriteClinicalDocument(String(appointment["professionalCouncil"]), "PRESCRIPTION") &&
     can(auth, "patients.clinical.manage", String(appointment["unitId"])) &&
     prescription.rows[0]?.status !== "FINAL" &&
     !["NO_SHOW", "CANCELED"].includes(String(appointment["status"]));
 
+  await recordClinicalAccess(auth, {
+    unitId: String(appointment["unitId"]),
+    patientId: String(appointment["patientId"]),
+    appointmentId,
+    action: "READ",
+    resourceIds: prescription.rows.map((p) => p.id),
+  });
   return Response.json(
     {
       data: {
@@ -173,6 +183,11 @@ async function savePrescription(
       !appointment.council_region
     )
       throw new Error("INCOMPLETE_COUNCIL");
+    if (
+      !hasClinicalRegistration(appointment) ||
+      !canWriteClinicalDocument(appointment.professional_council, "PRESCRIPTION")
+    )
+      throw new Error("PROFESSIONAL_SCOPE");
     if (["NO_SHOW", "CANCELED"].includes(appointment.status)) throw new Error("TERMINAL");
 
     const currentResult = await client.query(
@@ -271,19 +286,21 @@ async function savePrescription(
     const response =
       reason === "NOT_FOUND"
         ? ["Atendimento não encontrado.", 404]
-        : reason === "NOT_AUTHOR"
-          ? ["Somente o profissional responsável pode prescrever.", 403]
-          : reason === "INCOMPLETE_COUNCIL"
-            ? ["Complete o conselho profissional antes de prescrever.", 409]
-            : reason === "TERMINAL"
-              ? ["Este atendimento não aceita prescrição.", 409]
-              : reason === "FINAL"
-                ? ["A prescrição finalizada é imutável.", 409]
-                : reason === "STALE"
-                  ? ["A prescrição mudou em outra sessão. Atualize a página.", 409]
-                  : reason === "PRODUCT"
-                    ? ["Um produto selecionado não está disponível.", 400]
-                    : ["Não foi possível salvar a prescrição.", 500];
+        : reason === "PROFESSIONAL_SCOPE"
+          ? ["A prescrição médica exige registro CRM válido neste fluxo.", 403]
+          : reason === "NOT_AUTHOR"
+            ? ["Somente o profissional responsável pode prescrever.", 403]
+            : reason === "INCOMPLETE_COUNCIL"
+              ? ["Complete o conselho profissional antes de prescrever.", 409]
+              : reason === "TERMINAL"
+                ? ["Este atendimento não aceita prescrição.", 409]
+                : reason === "FINAL"
+                  ? ["A prescrição finalizada é imutável.", 409]
+                  : reason === "STALE"
+                    ? ["A prescrição mudou em outra sessão. Atualize a página.", 409]
+                    : reason === "PRODUCT"
+                      ? ["Um produto selecionado não está disponível.", 400]
+                      : ["Não foi possível salvar a prescrição.", 500];
     if (response[1] === 500)
       console.error(
         "encounter prescription write failed",

@@ -76,6 +76,7 @@ type Payload = {
   documents: ClinicalDocument[];
   templates: Template[];
   canAuthor: boolean;
+  allowedDocumentTypes?: DocumentType[];
   context?: {
     patientName: string;
     birthDate: string | null;
@@ -169,6 +170,7 @@ export function EncounterDocumentsCard({ appointmentId }: { appointmentId: strin
   const onEditorReady = useCallback((editor: Editor | null) => {
     editorRef.current = editor;
   }, []);
+  const allowedTypes = query.data?.allowedDocumentTypes ?? documentTypes;
   const selected = query.data?.documents.find((item) => item.id === selectedId);
   const buffer = selected
     ? (buffers[selected.id] ?? {
@@ -240,7 +242,7 @@ export function EncounterDocumentsCard({ appointmentId }: { appointmentId: strin
     );
   }
   async function create(type: DocumentType) {
-    if (submitting.current || !query.data?.canAuthor) return;
+    if (submitting.current || !query.data?.canAuthor || !allowedTypes.includes(type)) return;
     submitting.current = true;
     setPending(true);
     setError("");
@@ -466,7 +468,7 @@ export function EncounterDocumentsCard({ appointmentId }: { appointmentId: strin
               );
             })}
           </div>
-          {data.canAuthor && (
+          {data.canAuthor && allowedTypes.length > 0 && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button
@@ -479,7 +481,7 @@ export function EncounterDocumentsCard({ appointmentId }: { appointmentId: strin
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className={menuStyle}>
-                {documentTypes.map((type) => (
+                {allowedTypes.map((type) => (
                   <DropdownMenuItem key={type} onSelect={() => void create(type)}>
                     <FileText size={16} />
                     {labels[type]}
@@ -512,8 +514,8 @@ export function EncounterDocumentsCard({ appointmentId }: { appointmentId: strin
       )}
       {!selected || !buffer ? (
         <div className="px-6 py-12 text-sm text-[#636366]">
-          {data.canAuthor
-            ? "Crie um documento para iniciar a receita, solicitação ou orientação."
+          {data.canAuthor && allowedTypes.length > 0
+            ? "Escolha um tipo de documento autorizado para iniciar."
             : "Nenhum documento disponível. A elaboração exige o profissional responsável pelo atendimento."}
         </div>
       ) : (

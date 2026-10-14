@@ -339,7 +339,7 @@ describe("operational patients", () => {
   it("creates an audited patient and enforces unit scope on reads and writes", async () => {
     const fortaleza = "a1100000-0000-4000-8000-000000000101";
     const juazeiro = "a1100000-0000-4000-8000-000000000102";
-    const managerCookie = await scopedCookie(fortaleza, "UNIT_MANAGER");
+    const managerCookie = await scopedCookie(fortaleza, "PARTNER_ADMIN");
     const patientId = randomUUID();
     const body = {
       action: "CREATE",
@@ -596,7 +596,7 @@ describe("operational patients", () => {
     expect(storedPrescription.rows[0].blob_pathname).toMatch(
       new RegExp(`^prescriptions/.+/${patientId}/.+\\.pdf$`),
     );
-    const juazeiroManager = await scopedCookie(juazeiro, "UNIT_MANAGER");
+    const juazeiroManager = await scopedCookie(juazeiro, "PARTNER_ADMIN");
     const activePrescriptionId = (await replaced.json()).data.id as string;
     expect(
       (
@@ -704,7 +704,7 @@ describe("operational patients", () => {
   it("consolidates future demand, stock coverage and unit authorization", async () => {
     const fortaleza = "a1100000-0000-4000-8000-000000000101";
     const juazeiro = "a1100000-0000-4000-8000-000000000102";
-    const managerCookie = await scopedCookie(fortaleza, "UNIT_MANAGER");
+    const managerCookie = await scopedCookie(fortaleza, "PARTNER_ADMIN");
     const patientId = randomUUID();
     const productId = randomUUID();
     const treatmentId = randomUUID();
@@ -965,7 +965,7 @@ describe("operational patients", () => {
         ],
       }),
     );
-    const otherManager = await scopedCookie(juazeiro, "UNIT_MANAGER");
+    const otherManager = await scopedCookie(juazeiro, "PARTNER_ADMIN");
     expect(
       (
         await patientPurchaseNeedsResponse(
@@ -1262,7 +1262,7 @@ describe("operational patients", () => {
   it("keeps patient codes immutable, preserves consent evidence and scopes partners", async () => {
     const fortaleza = "a1100000-0000-4000-8000-000000000101";
     const juazeiro = "a1100000-0000-4000-8000-000000000102";
-    const managerCookie = await scopedCookie(fortaleza, "UNIT_MANAGER");
+    const managerCookie = await scopedCookie(fortaleza, "PARTNER_ADMIN");
     const patientId = randomUUID();
     const marker = patientId.slice(0, 8);
     const body = {
@@ -2531,7 +2531,7 @@ describe("care appointments", () => {
         [body.id],
       ),
     ).rejects.toThrow(/immutable|append-only/);
-    const juazeiroManager = await scopedCookie(juazeiro, "UNIT_MANAGER");
+    const juazeiroManager = await scopedCookie(juazeiro, "CLINICIAN");
     expect(
       (
         await careEncounterResponse(

@@ -83,6 +83,7 @@ type Identity = {
 const roleLabels: Record<string, string> = {
   SUPER_ADMIN: "Super Admin",
   PARTNER_ADMIN: "Sócio administrador",
+  CLINICIAN: "Profissional de saúde",
   INVENTORY_MANAGER: "Supervisão de estoque",
   UNIT_MANAGER: "Gerência da unidade",
   FINANCE: "Financeiro",

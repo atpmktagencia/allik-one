@@ -174,6 +174,36 @@ async function fixture() {
   };
 }
 describe("individual document signature authorization and lifecycle", () => {
+  it("audits authorized source PDF reads and omits denied IDOR requests", async () => {
+    const f = await fixture();
+    expect((await f.request(f.restricted, undefined, {}, "&source=true")).status).toBe(404);
+    expect((await f.request(f.author, undefined, {}, "&source=true")).status).toBe(200);
+    const events = (
+      await getPool().query(
+        "SELECT actor_user_id,unit_id,document_id,action,resource_ids FROM inventory_clinical_access_events WHERE document_id=$1",
+        [f.document],
+      )
+    ).rows;
+    expect(events).toHaveLength(1);
+    expect(events[0]).toMatchObject({
+      actor_user_id: f.author,
+      unit_id: f.unit,
+      document_id: f.document,
+      action: "PDF_SOURCE",
+      resource_ids: [],
+    });
+    await expect(
+      getPool().query(
+        "UPDATE inventory_clinical_access_events SET action='READ' WHERE document_id=$1",
+        [f.document],
+      ),
+    ).rejects.toThrow();
+    await expect(
+      getPool().query("DELETE FROM inventory_clinical_access_events WHERE document_id=$1", [
+        f.document,
+      ]),
+    ).rejects.toThrow();
+  });
   it("requires identity and configured provider before external calls", async () => {
     const f = await fixture();
     expect((await f.start()).status).toBe(409);
@@ -280,6 +310,13 @@ describe("individual document signature authorization and lifecycle", () => {
     ).rejects.toThrow();
 
     expect((await f.request(f.restricted, undefined, {}, "&download=true")).status).toBe(404);
+    const accessEvents = (
+      await getPool().query(
+        "SELECT actor_user_id,action FROM inventory_clinical_access_events WHERE document_id=$1",
+        [f.document],
+      )
+    ).rows;
+    expect(accessEvents).toEqual([{ actor_user_id: f.author, action: "SIGNED_DOWNLOAD" }]);
   });
   it("rejects forged callbacks and cancellation by another author", async () => {
     const f = await fixture();

@@ -1,3 +1,5 @@
+import { recordClinicalAccess } from "./clinical-access-audit";
+import { hasClinicalRegistration } from "./clinical-professional-policy";
 import "@tanstack/react-start/server-only";
 import { z } from "zod";
 import { actor, authenticate, can } from "./auth";
@@ -140,8 +142,8 @@ export async function careEncounterResponse(request: Request) {
         oxygen_saturation AS "oxygenSaturation",temperature_c AS "temperatureC",
         weight_kg AS "weightKg",height_cm AS "heightCm",
         finalized_at AS "finalizedAt",updated_at AS "updatedAt"
-       FROM inventory_clinical_notes WHERE appointment_id=$1 AND organization_id=$2`,
-      [appointmentId, auth.organizationId],
+       FROM inventory_clinical_notes WHERE appointment_id=$1 AND organization_id=$2 AND (status='FINAL' OR author_user_id=$3)`,
+      [appointmentId, auth.organizationId, auth.user.id],
     ),
     pool.query(
       `SELECT id,type,title,reaction,severity,notes
@@ -155,11 +157,11 @@ export async function careEncounterResponse(request: Request) {
 
   const isAssignedProfessional = auth.user.id === String(appointment["professionalUserId"]);
   const hasClinicalPermission = can(auth, "patients.clinical.manage", unitId);
-  const hasCompleteCouncil = Boolean(
-    appointment["professionalCouncil"] &&
-    appointment["councilNumber"] &&
-    appointment["councilRegion"],
-  );
+  const hasCompleteCouncil = hasClinicalRegistration({
+    professional_council: String(appointment["professionalCouncil"] ?? ""),
+    council_number: String(appointment["councilNumber"] ?? ""),
+    council_region: String(appointment["councilRegion"] ?? ""),
+  });
   const canAuthorClinicalNote =
     Boolean(auth.user.id) &&
     hasClinicalPermission &&
@@ -179,6 +181,13 @@ export async function careEncounterResponse(request: Request) {
     !clinicalRecords.rows[0].present &&
     !["NO_SHOW", "CANCELED"].includes(String(appointment["status"]));
 
+  await recordClinicalAccess(auth, {
+    unitId,
+    patientId,
+    appointmentId,
+    action: "READ",
+    resourceIds: clinicalNote.rows.map((n) => n.id),
+  });
   return Response.json(
     {
       data: {
@@ -267,6 +276,13 @@ async function saveClinicalNote(
       return Response.json(
         { error: "Complete o conselho profissional do responsável antes de registrar a evolução." },
         { status: 409, headers },
+      );
+    }
+    if (!hasClinicalRegistration(appointment)) {
+      await client.query("ROLLBACK");
+      return Response.json(
+        { error: "Registro profissional não habilitado para este fluxo." },
+        { status: 403, headers },
       );
     }
     if (["CANCELED", "NO_SHOW"].includes(appointment.status)) {
@@ -502,6 +518,7 @@ async function claimAppointment(
     const existingNote = existingNoteResult.rows[0];
     if (existingNote || (await hasClinicalRecords(client, input.appointmentId)))
       throw new Error("CLINICAL_LOCKED");
+    if (!hasClinicalRegistration(professional)) throw new Error("INCOMPLETE_COUNCIL");
     const conflict = await client.query(
       `SELECT 1 FROM inventory_care_appointments
        WHERE organization_id=$1 AND professional_user_id=$2 AND id<>$3
