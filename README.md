@@ -207,15 +207,28 @@ O Milestone 1 só é encerrado após validar o deployment com PostgreSQL na Verc
 - Milestone 14: ativação do plano terapêutico e programação das aplicações a partir da primeira data, frequência estruturada e quantidade contratada; confirmação da agenda pela equipe antes de reservar estoque.
 
   A ativação exige orçamento pago e uma prévia conferida pela equipe. A quantidade contratada define o número de aplicações, respeitando a duração prescrita. Intervalos mensais seguem o calendário; intervalos em horas exigem uma agenda com horários e não são convertidos em dias. Prescrições antigas com frequência livre precisam de revisão clínica antes da ativação. A operação gera plano, compra do paciente e aplicações previstas em uma única transação, sem alterar saldo físico.
+
 - Milestone 15: documentos independentes por atendimento, modelos reutilizáveis de prescrição e solicitação de exames, visualização e impressão.
 
   Receitas textuais e solicitações de exames são documentos independentes, com rascunho, controle de versão, autoria e finalização imutável. Modelos são particulares do profissional e devem conter somente conteúdo reutilizável, sem identificação de pacientes. A impressão autenticada de documentos finais permite salvar em PDF pelo navegador. A prescrição estruturada de injetáveis mantém seu vínculo com orçamento e plano terapêutico.
+
 - Milestone 16: histórico longitudinal do paciente, evoluções, planos terapêuticos, documentos e aplicações.
 
   O prontuário em `/pacientes/:patientId/prontuario` reúne agendamentos, evoluções finalizadas, prescrições estruturadas finalizadas, receitas e pedidos de exames finais, planos e aplicações. A consulta é protegida por organização e unidade em cada fonte, com paginação determinística e filtros. Rascunhos clínicos permanecem no atendimento; a linha do tempo não os apresenta como documentos finais.
+
 - Milestone 17: assinatura eletrônica de documentos, integridade e validação.
 
   A preparação 17A congela a identificação do paciente, unidade, profissional/conselho e conteúdo nos documentos novos quando são finalizados. Documentos finais legados permanecem intactos e a impressão identifica o cabeçalho obtido do cadastro atual. A assinatura eletrônica depende da escolha e integração do provedor/certificado; finalização e impressão no navegador continuam sem assinatura digital.
 
 Projeto Lovable: https://lovable.dev/projects/d9d8071f-e34a-4e1b-8e4d-5b845dc82c23
 Não reescreva histórico publicado. A alteração do nome do repositório no GitHub e do projeto/domínio Vercel é independente do nome visível da aplicação.
+
+### Documentos do atendimento — editor e duas vias
+
+A área de documentos usa abas superiores por ID e editor TipTap com negrito, itálico, sublinhado, listas, alinhamento e histórico de edição local. São aceitos receita, solicitação de exames, atestado, encaminhamento, relatório, laudo e orientações. Novos documentos recebem título automático; títulos antigos permanecem preservados.
+
+Os rascunhos exigem **Salvar rascunho**: alternar abas preserva as alterações em memória, mas sair da página sem salvar pode perdê-las. Modelos pessoais preservam formatação e permitem inserir no cursor ou substituir com confirmação. A prévia salva alterações pendentes antes de abrir o documento e identifica os rascunhos; somente o autor individual pode imprimir a prévia de um rascunho. Documentos finais continuam imutáveis e consultáveis dentro do escopo autorizado.
+
+A opção **Emitir receita em duas vias** é persistida exclusivamente em receitas. A impressão apresenta duas cópias completas, identificadas como via do paciente e da farmácia, com quebra de página. A migration aditiva `0049_wet_tombstone.sql` preserva texto e versões finais existentes e congela formatação e opção de vias nas novas finalizações. Conteúdo do editor é validado por uma lista restrita de estruturas e renderizado com escape de HTML.
+
+Mevo permanece indisponível até configuração de uma integração real. Finalização e impressão não equivalem a assinatura eletrônica; a integração Lacuna ainda depende de credenciais de homologação/licenciamento. A geração de duas vias não substitui requisitos específicos do documento.

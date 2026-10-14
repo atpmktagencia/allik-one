@@ -1,18 +1,39 @@
-import { FileText, Plus, Printer } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
-import { Badge } from "@/components/ui/badge";
+import { FileText, Plus, Printer, ChevronDown, History, MoreHorizontal } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import type { Editor } from "@tiptap/react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+} from "@/components/ui/dropdown-menu";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
 import { readInventoryResponse, useInventory } from "@/data/inventory-api";
+import {
+  documentTypes,
+  documentTitles,
+  plainTextRichContent,
+  type DocumentType,
+  type RichContentNode,
+} from "@/lib/clinical-document-content";
 import { InventoryState } from "./inventory-state";
+import { ClinicalDocumentEditor } from "./clinical-document-editor";
 
-type DocumentType = "PRESCRIPTION" | "EXAM_REQUEST";
 type ClinicalDocument = {
   id: string;
   type: DocumentType;
   title: string;
   content: string;
+  richContent?: RichContentNode | null;
+  twoCopies?: boolean;
   status: "DRAFT" | "FINAL";
   version: number;
   authorName: string;
@@ -21,121 +42,226 @@ type ClinicalDocument = {
   councilRegion: string;
   canEdit?: boolean;
 };
-type Template = { id: string; type: DocumentType; title: string; content: string };
-type Payload = { documents: ClinicalDocument[]; templates: Template[]; canAuthor: boolean };
-const labels: Record<DocumentType, string> = {
-  PRESCRIPTION: "Prescrição",
-  EXAM_REQUEST: "Solicitação de exames",
+type Template = {
+  id: string;
+  type: DocumentType;
+  title: string;
+  content: string;
+  richContent?: RichContentNode | null;
 };
+type Payload = {
+  documents: ClinicalDocument[];
+  templates: Template[];
+  canAuthor: boolean;
+  context?: {
+    patientName: string;
+    birthDate: string | null;
+    unitName: string;
+    allergies: string[] | null;
+  };
+};
+type Buffer = {
+  content: string;
+  richContent: RichContentNode | null;
+  twoCopies: boolean;
+  dirty: boolean;
+  version: number;
+};
+const labels: Record<DocumentType, string> = {
+  PRESCRIPTION: "Receita médica",
+  EXAM_REQUEST: "Solicitação de exames",
+  MEDICAL_CERTIFICATE: "Atestado",
+  REFERRAL: "Encaminhamento",
+  MEDICAL_REPORT: "Relatório médico",
+  MEDICAL_OPINION: "Laudo médico",
+  INSTRUCTIONS: "Orientações",
+};
+const tabLabels: Record<DocumentType, string> = {
+  PRESCRIPTION: "Receita",
+  EXAM_REQUEST: "Exames",
+  MEDICAL_CERTIFICATE: "Atestado",
+  REFERRAL: "Encaminhamento",
+  MEDICAL_REPORT: "Relatório",
+  MEDICAL_OPINION: "Laudo",
+  INSTRUCTIONS: "Orientações",
+};
+function initialBuffer(document: ClinicalDocument): Buffer {
+  return {
+    content: document.content,
+    richContent: document.richContent ?? null,
+    twoCopies: document.twoCopies ?? false,
+    dirty: false,
+    version: document.version,
+  };
+}
+function ageFromDate(value: string | null | undefined) {
+  if (!value) return null;
+  const birth = new Date(`${value.slice(0, 10)}T12:00:00`);
+  if (Number.isNaN(birth.getTime())) return null;
+  const now = new Date();
+  return (
+    now.getFullYear() -
+    birth.getFullYear() -
+    (now.getMonth() < birth.getMonth() ||
+    (now.getMonth() === birth.getMonth() && now.getDate() < birth.getDate())
+      ? 1
+      : 0)
+  );
+}
 
 export function EncounterDocumentsCard({ appointmentId }: { appointmentId: string }) {
   const query = useInventory<Payload>(
     `encounter-documents?appointmentId=${encodeURIComponent(appointmentId)}`,
   );
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [type, setType] = useState<DocumentType>("PRESCRIPTION");
-  const [title, setTitle] = useState("");
-  const [content, setContent] = useState("");
-  const [version, setVersion] = useState<number | null>(null);
-  const [dirty, setDirty] = useState(false);
+  const [buffers, setBuffers] = useState<Record<string, Buffer>>({});
   const [pending, setPending] = useState(false);
-  const submitting = useRef(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
-  const [templateId, setTemplateId] = useState("");
+  const [focusId, setFocusId] = useState<string | null>(null);
   const [templateName, setTemplateName] = useState("");
-  const [showTemplateForm, setShowTemplateForm] = useState(false);
-  const selected = query.data?.documents.find((document) => document.id === selectedId);
+  const [templateForm, setTemplateForm] = useState(false);
+  const [applying, setApplying] = useState<Template | null>(null);
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const submitting = useRef(false);
+  const editorRef = useRef<Editor | null>(null);
+  const onEditorReady = useCallback((editor: Editor | null) => {
+    editorRef.current = editor;
+  }, []);
+  const selected = query.data?.documents.find((item) => item.id === selectedId);
+  const buffer = selected ? (buffers[selected.id] ?? initialBuffer(selected)) : null;
   const readonly =
     !query.data?.canAuthor || selected?.status === "FINAL" || selected?.canEdit === false;
-
   useEffect(() => {
     setSelectedId(null);
-    setTitle("");
-    setContent("");
-    setVersion(null);
-    setDirty(false);
+    setBuffers({});
     setMessage("");
     setError("");
+    setFocusId(null);
   }, [appointmentId]);
-
-  function select(document: ClinicalDocument | null, nextType: DocumentType = "PRESCRIPTION") {
-    if (
-      pending ||
-      (dirty && !window.confirm("Descartar as alterações ainda não salvas deste documento?"))
-    )
-      return;
-    setSelectedId(document?.id ?? null);
-    setType(document?.type ?? nextType);
-    setTitle(document?.title ?? labels[nextType]);
-    setContent(document?.content ?? "");
-    setVersion(document?.version ?? null);
-    setDirty(false);
-    setTemplateId("");
-    setShowTemplateForm(false);
+  useEffect(() => {
+    if (!selectedId && query.data?.documents[0]) setSelectedId(query.data.documents[0].id);
+  }, [query.data, selectedId]);
+  useEffect(() => {
+    const dirty = Object.values(buffers).some((item) => item.dirty);
+    if (!dirty) return;
+    const prevent = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = "";
+    };
+    window.addEventListener("beforeunload", prevent);
+    return () => window.removeEventListener("beforeunload", prevent);
+  }, [buffers]);
+  function update(values: Partial<Buffer>) {
+    if (!selected || readonly || pending) return;
+    setBuffers((previous) => ({
+      ...previous,
+      [selected.id]: {
+        ...(previous[selected.id] ?? initialBuffer(selected)),
+        ...values,
+        dirty: true,
+      },
+    }));
     setMessage("");
-    setError("");
   }
-
-  async function save(action: "SAVE_DRAFT" | "FINALIZE" | "SAVE_TEMPLATE") {
-    if (submitting.current || readonly) return;
-    if (!title.trim() || !content.trim()) {
-      setError("Preencha o título e o conteúdo do documento.");
-      return;
+  function select(id: string) {
+    if (pending) return;
+    setSelectedId(id);
+    setError("");
+    setMessage("");
+  }
+  async function request(body: Record<string, unknown>) {
+    const response = await fetch("/api/v1/inventory/encounter-documents", {
+      method: "POST",
+      credentials: "same-origin",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ appointmentId, ...body }),
+    });
+    return readInventoryResponse<{ id: string; version: number }>(
+      response,
+      "Não foi possível salvar o documento.",
+    );
+  }
+  async function create(type: DocumentType) {
+    if (submitting.current || !query.data?.canAuthor) return;
+    submitting.current = true;
+    setPending(true);
+    setError("");
+    setMessage("");
+    try {
+      const result = await request({
+        action: "SAVE_DRAFT",
+        documentId: null,
+        type,
+        title: documentTitles[type],
+        content: "",
+        richContent: plainTextRichContent(""),
+        twoCopies: false,
+        version: null,
+      });
+      if (!result.data) throw new Error("Não foi possível confirmar a criação do documento.");
+      await query.refetch();
+      setSelectedId(result.data.id);
+      setFocusId(result.data.id);
+      setMessage("Rascunho criado.");
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Não foi possível criar o documento.");
+    } finally {
+      submitting.current = false;
+      setPending(false);
+    }
+  }
+  async function save(action: "SAVE_DRAFT" | "FINALIZE" | "SAVE_TEMPLATE"): Promise<boolean> {
+    if (submitting.current || readonly || !selected || !buffer) return false;
+    if (action !== "SAVE_DRAFT" && !buffer.content.trim()) {
+      setError("Preencha o conteúdo do documento.");
+      return false;
     }
     if (action === "SAVE_TEMPLATE" && !templateName.trim()) {
       setError("Informe um nome para o modelo.");
-      return;
+      return false;
     }
     if (
       action === "SAVE_TEMPLATE" &&
       !window.confirm(
-        "Confira e remova nomes, documentos e demais dados pessoais do paciente antes de salvar este conteúdo como modelo reutilizável. Continuar?",
+        "Remova nomes e demais dados pessoais do paciente antes de salvar este conteúdo como modelo reutilizável. Continuar?",
       )
     )
-      return;
+      return false;
     if (
       action === "FINALIZE" &&
       !window.confirm(
-        "Finalizar este documento? O conteúdo ficará imutável. Confira a prescrição ou a solicitação antes de continuar.",
+        "Finalizar este documento? O conteúdo ficará imutável. A finalização não equivale a assinatura eletrônica.",
       )
     )
-      return;
+      return false;
     submitting.current = true;
     setPending(true);
-    setMessage("");
     setError("");
+    setMessage("");
     try {
-      const response = await fetch("/api/v1/inventory/encounter-documents", {
-        method: "POST",
-        credentials: "same-origin",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action,
-          appointmentId,
-          documentId: selectedId,
-          type,
-          title: action === "SAVE_TEMPLATE" ? templateName.trim() : title.trim(),
-          content,
-          version,
-        }),
+      const result = await request({
+        action,
+        documentId: selected.id,
+        type: selected.type,
+        title:
+          action === "SAVE_TEMPLATE"
+            ? templateName.trim()
+            : selected.title || documentTitles[selected.type],
+        content: buffer.content,
+        richContent: buffer.richContent,
+        twoCopies: buffer.twoCopies,
+        version: buffer.version,
       });
-      const result = await readInventoryResponse<{ id: string; version: number }>(
-        response,
-        "Não foi possível salvar o documento.",
-      );
-      const refreshed = await query.refetch();
-      if (action !== "SAVE_TEMPLATE") {
-        const saved = refreshed.data?.documents.find((document) => document.id === result.data?.id);
-        if (saved) {
-          setSelectedId(saved.id);
-          setVersion(saved.version);
-          setTitle(saved.title);
-          setContent(saved.content);
-        }
-        setDirty(false);
-      } else {
-        setShowTemplateForm(false);
+      if (!result.data) throw new Error("Não foi possível confirmar o salvamento.");
+      if (action !== "SAVE_TEMPLATE")
+        setBuffers((previous) => ({
+          ...previous,
+          [selected.id]: { ...buffer, dirty: false, version: result.data!.version },
+        }));
+      await query.refetch();
+      if (action === "SAVE_TEMPLATE") {
+        setTemplateForm(false);
         setTemplateName("");
       }
       setMessage(
@@ -145,294 +271,445 @@ export function EncounterDocumentsCard({ appointmentId }: { appointmentId: strin
             ? "Modelo salvo para seus próximos atendimentos."
             : "Rascunho salvo.",
       );
+      return true;
     } catch (cause) {
       setError(
-        cause instanceof Error ? cause.message : "Não foi possível conectar. Tente novamente.",
+        cause instanceof Error ? cause.message : "Não foi possível salvar. Tente novamente.",
       );
+      return false;
     } finally {
       submitting.current = false;
       setPending(false);
     }
   }
-
+  async function print() {
+    if (!selected || pending) return;
+    // Open synchronously so browsers do not block the preview after saving.
+    const preview = window.open("about:blank", "_blank");
+    if (preview) preview.opener = null;
+    if (buffer?.dirty && !(await save("SAVE_DRAFT"))) {
+      preview?.close();
+      return;
+    }
+    const url = `/api/v1/inventory/encounter-documents?documentId=${encodeURIComponent(selected.id)}&print=true${selected.status === "DRAFT" ? "&preview=true" : ""}`;
+    if (preview) preview.location.href = url;
+    else setError("Permita a abertura de uma nova janela para visualizar a impressão.");
+  }
+  function apply(template: Template, replace: boolean) {
+    if (!editorRef.current || readonly) return;
+    if (
+      replace &&
+      buffer?.content.trim() &&
+      !window.confirm("Substituir o conteúdo atual pelo modelo selecionado?")
+    )
+      return;
+    const content = template.richContent ?? plainTextRichContent(template.content);
+    if (replace)
+      editorRef.current.commands.setContent(
+        content as Parameters<Editor["commands"]["setContent"]>[0],
+        { emitUpdate: true },
+      );
+    else
+      editorRef.current
+        .chain()
+        .focus()
+        .insertContent(content.content ?? [])
+        .run();
+    setApplying(null);
+  }
   if (query.isPending || query.error)
     return (
       <InventoryState pending={query.isPending} error={query.error} retry={() => query.refetch()} />
     );
   const data = query.data!;
-  const templates = data.templates.filter((template) => template.type === type);
-
+  const templates = data.templates.filter((item) => item.type === selected?.type);
+  const age = ageFromDate(data.context?.birthDate);
+  const menuStyle = "clinical-document-glass rounded-2xl border-[rgba(60,60,67,.12)] p-2 shadow-lg";
+  const buttonStyle =
+    "rounded-xl bg-white border-[rgba(60,60,67,.12)] text-[#1d1d1f] hover:bg-[#f5f5f7]";
+  const counts: Partial<Record<DocumentType, number>> = {};
   return (
-    <section
-      className="overflow-hidden rounded-xl border bg-white"
-      aria-label="Documentos do atendimento"
-    >
-      <div className="flex flex-wrap items-start justify-between gap-3 border-b px-5 py-4">
-        <div>
-          <h2 className="font-semibold">Prescrições e solicitações de exames</h2>
-          <p className="mt-1 text-xs text-muted-foreground">
-            Cada documento tem seu próprio rascunho e versão final. Injetáveis e orçamento
-            permanecem na seção de tratamento.
+    <section className="clinical-documents" aria-label="Documentos do atendimento">
+      {data.context && (
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b bg-white px-5 py-3 text-sm">
+          <p className="font-semibold">
+            Allik One <span className="font-normal text-[#636366]">· {data.context.unitName}</span>
           </p>
+          <div className="flex flex-wrap gap-x-5 gap-y-1">
+            <span>
+              {data.context.patientName}
+              {age !== null ? ` · ${age} anos` : ""}
+            </span>
+            <span className="text-[#636366]">
+              Alergias:{" "}
+              {data.context.allergies === null || data.context.allergies === undefined
+                ? "não informadas"
+                : data.context.allergies.length
+                  ? data.context.allergies.join(", ")
+                  : "nega alergias"}
+            </span>
+          </div>
         </div>
-        <Badge variant="outline">
-          {selected?.status === "FINAL"
-            ? "Finalizado"
-            : dirty
-              ? "Alterações não salvas"
-              : "Rascunho"}
-        </Badge>
-      </div>
-      <div className="grid md:grid-cols-[190px_minmax(0,1fr)]">
-        <aside
-          className="space-y-3 border-b bg-muted/10 p-3 md:border-b-0 md:border-r"
-          aria-label="Lista de documentos"
-        >
-          <p className="px-2 text-xs font-medium text-muted-foreground">
-            Documentos deste atendimento
-          </p>
-          {data.documents.length ? (
-            <div className="flex gap-2 overflow-x-auto md:block md:space-y-1">
-              {data.documents.map((document, index) => (
+      )}
+      <div className="bg-white px-4 pb-2 pt-5 sm:px-6">
+        <h2 className="mb-4 text-xl font-semibold tracking-tight">Documentos deste atendimento</h2>
+        <div className="flex min-w-0 flex-wrap items-start gap-2">
+          <div
+            className="clinical-document-tabs min-w-0 flex-1"
+            role="tablist"
+            aria-label="Documentos deste atendimento"
+          >
+            {data.documents.map((item) => {
+              counts[item.type] = (counts[item.type] ?? 0) + 1;
+              return (
                 <button
-                  key={document.id}
                   type="button"
+                  key={item.id}
+                  id={`document-tab-${item.id}`}
+                  role="tab"
+                  aria-selected={selectedId === item.id}
+                  tabIndex={selectedId === item.id ? 0 : -1}
+                  aria-controls={`document-panel-${item.id}`}
                   disabled={pending}
-                  aria-pressed={selectedId === document.id}
-                  onClick={() => select(document)}
-                  className={`min-w-[150px] rounded-lg border px-3 py-2 text-left text-sm md:w-full ${selectedId === document.id ? "border-primary/30 bg-primary/5" : "border-transparent hover:bg-muted/50"}`}
+                  onClick={() => select(item.id)}
+                  onKeyDown={(event) => {
+                    if (!["ArrowRight", "ArrowLeft", "Home", "End"].includes(event.key)) return;
+                    event.preventDefault();
+                    const index = data.documents.findIndex((document) => document.id === item.id);
+                    const nextIndex =
+                      event.key === "Home"
+                        ? 0
+                        : event.key === "End"
+                          ? data.documents.length - 1
+                          : (index +
+                              (event.key === "ArrowRight" ? 1 : -1) +
+                              data.documents.length) %
+                            data.documents.length;
+                    select(data.documents[nextIndex]!.id);
+                    document
+                      .getElementById(`document-tab-${data.documents[nextIndex]!.id}`)
+                      ?.focus();
+                  }}
                 >
-                  <span className="flex items-center gap-2">
-                    <FileText className="h-4 w-4 shrink-0" />
-                    Documento {index + 1}
+                  <span className="text-sm font-medium">
+                    {tabLabels[item.type]} {counts[item.type]}
                   </span>
-                  <span className="mt-1 block break-words text-xs">{document.title}</span>
-                  <span className="mt-1 block text-[11px] text-muted-foreground">
-                    {document.status === "FINAL" ? "Finalizado" : "Rascunho"}
+                  <span className="ml-2 text-[11px] text-[#636366]">
+                    {item.status === "FINAL"
+                      ? "Finalizado"
+                      : buffers[item.id]?.dirty
+                        ? "Não salvo"
+                        : "Rascunho"}
                   </span>
                 </button>
-              ))}
-            </div>
-          ) : (
-            <p className="px-2 text-xs text-muted-foreground">Nenhum documento salvo.</p>
-          )}
+              );
+            })}
+          </div>
           {data.canAuthor && (
-            <div className="flex flex-wrap gap-2 md:flex-col">
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={pending}
-                onClick={() => select(null, "PRESCRIPTION")}
-              >
-                <Plus className="h-4 w-4" />
-                Nova prescrição
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={pending}
-                onClick={() => select(null, "EXAM_REQUEST")}
-              >
-                <Plus className="h-4 w-4" />
-                Solicitar exames
-              </Button>
-            </div>
-          )}
-        </aside>
-        <div className="min-w-0 space-y-4 p-5">
-          {(message || error) && (
-            <p
-              role={error ? "alert" : "status"}
-              className={`rounded-lg border p-3 text-sm ${error ? "border-destructive/30 text-destructive" : ""}`}
-            >
-              {error || message}
-            </p>
-          )}
-          {!data.canAuthor && !selected ? (
-            <p className="py-6 text-sm text-muted-foreground">
-              Selecione um documento para consultar. A elaboração exige o profissional responsável
-              pelo atendimento.
-            </p>
-          ) : (
-            <>
-              <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_220px]">
-                <label className="space-y-1 text-sm font-medium">
-                  Título do documento
-                  <Input
-                    value={title}
-                    disabled={readonly || pending}
-                    maxLength={160}
-                    placeholder={labels[type]}
-                    onChange={(event) => {
-                      setTitle(event.target.value);
-                      setDirty(true);
-                    }}
-                  />
-                </label>
-                <label className="space-y-1 text-sm font-medium">
-                  Tipo
-                  <select
-                    className="h-10 w-full rounded-md border bg-white px-3 text-sm"
-                    value={type}
-                    disabled={readonly || pending || Boolean(selectedId)}
-                    onChange={(event) => {
-                      setType(event.target.value as DocumentType);
-                      setTemplateId("");
-                      setDirty(true);
-                    }}
-                  >
-                    <option value="PRESCRIPTION">Prescrição</option>
-                    <option value="EXAM_REQUEST">Solicitação de exames</option>
-                  </select>
-                </label>
-              </div>
-              {!readonly && (
-                <div className="flex flex-wrap items-end gap-2">
-                  <label className="min-w-0 flex-1 space-y-1 text-sm">
-                    Modelo opcional
-                    <select
-                      className="h-10 w-full rounded-md border bg-white px-3 text-sm"
-                      value={templateId}
-                      disabled={pending}
-                      onChange={(event) => setTemplateId(event.target.value)}
-                    >
-                      <option value="">
-                        {templates.length
-                          ? "Escolha um modelo"
-                          : "Nenhum modelo salvo para este tipo"}
-                      </option>
-                      {templates.map((template) => (
-                        <option key={template.id} value={template.id}>
-                          {template.title}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                  <Button
-                    variant="outline"
-                    disabled={!templateId || pending}
-                    onClick={() => {
-                      const template = templates.find((item) => item.id === templateId);
-                      if (
-                        !template ||
-                        (content.trim() &&
-                          !window.confirm("Substituir o conteúdo atual pelo modelo selecionado?"))
-                      )
-                        return;
-                      setTitle(template.title);
-                      setContent(template.content);
-                      setDirty(true);
-                    }}
-                  >
-                    Aplicar modelo
-                  </Button>
-                </div>
-              )}
-              <label className="block space-y-2 text-sm font-medium">
-                {labels[type]}
-                <Textarea
-                  className="min-h-[420px] resize-y border-muted bg-white text-base font-normal leading-7"
-                  value={content}
-                  maxLength={30000}
-                  disabled={readonly || pending}
-                  placeholder={
-                    type === "PRESCRIPTION"
-                      ? "Medicamento ou fórmula, apresentação, dose, via, frequência, duração e orientações…"
-                      : "Exames solicitados e orientações para realização…"
-                  }
-                  onChange={(event) => {
-                    setContent(event.target.value);
-                    setDirty(true);
-                  }}
-                />
-              </label>
-              {selected && (
-                <p className="text-xs text-muted-foreground">
-                  Autoria: {selected.authorName}
-                  {selected.councilNumber
-                    ? ` · ${selected.professionalCouncil} ${selected.councilNumber}/${selected.councilRegion}`
-                    : ""}{" "}
-                  · Versão {selected.version}
-                </p>
-              )}
-              {selected?.status === "DRAFT" && selected.canEdit === false && (
-                <p className="text-xs text-muted-foreground">
-                  Este rascunho pertence a {selected.authorName}. Somente seu autor pode alterá-lo.
-                  Crie um novo documento para registrar sua prescrição ou solicitação.
-                </p>
-              )}
-              {selected?.status === "FINAL" ? (
-                <div className="space-y-2">
-                  <p className="text-xs text-muted-foreground">
-                    Documento finalizado. A impressão não inclui assinatura eletrônica certificada.
-                  </p>
-                  <Button variant="outline" asChild>
-                    <a
-                      href={`/api/v1/inventory/encounter-documents?documentId=${encodeURIComponent(selected.id)}&print=true`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
-                      <Printer className="h-4 w-4" />
-                      Imprimir / salvar PDF
-                    </a>
-                  </Button>
-                </div>
-              ) : (
-                !readonly && (
-                  <>
-                    <div className="flex flex-wrap gap-2">
-                      <Button
-                        disabled={pending || !content.trim()}
-                        onClick={() => save("SAVE_DRAFT")}
-                      >
-                        {pending ? "Salvando…" : "Salvar rascunho"}
-                      </Button>
-                      <Button
-                        variant="outline"
-                        disabled={pending || !content.trim()}
-                        onClick={() => save("FINALIZE")}
-                      >
-                        Finalizar documento
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        disabled={pending || !content.trim()}
-                        onClick={() => setShowTemplateForm(!showTemplateForm)}
-                      >
-                        Salvar como modelo
-                      </Button>
-                    </div>
-                    {showTemplateForm && (
-                      <div className="flex flex-wrap items-end gap-2 rounded-lg border p-3">
-                        <p className="w-full text-xs text-muted-foreground">
-                          Modelos são pessoais e reutilizáveis. Remova dados que identifiquem o
-                          paciente antes de salvar.
-                        </p>
-                        <label className="min-w-[180px] flex-1 space-y-1 text-sm">
-                          Nome do modelo
-                          <Input
-                            value={templateName}
-                            maxLength={160}
-                            disabled={pending}
-                            onChange={(event) => setTemplateName(event.target.value)}
-                          />
-                        </label>
-                        <Button
-                          variant="outline"
-                          disabled={pending || !templateName.trim()}
-                          onClick={() => save("SAVE_TEMPLATE")}
-                        >
-                          Salvar modelo
-                        </Button>
-                      </div>
-                    )}
-                  </>
-                )
-              )}
-            </>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="outline"
+                  className={`${buttonStyle} text-[#007aff]`}
+                  disabled={pending}
+                >
+                  <Plus size={16} />
+                  Novo documento
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className={menuStyle}>
+                {documentTypes.map((type) => (
+                  <DropdownMenuItem key={type} onSelect={() => void create(type)}>
+                    <FileText size={16} />
+                    {labels[type]}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
           )}
         </div>
       </div>
+      {(message || error) && (
+        <div className="px-4 pt-3 sm:px-6">
+          <p
+            role={error ? "alert" : "status"}
+            className={`rounded-xl bg-white px-4 py-3 text-sm ${error ? "text-red-700" : "text-[#636366]"}`}
+          >
+            {error || message}
+            {error && selected && !readonly && (
+              <button
+                type="button"
+                className="ml-3 font-medium text-[#007aff]"
+                disabled={pending}
+                onClick={() => void save("SAVE_DRAFT")}
+              >
+                Tentar novamente
+              </button>
+            )}
+          </p>
+        </div>
+      )}
+      {!selected || !buffer ? (
+        <div className="px-6 py-12 text-sm text-[#636366]">
+          {data.canAuthor
+            ? "Crie um documento para iniciar a receita, solicitação ou orientação."
+            : "Nenhum documento disponível. A elaboração exige o profissional responsável pelo atendimento."}
+        </div>
+      ) : (
+        <div
+          id={`document-panel-${selected.id}`}
+          role="tabpanel"
+          aria-labelledby={`document-tab-${selected.id}`}
+        >
+          <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-4 sm:px-6">
+            <div className="flex flex-wrap gap-2">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" className={buttonStyle} disabled={readonly || pending}>
+                    Modelos
+                    <ChevronDown size={15} />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className={`${menuStyle} max-w-[300px]`}>
+                  {templates.length ? (
+                    templates.map((template) => (
+                      <DropdownMenuItem
+                        key={template.id}
+                        onSelect={() =>
+                          buffer.content.trim() ? setApplying(template) : apply(template, true)
+                        }
+                      >
+                        {template.title}
+                      </DropdownMenuItem>
+                    ))
+                  ) : (
+                    <p className="px-3 py-2 text-sm text-[#636366]">
+                      Nenhum modelo salvo para este tipo.
+                    </p>
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
+              <Button
+                variant="outline"
+                className={buttonStyle}
+                onClick={() => setHistoryOpen(true)}
+              >
+                <History size={16} />
+                Histórico
+              </Button>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {selected.type === "PRESCRIPTION" && (
+                <span title="Integração Mevo ainda não configurada">
+                  <Button variant="outline" className={buttonStyle} disabled>
+                    Prescrever com Mevo
+                  </Button>
+                </span>
+              )}
+              <Button
+                variant="outline"
+                className={buttonStyle}
+                disabled={pending || (selected.status === "DRAFT" && readonly)}
+                onClick={() => void print()}
+              >
+                <Printer size={16} />
+                Visualizar impressão
+              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={buttonStyle}
+                    aria-label="Opções do documento"
+                  >
+                    <MoreHorizontal size={18} />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className={menuStyle}>
+                  <DropdownMenuItem
+                    disabled={readonly || pending || !buffer.content.trim()}
+                    onSelect={() => setTemplateForm(true)}
+                  >
+                    Salvar como modelo
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    disabled={pending || (selected.status === "DRAFT" && readonly)}
+                    onSelect={() => void print()}
+                  >
+                    Visualizar impressão
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          </div>
+          {selected.type === "PRESCRIPTION" && (
+            <label className="mx-4 mb-4 flex w-fit items-center gap-2 text-sm sm:mx-6">
+              <input
+                type="checkbox"
+                className="h-4 w-4 accent-[#007aff]"
+                checked={buffer.twoCopies}
+                disabled={readonly || pending}
+                onChange={(event) => update({ twoCopies: event.target.checked })}
+              />
+              <span>
+                Emitir receita em duas vias{" "}
+                <span className="text-xs text-[#636366]">(ex.: antibioticoterapia)</span>
+              </span>
+            </label>
+          )}
+          {selected.type === "PRESCRIPTION" && (
+            <p className="mx-4 mb-3 text-xs text-[#636366] sm:mx-6">
+              Mevo indisponível: a integração ainda não está configurada.
+            </p>
+          )}
+          <div className="px-3 pb-4 sm:px-6">
+            <ClinicalDocumentEditor
+              key={selected.id}
+              documentId={selected.id}
+              content={buffer.content}
+              richContent={buffer.richContent}
+              readonly={readonly}
+              disabled={pending}
+              title={selected.title || documentTitles[selected.type]}
+              prescription={selected.type === "PRESCRIPTION"}
+              focusOnMount={focusId === selected.id}
+              onReady={onEditorReady}
+              onChange={(content, richContent) => update({ content, richContent })}
+            />
+          </div>
+          <div className="clinical-document-glass flex flex-wrap items-center justify-between gap-3 border-t px-4 py-4 sm:px-6">
+            <div className="text-xs text-[#636366]" aria-live="polite">
+              <p>
+                {pending
+                  ? "Salvando…"
+                  : error
+                    ? "Não foi possível salvar"
+                    : selected.status === "FINAL"
+                      ? "Documento finalizado · conteúdo imutável"
+                      : buffer.dirty
+                        ? "Alterações não salvas"
+                        : "Rascunho salvo"}
+              </p>
+              <p className="mt-1">
+                {selected.authorName}
+                {selected.councilNumber
+                  ? ` · ${selected.professionalCouncil} ${selected.councilNumber}/${selected.councilRegion}`
+                  : ""}{" "}
+                · Versão {buffer.version}
+              </p>
+              <p className="mt-1">Finalização não equivale a assinatura eletrônica certificada.</p>
+            </div>
+            {!readonly && (
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  variant="outline"
+                  className={buttonStyle}
+                  disabled={pending || !buffer.content.trim()}
+                  onClick={() => setTemplateForm(true)}
+                >
+                  Salvar como modelo
+                </Button>
+                <Button
+                  variant="outline"
+                  className={buttonStyle}
+                  disabled={pending || !buffer.dirty}
+                  onClick={() => void save("SAVE_DRAFT")}
+                >
+                  Salvar rascunho
+                </Button>
+                <Button
+                  className="rounded-xl bg-[#007aff] text-white hover:bg-[#0067d6]"
+                  disabled={pending || !buffer.content.trim()}
+                  onClick={() => void save("FINALIZE")}
+                >
+                  Finalizar documento
+                </Button>
+              </div>
+            )}
+          </div>
+          {selected.canEdit === false && selected.status === "DRAFT" && (
+            <p className="bg-white px-5 py-3 text-xs text-[#636366]">
+              Este rascunho pertence a {selected.authorName}. Somente seu autor pode alterá-lo.
+            </p>
+          )}
+        </div>
+      )}
+      <Dialog open={templateForm} onOpenChange={setTemplateForm}>
+        <DialogContent className="rounded-2xl">
+          <DialogHeader>
+            <DialogTitle>Salvar como modelo</DialogTitle>
+            <DialogDescription>
+              Modelos são pessoais e reutilizáveis. Remova dados que identifiquem o paciente antes
+              de salvar.
+            </DialogDescription>
+          </DialogHeader>
+          <label className="space-y-2 text-sm">
+            Nome do modelo
+            <Input
+              value={templateName}
+              maxLength={160}
+              disabled={pending}
+              onChange={(event) => setTemplateName(event.target.value)}
+            />
+          </label>
+          <Button
+            disabled={pending || !templateName.trim()}
+            onClick={() => void save("SAVE_TEMPLATE")}
+          >
+            Salvar modelo
+          </Button>
+        </DialogContent>
+      </Dialog>
+      <Dialog
+        open={Boolean(applying)}
+        onOpenChange={(open) => {
+          if (!open) setApplying(null);
+        }}
+      >
+        <DialogContent className="rounded-2xl">
+          <DialogHeader>
+            <DialogTitle>Aplicar modelo</DialogTitle>
+            <DialogDescription>
+              O documento já contém texto. Escolha como aplicar “{applying?.title}”.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-wrap gap-2">
+            <Button onClick={() => applying && apply(applying, false)}>Inserir no cursor</Button>
+            <Button variant="outline" onClick={() => applying && apply(applying, true)}>
+              Substituir conteúdo
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+      <Dialog open={historyOpen} onOpenChange={setHistoryOpen}>
+        <DialogContent className="max-h-[80vh] overflow-y-auto rounded-2xl">
+          <DialogHeader>
+            <DialogTitle>Histórico de documentos</DialogTitle>
+            <DialogDescription>
+              Documentos deste atendimento, autoria e versão atual. Versões anteriores não estão
+              disponíveis nesta tela.
+            </DialogDescription>
+          </DialogHeader>
+          {data.documents.map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              className="rounded-xl border p-3 text-left text-sm"
+              onClick={() => {
+                select(item.id);
+                setHistoryOpen(false);
+              }}
+            >
+              <span className="block font-medium">
+                {labels[item.type]} · {item.status === "FINAL" ? "Finalizado" : "Rascunho"}
+              </span>
+              <span className="text-xs text-[#636366]">
+                {item.authorName} · Versão {item.version}
+              </span>
+            </button>
+          ))}
+        </DialogContent>
+      </Dialog>
     </section>
   );
 }

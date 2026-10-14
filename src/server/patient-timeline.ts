@@ -127,7 +127,9 @@ export async function patientTimelineResponse(request: Request) {
       UNION ALL
       SELECT s.id,'DOCUMENT',s.finalized_at,s.title,coalesce(s.final_snapshot->>'authorName',s.author_name),
         coalesce(s.final_snapshot->>'unitName',u.name),s.status,s.appointment_id,s.id,
-        CASE WHEN s.type='EXAM_REQUEST' THEN 'Solicitação de exames' ELSE 'Receita' END,s.content
+        CASE s.type WHEN 'EXAM_REQUEST' THEN 'Solicitação de exames' WHEN 'MEDICAL_CERTIFICATE' THEN 'Atestado médico'
+          WHEN 'REFERRAL' THEN 'Encaminhamento' WHEN 'MEDICAL_REPORT' THEN 'Relatório médico'
+          WHEN 'MEDICAL_OPINION' THEN 'Laudo médico' WHEN 'INSTRUCTIONS' THEN 'Orientações' ELSE 'Receita' END,s.content
       FROM inventory_encounter_documents s JOIN inventory_units u ON u.id=s.unit_id AND u.organization_id=s.organization_id WHERE ${scope} AND s.status='FINAL'
       UNION ALL
       SELECT s.id,'TREATMENT',s.created_at,'Plano terapêutico · '||p.name,usr.name,u.name,s.status,NULL::uuid,NULL::uuid,

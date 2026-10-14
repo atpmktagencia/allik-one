@@ -826,6 +826,8 @@ export const encounterDocuments = pgTable(
     type: text("type").notNull(),
     title: text("title").notNull(),
     content: text("content").notNull(),
+    richContent: jsonb("rich_content"),
+    twoCopies: boolean("two_copies").notNull().default(false),
     status: text("status").notNull().default("DRAFT"),
     version: integer("version").notNull().default(0),
     finalSnapshot: jsonb("final_snapshot"),
@@ -834,8 +836,20 @@ export const encounterDocuments = pgTable(
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
+    check("encounter_document_copies_valid", sql`NOT ${t.twoCopies} OR ${t.type}='PRESCRIPTION'`),
+    check(
+      "encounter_document_rich_valid",
+      sql`${t.richContent} IS NULL OR COALESCE((jsonb_typeof(${t.richContent})='object' AND ${t.richContent}->>'type'='doc' AND octet_length(${t.richContent}::text)<=300000),false)`,
+    ),
+    check(
+      "encounter_document_rich_snapshot_valid",
+      sql`${t.status}='DRAFT' OR COALESCE(((${t.finalSnapshot} ?& ARRAY['richContent','twoCopies'] AND ${t.finalSnapshot}->'richContent'=COALESCE(${t.richContent},'null'::jsonb) AND ${t.finalSnapshot}->'twoCopies'=to_jsonb(${t.twoCopies})) OR ((${t.finalSnapshot} IS NULL OR NOT (${t.finalSnapshot} ?| ARRAY['richContent','twoCopies'])) AND ${t.richContent} IS NULL AND NOT ${t.twoCopies})),false)`,
+    ),
     index("encounter_document_history").on(t.appointmentId, t.createdAt),
-    check("encounter_document_type_valid", sql`${t.type} IN ('PRESCRIPTION','EXAM_REQUEST')`),
+    check(
+      "encounter_document_type_valid",
+      sql`${t.type} IN ('PRESCRIPTION','EXAM_REQUEST','MEDICAL_CERTIFICATE','REFERRAL','MEDICAL_REPORT','MEDICAL_OPINION','INSTRUCTIONS')`,
+    ),
     check("encounter_document_status_valid", sql`${t.status} IN ('DRAFT','FINAL')`),
     check(
       "encounter_document_snapshot_valid",
@@ -903,13 +917,23 @@ export const clinicalDocumentTemplates = pgTable(
     type: text("type").notNull(),
     title: text("title").notNull(),
     content: text("content").notNull(),
+    richContent: jsonb("rich_content"),
+    twoCopies: boolean("two_copies").notNull().default(false),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
+    check(
+      "clinical_document_template_copies_valid",
+      sql`NOT ${t.twoCopies} OR ${t.type}='PRESCRIPTION'`,
+    ),
+    check(
+      "clinical_document_template_rich_valid",
+      sql`${t.richContent} IS NULL OR COALESCE((jsonb_typeof(${t.richContent})='object' AND ${t.richContent}->>'type'='doc' AND octet_length(${t.richContent}::text)<=300000),false)`,
+    ),
     index("clinical_document_template_owner").on(t.organizationId, t.ownerUserId),
     check(
       "clinical_document_template_type_valid",
-      sql`${t.type} IN ('PRESCRIPTION','EXAM_REQUEST')`,
+      sql`${t.type} IN ('PRESCRIPTION','EXAM_REQUEST','MEDICAL_CERTIFICATE','REFERRAL','MEDICAL_REPORT','MEDICAL_OPINION','INSTRUCTIONS')`,
     ),
     check(
       "clinical_document_template_text_valid",

@@ -344,6 +344,13 @@
       "when": 1794272400005,
       "tag": "0048_lowly_cloak",
       "breakpoints": true
+    },
+    {
+      "idx": 49,
+      "version": "7",
+      "when": 1794272400006,
+      "tag": "0049_wet_tombstone",
+      "breakpoints": true
     }
   ]
 }
