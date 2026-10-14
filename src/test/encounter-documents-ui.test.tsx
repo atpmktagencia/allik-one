@@ -68,6 +68,17 @@ function renderCard(
             birthDate: "1991-01-01",
             unitName: "Fortaleza",
             allergies: null,
+            prescriptionPrintData: {
+              kind: "SIMPLE",
+              patientDocument: "Documento sintético",
+              patientAddress: "Rua de teste, 10",
+              patientAge: 35,
+              patientSex: "",
+              issuerAddress: "",
+              issuerPhone: "",
+              issuerCity: "",
+              issuerState: "",
+            },
           },
         },
       });
@@ -97,6 +108,62 @@ function menu(name: string) {
 }
 
 describe("Encounter documents workspace", () => {
+  it("keeps print in the toolbar and expands without losing draft text", async () => {
+    renderCard([draft("rx")]);
+    await type(" texto preservado");
+    expect(screen.queryByText(/Prescrever com Mevo/)).not.toBeInTheDocument();
+    expect(screen.getAllByRole("button", { name: "Visualizar impressão" })).toHaveLength(1);
+    menu("Opções do documento");
+    await screen.findByRole("menuitem", { name: "Dados da receita" });
+    expect(
+      screen.queryByRole("menuitem", { name: "Visualizar impressão" }),
+    ).not.toBeInTheDocument();
+    fireEvent.keyDown(screen.getByRole("menu"), { key: "Escape" });
+    fireEvent.click(await screen.findByRole("button", { name: "Expandir editor" }));
+    expect(screen.getByRole("button", { name: "Recolher editor" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(screen.getByRole("button", { name: "Expandir editor" })).toHaveAttribute(
+      "aria-pressed",
+      "false",
+    );
+    expect(screen.getByRole("textbox", { name: "Conteúdo do documento" })).toHaveTextContent(
+      "texto preservado",
+    );
+  });
+
+  it("saves prescription metadata and selects two copies for special control", async () => {
+    const writes = renderCard([draft("rx")]);
+    await editor();
+    menu("Opções do documento");
+    fireEvent.click(await screen.findByRole("menuitem", { name: "Dados da receita" }));
+    fireEvent.change(screen.getByLabelText("Tipo de receituário"), {
+      target: { value: "SPECIAL_CONTROL" },
+    });
+    fireEvent.change(screen.getByLabelText("Endereço profissional"), {
+      target: { value: "Rua Clínica, 10" },
+    });
+    fireEvent.change(screen.getByLabelText("Documento do paciente"), {
+      target: { value: "Documento sintético" },
+    });
+    fireEvent.change(screen.getByLabelText("Idade do paciente"), { target: { value: "35" } });
+    fireEvent.click(screen.getByRole("button", { name: "Concluir" }));
+    expect(screen.getByRole("checkbox", { name: /duas vias/ })).toBeChecked();
+    fireEvent.click(screen.getByRole("button", { name: "Salvar rascunho" }));
+    await screen.findByText("Rascunho salvo.");
+    expect(writes[0]).toMatchObject({
+      twoCopies: true,
+      prescriptionPrintData: {
+        kind: "SPECIAL_CONTROL",
+        issuerAddress: "Rua Clínica, 10",
+        patientDocument: "Documento sintético",
+        patientAge: 35,
+      },
+    });
+  });
+
   it("creates a separately persisted typed draft with automatic title", async () => {
     const writes = renderCard();
     await screen.findByRole("button", { name: "Novo documento" });
@@ -120,6 +187,7 @@ describe("Encounter documents workspace", () => {
       type: "EXAM_REQUEST",
       content: "Hemograma completo",
       documentId: "new-1",
+      prescriptionPrintData: null,
     });
     expect(writes[1]!["richContent"]).toMatchObject({ type: "doc" });
   });

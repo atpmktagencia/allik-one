@@ -163,7 +163,7 @@ export function ClinicalDocumentEditor({
       </div>
       <EditorContent
         editor={editor}
-        className={!readonly && editor?.isEmpty ? "clinical-document-empty" : undefined}
+        className={`clinical-document-content-scroll${!readonly && editor?.isEmpty ? " clinical-document-empty" : ""}`}
       />
     </div>
   );

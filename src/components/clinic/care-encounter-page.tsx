@@ -1,4 +1,5 @@
 import { Link } from "@tanstack/react-router";
+import "./clinical-workspace.css";
 import {
   AlertTriangle,
   ArrowLeft,
@@ -499,7 +500,7 @@ export function CareEncounterPage({ appointmentId }: { appointmentId: string }) 
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="clinical-workspace min-h-screen bg-background">
       <div className="border-b bg-background lg:sticky lg:top-16 lg:z-20">
         <div className="mx-auto flex max-w-[1320px] items-center gap-3 px-4 py-3 sm:px-6 lg:px-8">
           <Button

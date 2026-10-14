@@ -6,8 +6,10 @@ import {
   documentTypes,
   richContentSchema,
   richContentText,
-  renderRichContentHtml,
 } from "../lib/clinical-document-content";
+
+import { prescriptionPrintDataSchema, patientPrintDefaults } from "../lib/prescription-print-data";
+import { renderClinicalDocumentPrint } from "./clinical-document-print";
 
 const headers = { "Cache-Control": "private, no-store", Vary: "Cookie, Authorization" };
 const uuid = z.string().uuid();
@@ -20,19 +22,14 @@ const input = z.object({
   content: z.string().trim().max(30000),
   richContent: richContentSchema.nullable().default(null),
   twoCopies: z.boolean().default(false),
+  prescriptionPrintData: prescriptionPrintDataSchema.nullable().default(null),
   version: z.number().int().nonnegative().nullable().default(null),
 });
-const fields = `id,type,title,content,rich_content AS "richContent",two_copies AS "twoCopies",status,version,
+const fields = `id,type,title,content,rich_content AS "richContent",two_copies AS "twoCopies",prescription_print_data AS "prescriptionPrintData",status,version,
   CASE WHEN final_snapshot IS NOT NULL THEN final_snapshot->>'authorName' ELSE author_name END AS "authorName",
   CASE WHEN final_snapshot IS NOT NULL THEN final_snapshot->>'professionalCouncil' ELSE professional_council END AS "professionalCouncil",
   CASE WHEN final_snapshot IS NOT NULL THEN final_snapshot->>'councilNumber' ELSE council_number END AS "councilNumber",
   CASE WHEN final_snapshot IS NOT NULL THEN final_snapshot->>'councilRegion' ELSE council_region END AS "councilRegion",finalized_at AS "finalizedAt",updated_at AS "updatedAt"`;
-const escapeHtml = (value: unknown) =>
-  String(value ?? "").replace(
-    /[&<>"']/g,
-    (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!,
-  );
-
 export async function encounterDocumentsResponse(request: Request) {
   const auth = await authenticate(request);
   const fail = (error: string, status: number) => Response.json({ error }, { status, headers });
@@ -62,38 +59,7 @@ export async function encounterDocumentsResponse(request: Request) {
         )
       )
         return fail("Finalize o documento antes de imprimir.", 409);
-      const snapshot = doc.final_snapshot;
-      const rendered = snapshot
-        ? {
-            ...doc,
-            full_name: snapshot.patientName,
-            internal_code: snapshot.patientCode,
-            unit_name: snapshot.unitName,
-            author_name: snapshot.authorName,
-            professional_council: snapshot.professionalCouncil,
-            council_number: snapshot.councilNumber,
-            council_region: snapshot.councilRegion,
-            title: snapshot.title,
-            content: snapshot.content,
-            rich_content: snapshot.richContent ?? null,
-            two_copies: snapshot.twoCopies ?? false,
-            finalized_at: snapshot.finalizedAt,
-          }
-        : doc;
-      const legacyNotice = snapshot
-        ? ""
-        : "<p>Documento legado: o cabeçalho do paciente e da unidade usa o cadastro atual; não foi congelado na finalização.</p>";
-      const bodyHtml = rendered.rich_content
-        ? renderRichContentHtml(richContentSchema.parse(rendered.rich_content))
-        : `<div class="plain">${escapeHtml(rendered.content)}</div>`;
-      const draft = doc.status !== "FINAL";
-      const copy = (label: string) =>
-        `<section class="document-copy"><header><p>Allik One · ${escapeHtml(rendered.unit_name)}</p>${label ? `<p class="copy-label">${label}</p>` : ""}${draft ? "<p><strong>RASCUNHO — NÃO FINALIZADO</strong></p>" : ""}<h1>${escapeHtml(rendered.title)}</h1><p>Paciente: ${escapeHtml(rendered.full_name)} · ${escapeHtml(rendered.internal_code)}</p></header><article>${bodyHtml}</article><footer><p>${escapeHtml(rendered.author_name)} · ${escapeHtml(rendered.professional_council)} ${escapeHtml(rendered.council_number)}/${escapeHtml(rendered.council_region)}</p><p>${draft ? "Rascunho atualizado" : "Finalizado"} em ${escapeHtml(new Date(draft ? doc.updated_at : rendered.finalized_at).toLocaleString("pt-BR", { timeZone: "America/Fortaleza" }))}</p><p>${draft ? "Documento em rascunho." : "Documento finalizado no sistema."} Não possui assinatura eletrônica. A validade do documento exige assinatura profissional adequada.</p>${draft ? "" : legacyNotice}</footer></section>`;
-      const copies =
-        rendered.two_copies && doc.type === "PRESCRIPTION"
-          ? copy("1ª VIA — PACIENTE") + copy("2ª VIA — FARMÁCIA")
-          : copy("");
-      const html = `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escapeHtml(rendered.title)}</title><style>body{font:16px Arial,sans-serif;color:#000;background:#fff;margin:40px auto;max-width:800px;padding:0 24px}header{border-bottom:1px solid #ddd;padding-bottom:20px}h1{text-align:center;font-size:24px}article{line-height:1.6;margin:24px 0;overflow-wrap:anywhere}.plain{white-space:pre-wrap}article p{margin:0 0 .8em}article li p{margin:0}footer{border-top:1px solid #ddd;padding-top:20px;font-size:13px}.copy-label{text-align:right;font-size:13px}.document-copy+.document-copy{break-before:page;page-break-before:always;margin-top:48px}@page{size:A4;margin:20mm}@media print{body{margin:0;padding:0;max-width:none}.document-copy+.document-copy{margin-top:0}h1,h2,h3,footer{break-inside:avoid}p{orphans:3;widows:3}}</style></head><body>${copies}</body></html>`;
+      const html = renderClinicalDocumentPrint(doc);
       return new Response(html, {
         headers: {
           ...headers,
@@ -108,7 +74,7 @@ export async function encounterDocumentsResponse(request: Request) {
     const appointmentId = url.searchParams.get("appointmentId");
     if (!uuid.safeParse(appointmentId).success) return fail("Atendimento inválido.", 400);
     const result = await getPool().query(
-      `SELECT a.*,u.professional_council,u.council_number,u.council_region,p.full_name,p.birth_date::text, p.private_data,n.name AS unit_name
+      `SELECT a.*,u.professional_council,u.council_number,u.council_region,p.full_name,p.birth_date::text,p.document_number,p.additional_data, p.private_data,n.name AS unit_name
       FROM inventory_care_appointments a JOIN inventory_users u ON u.id=a.professional_user_id
       JOIN inventory_patients p ON p.id=a.patient_id AND p.organization_id=a.organization_id
       JOIN inventory_units n ON n.id=a.unit_id AND n.organization_id=a.organization_id
@@ -150,6 +116,7 @@ export async function encounterDocumentsResponse(request: Request) {
           })),
           context: {
             patientName: appointment.full_name,
+            prescriptionPrintData: patientPrintDefaults(appointment),
             birthDate: appointment.birth_date,
             unitName: appointment.unit_name,
             allergies:
@@ -181,6 +148,10 @@ export async function encounterDocumentsResponse(request: Request) {
   const data = parsed.data;
   if (data.twoCopies && data.type !== "PRESCRIPTION")
     return fail("Duas vias estão disponíveis somente para receitas.", 400);
+  if (data.prescriptionPrintData && data.type !== "PRESCRIPTION")
+    return fail("Dados de receita estão disponíveis somente para receitas.", 400);
+  if (data.prescriptionPrintData && data.prescriptionPrintData.kind !== "SIMPLE")
+    data.twoCopies = true;
   if (data.richContent) data.content = richContentText(data.richContent).trim();
   if (data.action !== "SAVE_DRAFT" && !data.content)
     return fail("Informe o conteúdo antes de finalizar ou salvar um modelo.", 400);
@@ -263,12 +234,13 @@ export async function encounterDocumentsResponse(request: Request) {
         content: data.content,
         richContent: data.richContent,
         twoCopies: data.twoCopies,
+        prescriptionPrintData: data.prescriptionPrintData,
         finalizedAt: identity.finalized_at.toISOString(),
       };
     }
     const saved = previous
       ? await client.query(
-          `UPDATE inventory_encounter_documents SET title=$2,content=$3,status=$4,version=version+1,updated_at=now(),final_snapshot=$5,rich_content=$6,two_copies=$7,finalized_at=CASE WHEN $4='FINAL' THEN now() ELSE NULL END WHERE id=$1 RETURNING *`,
+          `UPDATE inventory_encounter_documents SET title=$2,content=$3,status=$4,version=version+1,updated_at=now(),final_snapshot=$5,rich_content=$6,two_copies=$7,prescription_print_data=$8,finalized_at=CASE WHEN $4='FINAL' THEN now() ELSE NULL END WHERE id=$1 RETURNING *`,
           [
             previous.id,
             data.title,
@@ -277,11 +249,12 @@ export async function encounterDocumentsResponse(request: Request) {
             finalSnapshot,
             data.richContent,
             data.twoCopies,
+            data.prescriptionPrintData,
           ],
         )
       : await client.query(
-          `INSERT INTO inventory_encounter_documents(organization_id,unit_id,appointment_id,patient_id,author_user_id,author_name,professional_council,council_number,council_region,type,title,content,status,finalized_at,final_snapshot,rich_content,two_copies)
-        VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,CASE WHEN $13='FINAL' THEN now() ELSE NULL END,$14,$15,$16) RETURNING *`,
+          `INSERT INTO inventory_encounter_documents(organization_id,unit_id,appointment_id,patient_id,author_user_id,author_name,professional_council,council_number,council_region,type,title,content,status,finalized_at,final_snapshot,rich_content,two_copies,prescription_print_data)
+        VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,CASE WHEN $13='FINAL' THEN now() ELSE NULL END,$14,$15,$16,$17) RETURNING *`,
           [
             auth.organizationId,
             appointment.unit_id,
@@ -299,6 +272,7 @@ export async function encounterDocumentsResponse(request: Request) {
             finalSnapshot,
             data.richContent,
             data.twoCopies,
+            data.prescriptionPrintData,
           ],
         );
     const document = saved.rows[0];

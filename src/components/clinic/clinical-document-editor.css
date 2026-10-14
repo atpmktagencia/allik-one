@@ -32,7 +32,7 @@
   display: flex;
   flex-wrap: wrap;
   gap: 4px;
-  padding: 10px 16px;
+  padding: 5px 12px;
   border-bottom: 1px solid rgba(60, 60, 67, 0.12);
   background: #f9f9fb;
 }
@@ -52,7 +52,7 @@
 }
 .clinical-document-heading {
   text-align: center;
-  padding: 32px 20px 16px;
+  padding: 16px 20px 10px;
 }
 .clinical-document-heading h3 {
   font-size: 24px;
@@ -66,7 +66,7 @@
 }
 .clinical-document-body {
   padding: 12px 32px 40px;
-  min-height: 400px;
+  min-height: 100%;
   font-size: 17px;
   line-height: 1.75;
   outline: none;
@@ -110,7 +110,7 @@
 .clinical-document-tabs button {
   white-space: nowrap;
   flex-shrink: 0;
-  min-height: 48px;
+  min-height: 38px;
   padding: 8px 14px;
   border: 1px solid transparent;
 }
@@ -131,11 +131,11 @@
 @media (max-width: 600px) {
   .clinical-document-body {
     padding: 12px 18px 28px;
-    min-height: 320px;
+    min-height: 100%;
     font-size: 16px;
   }
   .clinical-document-heading {
-    padding-top: 24px;
+    padding-top: 12px;
   }
   .clinical-document-heading h3 {
     font-size: 21px;
@@ -145,5 +145,93 @@
   .clinical-documents * {
     transition: none !important;
     animation: none !important;
+  }
+}
+
+/* Keep the action footer in the workspace; only the document body scrolls. */
+.clinical-documents {
+  display: flex;
+  flex-direction: column;
+  height: calc(100dvh - var(--clinical-document-viewport-offset, 76px) - 16px);
+  min-height: 0;
+}
+.clinical-documents > :not(.clinical-document-panel) {
+  flex-shrink: 0;
+}
+.clinical-document-panel {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+.clinical-document-panel > :not(.clinical-document-editor-slot) {
+  flex-shrink: 0;
+}
+.clinical-document-editor-slot {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+.clinical-document-sheet {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  min-height: 0;
+}
+.clinical-document-formatting,
+.clinical-document-heading {
+  flex-shrink: 0;
+}
+.clinical-document-content-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+.clinical-document-footer {
+  position: relative;
+  z-index: 1;
+}
+.clinical-documents-expanded {
+  position: fixed;
+  inset: 8px;
+  height: auto;
+  z-index: 45;
+  box-shadow: 0 12px 60px rgba(0, 0, 0, 0.14);
+}
+@media (max-width: 600px) {
+  .clinical-document-footer button {
+    font-size: 12px;
+    padding-inline: 10px;
+    min-height: 36px;
+  }
+  .clinical-document-footer > div {
+    width: 100%;
+  }
+  .clinical-document-footer > div:last-child {
+    justify-content: flex-end;
+  }
+  .clinical-document-formatting {
+    gap: 0;
+    padding-inline: 6px;
+  }
+  .clinical-document-formatting button {
+    width: 30px;
+    height: 30px;
+  }
+  .clinical-document-heading h3 {
+    font-size: 18px;
+  }
+}
+@media (max-height: 600px) {
+  .clinical-document-heading {
+    padding-block: 6px;
+  }
+  .clinical-document-heading p {
+    margin-top: 0;
+  }
+  .clinical-document-footer p {
+    margin-top: 0;
   }
 }

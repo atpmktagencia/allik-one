@@ -1,4 +1,13 @@
-import { FileText, Plus, Printer, ChevronDown, History, MoreHorizontal } from "lucide-react";
+import {
+  FileText,
+  Plus,
+  Printer,
+  ChevronDown,
+  History,
+  MoreHorizontal,
+  Maximize2,
+  Minimize2,
+} from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { Editor } from "@tiptap/react";
 import { Button } from "@/components/ui/button";
@@ -27,6 +36,18 @@ import {
 import { InventoryState } from "./inventory-state";
 import { ClinicalDocumentEditor } from "./clinical-document-editor";
 
+import type { PrescriptionPrintData } from "@/lib/prescription-print-data";
+const emptyPrintData: PrescriptionPrintData = {
+  kind: "SIMPLE",
+  patientDocument: "",
+  patientAddress: "",
+  patientAge: null,
+  patientSex: "",
+  issuerAddress: "",
+  issuerPhone: "",
+  issuerCity: "",
+  issuerState: "",
+};
 type ClinicalDocument = {
   id: string;
   type: DocumentType;
@@ -34,6 +55,7 @@ type ClinicalDocument = {
   content: string;
   richContent?: RichContentNode | null;
   twoCopies?: boolean;
+  prescriptionPrintData?: PrescriptionPrintData | null;
   status: "DRAFT" | "FINAL";
   version: number;
   authorName: string;
@@ -58,12 +80,14 @@ type Payload = {
     birthDate: string | null;
     unitName: string;
     allergies: string[] | null;
+    prescriptionPrintData?: PrescriptionPrintData;
   };
 };
 type Buffer = {
   content: string;
   richContent: RichContentNode | null;
   twoCopies: boolean;
+  prescriptionPrintData: PrescriptionPrintData | null;
   dirty: boolean;
   version: number;
 };
@@ -90,6 +114,7 @@ function initialBuffer(document: ClinicalDocument): Buffer {
     content: document.content,
     richContent: document.richContent ?? null,
     twoCopies: document.twoCopies ?? false,
+    prescriptionPrintData: document.prescriptionPrintData ?? null,
     dirty: false,
     version: document.version,
   };
@@ -123,13 +148,38 @@ export function EncounterDocumentsCard({ appointmentId }: { appointmentId: strin
   const [templateForm, setTemplateForm] = useState(false);
   const [applying, setApplying] = useState<Template | null>(null);
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [printDataOpen, setPrintDataOpen] = useState(false);
+  const [expanded, setExpanded] = useState(false);
+  useEffect(() => {
+    if (!expanded) return;
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setExpanded(false);
+    };
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    window.addEventListener("keydown", handleEscape);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", handleEscape);
+    };
+  }, [expanded]);
   const submitting = useRef(false);
   const editorRef = useRef<Editor | null>(null);
   const onEditorReady = useCallback((editor: Editor | null) => {
     editorRef.current = editor;
   }, []);
   const selected = query.data?.documents.find((item) => item.id === selectedId);
-  const buffer = selected ? (buffers[selected.id] ?? initialBuffer(selected)) : null;
+  const buffer = selected
+    ? (buffers[selected.id] ?? {
+        ...initialBuffer(selected),
+        prescriptionPrintData:
+          selected.type === "PRESCRIPTION"
+            ? (selected.prescriptionPrintData ??
+              (selected.status === "DRAFT" ? query.data?.context?.prescriptionPrintData : null) ??
+              null)
+            : null,
+      })
+    : null;
   const readonly =
     !query.data?.canAuthor || selected?.status === "FINAL" || selected?.canEdit === false;
   useEffect(() => {
@@ -157,7 +207,7 @@ export function EncounterDocumentsCard({ appointmentId }: { appointmentId: strin
     setBuffers((previous) => ({
       ...previous,
       [selected.id]: {
-        ...(previous[selected.id] ?? initialBuffer(selected)),
+        ...(previous[selected.id] ?? buffer ?? initialBuffer(selected)),
         ...values,
         dirty: true,
       },
@@ -251,6 +301,7 @@ export function EncounterDocumentsCard({ appointmentId }: { appointmentId: strin
         content: buffer.content,
         richContent: buffer.richContent,
         twoCopies: buffer.twoCopies,
+        prescriptionPrintData: action === "SAVE_TEMPLATE" ? null : buffer.prescriptionPrintData,
         version: buffer.version,
       });
       if (!result.data) throw new Error("Não foi possível confirmar o salvamento.");
@@ -329,7 +380,10 @@ export function EncounterDocumentsCard({ appointmentId }: { appointmentId: strin
     "rounded-xl bg-white border-[rgba(60,60,67,.12)] text-[#1d1d1f] hover:bg-[#f5f5f7]";
   const counts: Partial<Record<DocumentType, number>> = {};
   return (
-    <section className="clinical-documents" aria-label="Documentos do atendimento">
+    <section
+      className={`clinical-documents${expanded ? " clinical-documents-expanded" : ""}`}
+      aria-label="Documentos do atendimento"
+    >
       {data.context && (
         <div className="flex flex-wrap items-center justify-between gap-2 border-b bg-white px-5 py-3 text-sm">
           <p className="font-semibold">
@@ -351,8 +405,8 @@ export function EncounterDocumentsCard({ appointmentId }: { appointmentId: strin
           </div>
         </div>
       )}
-      <div className="bg-white px-4 pb-2 pt-5 sm:px-6">
-        <h2 className="mb-4 text-xl font-semibold tracking-tight">Documentos deste atendimento</h2>
+      <div className="bg-white px-4 pb-1 pt-3 sm:px-5">
+        <h2 className="mb-2 text-lg font-semibold tracking-tight">Documentos deste atendimento</h2>
         <div className="flex min-w-0 flex-wrap items-start gap-2">
           <div
             className="clinical-document-tabs min-w-0 flex-1"
@@ -430,10 +484,10 @@ export function EncounterDocumentsCard({ appointmentId }: { appointmentId: strin
         </div>
       </div>
       {(message || error) && (
-        <div className="px-4 pt-3 sm:px-6">
+        <div className="px-4 pt-1 sm:px-5">
           <p
             role={error ? "alert" : "status"}
-            className={`rounded-xl bg-white px-4 py-3 text-sm ${error ? "text-red-700" : "text-[#636366]"}`}
+            className={`rounded-xl bg-white px-3 py-1 text-sm ${error ? "text-red-700" : "text-[#636366]"}`}
           >
             {error || message}
             {error && selected && !readonly && (
@@ -459,9 +513,10 @@ export function EncounterDocumentsCard({ appointmentId }: { appointmentId: strin
         <div
           id={`document-panel-${selected.id}`}
           role="tabpanel"
+          className="clinical-document-panel"
           aria-labelledby={`document-tab-${selected.id}`}
         >
-          <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-4 sm:px-6">
+          <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-2 sm:px-5">
             <div className="flex flex-wrap gap-2">
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -499,13 +554,6 @@ export function EncounterDocumentsCard({ appointmentId }: { appointmentId: strin
               </Button>
             </div>
             <div className="flex flex-wrap gap-2">
-              {selected.type === "PRESCRIPTION" && (
-                <span title="Integração Mevo ainda não configurada">
-                  <Button variant="outline" className={buttonStyle} disabled>
-                    Prescrever com Mevo
-                  </Button>
-                </span>
-              )}
               <Button
                 variant="outline"
                 className={buttonStyle}
@@ -514,6 +562,16 @@ export function EncounterDocumentsCard({ appointmentId }: { appointmentId: strin
               >
                 <Printer size={16} />
                 Visualizar impressão
+              </Button>
+              <Button
+                variant="outline"
+                className={buttonStyle}
+                aria-label={expanded ? "Recolher editor" : "Expandir editor"}
+                aria-pressed={expanded}
+                onClick={() => setExpanded((value) => !value)}
+              >
+                {expanded ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
+                <span className="hidden sm:inline">{expanded ? "Recolher" : "Expandir"}</span>
               </Button>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -526,43 +584,47 @@ export function EncounterDocumentsCard({ appointmentId }: { appointmentId: strin
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className={menuStyle}>
+                  {selected.type === "PRESCRIPTION" && (
+                    <DropdownMenuItem onSelect={() => setPrintDataOpen(true)}>
+                      Dados da receita
+                    </DropdownMenuItem>
+                  )}
                   <DropdownMenuItem
                     disabled={readonly || pending || !buffer.content.trim()}
                     onSelect={() => setTemplateForm(true)}
                   >
                     Salvar como modelo
                   </DropdownMenuItem>
-                  <DropdownMenuItem
-                    disabled={pending || (selected.status === "DRAFT" && readonly)}
-                    onSelect={() => void print()}
-                  >
-                    Visualizar impressão
-                  </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>
           </div>
           {selected.type === "PRESCRIPTION" && (
-            <label className="mx-4 mb-4 flex w-fit items-center gap-2 text-sm sm:mx-6">
+            <label className="mx-4 mb-2 flex w-fit items-center gap-2 text-sm sm:mx-6">
               <input
                 type="checkbox"
                 className="h-4 w-4 accent-[#007aff]"
                 checked={buffer.twoCopies}
-                disabled={readonly || pending}
+                disabled={
+                  readonly ||
+                  pending ||
+                  Boolean(
+                    buffer.prescriptionPrintData && buffer.prescriptionPrintData.kind !== "SIMPLE",
+                  )
+                }
                 onChange={(event) => update({ twoCopies: event.target.checked })}
               />
               <span>
                 Emitir receita em duas vias{" "}
-                <span className="text-xs text-[#636366]">(ex.: antibioticoterapia)</span>
+                <span className="text-xs text-[#636366]">
+                  {buffer.prescriptionPrintData && buffer.prescriptionPrintData.kind !== "SIMPLE"
+                    ? "(obrigatório neste receituário)"
+                    : "(ex.: antibioticoterapia)"}
+                </span>
               </span>
             </label>
           )}
-          {selected.type === "PRESCRIPTION" && (
-            <p className="mx-4 mb-3 text-xs text-[#636366] sm:mx-6">
-              Mevo indisponível: a integração ainda não está configurada.
-            </p>
-          )}
-          <div className="px-3 pb-4 sm:px-6">
+          <div className="clinical-document-editor-slot px-3 pb-2 sm:px-5">
             <ClinicalDocumentEditor
               key={selected.id}
               documentId={selected.id}
@@ -570,14 +632,18 @@ export function EncounterDocumentsCard({ appointmentId }: { appointmentId: strin
               richContent={buffer.richContent}
               readonly={readonly}
               disabled={pending}
-              title={selected.title || documentTitles[selected.type]}
+              title={
+                buffer.prescriptionPrintData?.kind === "SPECIAL_CONTROL"
+                  ? "RECEITA DE CONTROLE ESPECIAL"
+                  : selected.title || documentTitles[selected.type]
+              }
               prescription={selected.type === "PRESCRIPTION"}
               focusOnMount={focusId === selected.id}
               onReady={onEditorReady}
               onChange={(content, richContent) => update({ content, richContent })}
             />
           </div>
-          <div className="clinical-document-glass flex flex-wrap items-center justify-between gap-3 border-t px-4 py-4 sm:px-6">
+          <div className="clinical-document-footer clinical-document-glass flex flex-wrap items-center justify-between gap-2 border-t px-4 py-2 sm:px-5">
             <div className="text-xs text-[#636366]" aria-live="polite">
               <p>
                 {pending
@@ -634,6 +700,84 @@ export function EncounterDocumentsCard({ appointmentId }: { appointmentId: strin
           )}
         </div>
       )}
+      <Dialog open={printDataOpen} onOpenChange={setPrintDataOpen}>
+        <DialogContent className="max-h-[85dvh] overflow-y-auto rounded-2xl">
+          <DialogHeader>
+            <DialogTitle>Dados da receita</DialogTitle>
+            <DialogDescription>
+              Confira os dados para impressão. Duas vias não substituem os requisitos específicos de
+              cada receituário.
+            </DialogDescription>
+          </DialogHeader>
+          <label className="space-y-1 text-sm">
+            Tipo de receituário
+            <select
+              className="h-10 w-full rounded-xl border bg-white px-3"
+              disabled={readonly || pending}
+              value={buffer?.prescriptionPrintData?.kind ?? "SIMPLE"}
+              onChange={(event) => {
+                const kind = event.target.value as PrescriptionPrintData["kind"];
+                update({
+                  prescriptionPrintData: {
+                    ...emptyPrintData,
+                    ...buffer?.prescriptionPrintData,
+                    kind,
+                  },
+                  ...(kind !== "SIMPLE" ? { twoCopies: true } : {}),
+                });
+              }}
+            >
+              <option value="SIMPLE">Receita simples</option>
+              <option value="ANTIMICROBIAL">Antimicrobianos</option>
+              <option value="SPECIAL_CONTROL">Receita de controle especial</option>
+            </select>
+          </label>
+          <div className="grid gap-3 sm:grid-cols-2">
+            {(
+              [
+                ["patientDocument", "Documento do paciente"],
+                ["patientAddress", "Endereço do paciente"],
+                ["patientAge", "Idade do paciente"],
+                ["patientSex", "Sexo do paciente"],
+                ["issuerAddress", "Endereço profissional"],
+                ["issuerPhone", "Telefone profissional"],
+                ["issuerCity", "Cidade de emissão"],
+                ["issuerState", "UF de emissão"],
+              ] as const
+            ).map(([key, label]) => (
+              <label key={key} className="space-y-1 text-sm">
+                {label}
+                <Input
+                  disabled={readonly || pending}
+                  type={key === "patientAge" ? "number" : "text"}
+                  min={key === "patientAge" ? 0 : undefined}
+                  max={key === "patientAge" ? 130 : undefined}
+                  value={buffer?.prescriptionPrintData?.[key] ?? ""}
+                  maxLength={key === "issuerState" ? 2 : 500}
+                  onChange={(event) =>
+                    update({
+                      prescriptionPrintData: {
+                        ...emptyPrintData,
+                        ...buffer?.prescriptionPrintData,
+                        [key]:
+                          key === "patientAge"
+                            ? event.target.value === ""
+                              ? null
+                              : Number(event.target.value)
+                            : event.target.value,
+                      },
+                    })
+                  }
+                />
+              </label>
+            ))}
+          </div>
+          <p className="text-xs text-[#636366]">
+            As alterações são salvas com o rascunho. Dados ausentes não são inventados.
+          </p>
+          <Button onClick={() => setPrintDataOpen(false)}>Concluir</Button>
+        </DialogContent>
+      </Dialog>
       <Dialog open={templateForm} onOpenChange={setTemplateForm}>
         <DialogContent className="rounded-2xl">
           <DialogHeader>

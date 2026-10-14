@@ -351,6 +351,13 @@
       "when": 1794272400006,
       "tag": "0049_wet_tombstone",
       "breakpoints": true
+    },
+    {
+      "idx": 50,
+      "version": "7",
+      "when": 1794272400007,
+      "tag": "0050_moaning_human_torch",
+      "breakpoints": true
     }
   ]
 }

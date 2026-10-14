@@ -1,4 +1,5 @@
 import { useState, useSyncExternalStore } from "react";
+import "./clinical-workspace.css";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { ArrowLeft, FileText } from "lucide-react";
@@ -91,7 +92,7 @@ export function PatientTimelinePage({ patientId }: { patientId: string }) {
       <InventoryState pending={query.isPending} error={query.error} retry={() => query.refetch()} />
     );
   return (
-    <div className="mx-auto max-w-5xl space-y-6 bg-white">
+    <div className="clinical-workspace mx-auto max-w-5xl space-y-6 rounded-2xl bg-background p-4 sm:p-6">
       <header className="space-y-4 border-b pb-6">
         <Button variant="ghost" size="sm" asChild>
           <Link to="/pacientes/$patientId" params={{ patientId }}>

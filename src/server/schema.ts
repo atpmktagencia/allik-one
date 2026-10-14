@@ -828,6 +828,7 @@ export const encounterDocuments = pgTable(
     content: text("content").notNull(),
     richContent: jsonb("rich_content"),
     twoCopies: boolean("two_copies").notNull().default(false),
+    prescriptionPrintData: jsonb("prescription_print_data"),
     status: text("status").notNull().default("DRAFT"),
     version: integer("version").notNull().default(0),
     finalSnapshot: jsonb("final_snapshot"),
@@ -844,6 +845,14 @@ export const encounterDocuments = pgTable(
     check(
       "encounter_document_rich_snapshot_valid",
       sql`${t.status}='DRAFT' OR COALESCE(((${t.finalSnapshot} ?& ARRAY['richContent','twoCopies'] AND ${t.finalSnapshot}->'richContent'=COALESCE(${t.richContent},'null'::jsonb) AND ${t.finalSnapshot}->'twoCopies'=to_jsonb(${t.twoCopies})) OR ((${t.finalSnapshot} IS NULL OR NOT (${t.finalSnapshot} ?| ARRAY['richContent','twoCopies'])) AND ${t.richContent} IS NULL AND NOT ${t.twoCopies})),false)`,
+    ),
+    check(
+      "encounter_document_print_data_valid",
+      sql`${t.prescriptionPrintData} IS NULL OR COALESCE((${t.type}='PRESCRIPTION' AND jsonb_typeof(${t.prescriptionPrintData})='object' AND ${t.prescriptionPrintData}->>'kind' IN ('SIMPLE','ANTIMICROBIAL','SPECIAL_CONTROL') AND octet_length(${t.prescriptionPrintData}::text)<=5000),false)`,
+    ),
+    check(
+      "encounter_document_print_snapshot_valid",
+      sql`${t.status}='DRAFT' OR COALESCE(((${t.finalSnapshot} ? 'prescriptionPrintData' AND ${t.finalSnapshot}->'prescriptionPrintData'=COALESCE(${t.prescriptionPrintData},'null'::jsonb)) OR ((${t.finalSnapshot} IS NULL OR NOT (${t.finalSnapshot} ? 'prescriptionPrintData')) AND ${t.prescriptionPrintData} IS NULL)),false)`,
     ),
     index("encounter_document_history").on(t.appointmentId, t.createdAt),
     check(

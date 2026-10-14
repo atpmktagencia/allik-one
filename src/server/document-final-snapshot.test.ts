@@ -87,6 +87,60 @@ async function fixture() {
 }
 
 describe("final document snapshots", () => {
+  it("persists printing metadata and freezes it in final snapshots", async () => {
+    const f = await fixture();
+    const prescriptionPrintData = {
+      kind: "SPECIAL_CONTROL",
+      patientDocument: "SYNTHETIC-DOC",
+      patientAddress: "Rua teste, 10",
+      patientAge: 35,
+      patientSex: "Não informado",
+      issuerAddress: "Clínica teste",
+      issuerPhone: "Telefone sintético",
+      issuerCity: "Fortaleza",
+      issuerState: "CE",
+    };
+    const response = await f.post({ prescriptionPrintData, twoCopies: true });
+    expect(response.status).toBe(201);
+    const draft = (await response.json()).data;
+    expect((await (await f.get()).json()).data.documents[0].prescriptionPrintData).toEqual(
+      prescriptionPrintData,
+    );
+    expect(
+      (
+        await f.post({
+          action: "FINALIZE",
+          documentId: draft.id,
+          version: draft.version,
+          prescriptionPrintData,
+          twoCopies: true,
+        })
+      ).status,
+    ).toBe(200);
+    const saved = (
+      await getPool().query(
+        "SELECT final_snapshot,prescription_print_data FROM inventory_encounter_documents WHERE id=$1",
+        [draft.id],
+      )
+    ).rows[0];
+    expect(saved.final_snapshot.prescriptionPrintData).toEqual(prescriptionPrintData);
+    expect(saved.prescription_print_data).toEqual(prescriptionPrintData);
+    const printed = await (await f.get(`documentId=${draft.id}&print=true`)).text();
+    expect(printed).toContain("RECEITA DE CONTROLE ESPECIAL");
+    expect(printed).toContain("SYNTHETIC-DOC");
+    expect(printed).toContain("1ª VIA — RETENÇÃO DA FARMÁCIA");
+    await getPool().query("UPDATE inventory_patients SET document_number='CHANGED' WHERE id=$1", [
+      f.patientId,
+    ]);
+    expect(await (await f.get(`documentId=${draft.id}&print=true`)).text()).toBe(printed);
+    await expect(
+      getPool().query(
+        "UPDATE inventory_encounter_documents SET prescription_print_data='{}' WHERE id=$1",
+        [draft.id],
+      ),
+    ).rejects.toThrow();
+  });
+
   it("rejects malformed rich JSON at the database boundary for documents and templates", async () => {
     const f = await fixture();
     const draft = (await (await f.post()).json()).data;
