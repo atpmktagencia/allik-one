@@ -7,6 +7,7 @@ import * as signatureService from "./document-signatures";
 import { userAdminResponse } from "./user-admin";
 import { documentDeliveryResponse } from "./document-delivery";
 import { encounterDocumentsResponse } from "./encounter-documents";
+import { careAppointmentsResponse } from "./care-appointments";
 
 const origin = "http://localhost:4317";
 beforeAll(async () => {
@@ -374,5 +375,129 @@ describe("Prescription delivery and prescriber identity", () => {
     ).rows[0];
     expect(change.actor_user_id).toBe(f.userId);
     expect(change.after_data.prescribingAddress).toBe(body.prescribingAddress);
+  });
+});
+
+describe("superseded and protected clinical records", () => {
+  async function rectify(f: Awaited<ReturnType<typeof deliveryFixture>>) {
+    const create = await f.post({
+      action: "CREATE_AMENDMENT",
+      documentId: f.document.id,
+      version: f.document.version,
+      amendmentKind: "RECTIFICATION",
+      amendmentReason: "Correção da posologia informada",
+      title: "RETIFICAÇÃO — RECEITA MÉDICA",
+    });
+    expect(create.status).toBe(201);
+    const child = (await create.json()).data;
+    const final = await f.post({
+      action: "FINALIZE",
+      documentId: child.id,
+      version: child.version,
+      title: "RETIFICAÇÃO — RECEITA MÉDICA",
+      content: "Posologia corrigida, preservando o registro original.",
+    });
+    expect(final.status).toBe(200);
+    return child;
+  }
+  it("marks a rectified original as superseded and refuses to send or sign it", async () => {
+    const f = await deliveryFixture();
+    const outgoing = vi.fn(async () => Response.json({ id: randomUUID() }));
+    vi.stubGlobal("fetch", outgoing);
+    const child = await rectify(f);
+    const html = await (await f.get(`documentId=${f.document.id}&print=true`)).text();
+    expect(html).toContain("SUBSTITUÍDO POR RETIFICAÇÃO");
+    expect(html).toContain(`A1-${child.id.toUpperCase()}`);
+    const childHtml = await (await f.get(`documentId=${child.id}&print=true`)).text();
+    expect(childHtml).not.toContain("SUBSTITUÍDO POR RETIFICAÇÃO");
+    const sent = await f.send({ confirmAmendments: true });
+    expect(sent.status).toBe(409);
+    expect((await sent.json()).error).toContain("retificação");
+    expect(outgoing).not.toHaveBeenCalled();
+    const token = randomUUID();
+    await getPool().query(
+      "INSERT INTO inventory_sessions(user_id,token_hash,session_version,expires_at) VALUES($1,$2,0,now()+interval '1 hour')",
+      [f.userId, hashToken(token)],
+    );
+    const start = await signatureService.documentSignaturesResponse(
+      new Request(`${origin}/api/v1/inventory/document-signatures`, {
+        method: "POST",
+        headers: {
+          origin,
+          cookie: `allik_inventory_session=${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          action: "START",
+          documentId: f.document.id,
+          operationId: randomUUID(),
+        }),
+      }),
+    );
+    expect(start.status).toBe(409);
+  });
+  it("refuses delivery after the patient revokes consent", async () => {
+    const f = await deliveryFixture();
+    const outgoing = vi.fn(async () => Response.json({ id: randomUUID() }));
+    vi.stubGlobal("fetch", outgoing);
+    await getPool().query(
+      "UPDATE inventory_patients SET consent_status='REVOKED',consent_recorded_at=now() WHERE id=$1",
+      [f.patientId],
+    );
+    const sent = await f.send();
+    expect(sent.status).toBe(409);
+    expect((await sent.json()).error).toContain("revogou");
+    expect(outgoing).not.toHaveBeenCalled();
+  });
+  it("keeps an encounter with finalized records from being canceled or marked as no-show", async () => {
+    const f = await deliveryFixture();
+    const token = randomUUID();
+    await getPool().query(
+      "INSERT INTO inventory_sessions(user_id,token_hash,session_version,expires_at) VALUES($1,$2,0,now()+interval '1 hour')",
+      [f.userId, hashToken(token)],
+    );
+    await getPool().query("UPDATE inventory_users SET profession='Médico' WHERE id=$1", [f.userId]);
+    const appointment = (
+      await getPool().query("SELECT * FROM inventory_care_appointments WHERE id=$1", [
+        f.appointmentId,
+      ])
+    ).rows[0];
+    const status = (value: string) =>
+      careAppointmentsResponse(
+        new Request(`${origin}/api/v1/inventory/care-appointments`, {
+          method: "POST",
+          headers: {
+            origin,
+            cookie: `allik_inventory_session=${token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            action: "UPDATE_STATUS",
+            id: f.appointmentId,
+            unitId: f.unitId,
+            patientId: f.patientId,
+            professionalUserId: f.userId,
+            careType: "CONSULTATION",
+            startsAt: appointment.starts_at.toISOString(),
+            endsAt: appointment.ends_at.toISOString(),
+            room: appointment.room,
+            chair: null,
+            notes: "",
+            status: value,
+            version: appointment.version,
+            reason: "Tentativa de cancelar atendimento com documento final.",
+          }),
+        }),
+      );
+    const canceled = await status("CANCELED");
+    expect(canceled.status).toBe(409);
+    expect((await canceled.json()).error).toContain("finalizados");
+    expect(
+      (
+        await getPool().query("SELECT status FROM inventory_care_appointments WHERE id=$1", [
+          f.appointmentId,
+        ])
+      ).rows[0].status,
+    ).toBe("SCHEDULED");
   });
 });

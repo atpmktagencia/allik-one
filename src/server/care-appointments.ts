@@ -2,7 +2,7 @@ import "@tanstack/react-start/server-only";
 import type { PoolClient } from "pg";
 import { actor, authenticate, can, canAccessAllUnits } from "./auth";
 import { getPool } from "./db";
-import { hasClinicalRecords } from "./clinical-record-guard";
+import { hasClinicalRecords, hasFinalClinicalRecords } from "./clinical-record-guard";
 import { careAppointmentInput } from "../data/care-appointment-input";
 
 const headers = { "Cache-Control": "private, no-store", Vary: "Cookie, Authorization" };
@@ -336,6 +336,11 @@ export async function careAppointmentsResponse(request: Request) {
       const now = Date.now();
       const currentEndsAt = new Date(String(currentRow?.["ends_at"])).getTime();
       if (input.status === "NO_SHOW" && now < currentEndsAt) throw new Error("TOO_EARLY");
+      if (
+        ["CANCELED", "NO_SHOW"].includes(input.status) &&
+        (await hasFinalClinicalRecords(client, input.id!))
+      )
+        throw new Error("FINAL_RECORDS");
       result = await client.query(
         "UPDATE inventory_care_appointments SET status=$2,updated_by_user_id=$3,version=version+1,updated_at=now() WHERE id=$1 RETURNING *",
         [input.id, input.status, auth.user.id],
@@ -371,19 +376,24 @@ export async function careAppointmentsResponse(request: Request) {
               "Este atendimento possui registros clínicos. Paciente e profissional não podem ser alterados.",
               409,
             ]
-          : message === "STALE"
-            ? ["O agendamento mudou. Recarregue e tente novamente.", 409]
-            : message === "NOT_FOUND"
-              ? ["Agendamento não encontrado.", 404]
-              : message === "INVALID_STATUS"
-                ? ["Esta mudança de situação não é permitida.", 409]
-                : message === "TERMINAL_STATUS"
-                  ? ["Atendimentos encerrados não podem ser alterados.", 409]
-                  : message === "TOO_EARLY"
-                    ? ["A falta só pode ser registrada após o término previsto.", 409]
-                    : ["INVALID_SCOPE", "INVALID_TYPE", "INVALID_ROOM"].includes(message)
-                      ? ["Paciente, profissional, tipo ou sala inválido para esta unidade.", 400]
-                      : ["Não foi possível salvar o agendamento.", 503];
+          : message === "FINAL_RECORDS"
+            ? [
+                "Este atendimento possui registros clínicos finalizados e não pode ser cancelado nem marcado como falta.",
+                409,
+              ]
+            : message === "STALE"
+              ? ["O agendamento mudou. Recarregue e tente novamente.", 409]
+              : message === "NOT_FOUND"
+                ? ["Agendamento não encontrado.", 404]
+                : message === "INVALID_STATUS"
+                  ? ["Esta mudança de situação não é permitida.", 409]
+                  : message === "TERMINAL_STATUS"
+                    ? ["Atendimentos encerrados não podem ser alterados.", 409]
+                    : message === "TOO_EARLY"
+                      ? ["A falta só pode ser registrada após o término previsto.", 409]
+                      : ["INVALID_SCOPE", "INVALID_TYPE", "INVALID_ROOM"].includes(message)
+                        ? ["Paciente, profissional, tipo ou sala inválido para esta unidade.", 400]
+                        : ["Não foi possível salvar o agendamento.", 503];
     return Response.json({ error: response[0] }, { status: response[1] as number, headers });
   } finally {
     client.release();
