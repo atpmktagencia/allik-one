@@ -305,7 +305,12 @@ export function AppShell({ children }: { children: ReactNode }) {
       ) : null}
       <div className={cn("min-w-0", !focusedEncounter && "lg:pl-[248px]")}>
         <header className="sticky top-0 z-30 border-b border-border bg-background/95 backdrop-blur">
-          <div className="flex h-16 min-w-0 items-center gap-2 px-3 sm:gap-4 sm:px-4 lg:px-7">
+          <div
+            className={cn(
+              "flex h-16 min-w-0 items-center gap-2 px-3 sm:gap-4 sm:px-4 lg:px-7",
+              focusedEncounter && "mx-auto w-full max-w-[1320px]",
+            )}
+          >
             <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-3">
               <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
                 <SheetTrigger asChild>
@@ -367,7 +372,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             <div className="flex min-w-0 shrink-0 items-center justify-end gap-2 text-right sm:gap-3">
               {identity ? (
                 <>
-                  <p className="hidden max-w-44 truncate text-sm font-medium text-foreground lg:block xl:max-w-none">
+                  <p className="hidden max-w-44 truncate text-sm font-medium text-foreground lg:block xl:max-w-60">
                     {identity.user.name}
                   </p>
                   <p className="hidden text-xs text-muted-foreground 2xl:block">

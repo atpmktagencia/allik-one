@@ -452,6 +452,13 @@ export function EncounterDocumentsCard({ appointmentId }: { appointmentId: strin
   const buttonStyle =
     "rounded-xl bg-white border-[rgba(60,60,67,.12)] text-[#1d1d1f] hover:bg-[#f5f5f7]";
   const counts: Partial<Record<DocumentType | "ADDENDUM" | "RECTIFICATION", number>> = {};
+  const tabNumbers = new Map<string, number>();
+  for (const document of data.documents) {
+    const kind = document.amendment?.kind ?? document.type;
+    counts[kind] = (counts[kind] ?? 0) + 1;
+    tabNumbers.set(document.id, counts[kind]!);
+  }
+  const displayedDocuments = [...data.documents].reverse();
   return (
     <section
       className={`clinical-documents${expanded ? " clinical-documents-expanded" : ""}`}
@@ -486,9 +493,7 @@ export function EncounterDocumentsCard({ appointmentId }: { appointmentId: strin
             role="tablist"
             aria-label="Documentos deste atendimento"
           >
-            {data.documents.map((item) => {
-              const tabKind = item.amendment?.kind ?? item.type;
-              counts[tabKind] = (counts[tabKind] ?? 0) + 1;
+            {displayedDocuments.map((item) => {
               return (
                 <button
                   type="button"
@@ -503,19 +508,21 @@ export function EncounterDocumentsCard({ appointmentId }: { appointmentId: strin
                   onKeyDown={(event) => {
                     if (!["ArrowRight", "ArrowLeft", "Home", "End"].includes(event.key)) return;
                     event.preventDefault();
-                    const index = data.documents.findIndex((document) => document.id === item.id);
+                    const index = displayedDocuments.findIndex(
+                      (document) => document.id === item.id,
+                    );
                     const nextIndex =
                       event.key === "Home"
                         ? 0
                         : event.key === "End"
-                          ? data.documents.length - 1
+                          ? displayedDocuments.length - 1
                           : (index +
                               (event.key === "ArrowRight" ? 1 : -1) +
-                              data.documents.length) %
-                            data.documents.length;
-                    select(data.documents[nextIndex]!.id);
+                              displayedDocuments.length) %
+                            displayedDocuments.length;
+                    select(displayedDocuments[nextIndex]!.id);
                     document
-                      .getElementById(`document-tab-${data.documents[nextIndex]!.id}`)
+                      .getElementById(`document-tab-${displayedDocuments[nextIndex]!.id}`)
                       ?.focus();
                   }}
                 >
@@ -525,7 +532,7 @@ export function EncounterDocumentsCard({ appointmentId }: { appointmentId: strin
                         ? "Adendo"
                         : "Retificação"
                       : tabLabels[item.type]}{" "}
-                    {counts[tabKind]}
+                    {tabNumbers.get(item.id)}
                   </span>
                   <span className="ml-2 text-[11px] text-[#636366]">
                     {item.status === "FINAL"

@@ -7,5 +7,6 @@ export const Route = createFileRoute("/pacientes/$patientId/prontuario")({
 });
 
 function PatientTimelineRoute() {
-  return <PatientTimelinePage patientId={Route.useParams().patientId} />;
+  const { patientId } = Route.useParams();
+  return <PatientTimelinePage key={patientId} patientId={patientId} />;
 }

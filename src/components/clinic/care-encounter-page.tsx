@@ -171,8 +171,8 @@ function EncounterNavigation({ mobile = false }: { mobile?: boolean }) {
       aria-label="Seções do atendimento"
       className={
         mobile
-          ? "sticky top-16 z-10 flex gap-1 overflow-x-auto border-b bg-background/95 px-3 py-2 shadow-sm backdrop-blur lg:hidden"
-          : "sticky top-40 hidden self-start lg:block"
+          ? "sticky top-16 z-10 mx-4 flex gap-1 overflow-x-auto rounded-2xl border bg-background/95 px-3 py-2 shadow-sm backdrop-blur lg:hidden"
+          : "sticky top-40 hidden self-start rounded-2xl border bg-card p-3 lg:block"
       }
     >
       {!mobile ? (
@@ -620,8 +620,7 @@ export function CareEncounterPage({ appointmentId }: { appointmentId: string }) 
                 </div>
               </section>
             ) : null}
-            {data.canManage &&
-            !["COMPLETED", "NO_SHOW", "CANCELED"].includes(appointment.status) ? (
+            {data.canManage && ["SCHEDULED", "CONFIRMED"].includes(appointment.status) ? (
               <section className="flex flex-wrap gap-2 rounded-xl border bg-card p-4">
                 {appointment.status === "SCHEDULED" ? (
                   <Button
@@ -635,11 +634,6 @@ export function CareEncounterPage({ appointmentId }: { appointmentId: string }) 
                 {["SCHEDULED", "CONFIRMED"].includes(appointment.status) ? (
                   <Button disabled={pending} onClick={() => updateStatus("IN_PROGRESS")}>
                     Iniciar atendimento
-                  </Button>
-                ) : null}
-                {appointment.status === "IN_PROGRESS" ? (
-                  <Button disabled={pending} onClick={() => updateStatus("COMPLETED")}>
-                    Concluir atendimento
                   </Button>
                 ) : null}
               </section>
@@ -1078,6 +1072,22 @@ export function CareEncounterPage({ appointmentId }: { appointmentId: string }) 
               ))}
             </section>
           </div>
+          {data.canManage && appointment.status === "IN_PROGRESS" && (
+            <section
+              aria-label="Conclusão do atendimento"
+              className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border bg-card p-5"
+            >
+              <div>
+                <h2 className="font-semibold">Conclusão do atendimento</h2>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Confira a evolução, os documentos e a conduta antes de concluir.
+                </p>
+              </div>
+              <Button disabled={pending} onClick={() => updateStatus("COMPLETED")}>
+                Concluir atendimento
+              </Button>
+            </section>
+          )}
         </div>
       </div>
     </div>

@@ -91,17 +91,19 @@ export async function fetchInventory<T>(resource: string): Promise<T> {
   return body.data as T;
 }
 export function useInventory<T>(resource: string) {
+  const patientResource = resource.startsWith("patient-") || resource.startsWith("care-encounter");
   const requestPath = withSelectedUnit(`/api/v1/inventory/${resource}`);
-  return useQuery({
+  return useQuery<T>({
     queryKey: ["inventory", requestPath],
     queryFn: async () => {
       const response = await fetch(requestPath, { credentials: "same-origin" });
       const body = await readInventoryResponse<T>(response, "Não foi possível consultar os dados.");
       return body.data as T;
     },
-    placeholderData: (previous) => previous,
+    placeholderData: (previous) => (patientResource ? undefined : previous),
+    refetchOnMount: patientResource ? "always" : true,
     retry: false,
-    staleTime: 15000,
+    staleTime: patientResource ? 0 : 15000,
   });
 }
 export const formatExpiry = (date: string) => date.split("-").reverse().join("/");

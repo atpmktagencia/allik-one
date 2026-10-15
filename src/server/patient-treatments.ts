@@ -306,7 +306,9 @@ export async function patientDetailResponse(request: Request) {
             !auth.preview &&
             !auth.integration &&
             can(auth, "patients.clinical.manage", String(patient.primaryUnitId)),
-          canManage: can(auth, "patients.manage", String(patient.primaryUnitId)),
+          canManage:
+            can(auth, "patients.manage", String(patient.primaryUnitId)) &&
+            can(auth, "patients.clinical.manage", String(patient.primaryUnitId)),
           canConsume:
             can(auth, "patients.read", String(patient.primaryUnitId)) &&
             can(auth, "inventory.consume", String(patient.primaryUnitId)),

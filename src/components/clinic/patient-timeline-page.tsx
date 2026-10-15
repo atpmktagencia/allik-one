@@ -1,3 +1,4 @@
+import { PatientNewEncounter } from "./patient-new-encounter";
 import { useState, useSyncExternalStore } from "react";
 import "./clinical-workspace.css";
 import { useInfiniteQuery } from "@tanstack/react-query";
@@ -32,9 +33,16 @@ type TimelineEvent = {
   content?: string;
 };
 type TimelinePayload = {
-  patient: { id: string; name: string; internalCode: string; unitName: string };
+  patient: {
+    id: string;
+    name: string;
+    internalCode: string;
+    unitName: string;
+    primaryUnitId: string;
+  };
   events: TimelineEvent[];
   nextCursor: string | null;
+  canCreateEncounter?: boolean;
 };
 
 function subscribeUnit(callback: () => void) {
@@ -93,7 +101,7 @@ export function PatientTimelinePage({ patientId }: { patientId: string }) {
     );
   return (
     <div className="clinical-workspace mx-auto max-w-5xl space-y-6 rounded-2xl bg-background p-4 sm:p-6">
-      <header className="space-y-4 border-b pb-6">
+      <header className="space-y-4 rounded-2xl border bg-card p-5">
         <Button variant="ghost" size="sm" asChild>
           <Link to="/pacientes/$patientId" params={{ patientId }}>
             <ArrowLeft className="mr-2 h-4 w-4" />
@@ -108,7 +116,12 @@ export function PatientTimelinePage({ patientId }: { patientId: string }) {
               {patient.internalCode} · {patient.unitName}
             </p>
           </div>
-          <Badge variant="outline">Histórico clínico</Badge>
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge variant="outline">Histórico clínico</Badge>
+            {query.data?.pages[0]?.canCreateEncounter && (
+              <PatientNewEncounter patientId={patientId} unitId={patient.primaryUnitId} />
+            )}
+          </div>
         </div>
         <p className="text-sm text-muted-foreground">
           Consulte atendimentos, registros clínicos finalizados e a trajetória do tratamento.
@@ -138,7 +151,7 @@ export function PatientTimelinePage({ patientId }: { patientId: string }) {
         </p>
       )}
       {!events.length && (
-        <div className="rounded-xl border p-8 text-center">
+        <div className="rounded-2xl border p-8 text-center">
           <FileText className="mx-auto mb-3 h-6 w-6 text-muted-foreground" />
           <h2 className="font-semibold">Nenhum registro encontrado</h2>
           <p className="mt-2 text-sm text-muted-foreground">
@@ -152,7 +165,7 @@ export function PatientTimelinePage({ patientId }: { patientId: string }) {
           {items.map((event) => (
             <article
               key={`${event.kind}-${event.id}`}
-              className="rounded-xl border bg-white p-4 sm:p-5"
+              className="rounded-2xl border bg-white p-4 sm:p-5"
             >
               <div className="flex flex-wrap justify-between gap-2">
                 <h3 className="font-semibold">{event.title}</h3>

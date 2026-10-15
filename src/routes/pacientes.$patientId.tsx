@@ -11,5 +11,5 @@ function PatientRoute() {
     select: (state) => state.location.pathname.endsWith("/prontuario"),
   });
   if (isTimeline) return <Outlet />;
-  return <PatientTreatmentPage patientId={patientId} />;
+  return <PatientTreatmentPage key={patientId} patientId={patientId} />;
 }

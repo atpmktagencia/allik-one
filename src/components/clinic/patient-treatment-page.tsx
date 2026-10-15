@@ -1,3 +1,12 @@
+import "./clinical-workspace.css";
+import { PatientNewEncounter } from "./patient-new-encounter";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Link } from "@tanstack/react-router";
 import { useState, type FormEvent } from "react";
 import { AlertTriangle, ArrowLeft, FileText, Plus, Stethoscope } from "lucide-react";
@@ -32,6 +41,7 @@ type Payload = {
     fullName: string;
     internalCode: string;
     unitName: string;
+    primaryUnitId: string;
     active: boolean;
   };
   treatments: Treatment[];
@@ -552,7 +562,7 @@ export function PatientTreatmentPage({ patientId }: { patientId: string }) {
     }
   }
   return (
-    <div className="space-y-6">
+    <div className="clinical-workspace mx-auto max-w-[1320px] space-y-6 rounded-2xl bg-background p-4 sm:p-6">
       <Link
         to="/pacientes"
         className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
@@ -572,10 +582,27 @@ export function PatientTreatmentPage({ patientId }: { patientId: string }) {
               </Link>
             </Button>
             {data.canManage ? (
-              <Button onClick={() => setOpen(true)}>
-                <Plus className="mr-2 size-4" />
-                Novo tratamento
-              </Button>
+              <>
+                <PatientNewEncounter patientId={patientId} unitId={data.patient.primaryUnitId} />
+                <Button
+                  onClick={() => {
+                    setError("");
+                    setForm({
+                      ...blank,
+                      firstScheduledOn: new Intl.DateTimeFormat("en-CA", {
+                        timeZone: "America/Fortaleza",
+                        year: "numeric",
+                        month: "2-digit",
+                        day: "2-digit",
+                      }).format(new Date()),
+                    });
+                    setOpen(true);
+                  }}
+                >
+                  <Plus className="mr-2 size-4" />
+                  Novo tratamento
+                </Button>
+              </>
             ) : null}
           </div>
         }
@@ -993,119 +1020,151 @@ export function PatientTreatmentPage({ patientId }: { patientId: string }) {
           </p>
         )}
       </section>
-      {open && data.canManage && (
-        <form onSubmit={save} className="space-y-4 rounded-xl border bg-card p-5">
-          <h2 className="font-semibold">Tratamento prescrito</h2>
-          <div className="grid gap-4 md:grid-cols-3">
-            <label className="space-y-1 text-sm font-medium md:col-span-2">
-              Produto
-              <select
-                required
-                className="h-10 w-full rounded-md border bg-background px-3 font-normal"
-                value={form.productId}
-                onChange={(e) => setForm({ ...form, productId: e.target.value })}
-              >
-                <option value="">Selecione</option>
-                {data.products.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.name} · {p.sku}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="space-y-1 text-sm font-medium">
-              Via
-              <Input
-                required
-                value={form.route}
-                onChange={(e) => setForm({ ...form, route: e.target.value })}
-              />
-            </label>
-            <label className="space-y-1 text-sm font-medium">
-              Dose
-              <Input
-                required
-                type="number"
-                min="0.000001"
-                step="0.000001"
-                value={form.doseQuantity}
-                onChange={(e) => setForm({ ...form, doseQuantity: e.target.value })}
-              />
-            </label>
-            <label className="space-y-1 text-sm font-medium">
-              Unidade da dose
-              <select
-                className="h-10 w-full rounded-md border bg-background px-3"
-                value={form.doseUnit}
-                onChange={(e) => setForm({ ...form, doseUnit: e.target.value })}
-              >
-                <option>MG</option>
-                <option>ML</option>
-                <option>UI</option>
-                <option>UNIT</option>
-              </select>
-            </label>
-            <label className="space-y-1 text-sm font-medium">
-              Aplicar a cada (dias)
-              <Input
-                required
-                type="number"
-                min="0.01"
-                step="0.01"
-                value={form.frequencyEveryDays}
-                onChange={(e) => setForm({ ...form, frequencyEveryDays: e.target.value })}
-              />
-            </label>
-            <label className="space-y-1 text-sm font-medium">
-              Primeira aplicação
-              <Input
-                required
-                type="date"
-                value={form.firstScheduledOn}
-                onChange={(e) => setForm({ ...form, firstScheduledOn: e.target.value })}
-              />
-            </label>
-            <label className="space-y-1 text-sm font-medium">
-              Aplicações previstas
-              <Input
-                type="number"
-                min="1"
-                value={form.plannedAdministrations}
-                onChange={(e) => setForm({ ...form, plannedAdministrations: e.target.value })}
-              />
-            </label>
-            <label className="space-y-1 text-sm font-medium">
-              Situação
-              <select
-                className="h-10 w-full rounded-md border bg-background px-3"
-                value={form.status}
-                onChange={(e) => setForm({ ...form, status: e.target.value })}
-              >
-                {Object.entries(statusLabels).map(([v, l]) => (
-                  <option key={v} value={v}>
-                    {l}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="space-y-1 text-sm font-medium md:col-span-3">
-              Motivo
-              <Input
-                required
-                minLength={10}
-                value={form.reason}
-                onChange={(e) => setForm({ ...form, reason: e.target.value })}
-              />
-            </label>
-          </div>
-          <div className="flex gap-3">
-            <Button disabled={pending}>{pending ? "Salvando…" : "Salvar tratamento"}</Button>
-            <Button type="button" variant="outline" onClick={() => setOpen(false)}>
-              Cancelar
-            </Button>
-          </div>
-        </form>
-      )}
+      <Dialog
+        open={open && data.canManage}
+        onOpenChange={(value) => {
+          if (!pending) setOpen(value);
+        }}
+      >
+        <DialogContent className="clinical-workspace max-h-[90dvh] overflow-y-auto rounded-2xl sm:max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>Novo tratamento</DialogTitle>
+            <DialogDescription>
+              Cadastre o tratamento prescrito e sua programação de aplicações. O cadastro não altera
+              o estoque físico.
+            </DialogDescription>
+          </DialogHeader>
+          {error && (
+            <p role="alert" className="text-sm text-destructive">
+              {error}
+            </p>
+          )}
+          {!data.products.length && (
+            <p className="text-sm text-muted-foreground">
+              Cadastre um produto ativo em Produtos e sede para criar o tratamento.
+            </p>
+          )}
+          <form onSubmit={save} className="space-y-4">
+            <fieldset disabled={pending} className="space-y-4">
+              <div className="grid gap-4 md:grid-cols-3">
+                <label className="space-y-1 text-sm font-medium md:col-span-2">
+                  Produto
+                  <select
+                    required
+                    className="h-10 w-full rounded-md border bg-background px-3 font-normal"
+                    value={form.productId}
+                    onChange={(e) => setForm({ ...form, productId: e.target.value })}
+                  >
+                    <option value="">Selecione</option>
+                    {data.products.map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.name} · {p.sku}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="space-y-1 text-sm font-medium">
+                  Via
+                  <Input
+                    required
+                    value={form.route}
+                    onChange={(e) => setForm({ ...form, route: e.target.value })}
+                  />
+                </label>
+                <label className="space-y-1 text-sm font-medium">
+                  Dose
+                  <Input
+                    required
+                    type="number"
+                    min="0.000001"
+                    step="0.000001"
+                    value={form.doseQuantity}
+                    onChange={(e) => setForm({ ...form, doseQuantity: e.target.value })}
+                  />
+                </label>
+                <label className="space-y-1 text-sm font-medium">
+                  Unidade da dose
+                  <select
+                    className="h-10 w-full rounded-md border bg-background px-3"
+                    value={form.doseUnit}
+                    onChange={(e) => setForm({ ...form, doseUnit: e.target.value })}
+                  >
+                    <option>MG</option>
+                    <option>ML</option>
+                    <option>UI</option>
+                    <option>UNIT</option>
+                  </select>
+                </label>
+                <label className="space-y-1 text-sm font-medium">
+                  Aplicar a cada (dias)
+                  <Input
+                    required
+                    type="number"
+                    min="0.01"
+                    step="0.01"
+                    value={form.frequencyEveryDays}
+                    onChange={(e) => setForm({ ...form, frequencyEveryDays: e.target.value })}
+                  />
+                </label>
+                <label className="space-y-1 text-sm font-medium">
+                  Primeira aplicação
+                  <Input
+                    required
+                    type="date"
+                    value={form.firstScheduledOn}
+                    onChange={(e) => setForm({ ...form, firstScheduledOn: e.target.value })}
+                  />
+                </label>
+                <label className="space-y-1 text-sm font-medium">
+                  Aplicações previstas
+                  <Input
+                    type="number"
+                    min="1"
+                    value={form.plannedAdministrations}
+                    onChange={(e) => setForm({ ...form, plannedAdministrations: e.target.value })}
+                  />
+                </label>
+                <label className="space-y-1 text-sm font-medium">
+                  Situação
+                  <select
+                    className="h-10 w-full rounded-md border bg-background px-3"
+                    value={form.status}
+                    onChange={(e) => setForm({ ...form, status: e.target.value })}
+                  >
+                    {Object.entries(statusLabels).map(([v, l]) => (
+                      <option key={v} value={v}>
+                        {l}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="space-y-1 text-sm font-medium md:col-span-3">
+                  Motivo
+                  <Input
+                    required
+                    minLength={10}
+                    value={form.reason}
+                    onChange={(e) => setForm({ ...form, reason: e.target.value })}
+                  />
+                </label>
+              </div>
+              <div className="flex gap-3">
+                <Button disabled={pending || !data.products.length}>
+                  {pending ? "Salvando…" : "Salvar tratamento"}
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={pending}
+                  onClick={() => setOpen(false)}
+                >
+                  Cancelar
+                </Button>
+              </div>
+            </fieldset>
+          </form>
+        </DialogContent>
+      </Dialog>
       <section className="rounded-xl border bg-card">
         <div className="border-b p-5">
           <h2 className="font-semibold">Tratamentos</h2>

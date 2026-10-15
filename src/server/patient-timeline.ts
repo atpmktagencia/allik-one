@@ -196,10 +196,14 @@ export async function patientTimelineResponse(request: Request) {
       data: {
         patient: {
           id: patient.id,
+          primaryUnitId: patient.primary_unit_id,
           name: patient.name,
           internalCode: patient.internalCode,
           unitName: patient.unitName,
         },
+        canCreateEncounter:
+          can(auth, "patients.manage", String(patient.primary_unit_id)) &&
+          can(auth, "patients.clinical.manage", String(patient.primary_unit_id)),
         events: rows,
         nextCursor,
       },

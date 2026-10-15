@@ -182,6 +182,7 @@ export async function careAppointmentsResponse(request: Request) {
     return Response.json(
       {
         data: {
+          currentUserId: auth.user.id,
           appointments: appointments.rows,
           patients: patients.rows,
           professionals: professionals.rows,
