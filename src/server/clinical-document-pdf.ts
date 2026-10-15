@@ -48,9 +48,20 @@ export async function renderClinicalDocumentPdf(
   const antimicrobial = prescription && metadata.kind === "ANTIMICROBIAL";
   const twoCopies = prescription && snapshot["twoCopies"] === true;
   const title = special ? "RECEITA DE CONTROLE ESPECIAL" : text(snapshot["title"]);
-  const rich = snapshot["richContent"]
+  let rich = snapshot["richContent"]
     ? richContentSchema.parse(snapshot["richContent"])
     : plainTextRichContent(text(snapshot["content"]));
+  const amendment = snapshot["amendment"] as Record<string, unknown> | undefined;
+  if (amendment)
+    rich = {
+      type: "doc",
+      content: [
+        ...(plainTextRichContent(
+          `${amendment["kind"] === "ADDENDUM" ? "ADENDO" : "RETIFICAÇÃO"}\nDocumento original: ${text(amendment["parentDocumentId"])}\nMotivo: ${text(amendment["reason"])}\nSHA-256 do original: ${text(amendment["parentSha256"])}`,
+        ).content ?? []),
+        ...(rich.content ?? []),
+      ],
+    };
   if (text(snapshot["content"]).length > 30000) throw new Error("Documento muito extenso.");
   const pdf = new PDFDocument({
     size: "A4",

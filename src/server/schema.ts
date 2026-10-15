@@ -897,6 +897,41 @@ export const encounterDocuments = pgTable(
     ),
   ],
 );
+export const clinicalDocumentSeals = pgTable(
+  "inventory_clinical_document_seals",
+  {
+    documentId: uuid("document_id")
+      .primaryKey()
+      .references(() => encounterDocuments.id),
+    contentSha256: text("content_sha256").notNull(),
+    sealedAt: timestamp("sealed_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [check("clinical_document_seal_hash_valid", sql`${t.contentSha256} ~ '^[a-f0-9]{64}$'`)],
+);
+export const clinicalDocumentAmendments = pgTable(
+  "inventory_clinical_document_amendments",
+  {
+    documentId: uuid("document_id")
+      .primaryKey()
+      .references(() => encounterDocuments.id),
+    parentDocumentId: uuid("parent_document_id")
+      .notNull()
+      .references(() => encounterDocuments.id),
+    kind: text("kind").notNull(),
+    reason: text("reason").notNull(),
+    parentSha256: text("parent_sha256").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("clinical_document_amendment_parent").on(t.parentDocumentId),
+    check("clinical_document_amendment_kind_valid", sql`${t.kind} IN ('ADDENDUM','RECTIFICATION')`),
+    check(
+      "clinical_document_amendment_reason_valid",
+      sql`char_length(trim(${t.reason})) BETWEEN 5 AND 2000`,
+    ),
+    check("clinical_document_amendment_hash_valid", sql`${t.parentSha256} ~ '^[a-f0-9]{64}$'`),
+  ],
+);
 export const encounterDocumentChanges = pgTable(
   "inventory_encounter_document_changes",
   {

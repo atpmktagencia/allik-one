@@ -436,3 +436,192 @@ describe("final document snapshots", () => {
     expect(saved.final_snapshot.finalizedAt).toBe(saved.finalized_at.toISOString());
   });
 });
+
+describe("document integrity and amendments", () => {
+  it("seals final content and preserves the original through an independently finalized rectification", async () => {
+    const f = await fixture();
+    const original = await f.post({ action: "FINALIZE" });
+    expect(original.status).toBe(201);
+    const source = (await original.json()).data;
+    const before = (
+      await getPool().query("SELECT * FROM inventory_encounter_documents WHERE id=$1", [source.id])
+    ).rows[0];
+    const seal = (
+      await getPool().query(
+        "SELECT * FROM inventory_clinical_document_seals WHERE document_id=$1",
+        [source.id],
+      )
+    ).rows[0];
+    expect(seal.content_sha256).toMatch(/^[a-f0-9]{64}$/);
+    const create = await f.post({
+      action: "CREATE_AMENDMENT",
+      documentId: source.id,
+      version: source.version,
+      amendmentKind: "RECTIFICATION",
+      amendmentReason: "Correção do texto de orientação",
+      title: "RETIFICAÇÃO — RECEITA MÉDICA",
+    });
+    expect(create.status).toBe(201);
+    const child = (await create.json()).data;
+    const list = (await (await f.get()).json()).data.documents;
+    expect(list.find((d: { id: string }) => d.id === source.id).integrityVerified).toBe(true);
+    expect(list.find((d: { id: string }) => d.id === child.id).amendment.parentDocumentId).toBe(
+      source.id,
+    );
+    const final = await f.post({
+      action: "FINALIZE",
+      documentId: child.id,
+      version: child.version,
+      title: "RETIFICAÇÃO — RECEITA MÉDICA",
+      content: "Orientação corrigida, preservando o registro original.",
+    });
+    expect(final.status).toBe(200);
+    const after = (
+      await getPool().query("SELECT * FROM inventory_encounter_documents WHERE id=$1", [source.id])
+    ).rows[0];
+    expect(after).toEqual(before);
+    expect(
+      (
+        await getPool().query(
+          "SELECT content_sha256 FROM inventory_clinical_document_seals WHERE document_id=$1",
+          [source.id],
+        )
+      ).rows[0].content_sha256,
+    ).toBe(seal.content_sha256);
+    const snapshot = (
+      await getPool().query(
+        "SELECT final_snapshot FROM inventory_encounter_documents WHERE id=$1",
+        [child.id],
+      )
+    ).rows[0].final_snapshot;
+    expect(snapshot.amendment).toEqual({
+      parentDocumentId: source.id,
+      kind: "RECTIFICATION",
+      reason: "Correção do texto de orientação",
+      parentSha256: seal.content_sha256,
+    });
+    const print = await f.get(`documentId=${child.id}&print=true`);
+    expect(print.status).toBe(200);
+    const html = await print.text();
+    expect(html).toContain(source.id);
+    expect(html).toContain("Correção do texto de orientação");
+    await expect(
+      getPool().query(
+        "UPDATE inventory_clinical_document_seals SET content_sha256=$2 WHERE document_id=$1",
+        [source.id, "0".repeat(64)],
+      ),
+    ).rejects.toThrow();
+    await expect(
+      getPool().query(
+        "UPDATE inventory_clinical_document_amendments SET reason='Outra razão' WHERE document_id=$1",
+        [child.id],
+      ),
+    ).rejects.toThrow();
+    await expect(
+      getPool().query("DELETE FROM inventory_clinical_document_amendments WHERE document_id=$1", [
+        child.id,
+      ]),
+    ).rejects.toThrow();
+    await expect(
+      getPool().query("UPDATE inventory_encounter_documents SET content='alterado' WHERE id=$1", [
+        source.id,
+      ]),
+    ).rejects.toThrow();
+  });
+  it("rejects drafts, missing reasons, foreign documents and amendment chains as amendment sources", async () => {
+    const f = await fixture();
+    const draft = (await (await f.post()).json()).data;
+    const amend = (id: string, version: number, reason = "Complementação da orientação") =>
+      f.post({
+        action: "CREATE_AMENDMENT",
+        documentId: id,
+        version,
+        amendmentKind: "ADDENDUM",
+        amendmentReason: reason,
+      });
+    expect((await amend(draft.id, draft.version)).status).toBe(409);
+    const final = (
+      await (
+        await f.post({ action: "FINALIZE", documentId: draft.id, version: draft.version })
+      ).json()
+    ).data;
+    expect((await amend(final.id, final.version, " ")).status).toBe(409);
+    const other = await fixture();
+    const foreign = (await (await other.post({ action: "FINALIZE" })).json()).data;
+    expect((await amend(foreign.id, foreign.version)).status).toBe(404);
+    const child = (await (await amend(final.id, final.version)).json()).data;
+    const childFinal = (
+      await (
+        await f.post({ action: "FINALIZE", documentId: child.id, version: child.version })
+      ).json()
+    ).data;
+    expect((await amend(childFinal.id, childFinal.version)).status).toBe(409);
+  });
+  it("denies direct cross-scope links and prevents finalizing a linked draft without its immutable metadata", async () => {
+    const f = await fixture(),
+      other = await fixture();
+    const source = (await (await f.post({ action: "FINALIZE" })).json()).data;
+    const draft = (await (await other.post()).json()).data;
+    const seal = (
+      await getPool().query(
+        "SELECT content_sha256 FROM inventory_clinical_document_seals WHERE document_id=$1",
+        [source.id],
+      )
+    ).rows[0].content_sha256;
+    await expect(
+      getPool().query(
+        "INSERT INTO inventory_clinical_document_amendments(document_id,parent_document_id,kind,reason,parent_sha256) VALUES($1,$2,'ADDENDUM','Tentativa entre organizações',$3)",
+        [draft.id, source.id, seal],
+      ),
+    ).rejects.toThrow();
+    const child = (
+      await (
+        await f.post({
+          action: "CREATE_AMENDMENT",
+          documentId: source.id,
+          version: source.version,
+          amendmentKind: "ADDENDUM",
+          amendmentReason: "Informação adicional confirmada",
+        })
+      ).json()
+    ).data;
+    await expect(
+      getPool().query(
+        "UPDATE inventory_encounter_documents SET status='FINAL',finalized_at=now(),final_snapshot=$2 WHERE id=$1",
+        [
+          child.id,
+          (
+            await getPool().query(
+              "SELECT final_snapshot FROM inventory_encounter_documents WHERE id=$1",
+              [source.id],
+            )
+          ).rows[0].final_snapshot,
+        ],
+      ),
+    ).rejects.toThrow();
+  });
+  it("fails closed when the stored integrity marker differs from the snapshot", async () => {
+    const f = await fixture();
+    const source = (await (await f.post({ action: "FINALIZE" })).json()).data;
+    // Simulate corruption with database-owner powers in this disposable database only.
+    await getPool().query(
+      "ALTER TABLE inventory_clinical_document_seals DISABLE TRIGGER clinical_document_seal_immutable",
+    );
+    try {
+      await getPool().query(
+        "UPDATE inventory_clinical_document_seals SET content_sha256=$2 WHERE document_id=$1",
+        [source.id, "0".repeat(64)],
+      );
+    } finally {
+      await getPool().query(
+        "ALTER TABLE inventory_clinical_document_seals ENABLE TRIGGER clinical_document_seal_immutable",
+      );
+    }
+    expect((await f.get(`documentId=${source.id}&print=true`)).status).toBe(409);
+    const document = (await (await f.get()).json()).data.documents.find(
+      (d: { id: string }) => d.id === source.id,
+    );
+    expect(document.integrityVerified).toBe(false);
+    expect(document.canAmend).toBe(false);
+  });
+});

@@ -64,6 +64,16 @@ type ClinicalDocument = {
   councilNumber: string;
   councilRegion: string;
   canEdit?: boolean;
+  canAmend?: boolean;
+  contentSha256?: string | null;
+  integrityRecordedAt?: string | null;
+  integrityVerified?: boolean | null;
+  amendment?: {
+    parentDocumentId: string;
+    kind: "ADDENDUM" | "RECTIFICATION";
+    reason: string;
+    parentSha256: string;
+  } | null;
 };
 type Template = {
   id: string;
@@ -149,6 +159,8 @@ export function EncounterDocumentsCard({ appointmentId }: { appointmentId: strin
   const [templateName, setTemplateName] = useState("");
   const [templateForm, setTemplateForm] = useState(false);
   const [applying, setApplying] = useState<Template | null>(null);
+  const [amendmentKind, setAmendmentKind] = useState<"ADDENDUM" | "RECTIFICATION" | null>(null);
+  const [amendmentReason, setAmendmentReason] = useState("");
   const [historyOpen, setHistoryOpen] = useState(false);
   const [printDataOpen, setPrintDataOpen] = useState(false);
   const [expanded, setExpanded] = useState(false);
@@ -270,6 +282,46 @@ export function EncounterDocumentsCard({ appointmentId }: { appointmentId: strin
       setPending(false);
     }
   }
+  async function createAmendment() {
+    if (
+      submitting.current ||
+      !selected?.canAmend ||
+      !amendmentKind ||
+      amendmentReason.trim().length < 5
+    )
+      return;
+    submitting.current = true;
+    setPending(true);
+    setError("");
+    try {
+      const result = await request({
+        action: "CREATE_AMENDMENT",
+        documentId: selected.id,
+        version: selected.version,
+        type: selected.type,
+        title: `${amendmentKind === "ADDENDUM" ? "ADENDO" : "RETIFICAÇÃO"} — ${documentTitles[selected.type]}`,
+        content: "",
+        amendmentKind,
+        amendmentReason,
+        twoCopies: selected.twoCopies ?? false,
+        prescriptionPrintData: selected.prescriptionPrintData ?? null,
+      });
+      if (!result.data) throw new Error("Não foi possível confirmar o novo rascunho.");
+      await query.refetch();
+      setSelectedId(result.data.id);
+      setFocusId(result.data.id);
+      setAmendmentKind(null);
+      setAmendmentReason("");
+      setMessage("Rascunho vinculado criado. O documento original foi preservado.");
+    } catch (cause) {
+      setError(
+        cause instanceof Error ? cause.message : "Não foi possível criar o documento vinculado.",
+      );
+    } finally {
+      submitting.current = false;
+      setPending(false);
+    }
+  }
   async function save(action: "SAVE_DRAFT" | "FINALIZE" | "SAVE_TEMPLATE"): Promise<boolean> {
     if (submitting.current || readonly || !selected || !buffer) return false;
     if (action !== "SAVE_DRAFT" && !buffer.content.trim()) {
@@ -344,6 +396,18 @@ export function EncounterDocumentsCard({ appointmentId }: { appointmentId: strin
   }
   async function print() {
     if (!selected || pending) return;
+    if (
+      query.data?.documents.some(
+        (item) =>
+          item.status === "FINAL" &&
+          item.amendment?.parentDocumentId === selected.id &&
+          item.amendment.kind === "RECTIFICATION",
+      ) &&
+      !window.confirm(
+        "Este documento possui uma retificação finalizada. Deseja visualizar a impressão do original preservado?",
+      )
+    )
+      return;
     // Open synchronously so browsers do not block the preview after saving.
     const preview = window.open("about:blank", "_blank");
     if (preview) preview.opener = null;
@@ -387,7 +451,7 @@ export function EncounterDocumentsCard({ appointmentId }: { appointmentId: strin
   const menuStyle = "clinical-document-glass rounded-2xl border-[rgba(60,60,67,.12)] p-2 shadow-lg";
   const buttonStyle =
     "rounded-xl bg-white border-[rgba(60,60,67,.12)] text-[#1d1d1f] hover:bg-[#f5f5f7]";
-  const counts: Partial<Record<DocumentType, number>> = {};
+  const counts: Partial<Record<DocumentType | "ADDENDUM" | "RECTIFICATION", number>> = {};
   return (
     <section
       className={`clinical-documents${expanded ? " clinical-documents-expanded" : ""}`}
@@ -423,7 +487,8 @@ export function EncounterDocumentsCard({ appointmentId }: { appointmentId: strin
             aria-label="Documentos deste atendimento"
           >
             {data.documents.map((item) => {
-              counts[item.type] = (counts[item.type] ?? 0) + 1;
+              const tabKind = item.amendment?.kind ?? item.type;
+              counts[tabKind] = (counts[tabKind] ?? 0) + 1;
               return (
                 <button
                   type="button"
@@ -455,7 +520,12 @@ export function EncounterDocumentsCard({ appointmentId }: { appointmentId: strin
                   }}
                 >
                   <span className="text-sm font-medium">
-                    {tabLabels[item.type]} {counts[item.type]}
+                    {item.amendment
+                      ? item.amendment.kind === "ADDENDUM"
+                        ? "Adendo"
+                        : "Retificação"
+                      : tabLabels[item.type]}{" "}
+                    {counts[tabKind]}
                   </span>
                   <span className="ml-2 text-[11px] text-[#636366]">
                     {item.status === "FINAL"
@@ -525,6 +595,46 @@ export function EncounterDocumentsCard({ appointmentId }: { appointmentId: strin
           className="clinical-document-panel"
           aria-labelledby={`document-tab-${selected.id}`}
         >
+          {data.documents.some(
+            (item) => item.status === "FINAL" && item.amendment?.parentDocumentId === selected.id,
+          ) && (
+            <details className="mx-4 mt-2 rounded-xl border border-blue-100 bg-blue-50 p-3 text-xs text-[#1d1d1f]">
+              <summary className="cursor-pointer font-medium">
+                Este documento possui adendo ou retificação finalizados
+              </summary>
+              {data.documents
+                .filter(
+                  (item) =>
+                    item.status === "FINAL" && item.amendment?.parentDocumentId === selected.id,
+                )
+                .map((item) => (
+                  <button
+                    key={item.id}
+                    type="button"
+                    className="mt-2 block text-[#007aff]"
+                    onClick={() => select(item.id)}
+                  >
+                    {item.title}
+                  </button>
+                ))}
+            </details>
+          )}
+          {selected.amendment && (
+            <details className="mx-4 mt-2 rounded-xl border bg-white p-3 text-xs text-[#636366]">
+              <summary className="cursor-pointer font-medium">
+                {selected.amendment.kind === "ADDENDUM" ? "Adendo" : "Retificação"} · documento
+                vinculado
+              </summary>
+              <p className="mt-2">Motivo: {selected.amendment.reason}</p>
+              <button
+                type="button"
+                className="mt-2 text-[#007aff]"
+                onClick={() => select(selected.amendment!.parentDocumentId)}
+              >
+                Abrir documento original
+              </button>
+            </details>
+          )}
           <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-2 sm:px-5">
             <div className="flex flex-wrap gap-2">
               <DropdownMenu>
@@ -566,7 +676,11 @@ export function EncounterDocumentsCard({ appointmentId }: { appointmentId: strin
               <Button
                 variant="outline"
                 className={buttonStyle}
-                disabled={pending || (selected.status === "DRAFT" && readonly)}
+                disabled={
+                  pending ||
+                  selected.integrityVerified === false ||
+                  (selected.status === "DRAFT" && readonly)
+                }
                 onClick={() => void print()}
               >
                 <Printer size={16} />
@@ -672,8 +786,45 @@ export function EncounterDocumentsCard({ appointmentId }: { appointmentId: strin
                   : ""}{" "}
                 · Versão {buffer.version}
               </p>
+              {selected.status === "FINAL" && (
+                <details className="mt-1 max-w-sm">
+                  <summary className="cursor-pointer">
+                    {selected.integrityVerified
+                      ? "Integridade verificada · SHA-256"
+                      : selected.integrityVerified === false
+                        ? "Falha na verificação de integridade"
+                        : "Documento legado · integridade não verificada"}
+                  </summary>
+                  <p className="mt-1 break-all">
+                    {selected.contentSha256 ?? "Sem marca de integridade disponível."}
+                  </p>
+                  {selected.integrityRecordedAt && (
+                    <p>
+                      Marca registrada em{" "}
+                      {new Date(selected.integrityRecordedAt).toLocaleString("pt-BR", {
+                        timeZone: "America/Fortaleza",
+                      })}
+                      .
+                    </p>
+                  )}
+                  <p>A marca de integridade não equivale a uma assinatura digital.</p>
+                </details>
+              )}
               <p className="mt-1">Finalização não equivale a assinatura eletrônica certificada.</p>
             </div>
+            {selected.canAmend && (
+              <Button
+                variant="outline"
+                className={buttonStyle}
+                disabled={pending}
+                onClick={() => {
+                  setAmendmentKind("ADDENDUM");
+                  setAmendmentReason("");
+                }}
+              >
+                Adendo ou retificação
+              </Button>
+            )}
             {selected.status === "FINAL" && (
               <DocumentSignatureActions key={selected.id} documentId={selected.id} />
             )}
@@ -712,6 +863,54 @@ export function EncounterDocumentsCard({ appointmentId }: { appointmentId: strin
           )}
         </div>
       )}
+      <Dialog
+        open={amendmentKind !== null}
+        onOpenChange={(open) => {
+          if (!open && !pending) setAmendmentKind(null);
+        }}
+      >
+        <DialogContent className="rounded-2xl">
+          <DialogHeader>
+            <DialogTitle>Adendo ou retificação</DialogTitle>
+            <DialogDescription>
+              Um novo rascunho será vinculado ao original. O conteúdo e a autoria do documento
+              finalizado serão preservados.
+            </DialogDescription>
+          </DialogHeader>
+          <label className="text-sm">
+            Tipo
+            <select
+              className="mt-1 w-full rounded-xl border bg-white p-2"
+              aria-label="Tipo do adendo ou retificação"
+              value={amendmentKind ?? "ADDENDUM"}
+              disabled={pending}
+              onChange={(event) =>
+                setAmendmentKind(event.target.value as "ADDENDUM" | "RECTIFICATION")
+              }
+            >
+              <option value="ADDENDUM">Adendo — acrescentar informações</option>
+              <option value="RECTIFICATION">Retificação — registrar uma correção</option>
+            </select>
+          </label>
+          <label className="text-sm">
+            Motivo obrigatório
+            <textarea
+              className="mt-1 min-h-24 w-full rounded-xl border bg-white p-2"
+              minLength={5}
+              maxLength={2000}
+              disabled={pending}
+              value={amendmentReason}
+              onChange={(event) => setAmendmentReason(event.target.value)}
+            />
+          </label>
+          <Button
+            disabled={pending || amendmentReason.trim().length < 5}
+            onClick={() => void createAmendment()}
+          >
+            {pending ? "Criando…" : "Criar rascunho vinculado"}
+          </Button>
+        </DialogContent>
+      </Dialog>
       <Dialog open={printDataOpen} onOpenChange={setPrintDataOpen}>
         <DialogContent className="max-h-[85dvh] overflow-y-auto rounded-2xl">
           <DialogHeader>
@@ -857,7 +1056,12 @@ export function EncounterDocumentsCard({ appointmentId }: { appointmentId: strin
               }}
             >
               <span className="block font-medium">
-                {labels[item.type]} · {item.status === "FINAL" ? "Finalizado" : "Rascunho"}
+                {item.amendment
+                  ? item.amendment.kind === "ADDENDUM"
+                    ? "Adendo"
+                    : "Retificação"
+                  : labels[item.type]}{" "}
+                · {item.status === "FINAL" ? "Finalizado" : "Rascunho"}
               </span>
               <span className="text-xs text-[#636366]">
                 {item.authorName} · Versão {item.version}

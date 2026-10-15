@@ -1,3 +1,4 @@
+import { verifiedDocumentIntegrity } from "./clinical-document-integrity";
 import "@tanstack/react-start/server-only";
 import { randomBytes, randomUUID } from "node:crypto";
 import { z } from "zod";
@@ -90,6 +91,8 @@ export async function documentSignaturesResponse(request: Request) {
       return fail("Documento não encontrado.", 404);
     if (document.status !== "FINAL" || !document.final_snapshot)
       return fail("A assinatura exige um documento finalizado com identificação preservada.", 409);
+    if (!(await verifiedDocumentIntegrity(document.id)))
+      return fail("Não foi possível verificar a integridade deste documento.", 409);
     const author = Boolean(
       auth.user.id &&
       !auth.preview &&

@@ -91,6 +91,23 @@ describe("immutable clinical signing PDF", () => {
       renderClinicalDocumentPdf({ status: "FINAL", patient_name: "Current patient" }),
     ).rejects.toThrow();
   });
+  it("preserves amendment references and paginates long reasons in two copies", async () => {
+    const source = fixture({
+      twoCopies: true,
+      amendment: {
+        parentDocumentId: "document-original-reference",
+        kind: "RECTIFICATION",
+        reason: "Motivo confirmado ".repeat(100),
+        parentSha256: "a".repeat(64),
+      },
+    });
+    const pdf = await renderClinicalDocumentPdf(source);
+    const text = streams(pdf);
+    expect(text).toContain("document-original-reference");
+    expect(text).toContain("RETIFICAÇÃO");
+    expect(text).toContain("Motivo confirmado");
+    expect(text).toContain("Texto preservado na finalização.");
+  });
   it("renders deterministic bytes independent of current patient/profile values", async () => {
     const source = fixture();
     const first = await renderClinicalDocumentPdf(source);

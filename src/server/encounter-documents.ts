@@ -1,3 +1,4 @@
+import { integrityFields, verifiedDocumentIntegrity } from "./clinical-document-integrity";
 import { recordClinicalAccess } from "./clinical-access-audit";
 import { canWriteClinicalDocument, hasClinicalRegistration } from "./clinical-professional-policy";
 import { renderClinicalDocumentPdf } from "./clinical-document-pdf";
@@ -17,7 +18,9 @@ import { renderClinicalDocumentPrint } from "./clinical-document-print";
 const headers = { "Cache-Control": "private, no-store", Vary: "Cookie, Authorization" };
 const uuid = z.string().uuid();
 const input = z.object({
-  action: z.enum(["SAVE_DRAFT", "FINALIZE", "SAVE_TEMPLATE"]),
+  action: z.enum(["SAVE_DRAFT", "FINALIZE", "SAVE_TEMPLATE", "CREATE_AMENDMENT"]),
+  amendmentKind: z.enum(["ADDENDUM", "RECTIFICATION"]).nullable().default(null),
+  amendmentReason: z.string().trim().max(2000).default(""),
   appointmentId: uuid,
   documentId: uuid.nullable().default(null),
   type: z.enum(documentTypes),
@@ -28,7 +31,7 @@ const input = z.object({
   prescriptionPrintData: prescriptionPrintDataSchema.nullable().default(null),
   version: z.number().int().nonnegative().nullable().default(null),
 });
-const fields = `id,type,title,content,rich_content AS "richContent",two_copies AS "twoCopies",prescription_print_data AS "prescriptionPrintData",status,version,
+const fields = `${integrityFields},id,type,title,content,rich_content AS "richContent",two_copies AS "twoCopies",prescription_print_data AS "prescriptionPrintData",status,version,
   CASE WHEN final_snapshot IS NOT NULL THEN final_snapshot->>'authorName' ELSE author_name END AS "authorName",
   CASE WHEN final_snapshot IS NOT NULL THEN final_snapshot->>'professionalCouncil' ELSE professional_council END AS "professionalCouncil",
   CASE WHEN final_snapshot IS NOT NULL THEN final_snapshot->>'councilNumber' ELSE council_number END AS "councilNumber",
@@ -44,7 +47,8 @@ export async function encounterDocumentsResponse(request: Request) {
     if (url.searchParams.get("print") === "true") {
       if (!uuid.safeParse(documentId).success) return fail("Documento inválido.", 400);
       const result = await getPool().query(
-        `SELECT d.*,p.full_name,p.internal_code,u.name AS unit_name
+        `SELECT d.*,p.full_name,p.internal_code,u.name AS unit_name,
+        (SELECT jsonb_build_object('parentDocumentId',a.parent_document_id,'kind',a.kind,'reason',a.reason,'parentSha256',a.parent_sha256) FROM inventory_clinical_document_amendments a WHERE a.document_id=d.id) AS amendment
         FROM inventory_encounter_documents d JOIN inventory_patients p ON p.id=d.patient_id
         JOIN inventory_units u ON u.id=d.unit_id WHERE d.id=$1 AND d.organization_id=$2`,
         [documentId, auth.organizationId],
@@ -62,6 +66,12 @@ export async function encounterDocumentsResponse(request: Request) {
         )
       )
         return fail("Finalize o documento antes de imprimir.", 409);
+      if (
+        doc.status === "FINAL" &&
+        doc.final_snapshot &&
+        !(await verifiedDocumentIntegrity(doc.id))
+      )
+        return fail("Não foi possível verificar a integridade deste documento.", 409);
       const html = renderClinicalDocumentPrint(doc);
       await recordClinicalAccess(auth, {
         unitId: doc.unit_id,
@@ -130,6 +140,14 @@ export async function encounterDocumentsResponse(request: Request) {
             : [],
           documents: documents.rows.map(({ author_user_id, ...document }) => ({
             ...document,
+            canAmend: Boolean(
+              canAuthor &&
+              author_user_id === auth.user.id &&
+              document.status === "FINAL" &&
+              document.integrityVerified &&
+              !document.amendment &&
+              canWriteClinicalDocument(appointment.professional_council, document.type),
+            ),
             canEdit: Boolean(
               canAuthor &&
               author_user_id === auth.user.id &&
@@ -176,7 +194,7 @@ export async function encounterDocumentsResponse(request: Request) {
   if (data.prescriptionPrintData && data.prescriptionPrintData.kind !== "SIMPLE")
     data.twoCopies = true;
   if (data.richContent) data.content = richContentText(data.richContent).trim();
-  if (data.action !== "SAVE_DRAFT" && !data.content)
+  if (!["SAVE_DRAFT", "CREATE_AMENDMENT"].includes(data.action) && !data.content)
     return fail("Informe o conteúdo antes de finalizar ou salvar um modelo.", 400);
   const client = await getPool().connect();
   try {
@@ -220,7 +238,7 @@ export async function encounterDocumentsResponse(request: Request) {
       await client.query("COMMIT");
       return Response.json({ data: saved.rows[0] }, { status: 201, headers });
     }
-    const previous = data.documentId
+    let previous = data.documentId
       ? (
           await client.query(
             `SELECT * FROM inventory_encounter_documents WHERE id=$1 AND appointment_id=$2 AND organization_id=$3 FOR UPDATE`,
@@ -230,6 +248,28 @@ export async function encounterDocumentsResponse(request: Request) {
       : null;
     if (data.documentId && !previous) throw new Error("NOT_FOUND");
     if (previous && previous.author_user_id !== auth.user.id) throw new Error("NOT_AUTHOR");
+    let amendmentSource: { id: string; hash: string } | null = null;
+    if (data.action === "CREATE_AMENDMENT") {
+      if (
+        !previous ||
+        previous.status !== "FINAL" ||
+        previous.type !== data.type ||
+        previous.version !== data.version ||
+        !data.amendmentKind ||
+        data.amendmentReason.length < 5
+      )
+        throw new Error("AMENDMENT");
+      const source = await client.query(
+        `SELECT s.content_sha256 FROM inventory_clinical_document_seals s WHERE document_id=$1 AND s.content_sha256=encode(sha256(convert_to($2::jsonb::text,'UTF8')),'hex') AND NOT EXISTS(SELECT 1 FROM inventory_clinical_document_amendments WHERE document_id=$1)`,
+        [previous.id, previous.final_snapshot],
+      );
+      if (!source.rowCount) throw new Error("AMENDMENT");
+      amendmentSource = { id: previous.id, hash: source.rows[0].content_sha256 };
+      previous = null;
+      data.version = null;
+      data.content = "";
+      data.richContent = null;
+    }
     if (previous?.status === "FINAL") throw new Error("FINAL");
     if ((previous ? Number(previous.version) : null) !== data.version) throw new Error("STALE");
     if (previous && previous.type !== data.type) throw new Error("TYPE");
@@ -248,7 +288,16 @@ export async function encounterDocumentsResponse(request: Request) {
       if (!identity) throw new Error("NOT_FOUND");
       if (!identity.professional_council || !identity.council_number || !identity.council_region)
         throw new Error("COUNCIL");
+      const amendment = previous
+        ? (
+            await client.query(
+              `SELECT jsonb_build_object('parentDocumentId',parent_document_id,'kind',kind,'reason',reason,'parentSha256',parent_sha256) AS metadata FROM inventory_clinical_document_amendments WHERE document_id=$1`,
+              [previous.id],
+            )
+          ).rows[0]?.metadata
+        : undefined;
       finalSnapshot = {
+        ...(amendment ? { amendment } : {}),
         snapshotVersion: 1,
         patientName: identity.full_name,
         patientCode: identity.internal_code,
@@ -307,6 +356,17 @@ export async function encounterDocumentsResponse(request: Request) {
           ],
         );
     const document = saved.rows[0];
+    if (amendmentSource)
+      await client.query(
+        `INSERT INTO inventory_clinical_document_amendments(document_id,parent_document_id,kind,reason,parent_sha256) VALUES($1,$2,$3,$4,$5)`,
+        [
+          document.id,
+          amendmentSource.id,
+          data.amendmentKind,
+          data.amendmentReason,
+          amendmentSource.hash,
+        ],
+      );
     await client.query(
       `INSERT INTO inventory_encounter_document_changes(organization_id,document_id,action,before_data,after_data,actor_user_id) VALUES($1,$2,$3,$4,$5,$6)`,
       [
@@ -333,6 +393,10 @@ export async function encounterDocumentsResponse(request: Request) {
     )
       return fail(reason, 422);
     const messages: Record<string, [string, number]> = {
+      AMENDMENT: [
+        "Selecione um documento original finalizado e informe um motivo com pelo menos 5 caracteres.",
+        409,
+      ],
       PROFESSIONAL_SCOPE: [
         "Este tipo de documento não está disponível para seu registro profissional.",
         403,
