@@ -59,6 +59,10 @@ export const users = pgTable(
     professionalCouncil: text("professional_council"),
     councilNumber: text("council_number"),
     councilRegion: text("council_region"),
+    prescribingAddress: text("prescribing_address"),
+    prescribingCity: text("prescribing_city"),
+    prescribingState: text("prescribing_state"),
+    prescribingPhone: text("prescribing_phone"),
     passwordHash: text("password_hash"),
     active: boolean("active").notNull().default(true),
     sessionVersion: integer("session_version").notNull().default(0),
@@ -67,6 +71,14 @@ export const users = pgTable(
   },
   (t) => [
     uniqueIndex("inventory_user_email_case_unique").on(sql`lower(${t.email})`),
+    check(
+      "inventory_user_prescriber_contact_valid",
+      sql`
+      (${t.prescribingAddress} IS NULL OR char_length(${t.prescribingAddress})<=500)
+      AND (${t.prescribingCity} IS NULL OR char_length(${t.prescribingCity})<=100)
+      AND (${t.prescribingPhone} IS NULL OR char_length(${t.prescribingPhone})<=40)
+      AND (${t.prescribingState} IS NULL OR ${t.prescribingState} IN ('AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS','MG','PA','PB','PR','PE','PI','RJ','RN','RS','RO','RR','SC','SP','SE','TO'))`,
+    ),
     check("inventory_user_session_version_nonnegative", sql`${t.sessionVersion} >= 0`),
     check(
       "inventory_user_professional_council_complete",
@@ -2319,5 +2331,50 @@ export const authRateLimits = pgTable(
   (t) => [
     uniqueIndex("auth_rate_limit_bucket").on(t.key, t.bucket),
     check("auth_rate_limit_valid", sql`${t.key} ~ '^[a-f0-9]{64}$' AND ${t.attempts}>0`),
+  ],
+);
+
+export const documentDeliveryEvents = pgTable(
+  "inventory_document_delivery_events",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id),
+    unitId: uuid("unit_id")
+      .notNull()
+      .references(() => units.id),
+    patientId: uuid("patient_id")
+      .notNull()
+      .references(() => patients.id),
+    documentId: uuid("document_id")
+      .notNull()
+      .references(() => encounterDocuments.id),
+    actorUserId: uuid("actor_user_id")
+      .notNull()
+      .references(() => users.id),
+    operationId: uuid("operation_id").notNull(),
+    action: text("action").notNull(),
+    recipientHash: text("recipient_hash").notNull(),
+    pdfSha256: text("pdf_sha256").notNull(),
+    signed: boolean("signed").notNull(),
+    providerMessageId: text("provider_message_id"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("document_delivery_operation_action_unique").on(t.operationId, t.action),
+    index("document_delivery_actor_time").on(t.organizationId, t.actorUserId, t.createdAt),
+    check(
+      "document_delivery_action_valid",
+      sql`${t.action} IN ('EMAIL_REQUESTED','EMAIL_ACCEPTED','EMAIL_FAILED','EMAIL_UNCONFIRMED','WHATSAPP_PREPARED')`,
+    ),
+    check(
+      "document_delivery_hash_valid",
+      sql`${t.recipientHash} ~ '^[a-f0-9]{64}$' AND ${t.pdfSha256} ~ '^[a-f0-9]{64}$'`,
+    ),
+    check(
+      "document_delivery_provider_valid",
+      sql`${t.providerMessageId} IS NULL OR char_length(${t.providerMessageId}) BETWEEN 1 AND 200`,
+    ),
   ],
 );

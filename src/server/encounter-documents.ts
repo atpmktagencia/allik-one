@@ -1,3 +1,4 @@
+import { hasPrescriberContact, prescriberPrintDefaults } from "../lib/prescriber-contact";
 import { randomUUID } from "node:crypto";
 import { verifyClinicalDocumentResponse } from "./clinical-document-verification";
 import { documentVerificationCode } from "../lib/clinical-document-identity";
@@ -100,7 +101,7 @@ export async function encounterDocumentsResponse(request: Request) {
     const appointmentId = url.searchParams.get("appointmentId");
     if (!uuid.safeParse(appointmentId).success) return fail("Atendimento inválido.", 400);
     const result = await getPool().query(
-      `SELECT a.*,u.professional_council,u.council_number,u.council_region,p.full_name,p.birth_date::text,p.document_number,p.additional_data, p.private_data,n.name AS unit_name
+      `SELECT a.*,u.professional_council,u.council_number,u.council_region,u.prescribing_address,u.prescribing_city,u.prescribing_state,u.prescribing_phone,p.full_name,p.birth_date::text,p.document_number,p.additional_data, p.private_data,n.name AS unit_name
       FROM inventory_care_appointments a JOIN inventory_users u ON u.id=a.professional_user_id
       JOIN inventory_patients p ON p.id=a.patient_id AND p.organization_id=a.organization_id
       JOIN inventory_units n ON n.id=a.unit_id AND n.organization_id=a.organization_id
@@ -151,6 +152,13 @@ export async function encounterDocumentsResponse(request: Request) {
             : [],
           documents: documents.rows.map(({ author_user_id, ...document }) => ({
             ...document,
+            canShare: Boolean(
+              canAuthor &&
+              author_user_id === auth.user.id &&
+              document.status === "FINAL" &&
+              document.type === "PRESCRIPTION" &&
+              document.integrityVerified,
+            ),
             canAmend: Boolean(
               canAuthor &&
               author_user_id === auth.user.id &&
@@ -168,7 +176,10 @@ export async function encounterDocumentsResponse(request: Request) {
           })),
           context: {
             patientName: appointment.full_name,
-            prescriptionPrintData: patientPrintDefaults(appointment),
+            prescriptionPrintData: {
+              ...patientPrintDefaults(appointment),
+              ...prescriberPrintDefaults(appointment),
+            },
             birthDate: appointment.birth_date,
             unitName: appointment.unit_name,
             allergySummary,
@@ -213,7 +224,7 @@ export async function encounterDocumentsResponse(request: Request) {
   try {
     await client.query("BEGIN");
     const result = await client.query(
-      `SELECT a.*,u.name AS author_name,u.professional_council,u.council_number,u.council_region
+      `SELECT a.*,u.name AS author_name,u.professional_council,u.council_number,u.council_region,u.prescribing_address,u.prescribing_city,u.prescribing_state,u.prescribing_phone
       FROM inventory_care_appointments a JOIN inventory_users u ON u.id=a.professional_user_id
       WHERE a.id=$1 AND a.organization_id=$2 FOR UPDATE OF a`,
       [data.appointmentId, auth.organizationId],
@@ -234,6 +245,21 @@ export async function encounterDocumentsResponse(request: Request) {
     )
       throw new Error("PROFESSIONAL_SCOPE");
     if (["NO_SHOW", "CANCELED"].includes(appointment.status)) throw new Error("TERMINAL");
+    if (
+      data.type === "PRESCRIPTION" &&
+      data.action !== "SAVE_TEMPLATE" &&
+      data.prescriptionPrintData
+    ) {
+      const source = prescriberPrintDefaults(appointment);
+      if (
+        data.action !== "CREATE_AMENDMENT" &&
+        Object.entries(source).some(
+          ([key, value]) => data.prescriptionPrintData![key as keyof typeof source] !== value,
+        )
+      )
+        throw new Error("PRESCRIBER_IDENTITY_CHANGED");
+      data.prescriptionPrintData = { ...data.prescriptionPrintData, ...source };
+    }
     if (data.action === "SAVE_TEMPLATE") {
       const saved = await client.query(
         `INSERT INTO inventory_clinical_document_templates(organization_id,owner_user_id,type,title,content,rich_content,two_copies)
@@ -292,7 +318,7 @@ export async function encounterDocumentsResponse(request: Request) {
     if (final) {
       const identities = await client.query(
         `SELECT p.full_name,p.internal_code,p.document_type,p.document_number,p.birth_date::text,p.additional_data,n.name AS unit_name,u.name AS author_name,
-          u.professional_council,u.council_number,u.council_region,transaction_timestamp() AS finalized_at
+          u.professional_council,u.council_number,u.council_region,u.prescribing_address,u.prescribing_city,u.prescribing_state,u.prescribing_phone,transaction_timestamp() AS finalized_at
          FROM inventory_patients p JOIN inventory_units n ON n.id=$2 AND n.organization_id=$4
          JOIN inventory_users u ON u.id=$3
          WHERE p.id=$1 AND p.organization_id=$4 FOR SHARE OF p,n,u`,
@@ -312,6 +338,16 @@ export async function encounterDocumentsResponse(request: Request) {
         : undefined;
       const canonicalPatient = patientPrintDefaults(identity, identity.finalized_at);
       if (data.type === "PRESCRIPTION") {
+        if (!hasPrescriberContact(identity)) throw new Error("PRESCRIBER_CONTACT_REQUIRED");
+        const canonicalPrescriber = prescriberPrintDefaults(identity);
+        if (
+          data.prescriptionPrintData &&
+          Object.entries(canonicalPrescriber).some(
+            ([key, value]) =>
+              data.prescriptionPrintData![key as keyof typeof canonicalPrescriber] !== value,
+          )
+        )
+          throw new Error("PRESCRIBER_IDENTITY_CHANGED");
         if (
           data.prescriptionPrintData &&
           (data.prescriptionPrintData.patientDocument !== canonicalPatient.patientDocument ||
@@ -321,6 +357,7 @@ export async function encounterDocumentsResponse(request: Request) {
           throw new Error("PATIENT_IDENTITY_CHANGED");
         data.prescriptionPrintData = {
           ...(data.prescriptionPrintData ?? canonicalPatient),
+          ...canonicalPrescriber,
           patientDocument: canonicalPatient.patientDocument,
           patientAddress: canonicalPatient.patientAddress,
           patientAge: canonicalPatient.patientAge,
@@ -432,6 +469,14 @@ export async function encounterDocumentsResponse(request: Request) {
     )
       return fail(reason, 422);
     const messages: Record<string, [string, number]> = {
+      PRESCRIBER_CONTACT_REQUIRED: [
+        "Complete endereço, cidade, UF e telefone do emissor em Administração → Usuários antes de finalizar a receita.",
+        409,
+      ],
+      PRESCRIBER_IDENTITY_CHANGED: [
+        "Os dados do emissor devem corresponder ao cadastro profissional. Recarregue o atendimento e confira os dados da receita.",
+        409,
+      ],
       PATIENT_IDENTITY_CHANGED: [
         "Os dados de impressão do paciente diferem do cadastro atual. Confira o cadastro, recarregue o atendimento e revise os dados da receita antes de finalizar.",
         409,

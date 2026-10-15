@@ -1,3 +1,4 @@
+import { prescriberContactFields } from "../lib/prescriber-contact";
 import "@tanstack/react-start/server-only";
 import { randomBytes } from "node:crypto";
 import { z } from "zod";
@@ -7,6 +8,7 @@ import { getPool } from "./db";
 const headers = { "Cache-Control": "private, no-store", Vary: "Cookie" };
 const createUser = z.object({
   action: z.literal("CREATE"),
+  ...prescriberContactFields,
   name: z.string().trim().min(2).max(150),
   email: z.string().trim().email().max(254),
   profession: z.string().trim().max(100).optional(),
@@ -84,7 +86,7 @@ export async function userAdminResponse(request: Request) {
     const result = await getPool().query(
       `SELECT u.id,u.name,u.email,u.profession,u.title,
        u.professional_council AS "professionalCouncil",u.council_number AS "councilNumber",
-       u.council_region AS "councilRegion",(u.password_hash IS NOT NULL) AS credentialed,u.active,m.role,
+       u.prescribing_address AS "prescribingAddress",u.prescribing_city AS "prescribingCity",u.prescribing_state AS "prescribingState",u.prescribing_phone AS "prescribingPhone",u.council_region AS "councilRegion",(u.password_hash IS NOT NULL) AS credentialed,u.active,m.role,
        COALESCE(jsonb_agg(jsonb_build_object('id',un.id,'name',un.name) ORDER BY un.name) FILTER (WHERE un.id IS NOT NULL),'[]') AS units
        FROM inventory_users u JOIN inventory_memberships m ON m.user_id=u.id
        LEFT JOIN inventory_unit_access ua ON ua.membership_id=m.id LEFT JOIN inventory_units un ON un.id=ua.unit_id
@@ -136,8 +138,8 @@ export async function userAdminResponse(request: Request) {
       }
       const user = await client.query(
         `INSERT INTO inventory_users(
-          name,email,profession,title,professional_council,council_number,council_region
-        ) VALUES($1,lower($2),$3,$4,$5,$6,$7) RETURNING id`,
+          name,email,profession,title,professional_council,council_number,council_region,prescribing_address,prescribing_city,prescribing_state,prescribing_phone
+        ) VALUES($1,lower($2),$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING id`,
         [
           input.name,
           input.email,
@@ -146,6 +148,10 @@ export async function userAdminResponse(request: Request) {
           input.professionalCouncil?.toUpperCase() ?? null,
           input.councilNumber ?? null,
           input.councilRegion ?? null,
+          input.prescribingAddress || null,
+          input.prescribingCity || null,
+          input.prescribingState || null,
+          input.prescribingPhone || null,
         ],
       );
       const membership = await client.query(
@@ -191,7 +197,7 @@ export async function userAdminResponse(request: Request) {
       const target = await client.query(
         `SELECT u.id,u.name,u.email,u.profession,u.title,
           u.professional_council AS "professionalCouncil",u.council_number AS "councilNumber",
-          u.council_region AS "councilRegion",(u.password_hash IS NOT NULL) AS credentialed,m.id AS "membershipId",m.role
+          u.prescribing_address AS "prescribingAddress",u.prescribing_city AS "prescribingCity",u.prescribing_state AS "prescribingState",u.prescribing_phone AS "prescribingPhone",u.council_region AS "councilRegion",(u.password_hash IS NOT NULL) AS credentialed,m.id AS "membershipId",m.role
          FROM inventory_users u JOIN inventory_memberships m ON m.user_id=u.id
          WHERE u.id=$1 AND m.organization_id=$2 FOR UPDATE OF u,m`,
         [input.userId, auth.organizationId],
@@ -223,7 +229,7 @@ export async function userAdminResponse(request: Request) {
         JSON.stringify(before.unitIds ?? []) !== JSON.stringify(normalizedUnitIds);
       await client.query(
         `UPDATE inventory_users SET name=$2,email=lower($3),profession=$4,title=$5,
-          professional_council=$6,council_number=$7,council_region=$8,
+          professional_council=$6,council_number=$7,council_region=$8,prescribing_address=$10,prescribing_city=$11,prescribing_state=$12,prescribing_phone=$13,
           session_version=session_version+CASE WHEN $9 THEN 1 ELSE 0 END,updated_at=now()
          WHERE id=$1`,
         [
@@ -236,6 +242,18 @@ export async function userAdminResponse(request: Request) {
           input.councilNumber ?? null,
           input.councilRegion ?? null,
           scopeChanged,
+          input.prescribingAddress === undefined
+            ? before.prescribingAddress
+            : input.prescribingAddress || null,
+          input.prescribingCity === undefined
+            ? before.prescribingCity
+            : input.prescribingCity || null,
+          input.prescribingState === undefined
+            ? before.prescribingState
+            : input.prescribingState || null,
+          input.prescribingPhone === undefined
+            ? before.prescribingPhone
+            : input.prescribingPhone || null,
         ],
       );
       if (emailChanged)
@@ -263,6 +281,22 @@ export async function userAdminResponse(request: Request) {
         professionalCouncil: input.professionalCouncil?.toUpperCase() ?? null,
         councilNumber: input.councilNumber ?? null,
         councilRegion: input.councilRegion ?? null,
+        prescribingAddress:
+          input.prescribingAddress === undefined
+            ? before.prescribingAddress
+            : input.prescribingAddress || null,
+        prescribingCity:
+          input.prescribingCity === undefined
+            ? before.prescribingCity
+            : input.prescribingCity || null,
+        prescribingState:
+          input.prescribingState === undefined
+            ? before.prescribingState
+            : input.prescribingState || null,
+        prescribingPhone:
+          input.prescribingPhone === undefined
+            ? before.prescribingPhone
+            : input.prescribingPhone || null,
         role: input.role,
         unitIds: normalizedUnitIds,
       };

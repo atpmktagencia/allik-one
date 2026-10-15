@@ -3726,7 +3726,7 @@ describe("clinical encounter documents", () => {
       )
     ).rows[0]!.user_id;
     await getPool().query(
-      "UPDATE inventory_users SET professional_council='CRM',council_number='98765',council_region='CE' WHERE id=$1",
+      "UPDATE inventory_users SET professional_council='CRM',council_number='98765',council_region='CE',prescribing_address='Synthetic clinic street',prescribing_city='Fortaleza',prescribing_state='CE',prescribing_phone='+5585999999999' WHERE id=$1",
       [userId],
     );
     const patientId = randomUUID();

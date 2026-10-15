@@ -1,3 +1,4 @@
+import { brazilStates } from "@/lib/prescriber-contact";
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState, type FormEvent } from "react";
 import { KeyRound, Pencil } from "lucide-react";
@@ -17,6 +18,10 @@ type User = {
   professionalCouncil?: string | null;
   councilNumber?: string | null;
   councilRegion?: string | null;
+  prescribingAddress?: string | null;
+  prescribingCity?: string | null;
+  prescribingState?: string | null;
+  prescribingPhone?: string | null;
   units: Unit[];
 };
 export const Route = createFileRoute("/estoque/usuarios")({ component: UserAdministration });
@@ -31,6 +36,10 @@ export function UserAdministration() {
     professionalCouncil: "",
     councilNumber: "",
     councilRegion: "",
+    prescribingAddress: "",
+    prescribingCity: "",
+    prescribingState: "",
+    prescribingPhone: "",
     role: "VIEWER",
     unitIds: [] as string[],
   });
@@ -63,6 +72,10 @@ export function UserAdministration() {
       professionalCouncil: "",
       councilNumber: "",
       councilRegion: "",
+      prescribingAddress: "",
+      prescribingCity: "",
+      prescribingState: "",
+      prescribingPhone: "",
       role: "VIEWER",
       unitIds: [],
     });
@@ -77,6 +90,10 @@ export function UserAdministration() {
       professionalCouncil: user.professionalCouncil ?? "",
       councilNumber: user.councilNumber ?? "",
       councilRegion: user.councilRegion ?? "",
+      prescribingAddress: user.prescribingAddress ?? "",
+      prescribingCity: user.prescribingCity ?? "",
+      prescribingState: user.prescribingState ?? "",
+      prescribingPhone: user.prescribingPhone ?? "",
       role: user.role,
       unitIds: user.units.map((unit) => unit.id),
     });
@@ -103,6 +120,10 @@ export function UserAdministration() {
           professionalCouncil: form.professionalCouncil || undefined,
           councilNumber: form.councilNumber || undefined,
           councilRegion: form.councilRegion || undefined,
+          prescribingAddress: form.prescribingAddress,
+          prescribingCity: form.prescribingCity,
+          prescribingState: form.prescribingState,
+          prescribingPhone: form.prescribingPhone,
           role: form.role,
           unitIds: form.unitIds,
         }),
@@ -227,6 +248,49 @@ export function UserAdministration() {
             setForm({ ...form, councilRegion: event.target.value.toUpperCase() })
           }
         />
+        <fieldset className="grid gap-3 rounded-xl border p-3 md:col-span-2 md:grid-cols-2">
+          <legend className="px-1 text-sm font-medium">
+            Dados profissionais para emissão de receitas
+          </legend>
+          <p className="text-xs text-muted-foreground md:col-span-2">
+            Estes dados ficam bloqueados na receita. Corrija aqui o cadastro do emissor quando
+            necessário.
+          </p>
+          <Input
+            aria-label="Endereço profissional"
+            placeholder="Endereço profissional completo"
+            maxLength={500}
+            value={form.prescribingAddress}
+            onChange={(e) => setForm({ ...form, prescribingAddress: e.target.value })}
+          />
+          <Input
+            aria-label="Cidade profissional"
+            placeholder="Cidade"
+            maxLength={100}
+            value={form.prescribingCity}
+            onChange={(e) => setForm({ ...form, prescribingCity: e.target.value })}
+          />
+          <select
+            aria-label="UF profissional"
+            className="h-10 rounded-md border bg-background px-3"
+            value={form.prescribingState}
+            onChange={(e) => setForm({ ...form, prescribingState: e.target.value })}
+          >
+            <option value="">UF do endereço profissional</option>
+            {brazilStates.map((uf) => (
+              <option key={uf} value={uf}>
+                {uf}
+              </option>
+            ))}
+          </select>
+          <Input
+            aria-label="Telefone profissional"
+            placeholder="Telefone profissional com DDD"
+            maxLength={40}
+            value={form.prescribingPhone}
+            onChange={(e) => setForm({ ...form, prescribingPhone: e.target.value })}
+          />
+        </fieldset>
         <select
           aria-label="Perfil de acesso"
           className="h-10 rounded-md border bg-background px-3"

@@ -1,3 +1,4 @@
+import { DocumentDelivery } from "./document-delivery";
 import { ClinicalDocumentVerification } from "./clinical-document-verification";
 import { allergyLabel, type AllergySummary } from "@/lib/patient-allergies";
 import {
@@ -66,6 +67,7 @@ type ClinicalDocument = {
   councilNumber: string;
   councilRegion: string;
   canEdit?: boolean;
+  canShare?: boolean;
   canAmend?: boolean;
   verificationCode?: string | null;
   contentSha256?: string | null;
@@ -168,6 +170,7 @@ export function EncounterDocumentsCard({ appointmentId }: { appointmentId: strin
   const [historyOpen, setHistoryOpen] = useState(false);
   const [printDataOpen, setPrintDataOpen] = useState(false);
   const [verificationOpen, setVerificationOpen] = useState(false);
+  const [deliveryOpen, setDeliveryOpen] = useState(false);
   const [expanded, setExpanded] = useState(false);
   useEffect(() => {
     if (!expanded) return;
@@ -712,6 +715,15 @@ export function EncounterDocumentsCard({ appointmentId }: { appointmentId: strin
               </Button>
             </div>
             <div className="flex flex-wrap gap-2">
+              {selected.canShare && (
+                <Button
+                  variant="outline"
+                  className={buttonStyle}
+                  onClick={() => setDeliveryOpen(true)}
+                >
+                  Enviar receita
+                </Button>
+              )}
               <Button
                 variant="outline"
                 className={buttonStyle}
@@ -761,6 +773,10 @@ export function EncounterDocumentsCard({ appointmentId }: { appointmentId: strin
                               patientDocument: defaults.patientDocument,
                               patientAddress: defaults.patientAddress,
                               patientAge: defaults.patientAge,
+                              issuerAddress: defaults.issuerAddress,
+                              issuerCity: defaults.issuerCity,
+                              issuerState: defaults.issuerState,
+                              issuerPhone: defaults.issuerPhone,
                             },
                           });
                         }
@@ -974,6 +990,19 @@ export function EncounterDocumentsCard({ appointmentId }: { appointmentId: strin
           </Button>
         </DialogContent>
       </Dialog>
+      <Dialog open={deliveryOpen} onOpenChange={setDeliveryOpen}>
+        <DialogContent className="clinical-workspace max-h-[90dvh] overflow-y-auto rounded-2xl">
+          <DialogHeader>
+            <DialogTitle>Enviar receita ao paciente</DialogTitle>
+            <DialogDescription>
+              Confirme o contato e a situação da assinatura antes de compartilhar o documento.
+            </DialogDescription>
+          </DialogHeader>
+          {deliveryOpen && selected && (
+            <DocumentDelivery key={selected.id} documentId={selected.id} />
+          )}
+        </DialogContent>
+      </Dialog>
       <Dialog open={verificationOpen} onOpenChange={setVerificationOpen}>
         <DialogContent className="clinical-workspace max-h-[90dvh] overflow-y-auto rounded-2xl">
           <DialogHeader>
@@ -1037,7 +1066,7 @@ export function EncounterDocumentsCard({ appointmentId }: { appointmentId: strin
                 {label}
                 <Input
                   disabled={readonly || pending}
-                  readOnly={["patientDocument", "patientAddress", "patientAge"].includes(key)}
+                  readOnly={key !== "patientSex"}
                   type={key === "patientAge" ? "number" : "text"}
                   min={key === "patientAge" ? 0 : undefined}
                   max={key === "patientAge" ? 130 : undefined}
@@ -1063,8 +1092,9 @@ export function EncounterDocumentsCard({ appointmentId }: { appointmentId: strin
           </div>
           <p className="text-xs text-[#636366]">
             Documento, endereço e idade do paciente vêm do cadastro. Corrija-os no cadastro e
-            recarregue o atendimento. Endereço e contato profissional são conferidos para este
-            documento. As alterações são salvas com o rascunho; dados ausentes não são inventados.
+            recarregue o atendimento. Endereço, cidade, UF e telefone do emissor vêm do cadastro
+            profissional e só podem ser corrigidos por um administrador em Administração → Usuários.
+            As alterações são salvas com o rascunho; dados ausentes não são inventados.
           </p>
           <Button onClick={() => setPrintDataOpen(false)}>Concluir</Button>
         </DialogContent>

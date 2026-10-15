@@ -1,3 +1,4 @@
+import { documentDeliveryResponse } from "@/server/document-delivery";
 import { passwordSecurityResponse } from "@/server/password-security";
 import { createFileRoute } from "@tanstack/react-router";
 import { inventoryResponse } from "@/server/inventory";
@@ -51,6 +52,10 @@ export const Route = createFileRoute("/api/v1/inventory/$")({
   server: {
     handlers: {
       GET: ({ request }) => {
+        if (
+          new URL(request.url).pathname.replace(/\/$/, "") === "/api/v1/inventory/document-delivery"
+        )
+          return documentDeliveryResponse(request);
         if (
           new URL(request.url).pathname.replace(/\/$/, "") ===
           "/api/v1/inventory/document-signatures"
@@ -135,6 +140,10 @@ export const Route = createFileRoute("/api/v1/inventory/$")({
           : inventoryResponse(request);
       },
       POST: ({ request }) => {
+        if (
+          new URL(request.url).pathname.replace(/\/$/, "") === "/api/v1/inventory/document-delivery"
+        )
+          return documentDeliveryResponse(request);
         if (
           new URL(request.url).pathname.replace(/\/$/, "") ===
           "/api/v1/inventory/document-signatures"

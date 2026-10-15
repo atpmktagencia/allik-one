@@ -57,6 +57,10 @@ async function fixture() {
     "INSERT INTO inventory_care_appointments(id,organization_id,unit_id,patient_id,professional_user_id,care_type,starts_at,ends_at,room) VALUES($1,$2,$3,$4,$5,'CONSULTATION','2031-02-12T10:00:00Z','2031-02-12T11:00:00Z','Snapshot room')",
     [appointmentId, organizationId, unitId, patientId, userId],
   );
+  await getPool().query(
+    "UPDATE inventory_users SET prescribing_address='Clínica teste',prescribing_city='Fortaleza',prescribing_state='CE',prescribing_phone='+5585999999999' WHERE id=$1",
+    [userId],
+  );
   const post = (extra: Record<string, unknown> = {}) =>
     encounterDocumentsResponse(
       new Request(`${origin}/api/v1/inventory/encounter-documents`, {
@@ -101,7 +105,7 @@ describe("final document snapshots", () => {
       patientAge: 35,
       patientSex: "Não informado",
       issuerAddress: "Clínica teste",
-      issuerPhone: "Telefone sintético",
+      issuerPhone: "+5585999999999",
       issuerCity: "Fortaleza",
       issuerState: "CE",
     };
@@ -726,7 +730,14 @@ describe("document integrity and amendments", () => {
     const f = await fixture();
     const response = await f.post({
       action: "FINALIZE",
-      prescriptionPrintData: { kind: "SIMPLE", patientDocument: "FORGED-DOC" },
+      prescriptionPrintData: {
+        kind: "SIMPLE",
+        patientDocument: "FORGED-DOC",
+        issuerAddress: "Clínica teste",
+        issuerCity: "Fortaleza",
+        issuerState: "CE",
+        issuerPhone: "+5585999999999",
+      },
     });
     expect(response.status).toBe(409);
     expect(
