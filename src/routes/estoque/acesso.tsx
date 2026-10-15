@@ -15,19 +15,26 @@ export function InventoryAccess() {
   const [message, setMessage] = useState("");
   useEffect(() => {
     setReady(true);
-    const fragment = new URLSearchParams(window.location.hash.slice(1));
-    const token = fragment.get("recover");
-    if (token) {
-      setRecoveryToken(token);
-      setRecovering(true);
-      window.history.replaceState(null, "", window.location.pathname + window.location.search);
-    }
+    const readRecoveryLink = () => {
+      const fragment = new URLSearchParams(window.location.hash.slice(1));
+      const token = fragment.get("recover");
+      if (token) {
+        setRecoveryToken(token);
+        setRecovering(true);
+        setMessage("");
+        setError("");
+        window.history.replaceState(null, "", window.location.pathname + window.location.search);
+      }
+    };
+    readRecoveryLink();
+    window.addEventListener("hashchange", readRecoveryLink);
     void fetch("/api/v1/inventory/password-security")
       .then(async (response) => (response.ok ? response.json() : null))
       .then((body: { data?: { recoveryAvailable?: boolean } } | null) =>
         setRecoveryAvailable(body?.data?.recoveryAvailable === true),
       )
       .catch(() => setRecoveryAvailable(false));
+    return () => window.removeEventListener("hashchange", readRecoveryLink);
   }, []);
   const [password, setPassword] = useState("");
   const [email, setEmail] = useState("");

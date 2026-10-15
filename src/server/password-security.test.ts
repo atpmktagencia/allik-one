@@ -20,7 +20,9 @@ afterAll(async () => {
   vi.unstubAllEnvs();
   await getPool().end();
 });
-beforeEach(() => {
+beforeEach(async () => {
+  await getPool().query("DELETE FROM inventory_auth_rate_limits");
+  vi.stubEnv("AUTH_RECOVERY_ENABLED", "true");
   vi.stubEnv("RESEND_API_KEY", "synthetic-test-key");
   vi.stubEnv("AUTH_EMAIL_FROM", "Allik Test <security@example.test>");
   vi.stubEnv("AUTH_PUBLIC_ORIGIN", origin);
@@ -157,6 +159,7 @@ describe("individual password security", () => {
   });
   it("reports recovery unavailable and does not issue tokens or send emails before service configuration", async () => {
     const f = await fixture();
+    vi.stubEnv("AUTH_RECOVERY_ENABLED", "false");
     const status = await f.request();
     expect(status.status).toBe(200);
     expect((await status.json()).data.recoveryAvailable).toBe(false);
@@ -177,6 +180,65 @@ describe("individual password security", () => {
         )
       ).rows[0].count,
     ).toBe(0);
+  });
+  it("emails a hashed, expiring, single-use recovery token without exposing it in the response", async () => {
+    const f = await fixture();
+    expect((await (await f.request()).json()).data.recoveryAvailable).toBe(true);
+    const response = await f.request({ action: "REQUEST_RESET", email: f.email.toUpperCase() });
+    const body = await response.json();
+    expect(response.status).toBe(200);
+    expect(body).toEqual({ ok: true });
+    expect(emails).toHaveLength(1);
+    const email = JSON.parse(emails[0]!);
+    expect(email.to).toEqual([f.email]);
+    const token = email.text.match(/#recover=([a-f0-9]{64})/)[1];
+    expect(email.text).toContain(`${origin}/estoque/acesso#recover=`);
+    expect(JSON.stringify(body)).not.toContain(token);
+    const row = (
+      await getPool().query(
+        "SELECT token_hash, expires_at FROM inventory_password_resets WHERE user_id=$1",
+        [f.id],
+      )
+    ).rows[0];
+    expect(row.token_hash).toBe(hashToken(token));
+    expect(new Date(row.expires_at).getTime() - Date.now()).toBeLessThanOrEqual(30 * 60 * 1000);
+    expect((await f.request({ action: "RESET_PASSWORD", token, newPassword })).status).toBe(200);
+    expect(
+      (await f.request({ action: "RESET_PASSWORD", token, newPassword: oldPassword })).status,
+    ).toBe(410);
+  });
+  it("does not reveal unknown or inactive accounts and limits delivery attempts", async () => {
+    const f = await fixture();
+    const unknown = await f.request({
+      action: "REQUEST_RESET",
+      email: `${randomUUID()}@example.test`,
+    });
+    expect(await unknown.json()).toEqual({ ok: true });
+    await getPool().query("UPDATE inventory_users SET active=false WHERE id=$1", [f.id]);
+    expect(await (await f.request({ action: "REQUEST_RESET", email: f.email })).json()).toEqual({
+      ok: true,
+    });
+    expect(emails).toHaveLength(0);
+    await getPool().query("UPDATE inventory_users SET active=true WHERE id=$1", [f.id]);
+    for (let i = 0; i < 5; i++) await f.request({ action: "REQUEST_RESET", email: f.email });
+    expect(emails.length).toBeLessThanOrEqual(3);
+  });
+  it("revokes undelivered links and returns the same non-enumerating response", async () => {
+    const f = await fixture();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json({ message: "provider failure" }, { status: 500 })),
+    );
+    expect(await (await f.request({ action: "REQUEST_RESET", email: f.email })).json()).toEqual({
+      ok: true,
+    });
+    expect(
+      (
+        await getPool().query("SELECT revoked_at FROM inventory_password_resets WHERE user_id=$1", [
+          f.id,
+        ])
+      ).rows[0].revoked_at,
+    ).not.toBeNull();
   });
   it("accepts a valid recovery token only once and invalidates the old authenticated session", async () => {
     const f = await fixture();

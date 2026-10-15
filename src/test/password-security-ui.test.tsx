@@ -106,6 +106,18 @@ describe("Password security UI", () => {
     expect(await screen.findByRole("status")).toHaveTextContent("Senha redefinida");
     expect(screen.queryByRole("button", { name: "Definir senha" })).not.toBeInTheDocument();
   });
+  it("opens a recovery link when it arrives in an already open login page", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json({ data: { recoveryAvailable: true } })),
+    );
+    render(<InventoryAccess />);
+    await screen.findByRole("button", { name: "Esqueci minha senha" });
+    window.history.replaceState(null, "", "/estoque/acesso#recover=another-single-use-token");
+    fireEvent(window, new Event("hashchange"));
+    expect(await screen.findByRole("heading", { name: "Definir nova senha" })).toBeInTheDocument();
+    expect(window.location.hash).toBe("");
+  });
   it("requires matching new passwords before sending account changes", async () => {
     const fetchMock = vi.fn(async () =>
       Response.json({

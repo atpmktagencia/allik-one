@@ -1,4 +1,5 @@
 import "@tanstack/react-start/server-only";
+import { randomBytes } from "node:crypto";
 import { z } from "zod";
 import type { PoolClient } from "pg";
 import {
@@ -31,14 +32,128 @@ const input = z.discriminatedUnion("action", [
     .strict(),
 ]);
 
-export async function consumeAuthRateLimit(key: string, limit: number) {
+export async function consumeAuthRateLimit(
+  key: string,
+  limit: number,
+  period: "hour" | "day" = "hour",
+) {
   const result = await getPool().query(
     `INSERT INTO inventory_auth_rate_limits(key,bucket,attempts)
-    VALUES($1,date_trunc('hour',now()),1) ON CONFLICT(key,bucket)
+    VALUES($1,date_trunc($2,now()),1) ON CONFLICT(key,bucket)
     DO UPDATE SET attempts=LEAST(inventory_auth_rate_limits.attempts+1,1000000) RETURNING attempts`,
-    [hashToken(key)],
+    [hashToken(key), period],
   );
   return result.rows[0].attempts <= limit;
+}
+
+function recoveryConfiguration() {
+  if (process.env["AUTH_RECOVERY_ENABLED"] !== "true") return null;
+  const key = process.env["RESEND_API_KEY"];
+  const from = process.env["AUTH_EMAIL_FROM"];
+  // Preview links always point to this deployment, never a caller-supplied Host.
+  const rawOrigin =
+    process.env["VERCEL_ENV"] === "preview"
+      ? `https://${process.env["VERCEL_URL"] ?? ""}`
+      : process.env["AUTH_PUBLIC_ORIGIN"];
+  if (!key || !from || /[\r\n]/.test(from) || !rawOrigin) return null;
+  try {
+    const url = new URL(rawOrigin);
+    if (
+      url.protocol !== "https:" ||
+      url.username ||
+      url.password ||
+      url.pathname !== "/" ||
+      url.search ||
+      url.hash
+    )
+      return null;
+    return { key, from, origin: url.origin };
+  } catch {
+    return null;
+  }
+}
+
+async function requestRecovery(email: string, request: Request) {
+  const config = recoveryConfiguration();
+  if (!config)
+    return Response.json(
+      {
+        error:
+          "A recuperação por e-mail ainda não está configurada. Entre em contato com o suporte.",
+      },
+      { status: 503, headers },
+    );
+  const generic = () => Response.json({ ok: true }, { headers });
+  const normalized = email.trim().toLowerCase();
+  const ip =
+    process.env["VERCEL"] === "1"
+      ? (request.headers.get("x-vercel-forwarded-for") ?? "unknown")
+      : "local";
+  if (
+    !(await consumeAuthRateLimit(`recovery-ip:${ip}`, 10)) ||
+    !(await consumeAuthRateLimit(`recovery-email:${normalized}`, 3))
+  )
+    return generic();
+  const pool = getPool();
+  const found = await pool.query(
+    "SELECT id FROM inventory_users WHERE lower(email)=$1 AND active=true AND password_hash IS NOT NULL",
+    [normalized],
+  );
+  if (!found.rowCount) return generic();
+  if (!(await consumeAuthRateLimit("recovery-delivery", 80, "day"))) return generic();
+  const token = randomBytes(32).toString("hex");
+  const client = await pool.connect();
+  let resetId: string | undefined;
+  try {
+    await client.query("BEGIN");
+    const result = await client.query(
+      "SELECT id,email,session_version FROM inventory_users WHERE id=$1 AND active=true AND password_hash IS NOT NULL FOR UPDATE",
+      [found.rows[0].id],
+    );
+    const user = result.rows[0];
+    if (user && user.email.toLowerCase() === normalized) {
+      const reset = await client.query(
+        `INSERT INTO inventory_password_resets(user_id,token_hash,email_hash,session_version,expires_at) VALUES($1,$2,$3,$4,now()+interval '30 minutes') RETURNING id`,
+        [user.id, hashToken(token), hashToken(normalized), user.session_version],
+      );
+      resetId = reset.rows[0].id;
+    }
+    await client.query("COMMIT");
+  } catch {
+    await client.query("ROLLBACK").catch(() => {});
+    throw new Error("RECOVERY_ISSUE_FAILED");
+  } finally {
+    client.release();
+  }
+  if (!resetId) return generic();
+  try {
+    const response = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${config.key}`,
+        "Content-Type": "application/json",
+        "Idempotency-Key": `password-recovery/${resetId}`,
+      },
+      signal: AbortSignal.timeout(12000),
+      body: JSON.stringify({
+        from: config.from,
+        to: [normalized],
+        subject: "Allik One — redefinir sua senha",
+        text: `Você solicitou a recuperação de acesso ao Allik One.\n\nDefina sua nova senha neste link de uso único, válido por 30 minutos:\n${config.origin}/estoque/acesso#recover=${token}\n\nSe você não solicitou, ignore esta mensagem. Sua senha permanece inalterada. Nunca compartilhe este link.`,
+      }),
+    });
+    if (!response.ok || typeof (await response.json()).id !== "string")
+      throw new Error("DELIVERY_FAILED");
+  } catch {
+    await pool.query(
+      "UPDATE inventory_password_resets SET revoked_at=now() WHERE id=$1 AND used_at IS NULL",
+      [resetId],
+    );
+    // Never log provider bodies, recipient addresses, passwords or recovery links.
+    console.error("password recovery email delivery failed");
+  }
+  // Same response for unknown, inactive, throttled and eligible accounts.
+  return generic();
 }
 
 async function invalidateAccountCredentials(
@@ -75,7 +190,10 @@ async function invalidateAccountCredentials(
 export async function passwordSecurityResponse(request: Request) {
   const fail = (error: string, status: number) => Response.json({ error }, { status, headers });
   if (request.method === "GET")
-    return Response.json({ data: { recoveryAvailable: false } }, { headers });
+    return Response.json(
+      { data: { recoveryAvailable: recoveryConfiguration() !== null } },
+      { headers },
+    );
   if (request.method !== "POST") return fail("Método não permitido.", 405);
   if (request.headers.get("origin") !== new URL(request.url).origin)
     return fail("Origem não autorizada.", 403);
@@ -90,11 +208,7 @@ export async function passwordSecurityResponse(request: Request) {
     return fail("Confira os dados. A nova senha precisa ter pelo menos 12 caracteres.", 400);
   const data = parsed.data;
   try {
-    if (data.action === "REQUEST_RESET")
-      return fail(
-        "A recuperação por e-mail ainda não está configurada. Entre em contato com o suporte.",
-        503,
-      );
+    if (data.action === "REQUEST_RESET") return await requestRecovery(data.email, request);
     let userId: string;
     if (data.action === "CHANGE_PASSWORD") {
       const auth = await authenticate(request);
