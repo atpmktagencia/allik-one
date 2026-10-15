@@ -1,7 +1,9 @@
 import { test } from "node:test";
+import { spawnSync } from "node:child_process";
 import assert from "node:assert/strict";
 import { randomBytes } from "node:crypto";
 import { Client } from "pg";
+import { checkRuntimeAccess } from "./check-runtime-access.mjs";
 import { provisionRuntimeRole } from "./provision-runtime-role.mjs";
 
 const databaseUrl = process.env.DATABASE_ADMIN_URL;
@@ -44,6 +46,27 @@ test(
       await provisionRuntimeRole({ ...options, apply: true });
       await provisionRuntimeRole({ ...options, apply: true });
       await provisionRuntimeRole({ ...options, apply: false });
+      const verified = await checkRuntimeAccess({
+        runtimeUrl: runtime.href,
+        environment: "test",
+        expectedRole: role,
+      });
+      assert.equal(verified.verified, true);
+      assert.ok(verified.tables > 0 && verified.appendOnlyTables > 0);
+      await assert.rejects(
+        checkRuntimeAccess({
+          runtimeUrl: databaseUrl,
+          environment: "test",
+          expectedRole: decodeURIComponent(url.username),
+        }),
+        /elevated/,
+      );
+      await owner.query(`REVOKE SELECT ON public.${table} FROM ${role}`);
+      await assert.rejects(
+        checkRuntimeAccess({ runtimeUrl: runtime.href, environment: "test", expectedRole: role }),
+        /incomplete/,
+      );
+      await owner.query(`GRANT SELECT ON public.${table} TO ${role}`);
       app = new Client({ connectionString: runtime.href });
       await app.connect();
       await app.query("BEGIN");
@@ -84,6 +107,22 @@ test(
 
 test("provisioning refuses ambiguous or unsafe environments before connecting", async () => {
   await assert.rejects(
+    checkRuntimeAccess({
+      runtimeUrl: "postgres://owner:secret@localhost/live",
+      environment: "test",
+      expectedRole: "owner",
+    }),
+    /dedicated/,
+  );
+  await assert.rejects(
+    checkRuntimeAccess({
+      runtimeUrl: "postgres://owner:secret@localhost/live_test",
+      environment: "test",
+      expectedRole: "allik_runtime",
+    }),
+    /match/,
+  );
+  await assert.rejects(
     provisionRuntimeRole({ environment: "", adminUrl: "invalid", runtimeUrl: "invalid" }),
   );
   await assert.rejects(
@@ -95,4 +134,21 @@ test("provisioning refuses ambiguous or unsafe environments before connecting", 
       password: "x".repeat(32),
     }),
   );
+});
+
+test("runtime CLI rejects mismatched credentials without logging their values", () => {
+  const marker = "synthetic-secret-must-not-appear";
+  const result = spawnSync(process.execPath, ["scripts/check-runtime-access.mjs"], {
+    encoding: "utf8",
+    env: {
+      ...process.env,
+      DATABASE_URL: `postgres://owner:${marker}@localhost/allik_test`,
+      INVENTORY_ENVIRONMENT: "test",
+      INVENTORY_RUNTIME_ROLE: "allik_runtime",
+    },
+  });
+  assert.equal(result.status, 1);
+  assert.equal(result.stdout, "");
+  assert.match(result.stderr, /No credentials were logged/);
+  assert.ok(!result.stderr.includes(marker) && !result.stderr.includes("postgres://"));
 });
