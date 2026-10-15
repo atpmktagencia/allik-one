@@ -47,9 +47,12 @@ describe("Inventory navigation", () => {
       "Precificação",
       "Aplicações",
       "Pacientes",
-      "Minha conta",
     ])
       expect(within(desktopNavigation).getByRole("link", { name: item })).toBeInTheDocument();
+    expect(within(desktopNavigation).queryByText("Administração")).not.toBeInTheDocument();
+    expect(
+      within(desktopNavigation).queryByRole("link", { name: "Minha conta" }),
+    ).not.toBeInTheDocument();
     expect(within(desktopNavigation).queryByText("Cadastros")).not.toBeInTheDocument();
   });
 

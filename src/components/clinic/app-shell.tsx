@@ -2,6 +2,7 @@ import { Link, useRouterState } from "@tanstack/react-router";
 import { useEffect, useState, type ReactNode } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import {
+  ChevronsUpDown,
   HeartPulse,
   Syringe,
   Landmark,
@@ -21,6 +22,14 @@ import {
 } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   Sheet,
   SheetContent,
@@ -118,13 +127,7 @@ function ProductMark() {
   );
 }
 
-function Navigation({
-  identity,
-  onNavigate,
-}: {
-  identity: Identity | null;
-  onNavigate?: (() => void) | undefined;
-}) {
+function Navigation({ onNavigate }: { onNavigate?: (() => void) | undefined }) {
   const path = useRouterState({ select: (state) => state.location.pathname });
   const renderItems = (
     items: ReadonlyArray<
@@ -168,47 +171,6 @@ function Navigation({
         Procedimentos
       </p>
       <div className="space-y-1">{renderItems(procedureItems)}</div>
-      <p className="mb-2 mt-7 px-3 text-[10px] font-semibold uppercase tracking-widest text-sidebar-muted">
-        Administração
-      </p>
-      <div className="space-y-1">
-        {identity?.role === "SUPER_ADMIN" && (
-          <>
-            <Link
-              to="/estoque/usuarios"
-              onClick={onNavigate}
-              className="group flex h-10 items-center gap-3 rounded-md px-3 text-sm font-medium text-sidebar-muted transition-colors hover:bg-sidebar-accent/60 hover:text-sidebar-foreground"
-            >
-              <Users className="size-4" />
-              Usuários
-            </Link>
-            <Link
-              to="/estoque/integracoes"
-              onClick={onNavigate}
-              className="group flex h-10 items-center gap-3 rounded-md px-3 text-sm font-medium text-sidebar-muted transition-colors hover:bg-sidebar-accent/60 hover:text-sidebar-foreground"
-            >
-              <KeyRound className="size-4" />
-              Integrações
-            </Link>
-          </>
-        )}
-        <Link
-          to="/configuracoes"
-          onClick={onNavigate}
-          className="group flex h-10 items-center gap-3 rounded-md px-3 text-sm font-medium text-sidebar-muted transition-colors hover:bg-sidebar-accent/60 hover:text-sidebar-foreground"
-        >
-          <Warehouse className="size-4" />
-          Configurações
-        </Link>
-        <Link
-          to="/estoque/minha-conta"
-          onClick={onNavigate}
-          className="group flex h-10 items-center gap-3 rounded-md px-3 text-sm font-medium text-sidebar-muted transition-colors hover:bg-sidebar-accent/60 hover:text-sidebar-foreground"
-        >
-          <ShieldCheck className="size-4" />
-          Minha conta
-        </Link>
-      </div>
     </nav>
   );
 }
@@ -227,26 +189,69 @@ function SidebarContent({
         <ProductMark />
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
-        <Navigation identity={identity} onNavigate={onNavigate} />
+        <Navigation onNavigate={onNavigate} />
       </div>
       <div className="border-t border-sidebar-border p-4">
         <div className="mb-4 flex items-center gap-2 rounded-md bg-sidebar-accent/50 px-3 py-2 text-[11px] text-sidebar-muted">
           <ShieldCheck className="size-4 text-sidebar-primary" />
           <span>Piloto operacional controlado</span>
         </div>
-        <div className="flex items-center gap-3">
-          <Avatar className="size-9">
-            <AvatarFallback className="bg-sidebar-accent text-xs font-semibold text-sidebar-foreground">
-              {identity ? initials(identity.user.name) : "AO"}
-            </AvatarFallback>
-          </Avatar>
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-xs font-semibold text-sidebar-foreground">{name}</p>
-            <p className="text-[11px] text-sidebar-muted">
-              {identity ? (roleLabels[identity.role] ?? identity.role) : "Allik One"}
-            </p>
-          </div>
-        </div>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button
+              type="button"
+              disabled={!identity}
+              aria-label={`Abrir menu da conta de ${name}`}
+              className="flex w-full items-center gap-3 rounded-xl p-2 text-left transition-colors hover:bg-sidebar-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring disabled:opacity-60"
+            >
+              <Avatar className="size-9">
+                <AvatarFallback className="bg-sidebar-accent text-xs font-semibold text-sidebar-foreground">
+                  {identity ? initials(identity.user.name) : "AO"}
+                </AvatarFallback>
+              </Avatar>
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-xs font-semibold text-sidebar-foreground">{name}</p>
+                <p className="text-[11px] text-sidebar-muted">
+                  {identity ? (roleLabels[identity.role] ?? identity.role) : "Allik One"}
+                </p>
+              </div>
+              <ChevronsUpDown className="size-4 shrink-0 text-sidebar-muted" aria-hidden="true" />
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent
+            side="top"
+            align="start"
+            sideOffset={8}
+            className="w-64 max-w-[calc(100vw-2rem)] rounded-2xl p-2"
+          >
+            <DropdownMenuLabel>Administração</DropdownMenuLabel>
+            <DropdownMenuItem asChild>
+              <Link to="/configuracoes" onClick={onNavigate}>
+                <Warehouse aria-hidden="true" /> Configurações
+              </Link>
+            </DropdownMenuItem>
+            <DropdownMenuItem asChild>
+              <Link to="/estoque/minha-conta" onClick={onNavigate}>
+                <ShieldCheck aria-hidden="true" /> Minha conta
+              </Link>
+            </DropdownMenuItem>
+            {identity?.role === "SUPER_ADMIN" && (
+              <>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem asChild>
+                  <Link to="/estoque/usuarios" onClick={onNavigate}>
+                    <Users aria-hidden="true" /> Usuários
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link to="/estoque/integracoes" onClick={onNavigate}>
+                    <KeyRound aria-hidden="true" /> Integrações
+                  </Link>
+                </DropdownMenuItem>
+              </>
+            )}
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
     </div>
   );
