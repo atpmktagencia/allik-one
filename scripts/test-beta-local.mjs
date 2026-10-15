@@ -515,7 +515,7 @@ if (process.argv.includes("--serve")) {
       assert.equal(
         (await restored.query("SELECT count(*)::int AS count FROM drizzle.__drizzle_migrations"))
           .rows[0].count,
-        60,
+        journal.entries.length,
       );
     } finally {
       await restored.end();
