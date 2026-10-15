@@ -85,6 +85,22 @@ function streams(pdf: Buffer): string {
 }
 
 describe("immutable clinical signing PDF", () => {
+  it("prints the frozen patient identity and verification code in both copies", async () => {
+    const code = "A1-9F49B8A1-6859-4445-BF69-32A7D2179A83";
+    const doc = fixture({
+      twoCopies: true,
+      verificationCode: code,
+      patientIdentity: {
+        documentNumber: "SYNTH-123",
+        birthDate: "1990-01-01",
+        address: "Synthetic street",
+      },
+    });
+    const output = streams(await renderClinicalDocumentPdf(doc));
+    expect(output.split(code).length - 1).toBe(2);
+    expect(output.split("SYNTH-123").length - 1).toBe(2);
+    expect(output).toContain("01/01/1990");
+  });
   it("rejects drafts and legacy documents without frozen identity", async () => {
     await expect(renderClinicalDocumentPdf({ status: "DRAFT" })).rejects.toThrow();
     await expect(

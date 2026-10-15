@@ -855,6 +855,15 @@ export const encounterDocuments = pgTable(
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
+    check(
+      "encounter_document_identifier_valid",
+      sql`
+      NOT (${t.finalSnapshot} ?| ARRAY['documentId','verificationCode']) OR COALESCE((
+        ${t.status}='FINAL' AND jsonb_typeof(${t.finalSnapshot}->'documentId')='string'
+        AND ${t.finalSnapshot}->>'documentId'=${t.id}::text
+        AND jsonb_typeof(${t.finalSnapshot}->'verificationCode')='string'
+        AND ${t.finalSnapshot}->>'verificationCode'='A1-'||upper(${t.id}::text)),false)`,
+    ),
     check("encounter_document_copies_valid", sql`NOT ${t.twoCopies} OR ${t.type}='PRESCRIPTION'`),
     check(
       "encounter_document_rich_valid",

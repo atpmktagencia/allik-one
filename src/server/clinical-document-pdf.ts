@@ -120,6 +120,7 @@ export async function renderClinicalDocumentPdf(
   const professional = `${text(snapshot["authorName"])} · ${text(snapshot["professionalCouncil"])} ${text(snapshot["councilNumber"])}/${text(snapshot["councilRegion"])}`;
   const field = (label: string, value: unknown) =>
     `${label}: ${value === null || value === undefined || value === "" ? "________________________" : text(value)}`;
+  const identity = snapshot["patientIdentity"] as Record<string, unknown> | undefined;
   const header = [
     `Allik One · ${text(snapshot["unitName"])}`,
     ...(prescription
@@ -136,10 +137,26 @@ export async function renderClinicalDocumentPdf(
       : []),
     field("Paciente", snapshot["patientName"]),
     field("Código", snapshot["patientCode"]),
+    ...(identity
+      ? [
+          field("CPF / passaporte", identity["documentNumber"]),
+          field(
+            "Data de nascimento",
+            typeof identity["birthDate"] === "string"
+              ? identity["birthDate"].split("-").reverse().join("/")
+              : "",
+          ),
+          field("Endereço do paciente", identity["address"]),
+        ]
+      : []),
     ...(prescription
       ? [
-          field("CPF / passaporte", metadata.patientDocument),
-          field("Endereço do paciente", metadata.patientAddress),
+          ...(!identity
+            ? [
+                field("CPF / passaporte", metadata.patientDocument),
+                field("Endereço do paciente", metadata.patientAddress),
+              ]
+            : []),
           ...(!special
             ? [field("Idade (anos)", metadata.patientAge), field("Sexo", metadata.patientSex)]
             : []),
@@ -151,6 +168,12 @@ export async function renderClinicalDocumentPdf(
     field("Data de emissão", date),
     "Assinatura do profissional: ______________________________",
     "Documento finalizado no sistema. Verifique a assinatura e sua validade no arquivo PDF.",
+    ...(snapshot["verificationCode"]
+      ? [
+          field("Código de verificação", snapshot["verificationCode"]),
+          "Conferência interna no Allik One, com acesso autorizado. O código não comprova assinatura digital.",
+        ]
+      : []),
     ...(special
       ? [
           "Identificação do comprador — preenchimento pela farmácia",

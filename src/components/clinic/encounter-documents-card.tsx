@@ -1,3 +1,4 @@
+import { ClinicalDocumentVerification } from "./clinical-document-verification";
 import { allergyLabel, type AllergySummary } from "@/lib/patient-allergies";
 import {
   FileText,
@@ -66,6 +67,7 @@ type ClinicalDocument = {
   councilRegion: string;
   canEdit?: boolean;
   canAmend?: boolean;
+  verificationCode?: string | null;
   contentSha256?: string | null;
   integrityRecordedAt?: string | null;
   integrityVerified?: boolean | null;
@@ -165,6 +167,7 @@ export function EncounterDocumentsCard({ appointmentId }: { appointmentId: strin
   const [amendmentReason, setAmendmentReason] = useState("");
   const [historyOpen, setHistoryOpen] = useState(false);
   const [printDataOpen, setPrintDataOpen] = useState(false);
+  const [verificationOpen, setVerificationOpen] = useState(false);
   const [expanded, setExpanded] = useState(false);
   useEffect(() => {
     if (!expanded) return;
@@ -743,8 +746,27 @@ export function EncounterDocumentsCard({ appointmentId }: { appointmentId: strin
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className={menuStyle}>
+                  <DropdownMenuItem onSelect={() => setVerificationOpen(true)}>
+                    Verificar documento
+                  </DropdownMenuItem>
                   {selected.type === "PRESCRIPTION" && (
-                    <DropdownMenuItem onSelect={() => setPrintDataOpen(true)}>
+                    <DropdownMenuItem
+                      onSelect={() => {
+                        if (!readonly && data.context?.prescriptionPrintData) {
+                          const defaults = data.context.prescriptionPrintData;
+                          update({
+                            prescriptionPrintData: {
+                              ...emptyPrintData,
+                              ...buffer.prescriptionPrintData,
+                              patientDocument: defaults.patientDocument,
+                              patientAddress: defaults.patientAddress,
+                              patientAge: defaults.patientAge,
+                            },
+                          });
+                        }
+                        setPrintDataOpen(true);
+                      }}
+                    >
                       Dados da receita
                     </DropdownMenuItem>
                   )}
@@ -831,6 +853,11 @@ export function EncounterDocumentsCard({ appointmentId }: { appointmentId: strin
                         ? "Falha na verificação de integridade"
                         : "Documento legado · integridade não verificada"}
                   </summary>
+                  {selected.verificationCode && (
+                    <p className="mt-1 break-all">
+                      Código de verificação: {selected.verificationCode}
+                    </p>
+                  )}
                   <p className="mt-1 break-all">
                     {selected.contentSha256 ?? "Sem marca de integridade disponível."}
                   </p>
@@ -947,6 +974,20 @@ export function EncounterDocumentsCard({ appointmentId }: { appointmentId: strin
           </Button>
         </DialogContent>
       </Dialog>
+      <Dialog open={verificationOpen} onOpenChange={setVerificationOpen}>
+        <DialogContent className="clinical-workspace max-h-[90dvh] overflow-y-auto rounded-2xl">
+          <DialogHeader>
+            <DialogTitle>Verificar documento</DialogTitle>
+            <DialogDescription>
+              Verificação interna de um documento finalizado, mediante acesso autorizado.
+            </DialogDescription>
+          </DialogHeader>
+          <ClinicalDocumentVerification
+            key={verificationOpen ? (selected?.id ?? "empty") : "closed"}
+            initialCode={selected?.verificationCode ?? ""}
+          />
+        </DialogContent>
+      </Dialog>
       <Dialog open={printDataOpen} onOpenChange={setPrintDataOpen}>
         <DialogContent className="max-h-[85dvh] overflow-y-auto rounded-2xl">
           <DialogHeader>
@@ -996,6 +1037,7 @@ export function EncounterDocumentsCard({ appointmentId }: { appointmentId: strin
                 {label}
                 <Input
                   disabled={readonly || pending}
+                  readOnly={["patientDocument", "patientAddress", "patientAge"].includes(key)}
                   type={key === "patientAge" ? "number" : "text"}
                   min={key === "patientAge" ? 0 : undefined}
                   max={key === "patientAge" ? 130 : undefined}
@@ -1020,7 +1062,9 @@ export function EncounterDocumentsCard({ appointmentId }: { appointmentId: strin
             ))}
           </div>
           <p className="text-xs text-[#636366]">
-            As alterações são salvas com o rascunho. Dados ausentes não são inventados.
+            Documento, endereço e idade do paciente vêm do cadastro. Corrija-os no cadastro e
+            recarregue o atendimento. Endereço e contato profissional são conferidos para este
+            documento. As alterações são salvas com o rascunho; dados ausentes não são inventados.
           </p>
           <Button onClick={() => setPrintDataOpen(false)}>Concluir</Button>
         </DialogContent>

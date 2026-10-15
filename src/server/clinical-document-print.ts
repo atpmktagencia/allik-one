@@ -48,9 +48,21 @@ export function renderClinicalDocumentPrint(doc: PrintDocument): string {
   const prescriptionFields = prescription
     ? `<div class="prescriber"><strong>Identificação do emitente</strong>${field("Profissional / conselho", professional)}${field("Endereço", metadata.issuerAddress)}${field("Cidade / UF", [metadata.issuerCity, metadata.issuerState].filter(Boolean).join(" / "))}${field("Telefone", metadata.issuerPhone)}</div>`
     : "";
-  const patientFields = prescription
-    ? `${field("CPF / passaporte", metadata.patientDocument)}${field("Endereço do paciente", metadata.patientAddress)}${special ? "" : field("Idade (anos)", metadata.patientAge) + field("Sexo", metadata.patientSex)}`
+  const identity = snapshot?.["patientIdentity"] as Record<string, unknown> | undefined;
+  const canonicalPatientFields = identity
+    ? `${field("CPF / passaporte", identity["documentNumber"])}${field("Data de nascimento", typeof identity["birthDate"] === "string" ? identity["birthDate"].split("-").reverse().join("/") : "")}${field("Endereço do paciente", identity["address"])}`
     : "";
+  const verification = snapshot?.["verificationCode"]
+    ? `<p class="notice">Código de verificação: ${escapeHtml(snapshot["verificationCode"])}</p><p class="notice">Conferência interna no Allik One, com acesso autorizado. O código não comprova assinatura digital.</p>`
+    : "";
+  const patientFields = identity
+    ? canonicalPatientFields +
+      (prescription && !special
+        ? field("Idade (anos)", metadata.patientAge) + field("Sexo", metadata.patientSex)
+        : "")
+    : prescription
+      ? `${field("CPF / passaporte", metadata.patientDocument)}${field("Endereço do paciente", metadata.patientAddress)}${special ? "" : field("Idade (anos)", metadata.patientAge) + field("Sexo", metadata.patientSex)}`
+      : "";
   const dispensingFields = special
     ? `<div class="dispensing"><section><strong>Identificação do comprador (preenchimento pela farmácia)</strong>${field("Nome", "")}${field("CPF / passaporte", "")}${field("Endereço", "")}${field("Cidade / UF / telefone", "")}</section><section><strong>Identificação do fornecedor</strong>${field("Farmácia / CNPJ ou CNES", "")}${field("Responsável / assinatura", "")}${field("Medicamento / apresentação / lote", "")}${field("Registro do receituário (se manipulado)", "")}${field("Data / quantidade dispensada", "")}</section></div>`
     : antimicrobial
@@ -61,7 +73,7 @@ export function renderClinicalDocumentPrint(doc: PrintDocument): string {
     ? ""
     : timestamp.toLocaleDateString("pt-BR", { timeZone: "America/Fortaleza" });
   const copy = (label: string) =>
-    `<section class="document-copy"><header><div class="brand">Allik One · ${escapeHtml(rendered["unit_name"])}</div>${label ? `<div class="copy-label">${label}</div>` : ""}${draft ? '<div class="warning">RASCUNHO — NÃO FINALIZADO</div>' : ""}<h1>${escapeHtml(title)}</h1>${prescriptionFields}${field("Paciente", rendered["full_name"])}${field("Código", rendered["internal_code"])}${patientFields}${amendmentNotice}</header><article>${bodyHtml}</article><footer>${prescription ? field("Data de emissão", date) : `<p>${escapeHtml(professional)} · ${escapeHtml(date)}</p>`}${prescription ? '<div class="signature">Assinatura do profissional: ______________________________</div>' : ""}<p class="notice">${draft ? "Documento em rascunho." : "Documento finalizado no sistema."} Não possui assinatura eletrônica. A validade do documento exige assinatura profissional adequada.</p>${!snapshot && !draft ? '<p class="notice">Documento legado: cabeçalho do paciente e da unidade usa o cadastro atual; não foi congelado na finalização.</p>' : ""}${dispensingFields}</footer></section>`;
+    `<section class="document-copy"><header><div class="brand">Allik One · ${escapeHtml(rendered["unit_name"])}</div>${label ? `<div class="copy-label">${label}</div>` : ""}${draft ? '<div class="warning">RASCUNHO — NÃO FINALIZADO</div>' : ""}<h1>${escapeHtml(title)}</h1>${prescriptionFields}${field("Paciente", rendered["full_name"])}${field("Código", rendered["internal_code"])}${patientFields}${amendmentNotice}</header><article>${bodyHtml}</article><footer>${prescription ? field("Data de emissão", date) : `<p>${escapeHtml(professional)} · ${escapeHtml(date)}</p>`}${prescription ? '<div class="signature">Assinatura do profissional: ______________________________</div>' : ""}<p class="notice">${draft ? "Documento em rascunho." : "Documento finalizado no sistema."} Não possui assinatura eletrônica. A validade do documento exige assinatura profissional adequada.</p>${!snapshot && !draft ? '<p class="notice">Documento legado: cabeçalho do paciente e da unidade usa o cadastro atual; não foi congelado na finalização.</p>' : ""}${dispensingFields}${verification}</footer></section>`;
   const copies = twoCopies
     ? copy(special ? "1ª VIA — RETENÇÃO DA FARMÁCIA" : "1ª VIA — PACIENTE") +
       copy(special ? "2ª VIA — ORIENTAÇÃO AO PACIENTE" : "2ª VIA — RETENÇÃO DA FARMÁCIA")

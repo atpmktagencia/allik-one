@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 import { migrate } from "drizzle-orm/node-postgres/migrator";
 import { hashToken } from "./auth";
 import { getDb, getPool } from "./db";
+import { documentVerificationCode } from "../lib/clinical-document-identity";
 import { encounterDocumentsResponse } from "./encounter-documents";
 
 const origin = "http://localhost:4317";
@@ -89,6 +90,10 @@ async function fixture() {
 describe("final document snapshots", () => {
   it("persists printing metadata and freezes it in final snapshots", async () => {
     const f = await fixture();
+    await getPool().query(
+      `UPDATE inventory_patients SET document_type='PASSPORT',document_number='SYNTHETIC-DOC',additional_data='{"address":"Rua teste, 10"}',birth_date=(current_date-interval '35 years 1 day')::date WHERE id=$1`,
+      [f.patientId],
+    );
     const prescriptionPrintData = {
       kind: "SPECIAL_CONTROL",
       patientDocument: "SYNTHETIC-DOC",
@@ -176,7 +181,7 @@ describe("final document snapshots", () => {
       await expect(
         getPool().query(
           `INSERT INTO inventory_encounter_documents SELECT (jsonb_populate_record(NULL::inventory_encounter_documents,
-          to_jsonb(d) || jsonb_build_object('id',$1::text,'final_snapshot',d.final_snapshot - $2::text))).*
+          to_jsonb(d) || jsonb_build_object('id',$1::text,'final_snapshot',(d.final_snapshot || jsonb_build_object('documentId',$1::text,'verificationCode','A1-'||upper($1::text))) - $2::text))).*
           FROM inventory_encounter_documents d WHERE d.id=$3`,
           [randomUUID(), missing, final.id],
         ),
@@ -188,7 +193,7 @@ describe("final document snapshots", () => {
     await expect(
       getPool().query(
         `INSERT INTO inventory_encounter_documents SELECT (jsonb_populate_record(NULL::inventory_encounter_documents,
-        to_jsonb(d) || jsonb_build_object('id',$1::text,'final_snapshot',NULL))).*
+        to_jsonb(d) || jsonb_build_object('id',$1::text,'final_snapshot',NULL,'prescription_print_data',NULL))).*
         FROM inventory_encounter_documents d WHERE d.id=$2`,
         [randomUUID(), final.id],
       ),
@@ -623,5 +628,125 @@ describe("document integrity and amendments", () => {
     );
     expect(document.integrityVerified).toBe(false);
     expect(document.canAmend).toBe(false);
+    expect((await f.get(`verify=${documentVerificationCode(source.id)}`)).status).toBe(409);
+  });
+  it("freezes canonical patient identity and an authenticated verification identifier", async () => {
+    const f = await fixture();
+    await getPool().query(
+      `UPDATE inventory_patients SET document_type='PASSPORT',document_number='SYNTH-123',birth_date='1990-01-01',additional_data='{"address":"Synthetic street"}' WHERE id=$1`,
+      [f.patientId],
+    );
+    const response = await f.post({ action: "FINALIZE", type: "EXAM_REQUEST" });
+    expect(response.status).toBe(201);
+    const doc = (await response.json()).data;
+    const code = documentVerificationCode(doc.id);
+    const row = (
+      await getPool().query(
+        "SELECT final_snapshot FROM inventory_encounter_documents WHERE id=$1",
+        [doc.id],
+      )
+    ).rows[0];
+    expect(row.final_snapshot).toMatchObject({
+      documentId: doc.id,
+      verificationCode: code,
+      patientIdentity: {
+        documentNumber: "SYNTH-123",
+        birthDate: "1990-01-01",
+        address: "Synthetic street",
+      },
+    });
+    const print = await (await f.get(`documentId=${doc.id}&print=true`)).text();
+    expect(print).toContain(code);
+    expect(print).toContain("SYNTH-123");
+    expect(print).toContain("01/01/1990");
+    const verify = await f.get(`verify=${code}`);
+    expect(verify.status).toBe(200);
+    const result = (await verify.json()).data;
+    expect(result).toMatchObject({
+      documentId: doc.id,
+      integrityVerified: true,
+      patientName: "Snapshot patient original",
+      patientCode: "SNAP-ORIGINAL",
+      amendments: [],
+    });
+    expect(result).not.toHaveProperty("content");
+    expect(result.notice).toContain("Não comprova assinatura digital");
+    await getPool().query(
+      "UPDATE inventory_patients SET full_name='Changed',document_number='CHANGED' WHERE id=$1",
+      [f.patientId],
+    );
+    expect(await (await f.get(`documentId=${doc.id}&print=true`)).text()).toBe(print);
+    expect((await (await f.get(`verify=${code}`)).json()).data.patientName).toBe(
+      "Snapshot patient original",
+    );
+    expect((await f.get()).status).toBe(200);
+    const audit = (
+      await getPool().query(
+        "SELECT action FROM inventory_clinical_access_events WHERE document_id=$1 AND actor_user_id=$2",
+        [doc.id, f.userId],
+      )
+    ).rows;
+    expect(audit.filter((row) => row.action === "READ")).toHaveLength(2);
+  });
+  it("never treats a code as authorization and does not expose drafts", async () => {
+    const f = await fixture(),
+      other = await fixture();
+    const draft = (await (await f.post()).json()).data;
+    expect((await f.get(`verify=${documentVerificationCode(draft.id)}`)).status).toBe(404);
+    const final = (await (await f.post({ action: "FINALIZE" })).json()).data;
+    const code = documentVerificationCode(final.id);
+    expect((await other.get(`verify=${code}`)).status).toBe(404);
+    expect(
+      (
+        await encounterDocumentsResponse(
+          new Request(`${origin}/api/v1/inventory/encounter-documents?verify=${code}`),
+        )
+      ).status,
+    ).toBe(401);
+    expect((await f.get("verify=invalid")).status).toBe(400);
+    const foreignUnit = randomUUID();
+    await getPool().query(
+      "INSERT INTO inventory_units(id,organization_id,name) VALUES($1,$2,'Foreign unit')",
+      [foreignUnit, f.organizationId],
+    );
+    await getPool().query("UPDATE inventory_memberships SET role='CLINICIAN' WHERE user_id=$1", [
+      f.userId,
+    ]);
+    await getPool().query(
+      "DELETE FROM inventory_unit_access WHERE membership_id IN (SELECT id FROM inventory_memberships WHERE user_id=$1)",
+      [f.userId],
+    );
+    await getPool().query(
+      "INSERT INTO inventory_unit_access(membership_id,unit_id) SELECT id,$2 FROM inventory_memberships WHERE user_id=$1",
+      [f.userId, foreignUnit],
+    );
+    expect((await f.get(`verify=${code}`)).status).toBe(404);
+  });
+  it("rejects forged patient print identity before finalization", async () => {
+    const f = await fixture();
+    const response = await f.post({
+      action: "FINALIZE",
+      prescriptionPrintData: { kind: "SIMPLE", patientDocument: "FORGED-DOC" },
+    });
+    expect(response.status).toBe(409);
+    expect(
+      (
+        await getPool().query(
+          "SELECT id FROM inventory_encounter_documents WHERE appointment_id=$1",
+          [f.appointmentId],
+        )
+      ).rows,
+    ).toHaveLength(0);
+  });
+  it("binds a new identifier to its actual document row in PostgreSQL", async () => {
+    const f = await fixture();
+    const final = (await (await f.post({ action: "FINALIZE" })).json()).data;
+    await expect(
+      getPool().query(
+        `INSERT INTO inventory_encounter_documents SELECT (jsonb_populate_record(NULL::inventory_encounter_documents,
+      to_jsonb(d)||jsonb_build_object('id',$1::text))).* FROM inventory_encounter_documents d WHERE d.id=$2`,
+        [randomUUID(), final.id],
+      ),
+    ).rejects.toMatchObject({ code: "23514", constraint: "encounter_document_identifier_valid" });
   });
 });

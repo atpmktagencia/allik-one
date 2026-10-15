@@ -1,3 +1,6 @@
+import { randomUUID } from "node:crypto";
+import { verifyClinicalDocumentResponse } from "./clinical-document-verification";
+import { documentVerificationCode } from "../lib/clinical-document-identity";
 import { patientAllergySummary } from "./patient-allergies";
 import { integrityFields, verifiedDocumentIntegrity } from "./clinical-document-integrity";
 import { recordClinicalAccess } from "./clinical-access-audit";
@@ -32,12 +35,14 @@ const input = z.object({
   prescriptionPrintData: prescriptionPrintDataSchema.nullable().default(null),
   version: z.number().int().nonnegative().nullable().default(null),
 });
-const fields = `${integrityFields},id,type,title,content,rich_content AS "richContent",two_copies AS "twoCopies",prescription_print_data AS "prescriptionPrintData",status,version,
+const fields = `${integrityFields},CASE WHEN final_snapshot->>'documentId'=id::text THEN 'A1-'||upper(id::text) END AS "verificationCode",id,type,title,content,rich_content AS "richContent",two_copies AS "twoCopies",prescription_print_data AS "prescriptionPrintData",status,version,
   CASE WHEN final_snapshot IS NOT NULL THEN final_snapshot->>'authorName' ELSE author_name END AS "authorName",
   CASE WHEN final_snapshot IS NOT NULL THEN final_snapshot->>'professionalCouncil' ELSE professional_council END AS "professionalCouncil",
   CASE WHEN final_snapshot IS NOT NULL THEN final_snapshot->>'councilNumber' ELSE council_number END AS "councilNumber",
   CASE WHEN final_snapshot IS NOT NULL THEN final_snapshot->>'councilRegion' ELSE council_region END AS "councilRegion",finalized_at AS "finalizedAt",updated_at AS "updatedAt"`;
 export async function encounterDocumentsResponse(request: Request) {
+  if (request.method === "GET" && new URL(request.url).searchParams.has("verify"))
+    return verifyClinicalDocumentResponse(request);
   const auth = await authenticate(request);
   const fail = (error: string, status: number) => Response.json({ error }, { status, headers });
   if (!auth) return fail("Entre para acessar os documentos clínicos.", 401);
@@ -281,11 +286,12 @@ export async function encounterDocumentsResponse(request: Request) {
     if (previous?.status === "FINAL") throw new Error("FINAL");
     if ((previous ? Number(previous.version) : null) !== data.version) throw new Error("STALE");
     if (previous && previous.type !== data.type) throw new Error("TYPE");
+    const documentId = previous?.id ?? randomUUID();
     const final = data.action === "FINALIZE";
     let finalSnapshot = null;
     if (final) {
       const identities = await client.query(
-        `SELECT p.full_name,p.internal_code,n.name AS unit_name,u.name AS author_name,
+        `SELECT p.full_name,p.internal_code,p.document_type,p.document_number,p.birth_date::text,p.additional_data,n.name AS unit_name,u.name AS author_name,
           u.professional_council,u.council_number,u.council_region,transaction_timestamp() AS finalized_at
          FROM inventory_patients p JOIN inventory_units n ON n.id=$2 AND n.organization_id=$4
          JOIN inventory_users u ON u.id=$3
@@ -304,7 +310,31 @@ export async function encounterDocumentsResponse(request: Request) {
             )
           ).rows[0]?.metadata
         : undefined;
+      const canonicalPatient = patientPrintDefaults(identity, identity.finalized_at);
+      if (data.type === "PRESCRIPTION") {
+        if (
+          data.prescriptionPrintData &&
+          (data.prescriptionPrintData.patientDocument !== canonicalPatient.patientDocument ||
+            data.prescriptionPrintData.patientAddress !== canonicalPatient.patientAddress ||
+            data.prescriptionPrintData.patientAge !== canonicalPatient.patientAge)
+        )
+          throw new Error("PATIENT_IDENTITY_CHANGED");
+        data.prescriptionPrintData = {
+          ...(data.prescriptionPrintData ?? canonicalPatient),
+          patientDocument: canonicalPatient.patientDocument,
+          patientAddress: canonicalPatient.patientAddress,
+          patientAge: canonicalPatient.patientAge,
+        };
+      }
       finalSnapshot = {
+        documentId,
+        verificationCode: documentVerificationCode(documentId),
+        patientIdentity: {
+          documentType: identity.document_type,
+          documentNumber: canonicalPatient.patientDocument,
+          birthDate: identity.birth_date,
+          address: canonicalPatient.patientAddress,
+        },
         ...(amendment ? { amendment } : {}),
         snapshotVersion: 1,
         patientName: identity.full_name,
@@ -341,8 +371,8 @@ export async function encounterDocumentsResponse(request: Request) {
           ],
         )
       : await client.query(
-          `INSERT INTO inventory_encounter_documents(organization_id,unit_id,appointment_id,patient_id,author_user_id,author_name,professional_council,council_number,council_region,type,title,content,status,finalized_at,final_snapshot,rich_content,two_copies,prescription_print_data)
-        VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,CASE WHEN $13='FINAL' THEN now() ELSE NULL END,$14,$15,$16,$17) RETURNING *`,
+          `INSERT INTO inventory_encounter_documents(organization_id,unit_id,appointment_id,patient_id,author_user_id,author_name,professional_council,council_number,council_region,type,title,content,status,finalized_at,final_snapshot,rich_content,two_copies,prescription_print_data,id)
+        VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,CASE WHEN $13='FINAL' THEN now() ELSE NULL END,$14,$15,$16,$17,$18) RETURNING *`,
           [
             auth.organizationId,
             appointment.unit_id,
@@ -361,6 +391,7 @@ export async function encounterDocumentsResponse(request: Request) {
             data.richContent,
             data.twoCopies,
             data.prescriptionPrintData,
+            documentId,
           ],
         );
     const document = saved.rows[0];
@@ -401,6 +432,10 @@ export async function encounterDocumentsResponse(request: Request) {
     )
       return fail(reason, 422);
     const messages: Record<string, [string, number]> = {
+      PATIENT_IDENTITY_CHANGED: [
+        "Os dados de impressão do paciente diferem do cadastro atual. Confira o cadastro, recarregue o atendimento e revise os dados da receita antes de finalizar.",
+        409,
+      ],
       AMENDMENT: [
         "Selecione um documento original finalizado e informe um motivo com pelo menos 5 caracteres.",
         409,
