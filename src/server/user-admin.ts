@@ -5,6 +5,25 @@ import { z } from "zod";
 import { authenticate, can, hashPassword, hashToken, roles } from "./auth";
 import { getPool } from "./db";
 
+function registryError(error: unknown) {
+  const constraint =
+    error && typeof error === "object" && "constraint" in error ? String(error.constraint) : "";
+  if (constraint === "professional_registration_identity_unique")
+    return Response.json(
+      {
+        error:
+          "Este conselho, número e UF já pertencem a outro usuário nesta organização, inclusive contas inativas. Corrija o cadastro existente.",
+      },
+      { status: 409, headers },
+    );
+  if (constraint === "professional_registration_format_valid")
+    return Response.json(
+      { error: "Confira o conselho, o número do registro e a UF." },
+      { status: 400, headers },
+    );
+  return null;
+}
+
 const headers = { "Cache-Control": "private, no-store", Vary: "Cookie" };
 const createUser = z.object({
   action: z.literal("CREATE"),
@@ -85,6 +104,7 @@ export async function userAdminResponse(request: Request) {
   if (request.method === "GET") {
     const result = await getPool().query(
       `SELECT u.id,u.name,u.email,u.profession,u.title,
+       inventory_professional_registration_state(u.id,m.organization_id) AS "professionalRegistryState",
        u.professional_council AS "professionalCouncil",u.council_number AS "councilNumber",
        u.prescribing_address AS "prescribingAddress",u.prescribing_city AS "prescribingCity",u.prescribing_state AS "prescribingState",u.prescribing_phone AS "prescribingPhone",u.council_region AS "councilRegion",(u.password_hash IS NOT NULL) AS credentialed,u.active,m.role,
        COALESCE(jsonb_agg(jsonb_build_object('id',un.id,'name',un.name) ORDER BY un.name) FILTER (WHERE un.id IS NOT NULL),'[]') AS units
@@ -171,6 +191,8 @@ export async function userAdminResponse(request: Request) {
       );
     } catch (error) {
       await client.query("ROLLBACK").catch(() => {});
+      const registrationError = registryError(error);
+      if (registrationError) return registrationError;
       const code = error && typeof error === "object" && "code" in error ? String(error.code) : "";
       return Response.json(
         {
@@ -196,6 +218,7 @@ export async function userAdminResponse(request: Request) {
       await client.query("BEGIN");
       const target = await client.query(
         `SELECT u.id,u.name,u.email,u.profession,u.title,
+       inventory_professional_registration_state(u.id,m.organization_id) AS "professionalRegistryState",
           u.professional_council AS "professionalCouncil",u.council_number AS "councilNumber",
           u.prescribing_address AS "prescribingAddress",u.prescribing_city AS "prescribingCity",u.prescribing_state AS "prescribingState",u.prescribing_phone AS "prescribingPhone",u.council_region AS "councilRegion",(u.password_hash IS NOT NULL) AS credentialed,m.id AS "membershipId",m.role
          FROM inventory_users u JOIN inventory_memberships m ON m.user_id=u.id
@@ -309,6 +332,8 @@ export async function userAdminResponse(request: Request) {
       return Response.json({ data: { id: input.userId } }, { headers });
     } catch (error) {
       await client.query("ROLLBACK").catch(() => {});
+      const registrationError = registryError(error);
+      if (registrationError) return registrationError;
       const message = error instanceof Error ? error.message : "";
       const code = error && typeof error === "object" && "code" in error ? String(error.code) : "";
       const response =

@@ -59,3 +59,21 @@ export function canWriteClinicalDocument(council: string | null | undefined, typ
       ].includes(type))
   );
 }
+
+export function professionalRegistryConflictResponse(error: unknown, headers: HeadersInit) {
+  if (
+    error &&
+    typeof error === "object" &&
+    "constraint" in error &&
+    error.constraint === "clinical_professional_registration_conflict"
+  ) {
+    return Response.json(
+      {
+        error:
+          "Seu registro profissional precisa de correção administrativa antes de registrar conteúdo clínico.",
+      },
+      { status: 409, headers },
+    );
+  }
+  return null;
+}

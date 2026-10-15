@@ -5,7 +5,11 @@ import { documentVerificationCode } from "../lib/clinical-document-identity";
 import { patientAllergySummary } from "./patient-allergies";
 import { integrityFields, verifiedDocumentIntegrity } from "./clinical-document-integrity";
 import { recordClinicalAccess } from "./clinical-access-audit";
-import { canWriteClinicalDocument, hasClinicalRegistration } from "./clinical-professional-policy";
+import {
+  professionalRegistryConflictResponse,
+  canWriteClinicalDocument,
+  hasClinicalRegistration,
+} from "./clinical-professional-policy";
 import { renderClinicalDocumentPdf } from "./clinical-document-pdf";
 import "@tanstack/react-start/server-only";
 import { z } from "zod";
@@ -461,6 +465,8 @@ export async function encounterDocumentsResponse(request: Request) {
     );
   } catch (error) {
     await client.query("ROLLBACK").catch(() => {});
+    const registrationConflict = professionalRegistryConflictResponse(error, headers);
+    if (registrationConflict) return registrationConflict;
     const reason = error instanceof Error ? error.message : "";
     if (
       /^O PDF não suporta o caractere U\+[0-9A-F]+\. Revise o documento antes de assinar\.$/.test(

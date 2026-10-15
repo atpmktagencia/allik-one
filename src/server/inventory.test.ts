@@ -1859,7 +1859,7 @@ describe("care appointments", () => {
     const patientId = randomUUID();
     const professional = await getPool().query<{ id: string }>(
       `INSERT INTO inventory_users(name,email,profession,professional_council,council_number,council_region)
-       VALUES('Profissional Agenda Sintético',$1,'Médico','CRM','12345','CE') RETURNING id`,
+       VALUES('Profissional Agenda Sintético',$1,'Médico','CRM','12344','CE') RETURNING id`,
       [`${randomUUID()}@example.test`],
     );
     await getPool().query(
@@ -2393,7 +2393,7 @@ describe("care appointments", () => {
         status: "FINAL",
         authorName: "Profissional Agenda Sintético",
         council: "CRM",
-        councilNumber: "12345",
+        councilNumber: "12344",
         version: 1,
         diagnosticHypotheses: "Hipótese clínica sintética em avaliação.",
         clinicalPlan: "Solicitar exames sintéticos e acompanhar evolução.",
@@ -3211,7 +3211,7 @@ describe("Pilot invitation lifecycle", () => {
       profession: "Médico",
       title: "Profissional da saúde",
       professionalCouncil: "CRM",
-      councilNumber: "54321",
+      councilNumber: "54322",
       councilRegion: "CE",
       role: "UNIT_MANAGER",
       unitIds: [fortaleza, "a1100000-0000-4000-8000-000000000102"],
@@ -3230,7 +3230,7 @@ describe("Pilot invitation lifecycle", () => {
     ).toEqual([
       {
         name: "Profissional Conselho Corrigido",
-        number: "54321",
+        number: "54322",
         role: "UNIT_MANAGER",
         units: 2,
       },
@@ -3726,8 +3726,8 @@ describe("clinical encounter documents", () => {
       )
     ).rows[0]!.user_id;
     await getPool().query(
-      "UPDATE inventory_users SET professional_council='CRM',council_number='98765',council_region='CE',prescribing_address='Synthetic clinic street',prescribing_city='Fortaleza',prescribing_state='CE',prescribing_phone='+5585999999999' WHERE id=$1",
-      [userId],
+      "UPDATE inventory_users SET professional_council='CRM',council_number=$2,council_region='CE',prescribing_address='Synthetic clinic street',prescribing_city='Fortaleza',prescribing_state='CE',prescribing_phone='+5585999999999' WHERE id=$1",
+      [userId, String(BigInt("0x" + randomUUID().replaceAll("-", "").slice(0, 12)))],
     );
     const patientId = randomUUID();
     const appointmentId = randomUUID();
@@ -3932,7 +3932,10 @@ describe("clinical encounter documents", () => {
     const otherUnit = await scopedCookie("a1100000-0000-4000-8000-000000000102", "PARTNER_ADMIN");
     expect((await f.get(undefined, otherUnit)).status).toBe(404);
     expect((await f.post({}, otherUnit)).status).toBe(404);
-    await getPool().query("UPDATE inventory_users SET council_number=NULL WHERE id=$1", [f.userId]);
+    await getPool().query(
+      "UPDATE inventory_users SET professional_council=NULL,council_number=NULL,council_region=NULL WHERE id=$1",
+      [f.userId],
+    );
     expect((await f.post({})).status).toBe(409);
   });
 

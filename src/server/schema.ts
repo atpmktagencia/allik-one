@@ -111,6 +111,23 @@ export const memberships = pgTable(
   ],
 );
 
+// Reservations enforce organization-scoped uniqueness without rewriting legacy authorship.
+export const professionalRegistrations = pgTable(
+  "inventory_professional_registrations",
+  {
+    membershipId: uuid("membership_id")
+      .primaryKey()
+      .references(() => memberships.id, { onDelete: "cascade" }),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id),
+    registryKey: text("registry_key").notNull(),
+  },
+  (t) => [
+    uniqueIndex("professional_registration_identity_unique").on(t.organizationId, t.registryKey),
+  ],
+);
+
 export const unitAccess = pgTable(
   "inventory_unit_access",
   {

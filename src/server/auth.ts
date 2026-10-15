@@ -56,7 +56,12 @@ export type Permission =
   | "users.manage"
   | "organization.read";
 export type AuthContext = {
-  user: { id: string | null; name: string; email: string | null };
+  user: {
+    id: string | null;
+    name: string;
+    email: string | null;
+    professionalRegistryState?: string;
+  };
   membershipId: string | null;
   organizationId: string;
   role: Role;
@@ -323,6 +328,7 @@ export async function authenticate(request: Request): Promise<AuthContext | null
   if (rawToken && !rawToken.includes(".")) {
     const result = await getPool().query(
       `SELECT u.id,u.name,u.email,m.id AS membership_id,m.organization_id,m.role,
+        inventory_professional_registration_state(u.id,m.organization_id) AS registry_state,
         COALESCE(array_agg(ua.unit_id::text) FILTER (WHERE ua.unit_id IS NOT NULL),'{}') AS unit_ids
        FROM inventory_sessions s JOIN inventory_users u ON u.id=s.user_id
        JOIN inventory_memberships m ON m.user_id=u.id AND m.active
@@ -337,13 +343,19 @@ export async function authenticate(request: Request): Promise<AuthContext | null
         id: string;
         name: string;
         email: string;
+        registry_state: string;
         membership_id: string;
         organization_id: string;
         role: Role;
         unit_ids: string[];
       };
       return {
-        user: { id: row.id, name: row.name, email: row.email },
+        user: {
+          id: row.id,
+          name: row.name,
+          email: row.email,
+          professionalRegistryState: row.registry_state,
+        },
         membershipId: row.membership_id,
         organizationId: row.organization_id,
         role: row.role,
@@ -368,6 +380,11 @@ export async function authenticate(request: Request): Promise<AuthContext | null
 }
 
 export function can(context: AuthContext, permission: Permission, unitId?: string | null) {
+  if (
+    permission === "patients.clinical.manage" &&
+    ["DUPLICATE", "INVALID"].includes(context.user.professionalRegistryState ?? "")
+  )
+    return false;
   if (context.integration && !context.integration.permissions.includes(permission)) return false;
   if (!permissions[context.role].has(permission)) return false;
   if (!unitId || context.preview || context.role === "SUPER_ADMIN") return true;

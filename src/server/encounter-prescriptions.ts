@@ -1,5 +1,9 @@
 import { recordClinicalAccess } from "./clinical-access-audit";
-import { canWriteClinicalDocument, hasClinicalRegistration } from "./clinical-professional-policy";
+import {
+  professionalRegistryConflictResponse,
+  canWriteClinicalDocument,
+  hasClinicalRegistration,
+} from "./clinical-professional-policy";
 import "@tanstack/react-start/server-only";
 import { z } from "zod";
 import { actor, authenticate, can } from "./auth";
@@ -282,6 +286,8 @@ async function savePrescription(
     );
   } catch (error) {
     await client.query("ROLLBACK").catch(() => {});
+    const registrationConflict = professionalRegistryConflictResponse(error, headers);
+    if (registrationConflict) return registrationConflict;
     const reason = error instanceof Error ? error.message : "";
     const response =
       reason === "NOT_FOUND"

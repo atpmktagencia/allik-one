@@ -97,8 +97,12 @@ async function fixture() {
       token = randomUUID();
     tokens.set(id!, token);
     await pool.query(
-      "INSERT INTO inventory_users(id,name,email,professional_council,council_number,council_region) VALUES($1,'Synthetic physician',$2,'CRM','12345','CE')",
-      [id, `${id}@example.test`],
+      "INSERT INTO inventory_users(id,name,email,professional_council,council_number,council_region) VALUES($1,'Synthetic physician',$2,'CRM',$3,'CE')",
+      [
+        id,
+        `${id}@example.test`,
+        id === author ? "12345" : String(BigInt("0x" + id!.replaceAll("-", "").slice(0, 12))),
+      ],
     );
     await pool.query(
       "INSERT INTO inventory_memberships(id,user_id,organization_id,role) VALUES($1,$2,$3,$4)",

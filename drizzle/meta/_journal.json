@@ -414,6 +414,13 @@
       "when": 1794272400015,
       "tag": "0058_prescriber_contact_delivery",
       "breakpoints": true
+    },
+    {
+      "idx": 59,
+      "version": "7",
+      "when": 1794272400016,
+      "tag": "0059_professional_registration_uniqueness",
+      "breakpoints": true
     }
   ]
 }

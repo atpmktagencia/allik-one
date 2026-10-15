@@ -15,6 +15,7 @@ type User = {
   credentialed?: boolean;
   profession?: string | null;
   title?: string | null;
+  professionalRegistryState?: string;
   professionalCouncil?: string | null;
   councilNumber?: string | null;
   councilRegion?: string | null;
@@ -387,6 +388,13 @@ export function UserAdministration() {
                   {user.professionalCouncil && user.councilNumber && user.councilRegion
                     ? `${user.professionalCouncil} ${user.councilNumber}/${user.councilRegion}`
                     : "—"}
+                  {["DUPLICATE", "INVALID"].includes(user.professionalRegistryState ?? "") && (
+                    <p role="status" className="text-sm text-amber-700">
+                      {user.professionalRegistryState === "DUPLICATE"
+                        ? "Registro duplicado — corrija o cadastro para liberar a autoria clínica."
+                        : "Registro a revisar — confira conselho, número e UF."}
+                    </p>
+                  )}
                 </td>
                 <td className="p-3">{user.units.map((unit) => unit.name).join(", ") || "—"}</td>
                 <td className="p-3">{user.active ? "Ativo" : "Inativo"}</td>

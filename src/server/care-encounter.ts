@@ -1,6 +1,9 @@
 import { patientAllergySummary } from "./patient-allergies";
 import { recordClinicalAccess } from "./clinical-access-audit";
-import { hasClinicalRegistration } from "./clinical-professional-policy";
+import {
+  professionalRegistryConflictResponse,
+  hasClinicalRegistration,
+} from "./clinical-professional-policy";
 import "@tanstack/react-start/server-only";
 import { z } from "zod";
 import { actor, authenticate, can } from "./auth";
@@ -206,17 +209,19 @@ export async function careEncounterResponse(request: Request) {
           Boolean(auth.user.id) && isAssignedProfessional && !hasCompleteCouncil,
         clinicalAuthorBlockReason: canAuthorClinicalNote
           ? null
-          : !hasClinicalPermission
-            ? "Seu perfil não possui permissão clínica nesta unidade."
-            : clinicalNote.rows[0]?.status === "FINAL"
-              ? "Esta evolução já foi finalizada e é imutável."
-              : ["NO_SHOW", "CANCELED"].includes(String(appointment["status"]))
-                ? "Atendimentos cancelados ou com falta não aceitam evolução clínica."
-                : !isAssignedProfessional
-                  ? `Este atendimento está atribuído a ${String(appointment["professionalName"])}.`
-                  : !hasCompleteCouncil
-                    ? "Complete seu conselho profissional antes de registrar a evolução."
-                    : "Este atendimento não permite uma nova evolução.",
+          : ["DUPLICATE", "INVALID"].includes(auth.user.professionalRegistryState ?? "")
+            ? "Seu registro profissional precisa de correção administrativa (conselho, número e UF). A autoria clínica está bloqueada; os documentos anteriores foram preservados."
+            : !hasClinicalPermission
+              ? "Seu perfil não possui permissão clínica nesta unidade."
+              : clinicalNote.rows[0]?.status === "FINAL"
+                ? "Esta evolução já foi finalizada e é imutável."
+                : ["NO_SHOW", "CANCELED"].includes(String(appointment["status"]))
+                  ? "Atendimentos cancelados ou com falta não aceitam evolução clínica."
+                  : !isAssignedProfessional
+                    ? `Este atendimento está atribuído a ${String(appointment["professionalName"])}.`
+                    : !hasCompleteCouncil
+                      ? "Complete seu conselho profissional antes de registrar a evolução."
+                      : "Este atendimento não permite uma nova evolução.",
       },
     },
     { headers },
@@ -460,6 +465,8 @@ async function saveClinicalNote(
     );
   } catch (error) {
     await client.query("ROLLBACK");
+    const registrationConflict = professionalRegistryConflictResponse(error, headers);
+    if (registrationConflict) return registrationConflict;
     console.error(
       "clinical note write failed",
       error instanceof Error ? error.message : "unknown error",
@@ -559,6 +566,8 @@ async function claimAppointment(
     return Response.json({ data: { id: input.appointmentId } }, { headers });
   } catch (error) {
     await client.query("ROLLBACK").catch(() => {});
+    const registrationConflict = professionalRegistryConflictResponse(error, headers);
+    if (registrationConflict) return registrationConflict;
     const reason = error instanceof Error ? error.message : "";
     const response =
       reason === "NOT_FOUND"
