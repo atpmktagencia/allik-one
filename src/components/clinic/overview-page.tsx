@@ -23,7 +23,7 @@ export function OverviewPage() {
     { label: "Novo paciente", icon: UserPlus, to: "/pacientes" },
     { label: "Novo agendamento", icon: CalendarPlus, to: "/agenda" },
     { label: "Nova venda", icon: CircleDollarSign, to: "/vendas" },
-    { label: "Registrar aplicação", icon: PackagePlus, to: "/aplicacoes/nova" },
+    { label: "Registrar aplicação", icon: PackagePlus, to: "/prontuario" },
   ] as const;
   return (
     <div className="space-y-6">

@@ -1,15 +1,34 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { PatientsPage } from "@/components/clinic/feature-pages";
+import { z } from "zod";
+import { PatientsPage } from "@/components/clinic/patients-page";
+
+const searchSchema = z
+  .object({
+    create: z.coerce.boolean().optional(),
+    returnTo: z.literal("/agenda").optional(),
+  })
+  .catch({});
+
+function Page() {
+  const search = Route.useSearch();
+  return (
+    <PatientsPage
+      {...(search.create === undefined ? {} : { autoCreate: search.create })}
+      {...(search.returnTo ? { returnTo: search.returnTo } : {})}
+    />
+  );
+}
+
 export const Route = createFileRoute("/pacientes/")({
+  validateSearch: searchSchema,
   head: () => ({
     meta: [
-      { title: "Pacientes — Clinic OS" },
-      { name: "description", content: "Base única de pacientes e jornadas de cuidado." },
-      { property: "og:title", content: "Pacientes — Clinic OS" },
-      { property: "og:description", content: "Base única de pacientes e jornadas de cuidado." },
-      { property: "og:type", content: "website" },
-      { name: "twitter:card", content: "summary_large_image" },
+      { title: "Pacientes — Allik One" },
+      {
+        name: "description",
+        content: "Cadastro operacional de pacientes por unidade.",
+      },
     ],
   }),
-  component: PatientsPage,
+  component: Page,
 });

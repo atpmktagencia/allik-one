@@ -1,0 +1,426 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1791087336427,
+      "tag": "0000_demonic_thaddeus_ross",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1791132153574,
+      "tag": "0001_lush_mandroid",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1791138453566,
+      "tag": "0002_aromatic_lady_ursula",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1791149403122,
+      "tag": "0003_spooky_genesis",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1791150523465,
+      "tag": "0004_keen_argent",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1791153246510,
+      "tag": "0005_colorful_susan_delgado",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1791156527862,
+      "tag": "0006_inventory_catalog",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1791157718634,
+      "tag": "0007_supplier_catalog",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1791167933972,
+      "tag": "0008_real_inventory",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1791172800000,
+      "tag": "0009_release_pending_lots",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1791230400000,
+      "tag": "0010_pilot_identity_units",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1791340000000,
+      "tag": "0011_safe_inventory_writeoffs",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1791417600000,
+      "tag": "0012_revocable_integration_credentials",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1791504000000,
+      "tag": "0013_fractional_dose_pricing",
+      "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1791763200000,
+      "tag": "0014_pricing_review",
+      "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "7",
+      "when": 1791849600000,
+      "tag": "0015_operational_patients",
+      "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1791936000000,
+      "tag": "0016_patient_treatments",
+      "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1792022400000,
+      "tag": "0017_patient_demand_reservations",
+      "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1792108800000,
+      "tag": "0018_patient_physical_applications",
+      "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1792195200000,
+      "tag": "0019_open_presentations",
+      "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1792281600000,
+      "tag": "0020_operational_schedule_index",
+      "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1792368000000,
+      "tag": "0021_patient_reservation_capacity",
+      "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1792454400000,
+      "tag": "0022_purchase_need_indexes",
+      "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1792540800000,
+      "tag": "0023_schedule_attendance",
+      "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1792627200000,
+      "tag": "0024_prescription_metadata",
+      "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1792713600000,
+      "tag": "0025_application_clinical_snapshot",
+      "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1792800000000,
+      "tag": "0026_care_appointments",
+      "breakpoints": true
+    },
+    {
+      "idx": 27,
+      "version": "7",
+      "when": 1792886400000,
+      "tag": "0027_patient_registration_profile",
+      "breakpoints": true
+    },
+    {
+      "idx": 28,
+      "version": "7",
+      "when": 1792972800000,
+      "tag": "0028_care_settings",
+      "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "7",
+      "when": 1793062800000,
+      "tag": "0029_care_appointment_actions",
+      "breakpoints": true
+    },
+    {
+      "idx": 30,
+      "version": "7",
+      "when": 1793149200000,
+      "tag": "0030_professional_credentials",
+      "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "7",
+      "when": 1793235600000,
+      "tag": "0031_schema_snapshot_baseline",
+      "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "7",
+      "when": 1793322000000,
+      "tag": "0032_user_profile_audit",
+      "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "7",
+      "when": 1793408400000,
+      "tag": "0033_smooth_gorilla_man",
+      "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "7",
+      "when": 1793494800000,
+      "tag": "0034_conscious_punisher",
+      "breakpoints": true
+    },
+    {
+      "idx": 35,
+      "version": "7",
+      "when": 1793581200000,
+      "tag": "0035_lonely_boom_boom",
+      "breakpoints": true
+    },
+    {
+      "idx": 36,
+      "version": "7",
+      "when": 1793667600000,
+      "tag": "0036_watery_betty_brant",
+      "breakpoints": true
+    },
+    {
+      "idx": 37,
+      "version": "7",
+      "when": 1793754000000,
+      "tag": "0037_chief_silver_fox",
+      "breakpoints": true
+    },
+    {
+      "idx": 38,
+      "version": "7",
+      "when": 1793840400000,
+      "tag": "0038_tired_galactus",
+      "breakpoints": true
+    },
+    {
+      "idx": 39,
+      "version": "7",
+      "when": 1793926800000,
+      "tag": "0039_overconfident_xavin",
+      "breakpoints": true
+    },
+    {
+      "idx": 40,
+      "version": "7",
+      "when": 1794013200000,
+      "tag": "0040_green_wildside",
+      "breakpoints": true
+    },
+    {
+      "idx": 41,
+      "version": "7",
+      "when": 1794099600000,
+      "tag": "0041_bent_victor_mancha",
+      "breakpoints": true
+    },
+    {
+      "idx": 42,
+      "version": "7",
+      "when": 1794186000000,
+      "tag": "0042_neat_justice",
+      "breakpoints": true
+    },
+    {
+      "idx": 43,
+      "version": "7",
+      "when": 1794272400000,
+      "tag": "0043_spotty_silver_surfer",
+      "breakpoints": true
+    },
+    {
+      "idx": 44,
+      "version": "7",
+      "when": 1794272400001,
+      "tag": "0044_awesome_cable",
+      "breakpoints": true
+    },
+    {
+      "idx": 45,
+      "version": "7",
+      "when": 1794272400002,
+      "tag": "0045_steep_sauron",
+      "breakpoints": true
+    },
+    {
+      "idx": 46,
+      "version": "7",
+      "when": 1794272400003,
+      "tag": "0046_bored_meggan",
+      "breakpoints": true
+    },
+    {
+      "idx": 47,
+      "version": "7",
+      "when": 1794272400004,
+      "tag": "0047_massive_midnight",
+      "breakpoints": true
+    },
+    {
+      "idx": 48,
+      "version": "7",
+      "when": 1794272400005,
+      "tag": "0048_lowly_cloak",
+      "breakpoints": true
+    },
+    {
+      "idx": 49,
+      "version": "7",
+      "when": 1794272400006,
+      "tag": "0049_wet_tombstone",
+      "breakpoints": true
+    },
+    {
+      "idx": 50,
+      "version": "7",
+      "when": 1794272400007,
+      "tag": "0050_moaning_human_torch",
+      "breakpoints": true
+    },
+    {
+      "idx": 51,
+      "version": "7",
+      "when": 1794272400008,
+      "tag": "0051_abandoned_vertigo",
+      "breakpoints": true
+    },
+    {
+      "idx": 52,
+      "version": "7",
+      "when": 1794272400009,
+      "tag": "0052_clinical-authorship-guard",
+      "breakpoints": true
+    },
+    {
+      "idx": 53,
+      "version": "7",
+      "when": 1794272400010,
+      "tag": "0053_clinical-access-policy",
+      "breakpoints": true
+    },
+    {
+      "idx": 54,
+      "version": "7",
+      "when": 1794272400011,
+      "tag": "0054_account-password-security",
+      "breakpoints": true
+    },
+    {
+      "idx": 55,
+      "version": "7",
+      "when": 1794272400012,
+      "tag": "0055_clinical-document-integrity",
+      "breakpoints": true
+    },
+    {
+      "idx": 56,
+      "version": "7",
+      "when": 1794272400013,
+      "tag": "0056_patient-allergy-assessment",
+      "breakpoints": true
+    },
+    {
+      "idx": 57,
+      "version": "7",
+      "when": 1794272400014,
+      "tag": "0057_clinical_document_identity",
+      "breakpoints": true
+    },
+    {
+      "idx": 58,
+      "version": "7",
+      "when": 1794272400015,
+      "tag": "0058_prescriber_contact_delivery",
+      "breakpoints": true
+    },
+    {
+      "idx": 59,
+      "version": "7",
+      "when": 1794272400016,
+      "tag": "0059_professional_registration_uniqueness",
+      "breakpoints": true
+    }
+  ]
+}

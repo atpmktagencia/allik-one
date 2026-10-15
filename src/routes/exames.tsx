@@ -3,9 +3,9 @@ import { ExamsPage } from "@/components/clinic/management-pages";
 export const Route = createFileRoute("/exames")({
   head: () => ({
     meta: [
-      { title: "Exames — Clinic OS" },
+      { title: "Exames — Estoque Allik Fortaleza" },
       { name: "description", content: "Solicitações e resultados na linha do tempo do paciente." },
-      { property: "og:title", content: "Exames — Clinic OS" },
+      { property: "og:title", content: "Exames — Estoque Allik Fortaleza" },
       {
         property: "og:description",
         content: "Solicitações e resultados na linha do tempo do paciente.",

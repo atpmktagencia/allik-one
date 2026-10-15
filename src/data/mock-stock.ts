@@ -1,5 +1,3 @@
-// DEMONSTRATION DATA ONLY.
-// Temporary UI data boundary for stock and applications. Replace its exports with /api/v1/ adapters later.
 export type StockStatus =
   "Normal" | "Estoque baixo" | "Crítico" | "Próximo do vencimento" | "Bloqueado";
 
@@ -142,7 +140,6 @@ export const stockLots = [
 export const stockMovements = [
   {
     id: "mov-001",
-    productId: "prod-001",
     date: "03/10/2026 17:42",
     type: "Consumo do paciente",
     product: "Injetável A",
@@ -156,7 +153,6 @@ export const stockMovements = [
   },
   {
     id: "mov-002",
-    productId: "prod-001",
     date: "03/10/2026 15:10",
     type: "Entrada de compra",
     product: "Injetável A",
@@ -170,7 +166,6 @@ export const stockMovements = [
   },
   {
     id: "mov-003",
-    productId: "prod-003",
     date: "03/10/2026 13:26",
     type: "Transferência",
     product: "Material C",
@@ -184,7 +179,6 @@ export const stockMovements = [
   },
   {
     id: "mov-004",
-    productId: "prod-006",
     date: "02/10/2026 18:04",
     type: "Perda",
     product: "Injetável F",
@@ -198,7 +192,6 @@ export const stockMovements = [
   },
   {
     id: "mov-005",
-    productId: "prod-004",
     date: "02/10/2026 10:18",
     type: "Ajuste",
     product: "Kit de aplicação D",

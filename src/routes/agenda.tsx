@@ -1,18 +1,21 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { AgendaPage } from "@/components/clinic/feature-pages";
+import { z } from "zod";
+import { CareAppointmentsPage } from "@/components/clinic/care-appointments-page";
+
+const searchSchema = z.object({ patientId: z.string().uuid().optional() }).catch({});
+
+function Page() {
+  const { patientId } = Route.useSearch();
+  return <CareAppointmentsPage {...(patientId ? { preselectedPatientId: patientId } : {})} />;
+}
+
 export const Route = createFileRoute("/agenda")({
+  validateSearch: searchSchema,
   head: () => ({
     meta: [
-      { title: "Agenda — Clinic OS" },
-      { name: "description", content: "Agenda clínica integrada por paciente e profissional." },
-      { property: "og:title", content: "Agenda — Clinic OS" },
-      {
-        property: "og:description",
-        content: "Agenda clínica integrada por paciente e profissional.",
-      },
-      { property: "og:type", content: "website" },
-      { name: "twitter:card", content: "summary_large_image" },
+      { title: "Agendamentos — Allik One" },
+      { name: "description", content: "Agenda de atendimentos por unidade e profissional." },
     ],
   }),
-  component: AgendaPage,
+  component: Page,
 });

@@ -13,6 +13,13 @@ export type Patient = {
   tag: string;
 };
 
+// Application Preview references are synthetic codes, separate from patient records.
+export const applicationPatients = [
+  { id: "demo-patient-a", name: "Paciente A." },
+  { id: "demo-patient-b", name: "Paciente B." },
+  { id: "demo-patient-c", name: "Paciente C." },
+];
+
 export const patients: Patient[] = [
   {
     id: "ana-beatriz",
@@ -116,6 +123,37 @@ export const financial = {
   margin: "61,3%",
   ticket: "R$ 1.428,00",
 };
+
+export const inventoryItems = [
+  {
+    item: "Insumo Alfa 50 ml",
+    category: "Aplicações",
+    stock: "8 un.",
+    minimum: "12 un.",
+    status: "Reposição",
+  },
+  {
+    item: "Kit de coleta",
+    category: "Exames",
+    stock: "34 un.",
+    minimum: "20 un.",
+    status: "Regular",
+  },
+  {
+    item: "Material Beta",
+    category: "Procedimentos",
+    stock: "18 un.",
+    minimum: "10 un.",
+    status: "Regular",
+  },
+  {
+    item: "Luvas descartáveis",
+    category: "Uso clínico",
+    stock: "6 cx.",
+    minimum: "8 cx.",
+    status: "Reposição",
+  },
+];
 
 export const sales = [
   {

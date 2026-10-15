@@ -24,6 +24,18 @@ const csrfMiddleware = createCsrfMiddleware({
   filter: (ctx) => ctx.handlerType === "serverFn",
 });
 
+const securityHeadersMiddleware = createMiddleware().server(async ({ next }) => {
+  const result = await next();
+  result.response.headers.set("X-Content-Type-Options", "nosniff");
+  result.response.headers.set("X-Frame-Options", "DENY");
+  result.response.headers.set("Referrer-Policy", "same-origin");
+  result.response.headers.set(
+    "Permissions-Policy",
+    "camera=(self), microphone=(), geolocation=(), payment=()",
+  );
+  return result;
+});
+
 export const startInstance = createStart(() => ({
-  requestMiddleware: [errorMiddleware, csrfMiddleware],
+  requestMiddleware: [securityHeadersMiddleware, errorMiddleware, csrfMiddleware],
 }));

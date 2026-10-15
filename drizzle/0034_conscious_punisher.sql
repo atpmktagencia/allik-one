@@ -1,0 +1,9 @@
+ALTER TABLE "inventory_clinical_notes" ADD COLUMN "systolic_pressure" integer;--> statement-breakpoint
+ALTER TABLE "inventory_clinical_notes" ADD COLUMN "diastolic_pressure" integer;--> statement-breakpoint
+ALTER TABLE "inventory_clinical_notes" ADD COLUMN "heart_rate" integer;--> statement-breakpoint
+ALTER TABLE "inventory_clinical_notes" ADD COLUMN "oxygen_saturation" numeric(5, 2);--> statement-breakpoint
+ALTER TABLE "inventory_clinical_notes" ADD COLUMN "temperature_c" numeric(4, 1);--> statement-breakpoint
+ALTER TABLE "inventory_clinical_notes" ADD COLUMN "weight_kg" numeric(6, 2);--> statement-breakpoint
+ALTER TABLE "inventory_clinical_notes" ADD COLUMN "height_cm" numeric(5, 1);--> statement-breakpoint
+ALTER TABLE "inventory_clinical_notes" ADD CONSTRAINT "clinical_note_pressure_valid" CHECK (("inventory_clinical_notes"."systolic_pressure" IS NULL OR "inventory_clinical_notes"."systolic_pressure" BETWEEN 40 AND 300) AND ("inventory_clinical_notes"."diastolic_pressure" IS NULL OR "inventory_clinical_notes"."diastolic_pressure" BETWEEN 20 AND 200));--> statement-breakpoint
+ALTER TABLE "inventory_clinical_notes" ADD CONSTRAINT "clinical_note_vitals_valid" CHECK (("inventory_clinical_notes"."heart_rate" IS NULL OR "inventory_clinical_notes"."heart_rate" BETWEEN 20 AND 300) AND ("inventory_clinical_notes"."oxygen_saturation" IS NULL OR "inventory_clinical_notes"."oxygen_saturation" BETWEEN 50 AND 100) AND ("inventory_clinical_notes"."temperature_c" IS NULL OR "inventory_clinical_notes"."temperature_c" BETWEEN 30 AND 45) AND ("inventory_clinical_notes"."weight_kg" IS NULL OR "inventory_clinical_notes"."weight_kg">0 AND "inventory_clinical_notes"."weight_kg"<=500) AND ("inventory_clinical_notes"."height_cm" IS NULL OR "inventory_clinical_notes"."height_cm" BETWEEN 30 AND 250));

@@ -14,7 +14,7 @@ import {
   Users,
   WalletCards,
 } from "lucide-react";
-import { patients, todaySchedule, financial, sales } from "@/data/mock-clinic";
+import { patients, todaySchedule, financial, inventoryItems, sales } from "@/data/mock-clinic";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
@@ -290,6 +290,46 @@ export function SalesPage() {
                 <TableCell className="font-medium">{sale.value}</TableCell>
                 <TableCell>
                   <StatusPill label={sale.status} />
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </Section>
+    </div>
+  );
+}
+
+export function InventoryPage() {
+  return (
+    <div className="space-y-6">
+      <PageHeader
+        eyebrow="Suprimentos clínicos"
+        title="Estoque"
+        description="Controle de insumos com rastreabilidade preparada para aplicações e procedimentos."
+        action={<PreviewNotice />}
+      />
+      <Tools placeholder="Buscar item ou categoria" />
+      <Section title="Posição de estoque" description="Lotes e saldos demonstrativos">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Item</TableHead>
+              <TableHead>Categoria</TableHead>
+              <TableHead>Saldo atual</TableHead>
+              <TableHead>Estoque mínimo</TableHead>
+              <TableHead>Status</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {inventoryItems.map((item) => (
+              <TableRow key={item.item}>
+                <TableCell className="font-medium">{item.item}</TableCell>
+                <TableCell>{item.category}</TableCell>
+                <TableCell>{item.stock}</TableCell>
+                <TableCell>{item.minimum}</TableCell>
+                <TableCell>
+                  <StatusPill label={item.status} />
                 </TableCell>
               </TableRow>
             ))}

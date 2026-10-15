@@ -1,0 +1,61 @@
+/* Clinical screens share a light surface palette without changing inventory pages. */
+.clinical-workspace {
+  --background: #f5f5f7;
+  --foreground: #1d1d1f;
+  --card: #fff;
+  --card-foreground: #1d1d1f;
+  --popover: #fff;
+  --popover-foreground: #1d1d1f;
+  --primary: #007aff;
+  --primary-foreground: #fff;
+  --secondary: #f5f5f7;
+  --secondary-foreground: #1d1d1f;
+  --muted: #f5f5f7;
+  --muted-foreground: #636366;
+  --accent: #eaf3ff;
+  --accent-foreground: #0066d6;
+  --border: rgba(60, 60, 67, 0.12);
+  --input: rgba(60, 60, 67, 0.16);
+  --ring: #007aff;
+  --clinical-document-viewport-offset: 160px;
+  font-family:
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    sans-serif;
+  color: var(--foreground);
+  color-scheme: light;
+}
+.clinical-workspace h1,
+.clinical-workspace h2,
+.clinical-workspace h3 {
+  font-family: inherit;
+  letter-spacing: -0.025em;
+}
+.clinical-workspace input,
+.clinical-workspace textarea,
+.clinical-workspace select {
+  background-color: #fff;
+}
+.clinical-workspace button,
+.clinical-workspace input,
+.clinical-workspace textarea,
+.clinical-workspace select {
+  border-radius: 12px;
+}
+.clinical-workspace > .border-b,
+.clinical-workspace nav {
+  background-color: #fff;
+}
+.clinical-workspace #documentos {
+  scroll-margin-top: 160px;
+}
+@media (max-width: 1023px) {
+  .clinical-workspace {
+    --clinical-document-viewport-offset: 120px;
+  }
+  .clinical-workspace #documentos {
+    scroll-margin-top: 120px;
+  }
+}

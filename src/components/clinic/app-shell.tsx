@@ -1,30 +1,35 @@
-import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
-import { useMemo, useState, type ReactNode } from "react";
+import { Link, useRouterState } from "@tanstack/react-router";
+import { useEffect, useState, type ReactNode } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import {
-  Activity,
-  Archive,
-  Bell,
-  CalendarDays,
-  ChevronDown,
-  ClipboardPlus,
-  FileHeart,
-  FlaskConical,
+  ChevronsUpDown,
   HeartPulse,
-  LayoutDashboard,
+  Syringe,
+  Landmark,
+  ShoppingCart,
+  KeyRound,
+  ListChecks,
   Menu,
   Package,
-  Plus,
-  Search,
-  Settings,
+  PackageCheck,
+  CalendarRange,
+  CalendarDays,
+  FlaskConical,
+  UserRound,
   ShieldCheck,
-  Stethoscope,
   Users,
-  WalletCards,
+  Warehouse,
 } from "lucide-react";
-import { patients } from "@/data/mock-clinic";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   Sheet,
   SheetContent,
@@ -33,39 +38,80 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
+import { selectedUnitId, setSelectedUnitId } from "@/data/unit-context";
 
-const mainItems = [
-  { label: "Visão geral", to: "/", icon: LayoutDashboard },
-  { label: "Agenda", to: "/agenda", icon: CalendarDays },
-  { label: "Pacientes", to: "/pacientes", icon: Users },
-  { label: "Prontuário", to: "/prontuario", icon: FileHeart },
-  { label: "Vendas", to: "/vendas", icon: WalletCards },
-  { label: "Estoque", to: "/estoque", icon: Package },
-  { label: "Aplicações", to: "/aplicacoes", icon: ClipboardPlus },
-  { label: "Financeiro", to: "/financeiro", icon: Archive },
-] as const;
-const managementItems = [
-  { label: "CRM", to: "/crm", icon: Activity },
-  { label: "Exames", to: "/exames", icon: FlaskConical },
-  { label: "Configurações", to: "/configuracoes", icon: Settings },
+const operationItems = [
+  { label: "Estoque atual", to: "/estoque", icon: Package },
+  { label: "Pedidos e entradas", to: "/estoque/recebimento", icon: PackageCheck },
+  { label: "Movimentações e histórico", to: "/estoque/movimentacoes", icon: ListChecks },
+  { label: "Produtos e sede", to: "/estoque/cadastros", icon: Warehouse },
+  { label: "Fazer compra", to: "/estoque/fornecedores", icon: Landmark },
+  { label: "Necessidade de compra", to: "/estoque/necessidade-compras", icon: ShoppingCart },
+  { label: "Precificação", to: "/estoque/valores", icon: ListChecks },
 ] as const;
 
-const allNavItems = [...mainItems, ...managementItems];
+const careItems = [
+  { label: "Agendamentos", to: "/agenda", icon: CalendarDays },
+  { label: "Pacientes", to: "/pacientes", icon: UserRound },
+] as const;
 
-function pageTitle(path: string) {
-  if (path.startsWith("/pacientes/")) return "Patient 360";
-  if (path === "/") return "Visão geral";
-  return (
-    allNavItems.find(
-      (item) => item.to !== "/" && (path === item.to || path.startsWith(`${item.to}/`)),
-    )?.label ?? "Clinic OS"
-  );
+const procedureItems = [
+  { label: "Aplicações", to: "/aplicacoes", icon: Syringe },
+  { label: "Agenda de aplicações", to: "/agenda-aplicacoes", icon: CalendarDays },
+  { label: "Demanda futura", to: "/pacientes/demanda", icon: CalendarRange },
+  { label: "Apresentações abertas", to: "/pacientes/fracionamento", icon: FlaskConical },
+] as const;
+
+const pageTitles: Record<string, string> = {
+  "/estoque": "Estoque atual",
+  "/estoque/recebimento": "Pedidos e entradas",
+  "/estoque/movimentacoes": "Movimentações e histórico",
+  "/estoque/cadastros": "Produtos e sede",
+  "/estoque/fornecedores": "Fazer compra",
+  "/estoque/necessidade-compras": "Necessidade de compra",
+  "/estoque/valores": "Precificação",
+  "/aplicacoes": "Aplicações",
+  "/aplicacoes/nova": "Registrar aplicação",
+  "/pacientes": "Pacientes",
+  "/pacientes/demanda": "Demanda futura",
+  "/pacientes/fracionamento": "Apresentações abertas",
+  "/agenda": "Agendamentos",
+  "/agenda-aplicacoes": "Agenda de aplicações",
+  "/estoque/usuarios": "Usuários",
+  "/estoque/integracoes": "Integrações",
+  "/estoque/minha-conta": "Minha conta",
+  "/configuracoes": "Configurações da clínica",
+};
+
+type Identity = {
+  user: { name: string };
+  role: string;
+  units: Array<{ id: string; name: string }>;
+};
+
+const roleLabels: Record<string, string> = {
+  SUPER_ADMIN: "Super Admin",
+  PARTNER_ADMIN: "Sócio administrador",
+  CLINICIAN: "Profissional de saúde",
+  INVENTORY_MANAGER: "Supervisão de estoque",
+  UNIT_MANAGER: "Gerência da unidade",
+  FINANCE: "Financeiro",
+  VIEWER: "Consulta",
+};
+
+function initials(name: string) {
+  return name
+    .trim()
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase())
+    .join("");
 }
 
 function ProductMark() {
   return (
     <Link
-      to="/"
+      to="/estoque"
       className="flex items-center gap-3 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring"
     >
       <span className="flex size-9 items-center justify-center rounded-md bg-sidebar-primary text-sidebar-primary-foreground">
@@ -73,9 +119,9 @@ function ProductMark() {
       </span>
       <span>
         <span className="block font-display text-base font-semibold text-sidebar-foreground">
-          Clinic OS
+          Allik One
         </span>
-        <span className="block text-[11px] text-sidebar-muted">Health operating system</span>
+        <span className="block text-[11px] text-sidebar-muted">Operações de estoque</span>
       </span>
     </Link>
   );
@@ -83,10 +129,16 @@ function ProductMark() {
 
 function Navigation({ onNavigate }: { onNavigate?: (() => void) | undefined }) {
   const path = useRouterState({ select: (state) => state.location.pathname });
-  const renderItems = (items: typeof mainItems | typeof managementItems) =>
+  const renderItems = (
+    items: ReadonlyArray<
+      (typeof operationItems)[number] | (typeof careItems)[number] | (typeof procedureItems)[number]
+    >,
+  ) =>
     items.map((item) => {
       const active =
-        item.to === "/" ? path === "/" : path === item.to || path.startsWith(`${item.to}/`);
+        item.to === "/estoque" || item.to === "/pacientes"
+          ? path === item.to
+          : path.startsWith(item.to);
       return (
         <Link
           key={item.to}
@@ -107,180 +159,257 @@ function Navigation({ onNavigate }: { onNavigate?: (() => void) | undefined }) {
     });
   return (
     <nav className="flex flex-1 flex-col px-3 py-4">
-      <div className="space-y-1">{renderItems(mainItems)}</div>
-      <p className="mb-2 mt-7 px-3 text-[10px] font-semibold uppercase tracking-widest text-sidebar-muted">
-        Gestão
+      <p className="mb-2 px-3 text-[10px] font-semibold uppercase tracking-widest text-sidebar-muted">
+        Estoque
       </p>
-      <div className="space-y-1">{renderItems(managementItems)}</div>
+      <div className="space-y-1">{renderItems(operationItems)}</div>
+      <p className="mb-2 mt-7 px-3 text-[10px] font-semibold uppercase tracking-widest text-sidebar-muted">
+        Atendimento
+      </p>
+      <div className="space-y-1">{renderItems(careItems)}</div>
+      <p className="mb-2 mt-7 px-3 text-[10px] font-semibold uppercase tracking-widest text-sidebar-muted">
+        Procedimentos
+      </p>
+      <div className="space-y-1">{renderItems(procedureItems)}</div>
     </nav>
   );
 }
 
-function SidebarContent({ onNavigate }: { onNavigate?: (() => void) | undefined }) {
+function SidebarContent({
+  identity,
+  onNavigate,
+}: {
+  identity: Identity | null;
+  onNavigate?: (() => void) | undefined;
+}) {
+  const name = identity?.user.name ?? "Carregando conta…";
   return (
-    <div className="flex h-full flex-col bg-sidebar">
+    <div className="flex h-full min-h-0 flex-col bg-sidebar">
       <div className="border-b border-sidebar-border px-5 py-5">
         <ProductMark />
       </div>
-      <Navigation onNavigate={onNavigate} />
+      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+        <Navigation onNavigate={onNavigate} />
+      </div>
       <div className="border-t border-sidebar-border p-4">
         <div className="mb-4 flex items-center gap-2 rounded-md bg-sidebar-accent/50 px-3 py-2 text-[11px] text-sidebar-muted">
           <ShieldCheck className="size-4 text-sidebar-primary" />
-          <span>Ambiente seguro</span>
+          <span>Piloto operacional controlado</span>
         </div>
-        <div className="flex items-center gap-3">
-          <Avatar className="size-9">
-            <AvatarFallback className="bg-sidebar-accent text-xs font-semibold text-sidebar-foreground">
-              MS
-            </AvatarFallback>
-          </Avatar>
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-xs font-semibold text-sidebar-foreground">
-              Marcos Scorsafava
-            </p>
-            <p className="text-[11px] text-sidebar-muted">Administrador</p>
-          </div>
-          <ChevronDown className="size-3.5 text-sidebar-muted" />
-        </div>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button
+              type="button"
+              disabled={!identity}
+              aria-label={`Abrir menu da conta de ${name}`}
+              className="flex w-full items-center gap-3 rounded-xl p-2 text-left transition-colors hover:bg-sidebar-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring disabled:opacity-60"
+            >
+              <Avatar className="size-9">
+                <AvatarFallback className="bg-sidebar-accent text-xs font-semibold text-sidebar-foreground">
+                  {identity ? initials(identity.user.name) : "AO"}
+                </AvatarFallback>
+              </Avatar>
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-xs font-semibold text-sidebar-foreground">{name}</p>
+                <p className="text-[11px] text-sidebar-muted">
+                  {identity ? (roleLabels[identity.role] ?? identity.role) : "Allik One"}
+                </p>
+              </div>
+              <ChevronsUpDown className="size-4 shrink-0 text-sidebar-muted" aria-hidden="true" />
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent
+            side="top"
+            align="start"
+            sideOffset={8}
+            className="w-64 max-w-[calc(100vw-2rem)] rounded-2xl p-2"
+          >
+            <DropdownMenuLabel>Administração</DropdownMenuLabel>
+            <DropdownMenuItem asChild>
+              <Link to="/configuracoes" onClick={onNavigate}>
+                <Warehouse aria-hidden="true" /> Configurações
+              </Link>
+            </DropdownMenuItem>
+            <DropdownMenuItem asChild>
+              <Link to="/estoque/minha-conta" onClick={onNavigate}>
+                <ShieldCheck aria-hidden="true" /> Minha conta
+              </Link>
+            </DropdownMenuItem>
+            {identity?.role === "SUPER_ADMIN" && (
+              <>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem asChild>
+                  <Link to="/estoque/usuarios" onClick={onNavigate}>
+                    <Users aria-hidden="true" /> Usuários
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link to="/estoque/integracoes" onClick={onNavigate}>
+                    <KeyRound aria-hidden="true" /> Integrações
+                  </Link>
+                </DropdownMenuItem>
+              </>
+            )}
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
-    </div>
-  );
-}
-
-function GlobalSearch() {
-  const navigate = useNavigate();
-  const [query, setQuery] = useState("");
-  const [open, setOpen] = useState(false);
-  const results = useMemo(() => {
-    const normalized = query.toLocaleLowerCase("pt-BR").replace(/\D/g, "");
-    if (query.trim().length < 2) return [];
-    return patients.filter(
-      (patient) =>
-        patient.name.toLocaleLowerCase("pt-BR").includes(query.toLocaleLowerCase("pt-BR")) ||
-        patient.cpf.replace(/\D/g, "").includes(normalized) ||
-        patient.phone.replace(/\D/g, "").includes(normalized),
-    );
-  }, [query]);
-  const choose = (patientId: string) => {
-    setQuery("");
-    setOpen(false);
-    navigate({ to: "/pacientes/$patientId", params: { patientId } });
-  };
-  return (
-    <div className="relative w-full max-w-md">
-      <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-      <Input
-        value={query}
-        onFocus={() => setOpen(true)}
-        onBlur={() => setOpen(false)}
-        onKeyDown={(event) => {
-          if (event.key === "Escape") setOpen(false);
-        }}
-        onChange={(event) => {
-          setQuery(event.target.value);
-          setOpen(true);
-        }}
-        placeholder="Buscar paciente, CPF ou telefone"
-        aria-label="Buscar paciente"
-        className="h-10 bg-muted/60 pl-9 shadow-none"
-      />
-      {open && query.length >= 2 && (
-        <div className="absolute left-0 right-0 top-12 z-50 overflow-hidden rounded-md border border-border bg-popover shadow-panel">
-          <div className="border-b border-border px-3 py-2 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
-            Pacientes fictícios
-          </div>
-          {results.length ? (
-            results.map((patient) => (
-              <button
-                key={patient.id}
-                type="button"
-                onMouseDown={() => choose(patient.id)}
-                className="flex w-full items-center gap-3 px-3 py-3 text-left hover:bg-accent focus:bg-accent focus:outline-none"
-              >
-                <Avatar className="size-8">
-                  <AvatarFallback className="bg-info-soft text-xs font-semibold text-info-foreground">
-                    {patient.initials}
-                  </AvatarFallback>
-                </Avatar>
-                <span className="min-w-0">
-                  <span className="block truncate text-sm font-medium text-popover-foreground">
-                    {patient.name}
-                  </span>
-                  <span className="block text-xs text-muted-foreground">
-                    {patient.cpf} · {patient.phone}
-                  </span>
-                </span>
-              </button>
-            ))
-          ) : (
-            <p className="px-4 py-6 text-center text-sm text-muted-foreground">
-              Nenhum paciente encontrado
-            </p>
-          )}
-        </div>
-      )}
     </div>
   );
 }
 
 export function AppShell({ children }: { children: ReactNode }) {
   const path = useRouterState({ select: (state) => state.location.pathname });
+  const focusedEncounter = path.startsWith("/atendimentos/");
   const [mobileOpen, setMobileOpen] = useState(false);
-  const title = pageTitle(path);
+  const [identity, setIdentity] = useState<Identity | null>(null);
+  const [unitId, setUnitId] = useState("");
+  const queryClient = useQueryClient();
+  useEffect(() => {
+    if (
+      !path.startsWith("/estoque") &&
+      !path.startsWith("/pacientes") &&
+      !path.startsWith("/agenda") &&
+      !path.startsWith("/aplicacoes") &&
+      !path.startsWith("/atendimentos/") &&
+      !path.startsWith("/configuracoes")
+    )
+      return;
+    void fetch("/api/inventory-session", { credentials: "same-origin" })
+      .then(async (response) => {
+        if (!response.ok) return;
+        const body = (await response.json()) as { data: typeof identity };
+        if (!body.data) return;
+        setIdentity(body.data);
+        const saved = selectedUnitId();
+        const initial = body.data.units.some((unit) => unit.id === saved)
+          ? saved
+          : body.data.units.length === 1
+            ? body.data.units[0]!.id
+            : "";
+        setUnitId(initial);
+        setSelectedUnitId(initial);
+      })
+      .catch(() => {});
+  }, [path]);
+  const title = path.startsWith("/atendimentos/")
+    ? "Atendimento"
+    : path.startsWith("/pacientes/") && path.endsWith("/prontuario")
+      ? "Prontuário"
+      : (pageTitles[path] ?? "Allik One");
   return (
     <div className="min-h-screen bg-background">
-      <aside className="fixed inset-y-0 left-0 z-30 hidden w-[248px] border-r border-sidebar-border lg:block">
-        <SidebarContent />
-      </aside>
-      <div className="min-w-0 lg:pl-[248px]">
-        <header className="sticky top-0 z-20 border-b border-border bg-background/95 backdrop-blur">
-          <div className="grid min-h-16 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 px-4 lg:px-7">
-            <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
-              <SheetTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="min-h-11 min-w-11 lg:hidden"
-                  aria-label="Abrir menu"
+      {!focusedEncounter ? (
+        <aside className="fixed inset-y-0 left-0 z-30 hidden w-[248px] border-r border-sidebar-border lg:block">
+          <SidebarContent identity={identity} />
+        </aside>
+      ) : null}
+      <div className={cn("min-w-0", !focusedEncounter && "lg:pl-[248px]")}>
+        <header className="sticky top-0 z-30 border-b border-border bg-background/95 backdrop-blur">
+          <div
+            className={cn(
+              "flex h-16 min-w-0 items-center gap-2 px-3 sm:gap-4 sm:px-4 lg:px-7",
+              focusedEncounter && "mx-auto w-full max-w-[1320px]",
+            )}
+          >
+            <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-3">
+              <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
+                <SheetTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className={cn("min-h-11 min-w-11", !focusedEncounter && "lg:hidden")}
+                    aria-label="Abrir menu"
+                  >
+                    <Menu />
+                  </Button>
+                </SheetTrigger>
+                <SheetContent
+                  side="left"
+                  className="w-[286px] border-sidebar-border bg-sidebar p-0"
                 >
-                  <Menu />
+                  <SheetTitle className="sr-only">Navegação principal</SheetTitle>
+                  <SheetDescription className="sr-only">
+                    Áreas operacionais do Allik One
+                  </SheetDescription>
+                  <SidebarContent identity={identity} onNavigate={() => setMobileOpen(false)} />
+                </SheetContent>
+              </Sheet>
+              <div className={cn("min-w-0", !focusedEncounter && "hidden lg:block")}>
+                <p className="hidden text-[11px] font-medium uppercase tracking-widest text-muted-foreground sm:block">
+                  Allik One · Operação de estoque
+                </p>
+                <p className="truncate font-display text-sm font-semibold text-foreground sm:text-base">
+                  {title}
+                </p>
+              </div>
+            </div>
+            <div className="flex min-w-0 shrink-0 justify-center">
+              {identity ? (
+                <label className="flex items-center gap-2 text-sm">
+                  <span className="hidden text-muted-foreground md:inline">Unidade</span>
+                  <select
+                    id="inventory-unit"
+                    aria-label="Unidade atual"
+                    className="h-9 w-[132px] rounded-md border bg-background px-2 text-sm sm:w-auto sm:max-w-52 sm:px-3"
+                    value={unitId}
+                    onChange={(event) => {
+                      const value = event.target.value;
+                      setUnitId(value);
+                      setSelectedUnitId(value);
+                      void queryClient.invalidateQueries({ queryKey: ["inventory"] });
+                    }}
+                  >
+                    {identity.units.length > 1 && <option value="">Todas as unidades</option>}
+                    {identity.units.map((unit) => (
+                      <option key={unit.id} value={unit.id}>
+                        {unit.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              ) : null}
+            </div>
+            <div className="flex min-w-0 shrink-0 items-center justify-end gap-2 text-right sm:gap-3">
+              {identity ? (
+                <>
+                  <p className="hidden max-w-44 truncate text-sm font-medium text-foreground lg:block xl:max-w-60">
+                    {identity.user.name}
+                  </p>
+                  <p className="hidden text-xs text-muted-foreground 2xl:block">
+                    {roleLabels[identity.role] ?? identity.role} · Piloto operacional
+                  </p>
+                </>
+              ) : (
+                <p className="text-xs text-muted-foreground">Piloto operacional</p>
+              )}
+              {identity ? (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="hidden sm:inline-flex"
+                  onClick={async () => {
+                    await fetch("/api/inventory-session", {
+                      method: "DELETE",
+                      credentials: "same-origin",
+                    });
+                    setIdentity(null);
+                    window.location.assign("/estoque/acesso");
+                  }}
+                >
+                  Sair
                 </Button>
-              </SheetTrigger>
-              <SheetContent side="left" className="w-[286px] border-sidebar-border bg-sidebar p-0">
-                <SheetTitle className="sr-only">Navegação principal</SheetTitle>
-                <SheetDescription className="sr-only">Áreas do Clinic OS</SheetDescription>
-                <SidebarContent onNavigate={() => setMobileOpen(false)} />
-              </SheetContent>
-            </Sheet>
-            <div className="hidden min-w-0 lg:block">
-              <p className="text-[11px] font-medium uppercase tracking-widest text-muted-foreground">
-                Sábado, 3 de outubro
-              </p>
-              <p className="truncate font-display text-base font-semibold text-foreground">
-                {title}
-              </p>
-            </div>
-            <div className="min-w-0 lg:ml-auto lg:w-[420px]">
-              <GlobalSearch />
-            </div>
-            <div className="flex shrink-0 items-center gap-1.5">
-              <Button
-                variant="ghost"
-                size="icon"
-                className="relative min-h-11 min-w-11"
-                aria-label="Notificações"
-              >
-                <Bell />
-                <span className="absolute right-2 top-2 size-1.5 rounded-full bg-destructive" />
-              </Button>
-              <Button className="hidden sm:inline-flex">
-                <Plus />
-                Novo
-              </Button>
+              ) : null}
             </div>
           </div>
         </header>
-        <main className="mx-auto w-full max-w-[1600px] p-4 sm:p-6 lg:p-8">{children}</main>
+        <main
+          className={cn(
+            "mx-auto w-full",
+            focusedEncounter ? "max-w-none p-0" : "max-w-[1600px] p-4 sm:p-6 lg:p-8",
+          )}
+        >
+          {children}
+        </main>
       </div>
     </div>
   );
