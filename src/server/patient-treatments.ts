@@ -183,7 +183,8 @@ export async function patientDetailResponse(request: Request) {
           professional_council AS "professionalCouncil",council_number AS "councilNumber",
           council_region AS "councilRegion",version,created_at AS "createdAt",updated_at AS "updatedAt"
          FROM inventory_patient_clinical_alerts
-         WHERE patient_id=$1 AND organization_id=$2 AND unit_id=$3
+         WHERE patient_id=$1 AND organization_id=$2
+           AND (unit_id=$3 OR (type='ALLERGY' AND status='ACTIVE'))
          ORDER BY CASE status WHEN 'ACTIVE' THEN 0 ELSE 1 END,
           CASE severity WHEN 'SEVERE' THEN 0 WHEN 'MODERATE' THEN 1 WHEN 'MILD' THEN 2 ELSE 3 END,
           updated_at DESC,id DESC LIMIT 200`,

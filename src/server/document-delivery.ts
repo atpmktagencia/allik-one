@@ -52,6 +52,7 @@ export async function documentDeliveryResponse(request: Request) {
     const result = await getPool().query(
       `SELECT d.id,d.organization_id,d.unit_id,d.patient_id,d.appointment_id,d.author_user_id,p.email,p.phone,
  EXISTS(SELECT 1 FROM inventory_clinical_document_amendments a JOIN inventory_encounter_documents child ON child.id=a.document_id WHERE a.parent_document_id=d.id AND child.status='FINAL') AS has_amendments,
+ EXISTS(SELECT 1 FROM inventory_clinical_document_amendments ra JOIN inventory_encounter_documents rchild ON rchild.id=ra.document_id WHERE ra.parent_document_id=d.id AND ra.kind='RECTIFICATION' AND rchild.status='FINAL') AS rectified,p.consent_status,
  EXISTS(SELECT 1 FROM inventory_document_signature_attempts s WHERE s.document_id=d.id AND s.organization_id=d.organization_id AND s.status='SIGNED') AS signed
  FROM inventory_encounter_documents d JOIN inventory_patients p ON p.id=d.patient_id AND p.organization_id=d.organization_id
  WHERE d.id=$1 AND d.organization_id=$2 AND d.type='PRESCRIPTION' AND d.status='FINAL'`,
@@ -102,6 +103,10 @@ export async function documentDeliveryResponse(request: Request) {
       return fail("Cadastre um e-mail válido para o paciente.", 409);
     if (data.action === "PREPARE_WHATSAPP" && !/^\d{10,15}$/.test(number))
       return fail("Cadastre um telefone válido com DDD e código do país.", 409);
+    if (doc.consent_status !== "RECORDED")
+      return fail("O paciente não tem consentimento registrado para receber documentos.", 409);
+    if (doc.rectified)
+      return fail("Este documento foi substituído por uma retificação. Envie a retificação.", 409);
     if (doc.has_amendments && !data.confirmAmendments)
       return fail("Confira os adendos e retificações antes de enviar esta via.", 409);
     if (data.action === "SEND_EMAIL" && !emailConfig())

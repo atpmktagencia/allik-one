@@ -14,11 +14,13 @@ export async function patientAllergySummary(
     `SELECT p.primary_unit_id,p.private_data,p.allergy_status,p.allergy_reviewed_at,p.version,p.active,
     reviewer.name AS reviewed_by,me.professional_council,me.council_number,me.council_region,
     COALESCE((SELECT jsonb_agg(jsonb_build_object('type',a.type,'title',a.title)) FROM inventory_patient_clinical_alerts a
-      WHERE a.patient_id=p.id AND a.organization_id=p.organization_id AND a.unit_id=$3 AND a.status='ACTIVE' AND a.type='ALLERGY'),'[]'::jsonb) AS alerts
+      WHERE a.patient_id=p.id AND a.organization_id=p.organization_id AND a.status='ACTIVE' AND a.type='ALLERGY'),'[]'::jsonb) AS alerts
     FROM inventory_patients p LEFT JOIN inventory_users reviewer ON reviewer.id=p.allergy_reviewed_by_user_id
-    LEFT JOIN inventory_users me ON me.id=$4 AND me.active
+    LEFT JOIN inventory_users me ON me.id=$3 AND me.active
     WHERE p.id=$1 AND p.organization_id=$2`,
-    [patientId, auth.organizationId, unitId, auth.user.id],
+    // Active allergies are patient-safety information: they follow the patient
+    // across units of the organization once the reader may see this patient.
+    [patientId, auth.organizationId, auth.user.id],
   );
   const patient = result.rows[0];
   if (!patient) throw new Error("ALLERGY_PATIENT_NOT_FOUND");

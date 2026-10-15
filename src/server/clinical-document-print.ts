@@ -41,6 +41,12 @@ export function renderClinicalDocumentPrint(doc: PrintDocument): string {
     `<div class="field"><b>${escapeHtml(label)}:</b> ${value === null || value === undefined || value === "" ? '<span class="blank">________________________</span>' : escapeHtml(value)}</div>`;
   const amendment = (snapshot ? snapshot["amendment"] : doc["amendment"]) as
     Record<string, unknown> | undefined;
+  // Computed at print time (outside the sealed snapshot): a finalized
+  // rectification supersedes this document, so every copy must say so.
+  const rectifiedBy = doc["rectified_by"] ? String(doc["rectified_by"]) : null;
+  const supersededNotice = rectifiedBy
+    ? `<div class="warning superseded"><strong>SUBSTITUÍDO POR RETIFICAÇÃO — NÃO UTILIZAR.</strong> Use o documento ${escapeHtml(rectifiedBy)}.</div>`
+    : "";
   const amendmentNotice = amendment
     ? `<aside class="warning"><strong>${amendment["kind"] === "ADDENDUM" ? "ADENDO" : "RETIFICAÇÃO"}</strong>${field("Documento original", amendment["parentDocumentId"])}${field("Motivo", amendment["reason"])}${field("SHA-256 do original", amendment["parentSha256"])}</aside>`
     : "";
@@ -73,7 +79,7 @@ export function renderClinicalDocumentPrint(doc: PrintDocument): string {
     ? ""
     : timestamp.toLocaleDateString("pt-BR", { timeZone: "America/Fortaleza" });
   const copy = (label: string) =>
-    `<section class="document-copy"><header><div class="brand">Allik One · ${escapeHtml(rendered["unit_name"])}</div>${label ? `<div class="copy-label">${label}</div>` : ""}${draft ? '<div class="warning">RASCUNHO — NÃO FINALIZADO</div>' : ""}<h1>${escapeHtml(title)}</h1>${prescriptionFields}${field("Paciente", rendered["full_name"])}${field("Código", rendered["internal_code"])}${patientFields}${amendmentNotice}</header><article>${bodyHtml}</article><footer>${prescription ? field("Data de emissão", date) : `<p>${escapeHtml(professional)} · ${escapeHtml(date)}</p>`}${prescription ? '<div class="signature">Assinatura do profissional: ______________________________</div>' : ""}<p class="notice">${draft ? "Documento em rascunho." : "Documento finalizado no sistema."} Não possui assinatura eletrônica. A validade do documento exige assinatura profissional adequada.</p>${!snapshot && !draft ? '<p class="notice">Documento legado: cabeçalho do paciente e da unidade usa o cadastro atual; não foi congelado na finalização.</p>' : ""}${dispensingFields}${verification}</footer></section>`;
+    `<section class="document-copy"><header><div class="brand">Allik One · ${escapeHtml(rendered["unit_name"])}</div>${label ? `<div class="copy-label">${label}</div>` : ""}${draft ? '<div class="warning">RASCUNHO — NÃO FINALIZADO</div>' : ""}${supersededNotice}<h1>${escapeHtml(title)}</h1>${prescriptionFields}${field("Paciente", rendered["full_name"])}${field("Código", rendered["internal_code"])}${patientFields}${amendmentNotice}</header><article>${bodyHtml}</article><footer>${prescription ? field("Data de emissão", date) : `<p>${escapeHtml(professional)} · ${escapeHtml(date)}</p>`}${prescription ? '<div class="signature">Assinatura do profissional: ______________________________</div>' : ""}<p class="notice">${draft ? "Documento em rascunho." : "Documento finalizado no sistema."} Não possui assinatura eletrônica. A validade do documento exige assinatura profissional adequada.</p>${!snapshot && !draft ? '<p class="notice">Documento legado: cabeçalho do paciente e da unidade usa o cadastro atual; não foi congelado na finalização.</p>' : ""}${dispensingFields}${verification}</footer></section>`;
   const copies = twoCopies
     ? copy(special ? "1ª VIA — RETENÇÃO DA FARMÁCIA" : "1ª VIA — PACIENTE") +
       copy(special ? "2ª VIA — ORIENTAÇÃO AO PACIENTE" : "2ª VIA — RETENÇÃO DA FARMÁCIA")

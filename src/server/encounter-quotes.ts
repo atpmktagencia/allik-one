@@ -1,4 +1,5 @@
 import "@tanstack/react-start/server-only";
+import { recordClinicalAccess } from "./clinical-access-audit";
 import { z } from "zod";
 import { authenticate, can } from "./auth";
 import { getPool } from "./db";
@@ -89,7 +90,7 @@ export async function encounterQuotesResponse(request: Request) {
     return Response.json({ error: "Atendimento inválido." }, { status: 400, headers });
   const pool = getPool();
   const appointmentResult = await pool.query(
-    `SELECT id,unit_id AS "unitId",professional_user_id AS "professionalUserId",status
+    `SELECT id,unit_id AS "unitId",patient_id AS "patientId",professional_user_id AS "professionalUserId",status
      FROM inventory_care_appointments WHERE id=$1 AND organization_id=$2`,
     [appointmentId, auth.organizationId],
   );
@@ -104,7 +105,7 @@ export async function encounterQuotesResponse(request: Request) {
   const [prescriptionResult, quoteResult, optionResult] = await Promise.all([
     pool.query(
       `SELECT id,items,status,version FROM inventory_encounter_prescriptions
-       WHERE appointment_id=$1 AND organization_id=$2`,
+       WHERE appointment_id=$1 AND organization_id=$2 AND status='FINAL'`,
       [appointmentId, auth.organizationId],
     ),
     pool.query(
@@ -138,6 +139,17 @@ export async function encounterQuotesResponse(request: Request) {
         )
       ).rows[0]?.snapshot ?? null)
     : null;
+  const clinicalReader = can(auth, "patients.private.read", appointment.unitId);
+  if (clinicalReader && (prescriptionResult.rows[0] || activation))
+    await recordClinicalAccess(auth, {
+      unitId: appointment.unitId,
+      patientId: appointment.patientId,
+      appointmentId,
+      action: "READ",
+      resourceIds: [prescriptionResult.rows[0]?.id, quote?.id].filter(
+        (id): id is string => typeof id === "string",
+      ),
+    });
   const canManage =
     Boolean(auth.user.id) &&
     !auth.preview &&
@@ -149,11 +161,9 @@ export async function encounterQuotesResponse(request: Request) {
   return Response.json(
     {
       data: {
-        prescription: can(auth, "patients.private.read", appointment.unitId)
-          ? (prescriptionResult.rows[0] ?? null)
-          : null,
+        prescription: clinicalReader ? (prescriptionResult.rows[0] ?? null) : null,
         quote,
-        activation: can(auth, "patients.private.read", appointment.unitId) ? activation : null,
+        activation: clinicalReader ? activation : null,
         canActivate:
           Boolean(auth.user.id) &&
           !auth.preview &&

@@ -124,6 +124,15 @@ export async function clinicalProblemsResponse(request: Request) {
       }
       const currentRow = current.rows[0] as Record<string, unknown>;
       before = currentRow;
+      // Scope edits by the unit that recorded the problem, not the patient's
+      // current primary unit (which may have changed since).
+      if (!can(auth, "patients.clinical.manage", String(currentRow["unit_id"]))) {
+        await client.query("ROLLBACK");
+        return Response.json(
+          { error: "Problema clínico não encontrado." },
+          { status: 404, headers },
+        );
+      }
       if (Number(currentRow["version"]) !== input.version) {
         await client.query("ROLLBACK");
         return Response.json(

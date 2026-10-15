@@ -275,6 +275,16 @@ export async function documentSignaturesResponse(request: Request) {
         403,
       );
     if (data.action === "START") {
+      const superseded = await pool.query(
+        `SELECT 1 FROM inventory_clinical_document_amendments a JOIN inventory_encounter_documents child ON child.id=a.document_id
+         WHERE a.parent_document_id=$1 AND a.kind='RECTIFICATION' AND child.status='FINAL' LIMIT 1`,
+        [documentId],
+      );
+      if (superseded.rowCount)
+        return fail(
+          "Este documento foi substituído por uma retificação e não pode ser assinado.",
+          409,
+        );
       if (!configured)
         return fail(
           configurationReason ?? "A integração de assinatura ainda não está configurada.",
