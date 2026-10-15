@@ -505,4 +505,70 @@ describe("individual password security", () => {
     expect(known).toBeGreaterThanOrEqual(2400);
     expect(Math.abs(known - unknown)).toBeLessThan(400);
   });
+  it("does not expose account existence when the provider exceeds the response window", async () => {
+    vi.stubEnv("INVENTORY_ENVIRONMENT", "pilot");
+    let aborted = false;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (_url: string, init: RequestInit) => {
+        await new Promise<void>((resolve, reject) => {
+          const timer = setTimeout(resolve, 3400);
+          init.signal!.addEventListener(
+            "abort",
+            () => {
+              aborted = true;
+              clearTimeout(timer);
+              reject(new Error("Synthetic abort"));
+            },
+            { once: true },
+          );
+        });
+        return Response.json({ id: randomUUID() });
+      }),
+    );
+    const f = await fixture();
+    const timed = async (email: string) => {
+      const started = performance.now();
+      const response = await f.request({ action: "REQUEST_RESET", email });
+      expect(await response.json()).toEqual({ ok: true });
+      return performance.now() - started;
+    };
+    const unknown = await timed(`${randomUUID()}@example.test`);
+    const known = await timed(f.email);
+    expect(aborted).toBe(true);
+    expect(Math.abs(known - unknown)).toBeLessThan(400);
+    const resets = await getPool().query(
+      "SELECT revoked_at FROM inventory_password_resets WHERE user_id=$1",
+      [f.id],
+    );
+    expect(resets.rows).toHaveLength(1);
+    expect(resets.rows[0].revoked_at).not.toBeNull();
+  });
+  it("bounds a stalled provider response body and revokes its ambiguous token", async () => {
+    vi.stubEnv("INVENTORY_ENVIRONMENT", "pilot");
+    let signal: AbortSignal | undefined;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (_url: string, init: RequestInit) => {
+        signal = init.signal!;
+        return { ok: true, json: () => new Promise(() => {}) };
+      }),
+    );
+    const f = await fixture();
+    const started = performance.now();
+    expect(await (await f.request({ action: "REQUEST_RESET", email: f.email })).json()).toEqual({
+      ok: true,
+    });
+    const elapsed = performance.now() - started;
+    expect(elapsed).toBeGreaterThanOrEqual(2400);
+    expect(elapsed).toBeLessThan(3000);
+    expect(signal?.aborted).toBe(true);
+    expect(
+      (
+        await getPool().query("SELECT revoked_at FROM inventory_password_resets WHERE user_id=$1", [
+          f.id,
+        ])
+      ).rows[0].revoked_at,
+    ).not.toBeNull();
+  });
 });

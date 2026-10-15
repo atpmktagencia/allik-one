@@ -60,14 +60,14 @@ function recoveryConfiguration() {
   }
 }
 
-// Delivery to the provider takes a few hundred milliseconds; answering every eligible,
-// unknown or throttled request after the same floor keeps account existence private.
-// Disposable test databases skip the floor; a dedicated test measures it explicitly.
+// Keep provider latency inside the generic response window. On an ambiguous or
+// timed-out delivery the token is revoked, even if an email later arrives.
+const recoveryDeliveryBudgetMs = 2000;
 const recoveryResponseFloorMs = () => (process.env["INVENTORY_ENVIRONMENT"] === "test" ? 0 : 2500);
 
 async function requestRecovery(email: string, request: Request) {
   const started = Date.now();
-  const response = await issueRecovery(email, request);
+  const response = await issueRecovery(email, request, started + recoveryDeliveryBudgetMs);
   if (response.status === 200) {
     const remaining = recoveryResponseFloorMs() - (Date.now() - started);
     if (remaining > 0) await new Promise((resolve) => setTimeout(resolve, remaining));
@@ -75,7 +75,7 @@ async function requestRecovery(email: string, request: Request) {
   return response;
 }
 
-async function issueRecovery(email: string, request: Request) {
+async function issueRecovery(email: string, request: Request, deliveryDeadline: number) {
   const config = recoveryConfiguration();
   if (!config)
     return Response.json(
@@ -128,24 +128,39 @@ async function issueRecovery(email: string, request: Request) {
     client.release();
   }
   if (!resetId) return generic();
+  const controller = new AbortController();
+  let timer: ReturnType<typeof setTimeout> | undefined;
   try {
-    const response = await fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${config.key}`,
-        "Content-Type": "application/json",
-        "Idempotency-Key": `password-recovery/${resetId}`,
-      },
-      signal: AbortSignal.timeout(12000),
-      body: JSON.stringify({
-        from: config.from,
-        to: [normalized],
-        subject: "Allik One — redefinir sua senha",
-        text: `Você solicitou a recuperação de acesso ao Allik One.\n\nDefina sua nova senha neste link de uso único, válido por 30 minutos:\n${config.origin}/estoque/acesso#recover=${token}\n\nSe você não solicitou, ignore esta mensagem. Sua senha permanece inalterada. Nunca compartilhe este link.`,
-      }),
+    const remaining = deliveryDeadline - Date.now();
+    if (remaining <= 0) throw new Error("DELIVERY_DEADLINE");
+    const timeout = new Promise<never>((_, reject) => {
+      timer = setTimeout(() => {
+        controller.abort();
+        reject(new Error("DELIVERY_DEADLINE"));
+      }, remaining);
     });
-    if (!response.ok || typeof (await response.json()).id !== "string")
-      throw new Error("DELIVERY_FAILED");
+    // Bound both response headers and body parsing, including providers that
+    // fail to settle promptly after cancellation. No unbounded background send.
+    const delivery = async () => {
+      const response = await fetch("https://api.resend.com/emails", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${config.key}`,
+          "Content-Type": "application/json",
+          "Idempotency-Key": `password-recovery/${resetId}`,
+        },
+        signal: controller.signal,
+        body: JSON.stringify({
+          from: config.from,
+          to: [normalized],
+          subject: "Allik One — redefinir sua senha",
+          text: `Você solicitou a recuperação de acesso ao Allik One.\n\nDefina sua nova senha neste link de uso único, válido por 30 minutos:\n${config.origin}/estoque/acesso#recover=${token}\n\nSe você não solicitou, ignore esta mensagem. Sua senha permanece inalterada. Nunca compartilhe este link.`,
+        }),
+      });
+      if (!response.ok || typeof (await response.json()).id !== "string")
+        throw new Error("DELIVERY_FAILED");
+    };
+    await Promise.race([delivery(), timeout]);
   } catch {
     await pool.query(
       "UPDATE inventory_password_resets SET revoked_at=now() WHERE id=$1 AND used_at IS NULL",
@@ -153,6 +168,8 @@ async function issueRecovery(email: string, request: Request) {
     );
     // Never log provider bodies, recipient addresses, passwords or recovery links.
     console.error("password recovery email delivery failed");
+  } finally {
+    if (timer) clearTimeout(timer);
   }
   // Same response for unknown, inactive, throttled and eligible accounts.
   return generic();

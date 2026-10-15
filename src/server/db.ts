@@ -1,5 +1,5 @@
 import "@tanstack/react-start/server-only";
-import { Pool, type PoolClient, type QueryResult } from "pg";
+import { Pool } from "pg";
 import { drizzle } from "drizzle-orm/node-postgres";
 import * as schema from "./schema";
 
@@ -43,15 +43,18 @@ export function runtimeEnvironmentProblem(env: NodeJS.ProcessEnv = process.env) 
 }
 
 function guardRuntimeIdentity(target: Pool, role: string) {
-  const query = target.query.bind(target) as (...args: unknown[]) => Promise<QueryResult>;
-  const connect = target.connect.bind(target) as (...args: unknown[]) => Promise<PoolClient>;
+  const connect = target.connect.bind(target);
   let verified = false;
   let pending: Promise<void> | null = null;
   const verify = async () => {
     if (verified) return;
     pending ??= (async () => {
-      const result = await query(
-        `SELECT current_user AS current_name, session_user AS session_name,
+      // Use the original connector and a client query: Pool.query itself calls
+      // connect(callback), which must be guarded just like Promise callers.
+      const client = await connect();
+      try {
+        const result = await client.query(
+          `SELECT current_user AS current_name, session_user AS session_name,
            r.rolsuper OR r.rolcreaterole OR r.rolcreatedb OR r.rolbypassrls OR r.rolreplication AS elevated,
            has_database_privilege(current_user,current_database(),'CREATE') AS database_create,
            has_database_privilege(current_user,current_database(),'TEMP') AS database_temp,
@@ -59,32 +62,43 @@ function guardRuntimeIdentity(target: Pool, role: string) {
            EXISTS (SELECT 1 FROM pg_class c WHERE c.relnamespace='public'::regnamespace
              AND c.relname LIKE 'inventory\\_%' ESCAPE '\\' AND c.relowner=r.oid) AS owns_tables
          FROM pg_roles r WHERE r.rolname=current_user`,
-      );
-      const row = result.rows[0] as Record<string, unknown> | undefined;
-      if (
-        !row ||
-        row["current_name"] !== role ||
-        row["session_name"] !== role ||
-        row["elevated"] ||
-        row["database_create"] ||
-        row["database_temp"] ||
-        row["schema_create"] ||
-        row["owns_tables"]
-      ) {
-        console.error("Runtime database identity rejected");
-        throw new Error("INVENTORY_RUNTIME_ROLE_REJECTED");
+        );
+        const row = result.rows[0] as Record<string, unknown> | undefined;
+        if (
+          !row ||
+          row["current_name"] !== role ||
+          row["session_name"] !== role ||
+          row["elevated"] ||
+          row["database_create"] ||
+          row["database_temp"] ||
+          row["schema_create"] ||
+          row["owns_tables"]
+        ) {
+          console.error("Runtime database identity rejected");
+          throw new Error("INVENTORY_RUNTIME_ROLE_REJECTED");
+        }
+        verified = true;
+      } finally {
+        client.release();
       }
-      verified = true;
     })().finally(() => {
       pending = null;
     });
     await pending;
   };
   Object.assign(target, {
-    query: (...args: unknown[]) => verify().then(() => query(...args)),
-    // pg's own query() calls connect(callback) after verify() has already run.
-    connect: (...args: unknown[]) =>
-      args.length ? connect(...args) : verify().then(() => connect()),
+    // Preserve pg's query overloads, including callback error delivery. Native
+    // Pool.query routes through this connector, so it cannot skip verification.
+    connect: (callback?: Parameters<Pool["connect"]>[0]) => {
+      if (callback) {
+        void verify().then(
+          () => connect(callback),
+          (error: Error) => callback(error, undefined, () => {}),
+        );
+        return;
+      }
+      return verify().then(() => connect());
+    },
   });
   return target;
 }
