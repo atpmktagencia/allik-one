@@ -116,6 +116,12 @@ try {
   };
   if (!e2e) {
     await run("npm", ["run", "test:integration"], testEnv, true);
+    await run(
+      process.execPath,
+      ["--test", "scripts/provision-runtime-role.check.mjs"],
+      { ...testEnv, DATABASE_ADMIN_URL: url },
+      true,
+    );
   } else {
     await run("npm", ["run", "db:migrate"], testEnv, true);
     await run("npm", ["run", "db:seed"], testEnv, true);

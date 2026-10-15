@@ -44,16 +44,33 @@ async function createInvite(
   createdByUserId: string | null,
 ) {
   const token = randomBytes(32).toString("base64url");
-  await getPool().query(
-    `WITH revoked AS (
-       UPDATE inventory_invites SET revoked_at=now()
-       WHERE user_id=$1 AND used_at IS NULL AND revoked_at IS NULL
-     ), created AS (
-       INSERT INTO inventory_invites(user_id,organization_id,token_hash,expires_at,created_by_user_id)
-       VALUES($1,$2,$3,now()+interval '72 hours',$4) RETURNING user_id
-     ) INSERT INTO inventory_auth_events(user_id,event) SELECT user_id,'INVITE_CREATED' FROM created`,
-    [userId, organizationId, hashToken(token), createdByUserId],
-  );
+  const client = await getPool().connect();
+  try {
+    await client.query("BEGIN");
+    const user = await client.query(
+      "SELECT id FROM inventory_users WHERE id=$1 AND active AND password_hash IS NULL FOR UPDATE",
+      [userId],
+    );
+    if (!user.rowCount) throw new Error("ACCOUNT_ALREADY_ACTIVE");
+    await client.query(
+      "UPDATE inventory_invites SET revoked_at=now() WHERE user_id=$1 AND used_at IS NULL AND revoked_at IS NULL",
+      [userId],
+    );
+    await client.query(
+      "INSERT INTO inventory_invites(user_id,organization_id,token_hash,expires_at,created_by_user_id) VALUES($1,$2,$3,now()+interval '72 hours',$4)",
+      [userId, organizationId, hashToken(token), createdByUserId],
+    );
+    await client.query(
+      "INSERT INTO inventory_auth_events(user_id,event) VALUES($1,'INVITE_CREATED')",
+      [userId],
+    );
+    await client.query("COMMIT");
+  } catch (error) {
+    await client.query("ROLLBACK").catch(() => {});
+    throw error;
+  } finally {
+    client.release();
+  }
   return token;
 }
 
@@ -67,7 +84,7 @@ export async function userAdminResponse(request: Request) {
     const result = await getPool().query(
       `SELECT u.id,u.name,u.email,u.profession,u.title,
        u.professional_council AS "professionalCouncil",u.council_number AS "councilNumber",
-       u.council_region AS "councilRegion",u.active,m.role,
+       u.council_region AS "councilRegion",(u.password_hash IS NOT NULL) AS credentialed,u.active,m.role,
        COALESCE(jsonb_agg(jsonb_build_object('id',un.id,'name',un.name) ORDER BY un.name) FILTER (WHERE un.id IS NOT NULL),'[]') AS units
        FROM inventory_users u JOIN inventory_memberships m ON m.user_id=u.id
        LEFT JOIN inventory_unit_access ua ON ua.membership_id=m.id LEFT JOIN inventory_units un ON un.id=ua.unit_id
@@ -174,13 +191,15 @@ export async function userAdminResponse(request: Request) {
       const target = await client.query(
         `SELECT u.id,u.name,u.email,u.profession,u.title,
           u.professional_council AS "professionalCouncil",u.council_number AS "councilNumber",
-          u.council_region AS "councilRegion",m.id AS "membershipId",m.role
+          u.council_region AS "councilRegion",(u.password_hash IS NOT NULL) AS credentialed,m.id AS "membershipId",m.role
          FROM inventory_users u JOIN inventory_memberships m ON m.user_id=u.id
          WHERE u.id=$1 AND m.organization_id=$2 FOR UPDATE OF u,m`,
         [input.userId, auth.organizationId],
       );
       const before = target.rows[0];
       if (!before) throw new Error("NOT_FOUND");
+      if (before.credentialed && before.email.toLowerCase() !== input.email.toLowerCase())
+        throw new Error("EMAIL_LOCKED");
       if (before.role === "SUPER_ADMIN" && input.role !== "SUPER_ADMIN")
         throw new Error("PROTECTED_ROLE");
       if (before.role !== "SUPER_ADMIN" && input.role === "SUPER_ADMIN")
@@ -197,7 +216,9 @@ export async function userAdminResponse(request: Request) {
       );
       if (validUnits.rowCount !== new Set(input.unitIds).size) throw new Error("INVALID_UNIT");
       const normalizedUnitIds = [...new Set(input.unitIds)].sort();
+      const emailChanged = before.email.toLowerCase() !== input.email.toLowerCase();
       const scopeChanged =
+        emailChanged ||
         before.role !== input.role ||
         JSON.stringify(before.unitIds ?? []) !== JSON.stringify(normalizedUnitIds);
       await client.query(
@@ -217,6 +238,11 @@ export async function userAdminResponse(request: Request) {
           scopeChanged,
         ],
       );
+      if (emailChanged)
+        await client.query(
+          "UPDATE inventory_invites SET revoked_at=now() WHERE user_id=$1 AND used_at IS NULL AND revoked_at IS NULL",
+          [input.userId],
+        );
       await client.query("UPDATE inventory_memberships SET role=$2,updated_at=now() WHERE id=$1", [
         before.membershipId,
         input.role,
@@ -254,20 +280,22 @@ export async function userAdminResponse(request: Request) {
       const response =
         message === "NOT_FOUND"
           ? ["Usuário não encontrado.", 404]
-          : message === "PROTECTED_ROLE"
-            ? ["O perfil SUPER_ADMIN não pode ser atribuído ou removido por esta tela.", 403]
-            : message === "INVALID_UNIT"
-              ? ["Uma unidade informada é inválida.", 400]
-              : code === "23505"
-                ? ["Este e-mail já está cadastrado.", 409]
-                : ["Não foi possível atualizar o usuário.", 503];
+          : message === "EMAIL_LOCKED"
+            ? ["O e-mail de uma conta ativada só pode mudar após confirmação do titular.", 403]
+            : message === "PROTECTED_ROLE"
+              ? ["O perfil SUPER_ADMIN não pode ser atribuído ou removido por esta tela.", 403]
+              : message === "INVALID_UNIT"
+                ? ["Uma unidade informada é inválida.", 400]
+                : code === "23505"
+                  ? ["Este e-mail já está cadastrado.", 409]
+                  : ["Não foi possível atualizar o usuário.", 503];
       return Response.json({ error: response[0] }, { status: response[1] as number, headers });
     } finally {
       client.release();
     }
   }
   const target = await getPool().query(
-    "SELECT u.id,u.active FROM inventory_users u JOIN inventory_memberships m ON m.user_id=u.id WHERE u.id=$1 AND m.organization_id=$2 AND m.role<>'SUPER_ADMIN'",
+    "SELECT u.id,u.active,(u.password_hash IS NOT NULL) AS credentialed FROM inventory_users u JOIN inventory_memberships m ON m.user_id=u.id WHERE u.id=$1 AND m.organization_id=$2 AND m.role<>'SUPER_ADMIN'",
     [input.userId, auth.organizationId],
   );
   if (!target.rowCount)
@@ -276,12 +304,28 @@ export async function userAdminResponse(request: Request) {
       { status: 404, headers },
     );
   if (input.action === "REINVITE") {
+    if (target.rows[0].credentialed)
+      return Response.json(
+        {
+          error:
+            "Esta conta já foi ativada. A recuperação deve ser solicitada pelo titular na tela de login.",
+        },
+        { status: 409, headers },
+      );
     if (!target.rows[0].active)
       return Response.json(
         { error: "Ative o usuário antes de gerar um novo convite." },
         { status: 409, headers },
       );
-    const token = await createInvite(input.userId, auth.organizationId, auth.user.id);
+    let token: string;
+    try {
+      token = await createInvite(input.userId, auth.organizationId, auth.user.id);
+    } catch {
+      return Response.json(
+        { error: "Esta conta não aceita reconvite. Confira a situação do usuário." },
+        { status: 409, headers },
+      );
+    }
     return Response.json(
       { data: { activationPath: `/estoque/ativar?token=${token}` } },
       { headers },
@@ -321,17 +365,25 @@ export async function activationResponse(request: Request) {
   const parsed = activationInput.safeParse(body);
   if (!parsed.success)
     return Response.json({ error: "Convite ou senha inválidos." }, { status: 400 });
-  const passwordHash = await hashPassword(parsed.data.password);
   const client = await getPool().connect();
   try {
     await client.query("BEGIN");
-    const invite = await client.query(
-      `SELECT i.id,i.user_id FROM inventory_invites i
-       JOIN inventory_users u ON u.id=i.user_id AND u.active
-       WHERE i.token_hash=$1 AND i.used_at IS NULL AND i.revoked_at IS NULL AND i.expires_at>now()
-       FOR UPDATE OF i,u`,
+    const candidate = await client.query(
+      "SELECT user_id FROM inventory_invites WHERE token_hash=$1",
       [hashToken(parsed.data.token)],
     );
+    const lockedUser = candidate.rows[0]
+      ? await client.query(
+          "SELECT id FROM inventory_users WHERE id=$1 AND active AND password_hash IS NULL FOR UPDATE",
+          [candidate.rows[0].user_id],
+        )
+      : { rowCount: 0 };
+    const invite = lockedUser.rowCount
+      ? await client.query(
+          `SELECT id,user_id FROM inventory_invites WHERE token_hash=$1 AND user_id=$2 AND used_at IS NULL AND revoked_at IS NULL AND expires_at>now() FOR UPDATE`,
+          [hashToken(parsed.data.token), candidate.rows[0].user_id],
+        )
+      : { rowCount: 0, rows: [] };
     if (!invite.rowCount) {
       await client.query("ROLLBACK");
       return Response.json(
@@ -339,9 +391,14 @@ export async function activationResponse(request: Request) {
         { status: 410 },
       );
     }
+    const passwordHash = await hashPassword(parsed.data.password);
     await client.query(
       "UPDATE inventory_users SET password_hash=$2,active=true,session_version=session_version+1,updated_at=now() WHERE id=$1",
       [invite.rows[0].user_id, passwordHash],
+    );
+    await client.query(
+      "UPDATE inventory_invites SET revoked_at=now() WHERE user_id=$1 AND id<>$2 AND used_at IS NULL AND revoked_at IS NULL",
+      [invite.rows[0].user_id, invite.rows[0].id],
     );
     await client.query("UPDATE inventory_invites SET used_at=now() WHERE id=$1", [
       invite.rows[0].id,

@@ -31,5 +31,8 @@ jobs:
       - run: bun run typecheck
       - run: bun run test
       - run: bun run test:integration
+      - run: node --test scripts/provision-runtime-role.check.mjs
+        env:
+          DATABASE_ADMIN_URL: ${{ env.DATABASE_URL }}
       - run: bunx playwright install --with-deps chromium
       - run: bun run test:e2e:local

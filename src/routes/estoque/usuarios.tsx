@@ -11,6 +11,7 @@ type User = {
   email: string;
   role: string;
   active: boolean;
+  credentialed?: boolean;
   profession?: string | null;
   title?: string | null;
   professionalCouncil?: string | null;
@@ -127,6 +128,7 @@ export function UserAdministration() {
     }
   }
   async function resetPassword(user: User) {
+    if (user.credentialed) return;
     setPending(true);
     setError("");
     setMessage("");
@@ -177,6 +179,7 @@ export function UserAdministration() {
           type="email"
           placeholder="E-mail"
           required
+          disabled={editing?.credentialed === true}
           value={form.email}
           onChange={(event) => setForm({ ...form, email: event.target.value })}
         />
@@ -333,7 +336,7 @@ export function UserAdministration() {
                     >
                       <Pencil className="mr-1.5 size-3.5" /> Editar
                     </Button>
-                    {user.active ? (
+                    {user.active && !user.credentialed ? (
                       <Button
                         size="sm"
                         variant="outline"
@@ -342,6 +345,11 @@ export function UserAdministration() {
                       >
                         <KeyRound className="mr-1.5 size-3.5" /> Redefinir senha
                       </Button>
+                    ) : user.credentialed ? (
+                      <span className="text-xs text-muted-foreground">
+                        O titular altera a senha em Minha conta. A recuperação por e-mail depende da
+                        disponibilidade do serviço.
+                      </span>
                     ) : null}
                   </div>
                 </td>

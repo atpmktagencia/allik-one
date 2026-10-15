@@ -1,3 +1,4 @@
+import { passwordSecurityResponse } from "@/server/password-security";
 import { createFileRoute } from "@tanstack/react-router";
 import { inventoryResponse } from "@/server/inventory";
 import { receivingResponse } from "@/server/receiving";
@@ -108,6 +109,10 @@ export const Route = createFileRoute("/api/v1/inventory/$")({
           "/api/v1/inventory/integration-credentials"
         )
           return integrationCredentialResponse(request);
+        if (
+          new URL(request.url).pathname.replace(/\/$/, "") === "/api/v1/inventory/password-security"
+        )
+          return passwordSecurityResponse(request);
         if (new URL(request.url).pathname.replace(/\/$/, "") === "/api/v1/inventory/users")
           return userAdminResponse(request);
         if (new URL(request.url).pathname.replace(/\/$/, "") === "/api/v1/inventory/sale-prices")
@@ -192,6 +197,10 @@ export const Route = createFileRoute("/api/v1/inventory/$")({
           return integrationCredentialResponse(request);
         if (new URL(request.url).pathname.replace(/\/$/, "") === "/api/v1/inventory/write-offs")
           return writeOffResponse(request);
+        if (
+          new URL(request.url).pathname.replace(/\/$/, "") === "/api/v1/inventory/password-security"
+        )
+          return passwordSecurityResponse(request);
         if (new URL(request.url).pathname.replace(/\/$/, "") === "/api/v1/inventory/users")
           return userAdminResponse(request);
         if (

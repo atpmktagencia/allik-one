@@ -379,6 +379,13 @@
       "when": 1794272400010,
       "tag": "0053_clinical-access-policy",
       "breakpoints": true
+    },
+    {
+      "idx": 54,
+      "version": "7",
+      "when": 1794272400011,
+      "tag": "0054_account-password-security",
+      "breakpoints": true
     }
   ]
 }

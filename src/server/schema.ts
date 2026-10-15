@@ -150,13 +150,22 @@ export const invites = pgTable(
   (t) => [index("inventory_invite_user").on(t.userId, t.createdAt)],
 );
 
-export const authEvents = pgTable("inventory_auth_events", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  userId: uuid("user_id").references(() => users.id),
-  event: text("event").notNull(),
-  ipHash: text("ip_hash"),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-});
+export const authEvents = pgTable(
+  "inventory_auth_events",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id").references(() => users.id),
+    event: text("event").notNull(),
+    ipHash: text("ip_hash"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    check(
+      "inventory_auth_event_valid",
+      sql`${t.event} IN ('LOGIN_SUCCESS','LOGIN_FAILURE','LOGOUT','INVITE_CREATED','INVITE_ACCEPTED','USER_ACTIVATED','USER_DEACTIVATED','PASSWORD_CHANGED','PASSWORD_RESET','LEGACY_RESET_INVITE_REVOKED')`,
+    ),
+  ],
+);
 
 export const userChanges = pgTable(
   "inventory_user_changes",
@@ -2222,5 +2231,41 @@ export const clinicalAccessEvents = pgTable(
       sql`(${t.actorUserId} IS NOT NULL AND ${t.previewActor} IS NULL) OR (${t.actorUserId} IS NULL AND ${t.previewActor} IS NOT NULL)`,
     ),
     check("clinical_access_resources_valid", sql`jsonb_typeof(${t.resourceIds})='array'`),
+  ],
+);
+
+export const passwordResets = pgTable(
+  "inventory_password_resets",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id),
+    tokenHash: text("token_hash").notNull().unique(),
+    sessionVersion: integer("session_version").notNull(),
+    emailHash: text("email_hash").notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    usedAt: timestamp("used_at", { withTimezone: true }),
+    revokedAt: timestamp("revoked_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("password_reset_user_time").on(t.userId, t.createdAt),
+    check(
+      "password_reset_hashes_valid",
+      sql`${t.tokenHash} ~ '^[a-f0-9]{64}$' AND ${t.emailHash} ~ '^[a-f0-9]{64}$' AND ${t.sessionVersion}>=0`,
+    ),
+  ],
+);
+export const authRateLimits = pgTable(
+  "inventory_auth_rate_limits",
+  {
+    key: text("key").notNull(),
+    bucket: timestamp("bucket", { withTimezone: true }).notNull(),
+    attempts: integer("attempts").notNull(),
+  },
+  (t) => [
+    uniqueIndex("auth_rate_limit_bucket").on(t.key, t.bucket),
+    check("auth_rate_limit_valid", sql`${t.key} ~ '^[a-f0-9]{64}$' AND ${t.attempts}>0`),
   ],
 );

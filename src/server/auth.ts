@@ -444,6 +444,16 @@ export async function pilotLogin(request: Request) {
   return Response.json({ ok: true }, { headers });
 }
 
+export function clearedSessionHeaders(request: Request) {
+  const headers = new Headers({ "Cache-Control": "no-store" });
+  headers.append("Set-Cookie", secureCookie(request, "", 0));
+  headers.append(
+    "Set-Cookie",
+    secureCookie(request, "1", previewLifetimeSeconds, previewOptOutCookieName),
+  );
+  return headers;
+}
+
 export async function logout(request: Request) {
   if (!sameOrigin(request))
     return Response.json({ error: "Origem não autorizada." }, { status: 403 });
@@ -453,12 +463,7 @@ export async function logout(request: Request) {
       `WITH revoked AS (UPDATE inventory_sessions SET revoked_at=COALESCE(revoked_at,now()) WHERE token_hash=$1 RETURNING user_id) INSERT INTO inventory_auth_events(user_id,event) SELECT user_id,'LOGOUT' FROM revoked`,
       [hashToken(rawToken)],
     );
-  const headers = new Headers({ "Cache-Control": "no-store" });
-  headers.append("Set-Cookie", secureCookie(request, "", 0));
-  headers.append(
-    "Set-Cookie",
-    secureCookie(request, "1", previewLifetimeSeconds, previewOptOutCookieName),
-  );
+  const headers = clearedSessionHeaders(request);
   return Response.json({ ok: true }, { headers });
 }
 
