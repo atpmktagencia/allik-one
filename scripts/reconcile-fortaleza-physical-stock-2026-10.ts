@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
-import { getPool } from "../src/server/db";
+import { getPool, allowMaintenanceIdentity } from "../src/server/db";
+allowMaintenanceIdentity();
 
 const LOCATION_NAME = "Fortaleza — Estoque Central";
 const ACTOR_EMAIL = process.env["RECONCILE_FORTALEZA_ACTOR_EMAIL"]?.trim().toLowerCase();

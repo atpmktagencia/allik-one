@@ -1,7 +1,8 @@
 import { createHash, randomUUID } from "node:crypto";
 import { pathToFileURL } from "node:url";
-import { getPool } from "../src/server/db";
+import { getPool, allowMaintenanceIdentity } from "../src/server/db";
 import stinCatalog from "../src/server/vendor-catalog/stin.json";
+allowMaintenanceIdentity();
 
 const TIRZEPATIDE_CODES = ["STIN-TIRZ-20", "STIN-TIRZ-60", "STIN-TIRZ-93_6"];
 const TIRZEPATIDE_LOT = "SEM-LOTE-FOR-2027-03-STIN-TIRZ-20";

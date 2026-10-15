@@ -421,6 +421,13 @@
       "when": 1794272400016,
       "tag": "0059_professional_registration_uniqueness",
       "breakpoints": true
+    },
+    {
+      "idx": 60,
+      "version": "7",
+      "when": 1794272400017,
+      "tag": "0060_function_search_path",
+      "breakpoints": true
     }
   ]
 }

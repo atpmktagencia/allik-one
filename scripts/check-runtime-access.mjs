@@ -50,19 +50,24 @@ export async function checkRuntimeAccess({ runtimeUrl, environment, expectedRole
     );
     if (ownership.rowCount) fail("Application role owns database objects.");
     const bypass = await client.query(
-      "SELECT has_schema_privilege(current_user,'public','CREATE') AS schema_create, has_schema_privilege(current_user,'public','USAGE') AS schema_usage, has_database_privilege(current_user,current_database(),'CREATE') AS database_create, has_parameter_privilege(current_user,'session_replication_role','SET') AS replica",
+      "SELECT has_schema_privilege(current_user,'public','CREATE') AS schema_create, has_schema_privilege(current_user,'public','USAGE') AS schema_usage, has_database_privilege(current_user,current_database(),'CREATE') AS database_create, has_parameter_privilege(current_user,'session_replication_role','SET') AS replica, has_database_privilege(current_user,current_database(),'TEMP') AS database_temp",
     );
     if (
       !bypass.rows[0].schema_usage ||
       bypass.rows[0].schema_create ||
       bypass.rows[0].database_create ||
-      bypass.rows[0].replica
+      bypass.rows[0].replica ||
+      bypass.rows[0].database_temp
     )
       fail("Application can bypass database protections or lacks schema access.");
     const definer = await client.query(
       "SELECT 1 FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace WHERE n.nspname NOT IN ('pg_catalog','information_schema') AND n.nspname !~ '^pg_' AND p.prosecdef AND has_function_privilege(current_user,p.oid,'EXECUTE') LIMIT 1",
     );
     if (definer.rowCount) fail("Application can execute an unreviewed SECURITY DEFINER function.");
+    const unpinned = await client.query(
+      "SELECT 1 FROM pg_proc WHERE pronamespace='public'::regnamespace AND proname LIKE 'inventory\\_%' ESCAPE '\\' AND NOT EXISTS (SELECT 1 FROM unnest(coalesce(proconfig,'{}'::text[])) AS setting WHERE setting LIKE 'search\\_path=%' ESCAPE '\\' AND setting NOT LIKE 'search\\_path=pg\\_temp%' ESCAPE '\\') LIMIT 1",
+    );
+    if (unpinned.rowCount) fail("An application function runs without a fixed search_path.");
     const tables = await client.query(
       `SELECT c.oid, EXISTS(SELECT 1 FROM pg_trigger t JOIN pg_proc p ON p.oid=t.tgfoid WHERE t.tgrelid=c.oid AND NOT t.tgisinternal AND p.proname='inventory_reject_history_change' AND (t.tgtype::int & 8)<>0 AND (t.tgtype::int & 16)<>0) AS append_only,
        has_table_privilege(current_user,c.oid,'SELECT') AS read, has_table_privilege(current_user,c.oid,'INSERT') AS insert,

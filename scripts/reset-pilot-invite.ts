@@ -1,5 +1,6 @@
-import { getPool } from "../src/server/db";
+import { getPool, allowMaintenanceIdentity } from "../src/server/db";
 import { hashToken } from "../src/server/auth";
+allowMaintenanceIdentity();
 
 if (
   process.env["INVENTORY_ENVIRONMENT"] !== "production" ||

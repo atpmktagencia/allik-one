@@ -1,5 +1,6 @@
-import { getPool } from "../src/server/db";
+import { getPool, allowMaintenanceIdentity } from "../src/server/db";
 import { hashToken } from "../src/server/auth";
+allowMaintenanceIdentity();
 
 const email = process.env["PILOT_SUPER_ADMIN_EMAIL"]?.trim().toLowerCase();
 const name = process.env["PILOT_SUPER_ADMIN_NAME"]?.trim();

@@ -83,6 +83,7 @@ test(
         `UPDATE public.${history} SET quantity=0`,
         `DELETE FROM public.${history}`,
         "SET session_replication_role=replica",
+        `CREATE TEMP TABLE ${table}_shadow(id integer)`,
       ])
         await assert.rejects(app.query(sql), (error) => error.code === "42501");
       await app.query("BEGIN");
@@ -95,6 +96,10 @@ test(
       await owner.query(`GRANT SET ON PARAMETER session_replication_role TO ${role}`);
       await assert.rejects(provisionRuntimeRole({ ...options, apply: false }), /bypass triggers/);
       await owner.query(`REVOKE SET ON PARAMETER session_replication_role FROM ${role}`);
+      const database = (await owner.query("SELECT current_database() AS name")).rows[0].name;
+      await owner.query(`GRANT TEMPORARY ON DATABASE "${database}" TO ${role}`);
+      await assert.rejects(provisionRuntimeRole({ ...options, apply: false }), /bypass triggers/);
+      await owner.query(`REVOKE TEMPORARY ON DATABASE "${database}" FROM ${role}`);
     } finally {
       if (app) await app.end();
       await owner.query(`DROP TABLE IF EXISTS public.${history},public.${table}`);

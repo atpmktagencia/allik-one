@@ -80,6 +80,16 @@ export async function provisionRuntimeRole({
       await client.query(
         `GRANT CONNECT ON DATABASE ${identifier(current.rows[0].database)} TO ${identifier(role)}`,
       );
+      // Temporary tables precede public in the default search_path. Triggers that
+      // reference unqualified tables could otherwise be redirected to a session
+      // temp table, so the application database must not grant TEMP to anyone
+      // except its owner/maintenance identity.
+      await client.query(
+        `REVOKE TEMPORARY ON DATABASE ${identifier(current.rows[0].database)} FROM PUBLIC`,
+      );
+      await client.query(
+        `REVOKE TEMPORARY ON DATABASE ${identifier(current.rows[0].database)} FROM ${identifier(role)}`,
+      );
       await client.query(`GRANT USAGE ON SCHEMA public TO ${identifier(role)}`);
       await client.query(`REVOKE CREATE ON SCHEMA public FROM ${identifier(role)}`);
       for (const table of tables.rows) {
@@ -106,10 +116,10 @@ export async function provisionRuntimeRole({
         "Runtime can CREATE in public (possibly through PUBLIC). Restrict schema grants administratively; no shared grants were changed.",
       );
     const bypass = await client.query(
-      "SELECT has_parameter_privilege($1,'session_replication_role','SET') AS replica, has_database_privilege($1,current_database(),'CREATE') AS database_create",
+      "SELECT has_parameter_privilege($1,'session_replication_role','SET') AS replica, has_database_privilege($1,current_database(),'CREATE') AS database_create, has_database_privilege($1,current_database(),'TEMP') AS database_temp",
       [role],
     );
-    if (bypass.rows[0].replica || bypass.rows[0].database_create)
+    if (bypass.rows[0].replica || bypass.rows[0].database_create || bypass.rows[0].database_temp)
       fail(
         "Runtime can bypass triggers or create schemas; resolve parameter/database grants administratively.",
       );
@@ -121,6 +131,11 @@ export async function provisionRuntimeRole({
       fail(
         "Runtime can execute a SECURITY DEFINER function; review/restrict it administratively first.",
       );
+    const unpinned = await client.query(
+      "SELECT 1 FROM pg_proc WHERE pronamespace='public'::regnamespace AND proname LIKE 'inventory\\_%' ESCAPE '\\' AND NOT EXISTS (SELECT 1 FROM unnest(coalesce(proconfig,'{}'::text[])) AS setting WHERE setting LIKE 'search\\_path=%' ESCAPE '\\' AND setting NOT LIKE 'search\\_path=pg\\_temp%' ESCAPE '\\') LIMIT 1",
+    );
+    if (unpinned.rowCount)
+      fail("An inventory function has no fixed search_path; apply pending migrations first.");
     for (const table of tables.rows) {
       const privileges = await client.query(
         "SELECT has_table_privilege($1,$2,'TRUNCATE') AS truncate, has_table_privilege($1,$2,'TRIGGER') AS trigger, has_table_privilege($1,$2,'SELECT') AS read, has_table_privilege($1,$2,'INSERT') AS insert, has_table_privilege($1,$2,'UPDATE') AS update, has_table_privilege($1,$2,'DELETE') AS delete",

@@ -1,6 +1,7 @@
 import { createHash, randomUUID } from "node:crypto";
 import { pathToFileURL } from "node:url";
-import { getPool } from "../src/server/db";
+import { getPool, allowMaintenanceIdentity } from "../src/server/db";
+allowMaintenanceIdentity();
 
 const REASON = "Categoria Essentia e custos unitários reconciliados com os catálogos vigentes.";
 

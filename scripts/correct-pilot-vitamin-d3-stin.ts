@@ -1,6 +1,7 @@
 import { createHash, randomUUID } from "node:crypto";
 import { pathToFileURL } from "node:url";
-import { getPool } from "../src/server/db";
+import { getPool, allowMaintenanceIdentity } from "../src/server/db";
+allowMaintenanceIdentity();
 
 const OLD_SKU = "ESS-D3-100000-IM";
 const NEW_SKU = "STIN-P110";
