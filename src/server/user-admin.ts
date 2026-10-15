@@ -99,7 +99,7 @@ export async function userAdminResponse(request: Request) {
   const auth = await authenticate(request);
   if (!auth)
     return Response.json({ error: "Entre para administrar usuários." }, { status: 401, headers });
-  if (!can(auth, "users.manage"))
+  if (!can(auth, "users.manage") || auth.integration)
     return Response.json({ error: "Acesso negado." }, { status: 403, headers });
   if (request.method === "GET") {
     const result = await getPool().query(
@@ -119,6 +119,12 @@ export async function userAdminResponse(request: Request) {
     return Response.json({ error: "Método não permitido." }, { status: 405, headers });
   if (request.headers.get("origin") !== new URL(request.url).origin)
     return Response.json({ error: "Origem não autorizada." }, { status: 403, headers });
+  // Account changes need an individual, accountable administrator.
+  if (auth.preview || !auth.user.id)
+    return Response.json(
+      { error: "Entre com uma conta individual para administrar usuários." },
+      { status: 403, headers },
+    );
   let body: unknown;
   try {
     body = await request.json();
@@ -229,6 +235,23 @@ export async function userAdminResponse(request: Request) {
       if (!before) throw new Error("NOT_FOUND");
       if (before.credentialed && before.email.toLowerCase() !== input.email.toLowerCase())
         throw new Error("EMAIL_LOCKED");
+      // An activated professional's registry is their signing identity; reassigning it would
+      // let an administrator attach another person's council number to an existing login.
+      if (before.credentialed) {
+        const registry = await client.query(
+          `SELECT coalesce(inventory_professional_registration_key($1::text,$2::text,$3::text),upper(concat_ws('|',$1::text,$2::text,$3::text)))
+            IS DISTINCT FROM coalesce(inventory_professional_registration_key($4::text,$5::text,$6::text),upper(concat_ws('|',$4::text,$5::text,$6::text))) AS changed`,
+          [
+            before.professionalCouncil,
+            before.councilNumber,
+            before.councilRegion,
+            input.professionalCouncil ?? null,
+            input.councilNumber ?? null,
+            input.councilRegion ?? null,
+          ],
+        );
+        if (registry.rows[0].changed) throw new Error("REGISTRY_LOCKED");
+      }
       if (before.role === "SUPER_ADMIN" && input.role !== "SUPER_ADMIN")
         throw new Error("PROTECTED_ROLE");
       if (before.role !== "SUPER_ADMIN" && input.role === "SUPER_ADMIN")
@@ -341,13 +364,18 @@ export async function userAdminResponse(request: Request) {
           ? ["Usuário não encontrado.", 404]
           : message === "EMAIL_LOCKED"
             ? ["O e-mail de uma conta ativada só pode mudar após confirmação do titular.", 403]
-            : message === "PROTECTED_ROLE"
-              ? ["O perfil SUPER_ADMIN não pode ser atribuído ou removido por esta tela.", 403]
-              : message === "INVALID_UNIT"
-                ? ["Uma unidade informada é inválida.", 400]
-                : code === "23505"
-                  ? ["Este e-mail já está cadastrado.", 409]
-                  : ["Não foi possível atualizar o usuário.", 503];
+            : message === "REGISTRY_LOCKED"
+              ? [
+                  "O registro profissional de uma conta ativada não pode ser alterado. Crie uma nova conta para o titular correto.",
+                  409,
+                ]
+              : message === "PROTECTED_ROLE"
+                ? ["O perfil SUPER_ADMIN não pode ser atribuído ou removido por esta tela.", 403]
+                : message === "INVALID_UNIT"
+                  ? ["Uma unidade informada é inválida.", 400]
+                  : code === "23505"
+                    ? ["Este e-mail já está cadastrado.", 409]
+                    : ["Não foi possível atualizar o usuário.", 503];
       return Response.json({ error: response[0] }, { status: response[1] as number, headers });
     } finally {
       client.release();

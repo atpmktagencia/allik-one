@@ -7,7 +7,7 @@ import {
   timingSafeEqual,
 } from "node:crypto";
 import { getPool } from "./db";
-import { consumeAuthRateLimit } from "./auth-rate-limit";
+import { consumeAuthRateLimit, releaseAuthRateLimit } from "./auth-rate-limit";
 
 const cookieName = "allik_inventory_session";
 const previewOptOutCookieName = "allik_inventory_preview_opt_out";
@@ -270,6 +270,7 @@ export async function hashPassword(password: string) {
   });
   return `scrypt$32768$8$1$${salt.toString("base64url")}$${derived.toString("base64url")}`;
 }
+const unusablePasswordHash = `scrypt$32768$8$1$${"A".repeat(22)}$${"A".repeat(86)}`;
 export async function verifyPassword(password: string, encoded: string) {
   const [algorithm, n, r, p, saltValue, hashValue, extra] = encoded.split("$");
   if (algorithm !== "scrypt" || extra || !n || !r || !p || !saltValue || !hashValue) return false;
@@ -448,9 +449,13 @@ export async function pilotLogin(request: Request) {
     process.env["VERCEL"] === "1"
       ? (request.headers.get("x-vercel-forwarded-for") ?? "unknown")
       : "local";
+  // Successful attempts are returned below, so the per-account counters hold failures only.
+  // The per-address limit stops one source from locking another person's account out.
+  const accountLimits = [`login-email-ip:${normalized}:${ip}`, `login-email:${normalized}`];
   if (
     !(await consumeAuthRateLimit(`login-ip:${ip}`, 100)) ||
-    !(await consumeAuthRateLimit(`login-email:${normalized}`, 10))
+    !(await consumeAuthRateLimit(accountLimits[0]!, 10)) ||
+    !(await consumeAuthRateLimit(accountLimits[1]!, 50))
   )
     return Response.json(
       { error: "Muitas tentativas de acesso. Tente novamente mais tarde." },
@@ -463,7 +468,10 @@ export async function pilotLogin(request: Request) {
   const row = result.rows[0] as
     | { id: string; password_hash: string | null; active: boolean; session_version: number }
     | undefined;
-  const valid = row?.password_hash ? await verifyPassword(password, row.password_hash) : false;
+  // Unknown and pending accounts pay the same scrypt cost as real ones.
+  const valid =
+    (await verifyPassword(password, row?.password_hash ?? unusablePasswordHash)) &&
+    Boolean(row?.password_hash);
   if (!row || !row.active || !valid) {
     await getPool().query(
       "INSERT INTO inventory_auth_events(user_id,event) VALUES($1,'LOGIN_FAILURE')",
@@ -471,6 +479,7 @@ export async function pilotLogin(request: Request) {
     );
     return Response.json({ error: "Credenciais inválidas." }, { status: 401 });
   }
+  for (const key of accountLimits) await releaseAuthRateLimit(key);
   const token = randomBytes(32).toString("base64url");
   await getPool().query(
     `WITH created AS (INSERT INTO inventory_sessions(user_id,token_hash,session_version,expires_at) VALUES($1,$2,$3,now()+make_interval(secs=>$4)) RETURNING user_id) INSERT INTO inventory_auth_events(user_id,event) SELECT user_id,'LOGIN_SUCCESS' FROM created`,

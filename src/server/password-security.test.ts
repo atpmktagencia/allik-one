@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { migrate } from "drizzle-orm/node-postgres/migrator";
 import { getDb, getPool } from "./db";
 import { authenticate, hashPassword, hashToken, verifyPassword } from "./auth";
@@ -19,6 +19,10 @@ afterAll(async () => {
   vi.unstubAllGlobals();
   vi.unstubAllEnvs();
   await getPool().end();
+});
+afterEach(() => {
+  vi.unstubAllEnvs();
+  process.env["INVENTORY_ENVIRONMENT"] = "test";
 });
 beforeEach(async () => {
   await getPool().query("DELETE FROM inventory_auth_rate_limits");
@@ -409,5 +413,96 @@ describe("individual password security", () => {
         )
       ).status,
     ).toBe(410);
+  });
+  it("keeps an activated professional registry immutable through user administration", async () => {
+    const f = await fixture();
+    const target = randomUUID();
+    await getPool().query(
+      "INSERT INTO inventory_users(id,name,email,password_hash,profession,professional_council,council_number,council_region) VALUES($1,'Synthetic doctor',$2,$3,'Médico','CRM','4321','CE')",
+      [target, `${target}@example.test`, await hashPassword(oldPassword)],
+    );
+    await getPool().query(
+      "INSERT INTO inventory_memberships(user_id,organization_id,role) VALUES($1,$2,'CLINICIAN')",
+      [target, f.org],
+    );
+    const update = (registry: Record<string, string>) =>
+      f.admin({
+        action: "UPDATE",
+        userId: target,
+        name: "Synthetic doctor",
+        email: `${target}@example.test`,
+        profession: "Médico",
+        role: "CLINICIAN",
+        unitIds: [],
+        ...registry,
+      });
+    const changed = await update({
+      professionalCouncil: "CRM",
+      councilNumber: "9999",
+      councilRegion: "CE",
+    });
+    expect(changed.status).toBe(409);
+    expect(
+      (await getPool().query("SELECT council_number FROM inventory_users WHERE id=$1", [target]))
+        .rows[0].council_number,
+    ).toBe("4321");
+    expect(
+      (await update({ professionalCouncil: "crm", councilNumber: "CRM-4321", councilRegion: "ce" }))
+        .status,
+    ).toBe(200);
+  });
+  it("lets the Preview operator read but not change user accounts", async () => {
+    vi.stubEnv("INVENTORY_ENVIRONMENT", "preview");
+    vi.stubEnv("VERCEL_ENV", "preview");
+    vi.stubEnv("INVENTORY_DISABLE_PREVIEW_LOGIN", "true");
+    vi.stubEnv("INVENTORY_PREVIEW_DATA_CLASSIFICATION", "synthetic");
+    const preview = (body?: Record<string, unknown>) =>
+      userAdminResponse(
+        new Request(`${origin}/api/v1/inventory/users`, {
+          method: body ? "POST" : "GET",
+          headers: { origin, "Content-Type": "application/json" },
+          ...(body ? { body: JSON.stringify(body) } : {}),
+        }),
+      );
+    expect((await preview()).status).toBe(200);
+    const email = `${randomUUID()}@example.test`;
+    expect(
+      (
+        await preview({
+          action: "CREATE",
+          name: "Preview created user",
+          email,
+          role: "VIEWER",
+          unitIds: [],
+        })
+      ).status,
+    ).toBe(403);
+    expect(
+      (await getPool().query("SELECT 1 FROM inventory_users WHERE email=$1", [email])).rowCount,
+    ).toBe(0);
+  });
+  it("answers known and unknown recovery requests after the same minimum time", async () => {
+    vi.stubEnv("INVENTORY_ENVIRONMENT", "pilot");
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (_url: string, init: RequestInit) => {
+        emails.push(String(init.body));
+        await new Promise((resolve) => setTimeout(resolve, 300));
+        return Response.json({ id: randomUUID() });
+      }),
+    );
+    const f = await fixture();
+    const timed = async (email: string) => {
+      const started = performance.now();
+      const response = await f.request({ action: "REQUEST_RESET", email });
+      expect(await response.json()).toEqual({ ok: true });
+      return performance.now() - started;
+    };
+    const unknown = await timed(`${randomUUID()}@example.test`);
+    const known = await timed(f.email);
+    expect(emails).toHaveLength(1);
+    expect(unknown).toBeGreaterThanOrEqual(2400);
+    expect(known).toBeGreaterThanOrEqual(2400);
+    expect(Math.abs(known - unknown)).toBeLessThan(400);
   });
 });

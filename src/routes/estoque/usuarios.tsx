@@ -220,6 +220,7 @@ export function UserAdministration() {
         <select
           aria-label="Conselho profissional"
           className="h-10 rounded-md border bg-background px-3"
+          disabled={editing?.credentialed === true}
           value={form.professionalCouncil}
           required={Boolean(form.profession)}
           onChange={(event) => setForm({ ...form, professionalCouncil: event.target.value })}
@@ -235,6 +236,7 @@ export function UserAdministration() {
           aria-label="Número do conselho"
           placeholder="Número do conselho"
           required={Boolean(form.profession)}
+          disabled={editing?.credentialed === true}
           value={form.councilNumber}
           onChange={(event) => setForm({ ...form, councilNumber: event.target.value })}
         />
@@ -244,6 +246,7 @@ export function UserAdministration() {
           maxLength={2}
           minLength={2}
           required={Boolean(form.profession)}
+          disabled={editing?.credentialed === true}
           value={form.councilRegion}
           onChange={(event) =>
             setForm({ ...form, councilRegion: event.target.value.toUpperCase() })

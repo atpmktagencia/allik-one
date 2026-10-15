@@ -60,7 +60,22 @@ function recoveryConfiguration() {
   }
 }
 
+// Delivery to the provider takes a few hundred milliseconds; answering every eligible,
+// unknown or throttled request after the same floor keeps account existence private.
+// Disposable test databases skip the floor; a dedicated test measures it explicitly.
+const recoveryResponseFloorMs = () => (process.env["INVENTORY_ENVIRONMENT"] === "test" ? 0 : 2500);
+
 async function requestRecovery(email: string, request: Request) {
+  const started = Date.now();
+  const response = await issueRecovery(email, request);
+  if (response.status === 200) {
+    const remaining = recoveryResponseFloorMs() - (Date.now() - started);
+    if (remaining > 0) await new Promise((resolve) => setTimeout(resolve, remaining));
+  }
+  return response;
+}
+
+async function issueRecovery(email: string, request: Request) {
   const config = recoveryConfiguration();
   if (!config)
     return Response.json(

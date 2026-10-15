@@ -84,7 +84,7 @@ describe("individual login shared throttling", () => {
     expect(responses.filter((value) => value.status === 401)).toHaveLength(10);
     expect(responses.filter((value) => value.status === 429)).toHaveLength(6);
     const rows = (await getPool().query("SELECT key FROM inventory_auth_rate_limits")).rows;
-    expect(rows).toHaveLength(2);
+    expect(rows).toHaveLength(3);
     expect(rows.every((row) => /^[a-f0-9]{64}$/.test(row.key))).toBe(true);
   });
   it("limits password spraying across emails using the trusted platform IP", async () => {
@@ -95,6 +95,35 @@ describe("individual login shared throttling", () => {
     expect((await login(`${randomUUID()}@example.test`)).status).toBe(401);
     expect((await login(`${randomUUID()}@example.test`)).status).toBe(429);
     expect((await login(`${randomUUID()}@example.test`, password, "192.0.2.2")).status).toBe(401);
+  });
+  it("counts only failures and keeps an account lockout local to the failing address", async () => {
+    const f = await fixture();
+    for (let attempt = 0; attempt < 12; attempt++) expect((await login(f.email)).status).toBe(200);
+    for (let attempt = 0; attempt < 10; attempt++)
+      expect((await login(f.email, "wrong-password")).status).toBe(401);
+    expect((await login(f.email)).status).toBe(429);
+    expect((await login(f.email, password, "192.0.2.77")).status).toBe(200);
+  });
+  it("spends the password hashing cost for unknown and pending accounts", async () => {
+    const f = await fixture();
+    const pending = `${randomUUID()}@example.test`;
+    await getPool().query(
+      "INSERT INTO inventory_users(name,email) VALUES('Synthetic pending',$1)",
+      [pending],
+    );
+    const elapsed = async (email: string) => {
+      const started = performance.now();
+      expect((await login(email, "wrong-password", randomUUID())).status).toBe(401);
+      return performance.now() - started;
+    };
+    const known = Math.min(await elapsed(f.email), await elapsed(f.email));
+    const unknown = Math.min(
+      await elapsed(`${randomUUID()}@example.test`),
+      await elapsed(`${randomUUID()}@example.test`),
+    );
+    const notActivated = Math.min(await elapsed(pending), await elapsed(pending));
+    expect(unknown).toBeGreaterThan(known * 0.5);
+    expect(notActivated).toBeGreaterThan(known * 0.5);
   });
   it("rejects oversized credentials before creating counters or sessions", async () => {
     expect((await login(`${"x".repeat(255)}@example.test`)).status).toBe(401);

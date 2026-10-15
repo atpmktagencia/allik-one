@@ -16,3 +16,15 @@ export async function consumeAuthRateLimit(
   );
   return result.rows[0].attempts <= limit;
 }
+
+/** Return one attempt, so successful logins never count toward an account lockout. */
+export async function releaseAuthRateLimit(key: string, period: "hour" | "day" = "hour") {
+  const hashed = createHash("sha256").update(key).digest("hex");
+  await getPool().query(
+    `WITH released AS (UPDATE inventory_auth_rate_limits SET attempts=attempts-1
+      WHERE key=$1 AND bucket=date_trunc($2,now()) AND attempts>1 RETURNING 1)
+     DELETE FROM inventory_auth_rate_limits WHERE key=$1 AND bucket=date_trunc($2,now()) AND attempts=1
+       AND NOT EXISTS(SELECT 1 FROM released)`,
+    [hashed, period],
+  );
+}
