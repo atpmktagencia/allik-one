@@ -1,3 +1,5 @@
+import { patientEncounterHistory } from "./patient-encounter-history";
+import { recordClinicalAccess } from "./clinical-access-audit";
 import { patientAllergySummary } from "./patient-allergies";
 import "@tanstack/react-start/server-only";
 import { del, get, put } from "@vercel/blob";
@@ -39,7 +41,7 @@ export async function patientDetailResponse(request: Request) {
   if (!patientId)
     return Response.json({ error: "Paciente não informado." }, { status: 400, headers });
   const patient = await scopedPatient(auth, patientId);
-  if (!patient)
+  if (!patient || !can(auth, "patients.private.read", String(patient.primaryUnitId)))
     return Response.json({ error: "Paciente não encontrado." }, { status: 404, headers });
 
   if (request.method === "GET") {
@@ -57,6 +59,7 @@ export async function patientDetailResponse(request: Request) {
       clinicalHistory,
       clinicalProblems,
       clinicalAlerts,
+      encounters,
     ] = await Promise.all([
       getPool().query(
         `SELECT t.id,t.product_id AS "productId",p.name AS "productName",p.sku,
@@ -186,6 +189,7 @@ export async function patientDetailResponse(request: Request) {
           updated_at DESC,id DESC LIMIT 200`,
         [patientId, auth.organizationId, patient.primaryUnitId],
       ),
+      patientEncounterHistory(auth, patientId),
     ]);
     const purchaseRows = purchases.rows as Array<Record<string, unknown>>;
     const scheduleRows = schedule.rows as Array<Record<string, unknown>>;
@@ -288,9 +292,32 @@ export async function patientDetailResponse(request: Request) {
             : Math.max(0, unitRequiredPresentationUnits - availableStockUnits),
       };
     });
+    try {
+      await recordClinicalAccess(auth, {
+        unitId: String(patient.primaryUnitId),
+        patientId,
+        action: "READ",
+        resourceIds: [
+          ...clinicalHistory.rows.map((n) => n.id),
+          ...encounters.rows.flatMap((entry) => [
+            entry.id,
+            ...(entry.note ? [entry.note.id] : []),
+            ...(entry.prescription ? [entry.prescription.id] : []),
+            ...entry.documents.map((document: { id: string }) => document.id),
+          ]),
+        ],
+      });
+    } catch {
+      console.error("CLINICAL_ACCESS_AUDIT_FAILED");
+      return Response.json(
+        { error: "Não foi possível carregar o resumo das consultas. Tente novamente." },
+        { status: 500, headers },
+      );
+    }
     return Response.json(
       {
         data: {
+          encounterHistory: encounters.rows,
           patient,
           treatments: treatments.rows,
           prescriptions: prescriptions.rows,

@@ -1,3 +1,4 @@
+import { PatientEncounterHistory, type PatientEncounterSummary } from "./patient-encounter-history";
 import { useQueryClient } from "@tanstack/react-query";
 import { PatientAllergySummary } from "./patient-allergy-summary";
 import type { AllergySummary } from "@/lib/patient-allergies";
@@ -120,6 +121,7 @@ type Payload = {
     unitRequiredPresentationUnits: number | null;
     unitShortageUnits: number | null;
   }>;
+  encounterHistory: PatientEncounterSummary[];
   clinicalHistory: Array<{
     id: string;
     appointmentId: string;
@@ -623,6 +625,7 @@ export function PatientTreatmentPage({ patientId }: { patientId: string }) {
       {data.allergySummary && (
         <PatientAllergySummary patientId={patientId} summary={data.allergySummary} />
       )}
+      <PatientEncounterHistory encounters={data.encounterHistory ?? []} />
       <section className="space-y-4 rounded-xl border border-warning bg-warning-soft p-5">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
