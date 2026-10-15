@@ -25,6 +25,7 @@
     "test:integration:local": "node scripts/test-local-postgres.mjs",
     "test:e2e": "playwright test",
     "test:e2e:local": "node scripts/test-local-postgres.mjs --e2e",
+    "test:beta:local": "node scripts/test-beta-local.mjs",
     "test:preview-guard": "node --test scripts/prepare-preview.check.mjs scripts/generate-migration.check.mjs",
     "db:check-runtime": "node scripts/check-runtime-access.mjs"
   },

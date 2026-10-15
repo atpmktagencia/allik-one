@@ -7,6 +7,7 @@ import {
   timingSafeEqual,
 } from "node:crypto";
 import { getPool } from "./db";
+import { consumeAuthRateLimit } from "./auth-rate-limit";
 
 const cookieName = "allik_inventory_session";
 const previewOptOutCookieName = "allik_inventory_preview_opt_out";
@@ -433,11 +434,31 @@ export async function pilotLogin(request: Request) {
   const email = body && typeof body === "object" && "email" in body ? body.email : undefined;
   const password =
     body && typeof body === "object" && "password" in body ? body.password : undefined;
-  if (typeof email !== "string" || typeof password !== "string")
+  if (
+    typeof email !== "string" ||
+    typeof password !== "string" ||
+    email.trim().length > 254 ||
+    password.length > 200
+  )
     return Response.json({ error: "Credenciais inválidas." }, { status: 401 });
+  const normalized = email.trim().toLowerCase();
+  // Vercel overwrites this platform header. Do not trust a client-supplied
+  // x-forwarded-for value or let an email variant evade the shared counter.
+  const ip =
+    process.env["VERCEL"] === "1"
+      ? (request.headers.get("x-vercel-forwarded-for") ?? "unknown")
+      : "local";
+  if (
+    !(await consumeAuthRateLimit(`login-ip:${ip}`, 100)) ||
+    !(await consumeAuthRateLimit(`login-email:${normalized}`, 10))
+  )
+    return Response.json(
+      { error: "Muitas tentativas de acesso. Tente novamente mais tarde." },
+      { status: 429, headers: { "Cache-Control": "no-store", "Retry-After": "3600" } },
+    );
   const result = await getPool().query(
     "SELECT id,password_hash,active,session_version FROM inventory_users WHERE lower(email)=lower($1)",
-    [email.trim()],
+    [normalized],
   );
   const row = result.rows[0] as
     | { id: string; password_hash: string | null; active: boolean; session_version: number }

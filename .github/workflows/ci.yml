@@ -36,3 +36,4 @@ jobs:
           DATABASE_ADMIN_URL: ${{ env.DATABASE_URL }}
       - run: bunx playwright install --with-deps chromium
       - run: bun run test:e2e:local
+      - run: bun run test:beta:local

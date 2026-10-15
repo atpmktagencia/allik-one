@@ -5,10 +5,13 @@ import { join } from "node:path";
 import { randomBytes, randomUUID } from "node:crypto";
 import { Pool } from "pg";
 import { chromium } from "playwright";
+import { provisionRuntimeRole } from "./provision-runtime-role.mjs";
+import { checkRuntimeAccess } from "./check-runtime-access.mjs";
 
 const directory = await mkdtemp(join(tmpdir(), "allik-pg-test-"));
 const container = `allik-test-${randomUUID()}`;
 const password = randomBytes(24).toString("hex");
+const runtimePassword = randomBytes(32).toString("hex");
 const envFile = join(directory, "postgres.env");
 await writeFile(
   envFile,
@@ -45,7 +48,9 @@ async function run(command, args, env = process.env, inherit = false) {
       code === 0
         ? resolve(output.trim())
         : reject(
-            new Error(`${command} failed (${code}): ${output.replaceAll(password, "[hidden]")}`),
+            new Error(
+              `${command} failed (${code}): ${output.replaceAll(password, "[hidden]").replaceAll(runtimePassword, "[hidden]")}`,
+            ),
           ),
     );
   });
@@ -127,6 +132,24 @@ try {
     await run("npm", ["run", "db:seed"], testEnv, true);
     await run(process.execPath, ["--import", "tsx", "scripts/import-essentia.ts"], testEnv, true);
     await run(process.execPath, ["--import", "tsx", "scripts/import-stin.ts"], testEnv, true);
+    const runtime = new URL(url);
+    runtime.username = "allik_runtime";
+    runtime.password = runtimePassword;
+    await provisionRuntimeRole({
+      adminUrl: url,
+      runtimeUrl: runtime.href,
+      environment: "test",
+      password: runtimePassword,
+      apply: true,
+    });
+    await checkRuntimeAccess({
+      runtimeUrl: runtime.href,
+      environment: "test",
+      expectedRole: "allik_runtime",
+    });
+    testEnv.DATABASE_URL = runtime.href;
+    delete testEnv.DATABASE_ADMIN_URL;
+    console.log("E2E application uses the verified restricted runtime role.");
     const baseURL = "http://127.0.0.1:4317";
     server = spawn(
       "npm",
@@ -193,7 +216,7 @@ try {
 } catch (error) {
   console.error(
     error instanceof Error
-      ? error.message.replaceAll(password, "[hidden]")
+      ? error.message.replaceAll(password, "[hidden]").replaceAll(runtimePassword, "[hidden]")
       : "Falha nos testes locais.",
   );
   process.exitCode = 1;

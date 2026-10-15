@@ -57,8 +57,15 @@ export async function receivingResponse(request: Request) {
       return Response.json({ data: { id: input.operationId, replayed: true } }, { headers });
     }
     if (input.purchaseId) {
+      // Purchase headers are append-only. Row locking them would require UPDATE
+      // privileges, which the runtime intentionally does not have. Serialize
+      // deliveries by purchase without weakening immutable-history grants.
+      await client.query(
+        "SELECT pg_advisory_xact_lock(hashtextextended('inventory-receipt:' || $1::text,0))",
+        [input.purchaseId],
+      );
       const purchase = await client.query(
-        "SELECT p.reference,s.name AS supplier,s.active FROM inventory_purchases p JOIN inventory_suppliers s ON s.id=p.supplier_id WHERE p.id=$1 AND p.unit_id=(SELECT unit_id FROM inventory_locations WHERE id=$2) FOR NO KEY UPDATE OF p",
+        "SELECT p.reference,s.name AS supplier,s.active FROM inventory_purchases p JOIN inventory_suppliers s ON s.id=p.supplier_id WHERE p.id=$1 AND p.unit_id=(SELECT unit_id FROM inventory_locations WHERE id=$2) FOR SHARE OF s",
         [input.purchaseId, input.locationId],
       );
       const order = purchase.rows[0];
