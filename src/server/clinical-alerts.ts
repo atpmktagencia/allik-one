@@ -1,10 +1,12 @@
+import { auditAllergyAssessment } from "./patient-allergies";
+import { hasClinicalRegistration } from "./clinical-professional-policy";
 import "@tanstack/react-start/server-only";
 import { z } from "zod";
 import { authenticate, can } from "./auth";
 import { getPool } from "./db";
 
 const headers = { "Cache-Control": "private, no-store", Vary: "Cookie, Authorization" };
-const alertInput = z.object({
+const alertRecordInput = z.object({
   action: z.enum(["CREATE", "UPDATE"]),
   id: z.string().uuid(),
   patientId: z.string().uuid(),
@@ -17,6 +19,17 @@ const alertInput = z.object({
   reason: z.string().trim().min(10).max(500),
   version: z.number().int().nonnegative(),
 });
+
+const alertInput = z.union([
+  alertRecordInput,
+  z.object({
+    action: z.literal("ASSESS_ALLERGIES"),
+    patientId: z.string().uuid(),
+    status: z.enum(["UNKNOWN", "DENIED", "REPORTED"]),
+    reason: z.string().trim().min(10).max(500),
+    version: z.number().int().nonnegative(),
+  }),
+]);
 
 export async function clinicalAlertsResponse(request: Request) {
   const auth = await authenticate(request);
@@ -47,11 +60,7 @@ export async function clinicalAlertsResponse(request: Request) {
       [auth.user.id],
     );
     const professional = professionalResult.rows[0];
-    if (
-      !professional?.professional_council ||
-      !professional.council_number ||
-      !professional.council_region
-    ) {
+    if (!professional || !hasClinicalRegistration(professional)) {
       await client.query("ROLLBACK");
       return Response.json(
         { error: "Complete o conselho profissional antes de alterar alertas clínicos." },
@@ -59,8 +68,8 @@ export async function clinicalAlertsResponse(request: Request) {
       );
     }
     const patientResult = await client.query(
-      `SELECT id,primary_unit_id FROM inventory_patients
-       WHERE id=$1 AND organization_id=$2 AND active FOR SHARE`,
+      `SELECT * FROM inventory_patients
+       WHERE id=$1 AND organization_id=$2 AND active FOR UPDATE`,
       [input.patientId, auth.organizationId],
     );
     const patient = patientResult.rows[0];
@@ -69,6 +78,48 @@ export async function clinicalAlertsResponse(request: Request) {
       return Response.json({ error: "Paciente não encontrado." }, { status: 404, headers });
     }
 
+    if (input.action === "ASSESS_ALLERGIES") {
+      if (patient.version !== input.version) {
+        await client.query("ROLLBACK");
+        return Response.json(
+          { error: "O paciente mudou em outra sessão. Atualize antes de conferir as alergias." },
+          { status: 409, headers },
+        );
+      }
+      const saved = await client.query(
+        `UPDATE inventory_patients SET allergy_status=$2,allergy_reviewed_at=now(),allergy_reviewed_by_user_id=$3,updated_by_user_id=$3,version=version+1,updated_at=now() WHERE id=$1 RETURNING *`,
+        [patient.id, input.status, auth.user.id],
+      );
+      await auditAllergyAssessment(client, auth, patient, saved.rows[0], input.reason);
+      await client.query("COMMIT");
+      return Response.json(
+        {
+          data: {
+            id: patient.id,
+            version: saved.rows[0].version,
+            status: saved.rows[0].allergy_status,
+          },
+        },
+        { headers },
+      );
+    }
+    if (
+      input.type === "ALLERGY" &&
+      input.status === "ACTIVE" &&
+      patient.allergy_status === "DENIED"
+    ) {
+      const changed = await client.query(
+        `UPDATE inventory_patients SET allergy_status='UNKNOWN',allergy_reviewed_at=NULL,allergy_reviewed_by_user_id=NULL,version=version+1,updated_at=now(),updated_by_user_id=$2 WHERE id=$1 RETURNING *`,
+        [patient.id, auth.user.id],
+      );
+      await auditAllergyAssessment(
+        client,
+        auth,
+        patient,
+        changed.rows[0],
+        "Negação de alergias retirada ao registrar uma alergia ativa. " + input.reason,
+      );
+    }
     let before: Record<string, unknown> | null = null;
     let result;
     if (input.action === "CREATE") {
@@ -106,6 +157,10 @@ export async function clinicalAlertsResponse(request: Request) {
         return Response.json({ error: "Alerta clínico não encontrado." }, { status: 404, headers });
       }
       const currentRow = current.rows[0] as Record<string, unknown>;
+      if (!can(auth, "patients.clinical.manage", String(currentRow["unit_id"]))) {
+        await client.query("ROLLBACK");
+        return Response.json({ error: "Alerta clínico não encontrado." }, { status: 404, headers });
+      }
       before = currentRow;
       if (Number(currentRow["version"]) !== input.version) {
         await client.query("ROLLBACK");
@@ -144,10 +199,18 @@ export async function clinicalAlertsResponse(request: Request) {
     );
   } catch (error) {
     await client.query("ROLLBACK");
-    console.error(
-      "clinical alert write failed",
-      error instanceof Error ? error.message : "unknown",
-    );
+    if (
+      (error as { code?: string }).code === "23514" &&
+      (error as Error).message === "ALLERGY_DENIAL_CONFLICT"
+    )
+      return Response.json(
+        {
+          error:
+            "Há alergias registradas no cadastro ou alertas ativos. Revise esses registros antes de confirmar que o paciente nega alergias.",
+        },
+        { status: 409, headers },
+      );
+    console.error("clinical alert write failed");
     return Response.json(
       { error: "Não foi possível salvar o alerta clínico." },
       { status: 500, headers },

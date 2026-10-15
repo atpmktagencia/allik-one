@@ -1,3 +1,4 @@
+import { patientAllergySummary } from "./patient-allergies";
 import "@tanstack/react-start/server-only";
 import { del, get, put } from "@vercel/blob";
 import { actor, authenticate, can, canAccessAllUnits, type AuthContext } from "./auth";
@@ -301,6 +302,11 @@ export async function patientDetailResponse(request: Request) {
           clinicalHistory: clinicalHistory.rows,
           clinicalProblems: clinicalProblems.rows,
           clinicalAlerts: clinicalAlerts.rows,
+          allergySummary: await patientAllergySummary(
+            auth,
+            patientId,
+            String(patient.primaryUnitId),
+          ),
           canManageClinicalProblems:
             Boolean(auth.user.id) &&
             !auth.preview &&

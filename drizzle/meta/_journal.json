@@ -393,6 +393,13 @@
       "when": 1794272400012,
       "tag": "0055_clinical-document-integrity",
       "breakpoints": true
+    },
+    {
+      "idx": 56,
+      "version": "7",
+      "when": 1794272400013,
+      "tag": "0056_patient-allergy-assessment",
+      "breakpoints": true
     }
   ]
 }

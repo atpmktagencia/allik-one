@@ -1,3 +1,4 @@
+import { patientAllergySummary } from "./patient-allergies";
 import { recordClinicalAccess } from "./clinical-access-audit";
 import { hasClinicalRegistration } from "./clinical-professional-policy";
 import "@tanstack/react-start/server-only";
@@ -198,6 +199,7 @@ export async function careEncounterResponse(request: Request) {
         canManage: can(auth, "patients.manage", unitId),
         clinicalNote: clinicalNote.rows[0] ?? null,
         clinicalAlerts: clinicalAlerts.rows,
+        allergySummary: await patientAllergySummary(auth, patientId, unitId),
         canAuthorClinicalNote,
         canClaimClinicalNote,
         needsProfessionalRegistration:

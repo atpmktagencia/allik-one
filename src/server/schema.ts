@@ -363,6 +363,9 @@ export const patients = pgTable(
     birthDate: date("birth_date"),
     insuranceData: jsonb("insurance_data").notNull().default({}),
     additionalData: jsonb("additional_data").notNull().default({}),
+    allergyStatus: text("allergy_status").notNull().default("UNKNOWN"),
+    allergyReviewedAt: timestamp("allergy_reviewed_at", { withTimezone: true }),
+    allergyReviewedByUserId: uuid("allergy_reviewed_by_user_id").references(() => users.id),
     privateData: jsonb("private_data").notNull().default({}),
     photoBlobPathname: text("photo_blob_pathname"),
     photoFilename: text("photo_filename"),
@@ -378,6 +381,11 @@ export const patients = pgTable(
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
+    check(
+      "patient_allergy_assessment_valid",
+      sql`${t.allergyStatus} IN ('UNKNOWN','DENIED','REPORTED') AND ((${t.allergyReviewedAt} IS NULL AND ${t.allergyReviewedByUserId} IS NULL AND ${t.allergyStatus}='UNKNOWN') OR (${t.allergyReviewedAt} IS NOT NULL AND ${t.allergyReviewedByUserId} IS NOT NULL))`,
+    ),
+
     uniqueIndex("inventory_patient_internal_code_unique").on(
       t.organizationId,
       sql`lower(${t.internalCode})`,

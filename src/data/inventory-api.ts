@@ -91,7 +91,10 @@ export async function fetchInventory<T>(resource: string): Promise<T> {
   return body.data as T;
 }
 export function useInventory<T>(resource: string) {
-  const patientResource = resource.startsWith("patient-") || resource.startsWith("care-encounter");
+  const patientResource =
+    resource.startsWith("patient-") ||
+    resource.startsWith("care-encounter") ||
+    resource.startsWith("encounter-documents");
   const requestPath = withSelectedUnit(`/api/v1/inventory/${resource}`);
   return useQuery<T>({
     queryKey: ["inventory", requestPath],

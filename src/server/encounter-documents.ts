@@ -1,3 +1,4 @@
+import { patientAllergySummary } from "./patient-allergies";
 import { integrityFields, verifiedDocumentIntegrity } from "./clinical-document-integrity";
 import { recordClinicalAccess } from "./clinical-access-audit";
 import { canWriteClinicalDocument, hasClinicalRegistration } from "./clinical-professional-policy";
@@ -114,6 +115,11 @@ export async function encounterDocumentsResponse(request: Request) {
         [auth.organizationId, auth.user.id ?? null],
       ),
     ]);
+    const allergySummary = await patientAllergySummary(
+      auth,
+      String(appointment.patient_id),
+      String(appointment.unit_id),
+    );
     const canAuthor = Boolean(
       auth.user.id &&
       !auth.preview &&
@@ -160,11 +166,13 @@ export async function encounterDocumentsResponse(request: Request) {
             prescriptionPrintData: patientPrintDefaults(appointment),
             birthDate: appointment.birth_date,
             unitName: appointment.unit_name,
+            allergySummary,
             allergies:
-              Array.isArray(appointment.private_data?.allergies) &&
-              appointment.private_data.allergies.length
-                ? appointment.private_data.allergies
-                : null,
+              allergySummary.status === "DENIED"
+                ? []
+                : allergySummary.allergies.length
+                  ? allergySummary.allergies
+                  : null,
           },
           templates: templates.rows,
           canAuthor,

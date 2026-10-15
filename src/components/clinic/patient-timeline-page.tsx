@@ -1,3 +1,5 @@
+import { PatientAllergySummary } from "./patient-allergy-summary";
+import type { AllergySummary } from "@/lib/patient-allergies";
 import { PatientNewEncounter } from "./patient-new-encounter";
 import { useState, useSyncExternalStore } from "react";
 import "./clinical-workspace.css";
@@ -33,6 +35,7 @@ type TimelineEvent = {
   content?: string;
 };
 type TimelinePayload = {
+  allergySummary?: AllergySummary;
   patient: {
     id: string;
     name: string;
@@ -127,6 +130,9 @@ export function PatientTimelinePage({ patientId }: { patientId: string }) {
           Consulte atendimentos, registros clínicos finalizados e a trajetória do tratamento.
         </p>
       </header>
+      {query.data?.pages[0]?.allergySummary && (
+        <PatientAllergySummary patientId={patientId} summary={query.data.pages[0].allergySummary} />
+      )}
       <div className="flex flex-wrap items-center gap-3">
         <label htmlFor="timeline-kind" className="text-sm font-medium">
           Mostrar

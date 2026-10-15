@@ -1,3 +1,4 @@
+import { patientAllergySummary } from "./patient-allergies";
 import "@tanstack/react-start/server-only";
 import { authenticate, can, canAccessAllUnits } from "./auth";
 import { getPool } from "./db";
@@ -204,6 +205,11 @@ export async function patientTimelineResponse(request: Request) {
         canCreateEncounter:
           can(auth, "patients.manage", String(patient.primary_unit_id)) &&
           can(auth, "patients.clinical.manage", String(patient.primary_unit_id)),
+        allergySummary: await patientAllergySummary(
+          auth,
+          patientId,
+          String(patient.primary_unit_id),
+        ),
         events: rows,
         nextCursor,
       },

@@ -1,3 +1,5 @@
+import { PatientAllergySummary } from "./patient-allergy-summary";
+import type { AllergySummary } from "@/lib/patient-allergies";
 import { Link, useBlocker } from "@tanstack/react-router";
 import "./clinical-workspace.css";
 import {
@@ -56,6 +58,7 @@ type Appointment = {
   version: number;
 };
 type Payload = {
+  allergySummary?: AllergySummary;
   appointment: Appointment;
   changes: Array<{ id: string; action: string; reason: string; actor: string; createdAt: string }>;
   treatments: Array<{
@@ -587,6 +590,12 @@ export function CareEncounterPage({ appointmentId }: { appointmentId: string }) 
               >
                 {error || message}
               </div>
+            )}
+            {data.allergySummary && (
+              <PatientAllergySummary
+                patientId={appointment.patientId}
+                summary={data.allergySummary}
+              />
             )}
             {data.clinicalAlerts?.length ? (
               <section

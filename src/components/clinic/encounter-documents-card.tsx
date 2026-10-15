@@ -1,3 +1,4 @@
+import { allergyLabel, type AllergySummary } from "@/lib/patient-allergies";
 import {
   FileText,
   Plus,
@@ -92,6 +93,7 @@ type Payload = {
     birthDate: string | null;
     unitName: string;
     allergies: string[] | null;
+    allergySummary?: AllergySummary;
     prescriptionPrintData?: PrescriptionPrintData;
   };
 };
@@ -474,14 +476,41 @@ export function EncounterDocumentsCard({ appointmentId }: { appointmentId: strin
               {data.context.patientName}
               {age !== null ? ` · ${age} anos` : ""}
             </span>
-            <span className="text-[#636366]">
-              Alergias:{" "}
-              {data.context.allergies === null || data.context.allergies === undefined
-                ? "não informadas"
-                : data.context.allergies.length
-                  ? data.context.allergies.join(", ")
-                  : "nega alergias"}
-            </span>
+            {data.context.allergySummary?.status === "REPORTED" &&
+            data.context.allergySummary.allergies.length ? (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    type="button"
+                    className="inline-flex items-center gap-1 text-sm font-medium text-red-700"
+                    aria-label="Ver alergias relatadas"
+                  >
+                    {allergyLabel(data.context.allergySummary).length > 90
+                      ? `Alergias relatadas (${data.context.allergySummary.allergies.length})`
+                      : allergyLabel(data.context.allergySummary)}
+                    <ChevronDown size={14} />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent className="max-h-64 max-w-[min(360px,90vw)] overflow-y-auto rounded-2xl bg-white p-3">
+                  <p className="mb-2 text-sm font-semibold text-red-700">Alergias relatadas</p>
+                  <ul className="space-y-2 text-sm">
+                    {data.context.allergySummary.allergies.map((name) => (
+                      <li key={name} className="break-words">
+                        {name}
+                      </li>
+                    ))}
+                  </ul>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ) : (
+              <span className="text-[#636366]">
+                {data.context.allergySummary
+                  ? allergyLabel(data.context.allergySummary)
+                  : data.context.allergies?.length
+                    ? `Alergias: ${data.context.allergies.join(", ")}`
+                    : "Alergias: não informadas"}
+              </span>
+            )}
           </div>
         </div>
       )}

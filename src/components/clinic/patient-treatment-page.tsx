@@ -1,3 +1,6 @@
+import { useQueryClient } from "@tanstack/react-query";
+import { PatientAllergySummary } from "./patient-allergy-summary";
+import type { AllergySummary } from "@/lib/patient-allergies";
 import "./clinical-workspace.css";
 import { PatientNewEncounter } from "./patient-new-encounter";
 import {
@@ -36,6 +39,7 @@ type Treatment = {
   version: number;
 };
 type Payload = {
+  allergySummary?: AllergySummary;
   patient: {
     id: string;
     fullName: string;
@@ -254,6 +258,7 @@ const blankAlert = {
 };
 
 export function PatientTreatmentPage({ patientId }: { patientId: string }) {
+  const queryClient = useQueryClient();
   const query = useInventory<Payload>(`patient-detail?patientId=${patientId}`);
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState(blank);
@@ -315,7 +320,7 @@ export function PatientTreatmentPage({ patientId }: { patientId: string }) {
       });
       const result = (await response.json()) as { error?: string };
       if (!response.ok) throw new Error(result.error ?? "Não foi possível salvar o alerta.");
-      await query.refetch();
+      await queryClient.invalidateQueries({ queryKey: ["inventory"] });
       setClinicalAlert(blankAlert);
       setAlertFormOpen(false);
       setMessage("Alerta clínico salvo com auditoria.");
@@ -614,6 +619,9 @@ export function PatientTreatmentPage({ patientId }: { patientId: string }) {
         >
           {error || message}
         </div>
+      )}
+      {data.allergySummary && (
+        <PatientAllergySummary patientId={patientId} summary={data.allergySummary} />
       )}
       <section className="space-y-4 rounded-xl border border-warning bg-warning-soft p-5">
         <div className="flex flex-wrap items-start justify-between gap-3">
