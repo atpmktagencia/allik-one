@@ -979,6 +979,22 @@ export function CareEncounterPage({ appointmentId }: { appointmentId: string }) 
           <div id="orcamento" className="scroll-mt-40">
             <EncounterQuoteCard appointmentId={appointmentId} />
           </div>
+          {data.canManage && appointment.status === "IN_PROGRESS" && (
+            <section
+              aria-label="Conclusão do atendimento"
+              className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border bg-card p-5"
+            >
+              <div>
+                <h2 className="font-semibold">Conclusão do atendimento</h2>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Confira a evolução, os documentos e a conduta antes de concluir.
+                </p>
+              </div>
+              <Button disabled={pending} onClick={() => updateStatus("COMPLETED")}>
+                Concluir atendimento
+              </Button>
+            </section>
+          )}
           <div id="contexto" className="scroll-mt-40 grid gap-5 xl:grid-cols-[1fr_.9fr]">
             <section className="space-y-4 rounded-xl border bg-card p-5">
               <h2 className="flex items-center gap-2 font-semibold">
@@ -1072,22 +1088,6 @@ export function CareEncounterPage({ appointmentId }: { appointmentId: string }) 
               ))}
             </section>
           </div>
-          {data.canManage && appointment.status === "IN_PROGRESS" && (
-            <section
-              aria-label="Conclusão do atendimento"
-              className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border bg-card p-5"
-            >
-              <div>
-                <h2 className="font-semibold">Conclusão do atendimento</h2>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  Confira a evolução, os documentos e a conduta antes de concluir.
-                </p>
-              </div>
-              <Button disabled={pending} onClick={() => updateStatus("COMPLETED")}>
-                Concluir atendimento
-              </Button>
-            </section>
-          )}
         </div>
       </div>
     </div>
