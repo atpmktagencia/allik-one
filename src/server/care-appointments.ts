@@ -2,6 +2,7 @@ import "@tanstack/react-start/server-only";
 import type { PoolClient } from "pg";
 import { actor, authenticate, can, canAccessAllUnits } from "./auth";
 import { getPool } from "./db";
+import { recordClinicalListAccess } from "./clinical-access-audit";
 import { hasClinicalRecords, hasFinalClinicalRecords } from "./clinical-record-guard";
 import { careAppointmentInput } from "../data/care-appointment-input";
 
@@ -179,6 +180,14 @@ export async function careAppointmentsResponse(request: Request) {
           [auth.organizationId, unrestricted, auth.unitIds],
         ),
       ]);
+    await recordClinicalListAccess(auth, [
+      ...appointments.rows.map((row) => ({
+        unitId: row.unitId,
+        patientId: row.patientId,
+        appointmentId: row.id,
+      })),
+      ...patients.rows.map((row) => ({ unitId: row.unitId, patientId: row.id })),
+    ]);
     return Response.json(
       {
         data: {

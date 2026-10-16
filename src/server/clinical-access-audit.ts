@@ -35,3 +35,28 @@ export async function recordClinicalAccess(
     ],
   );
 }
+
+/** One atomic insert for a bounded authorized list; never store search text or record contents. */
+export async function recordClinicalListAccess(
+  auth: AuthContext,
+  records: { unitId: string; patientId: string; appointmentId?: string }[],
+) {
+  if (!records.length) return;
+  await getPool().query(
+    `INSERT INTO inventory_clinical_access_events
+      (organization_id,unit_id,patient_id,appointment_id,actor_user_id,preview_actor,action,resource_ids)
+     SELECT $1,r."unitId",r."patientId",r."appointmentId",$3,$4,'READ','[]'::jsonb
+     FROM jsonb_to_recordset($2::jsonb)
+       AS r("unitId" uuid,"patientId" uuid,"appointmentId" uuid)`,
+    [
+      auth.organizationId,
+      JSON.stringify(records),
+      auth.user.id,
+      auth.preview
+        ? "preview-operator"
+        : auth.integration
+          ? `integration:${auth.integration.id}`
+          : null,
+    ],
+  );
+}

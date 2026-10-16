@@ -7,7 +7,7 @@ This handoff assembles existing evidence. It is not an independent audit or auth
 ## Freeze and scope
 
 - Repository: `atpmktagencia/allik-one`, branch `feature/allik-patients`.
-- Code candidate: `9f532b9d9b87e824cc811f5c5465057c24272f9e`.
+- Previous tested code candidate: `9f532b9d9b87e824cc811f5c5465057c24272f9e`. The follow-up list-access auditing changes supersede it; review the current full branch HEAD and record its SHA.
 - Verified Preview: `https://allik-etquy85tv-atp-mkt.vercel.app`, deployment `dpl_CdoxZEp5yHjCoKZhkMQUK3YT5XFf`.
 - Intended use: real patients plus operational inventory, after all release gates pass.
 - Record the full reviewed SHA in the report. This handoff may be committed after the code candidate; compare any intervening commits and explicitly identify documentation-only differences. Any subsequent application, migration or configuration change requires assessment against the reviewed scope.
@@ -44,12 +44,12 @@ Previous findings and remediations are described in the README. In particular, r
 
 ## Open decisions that require explicit disposition
 
-| Item             | Current behavior                                           | Required report/release disposition                                                                                                  |
-| ---------------- | ---------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
-| Printed identity | CPF/birth date present on all printed document types       | Assess minimum necessary disclosure; approve scope or specify a prospective correction without rewriting sealed historical bytes     |
-| List access      | Patient/schedule list reads lack dedicated access audit    | Assess exposed fields and accountability requirements; accept with rationale or require audited disclosure                           |
-| Invitations      | Invitation token returned to administrator                 | Assess holder identity/activation controls and token access; accept with rationale or require holder-only delivery                   |
-| Delivery consent | REVOKED blocks sending; PENDING does not necessarily block | Define whether recorded affirmative consent is required and which channels/legal basis apply; verify implementation matches decision |
+| Item             | Current behavior                                                                                                                                              | Required report/release disposition                                                                                                  |
+| ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| Printed identity | CPF/birth date present on all printed document types                                                                                                          | Assess minimum necessary disclosure; approve scope or specify a prospective correction without rewriting sealed historical bytes     |
+| List access      | Follow-up code records READ events for each disclosed patient, appointment and patient-search result before responding; persistence failure blocks disclosure | Retest scope, actor attribution and audit-failure behavior; assess remaining exposed fields and accountability requirements          |
+| Invitations      | Invitation token returned to administrator                                                                                                                    | Assess holder identity/activation controls and token access; accept with rationale or require holder-only delivery                   |
+| Delivery consent | REVOKED blocks sending; PENDING does not necessarily block                                                                                                    | Define whether recorded affirmative consent is required and which channels/legal basis apply; verify implementation matches decision |
 
 Do not label these resolved merely because regression tests pass. Record the accountable release owner's disposition and any required remediation. No formal legal/compliance certification is claimed by this repository.
 
@@ -70,3 +70,9 @@ Audit outcome: **PENDING**. Reviewer identity/date: **PENDING**. Reviewed SHA: *
 ## After audit acceptance
 
 Proceed to operational homologation with individual synthetic identities, including the complete deployed clinical flow. A real recovery inbox test needs an explicitly designated recipient and authorized delivery. Then follow the official release procedure: fresh official recovery checkpoint/window, explicit migrations and restricted-role provisioning, official accounts, staged Production acceptance, controlled promotion and observation. No automatic promotion follows an audit pass.
+
+## Follow-up: list access accountability
+
+Patient lists and appointment lists now record authorized disclosures in the existing append-only clinical access table. Appointment patient-search results are included. A single atomic batch insert records patient/unit, optional appointment and actor identifiers with action READ, before the response is constructed. No search terms, names, phone numbers or clinical bodies are copied into events. Empty results create no patient access event; rejected authorization creates none. Persistence failures propagate before any list is returned. This requires no new migration or expanded runtime grants. Retest this change against the final SHA; earlier audit acceptance cannot cover it automatically.
+
+Follow-up validation: 217 PostgreSQL integration tests and three runtime/tooling checks passed, including four new list-audit cases (authorized disclosure/unit denial, appointment/search disclosure, persistence failure on both endpoints and empty results). Typecheck passed; lint has only the six existing Fast Refresh warnings. A fresh production-bundle beta scenario passed with the restricted role, synthetic legacy migration and local backup/restore. Prior 171-unit/eight-E2E results belong to the preceding candidate and were not rerun for this server-only change.

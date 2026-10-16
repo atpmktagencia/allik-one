@@ -386,7 +386,7 @@ The audit of `39b5584` found and this branch fixes, with regression tests:
 - **Superseded documents (high).** A rectified original now prints `SUBSTITUÍDO POR RETIFICAÇÃO` with the replacement's verification code, and cannot be signed or sent. Delivery is refused after consent is revoked. Encounters with finalized records cannot be canceled or marked as no-show.
 - **Identities (high).** An activated professional's council registry cannot be reassigned through user administration; the Preview operator and integration keys cannot change accounts; login lockout and timing are fixed as described below.
 
-Not changed here and still open for the release owner: CPF/birth date on every printed document (changing rendering would alter sealed bytes), unaudited patient/schedule list reads, invite tokens returned to the administrator, and whether delivery should require `RECORDED` (not only non-revoked) consent.
+Not changed here and still open for the release owner: CPF/birth date on every printed document (changing rendering would alter sealed bytes), invite tokens returned to the administrator, and whether delivery should require `RECORDED` (not only non-revoked) consent.
 
 **Deployment consequence:** this code needs migration `0060` and a re-run of `provision-runtime-role.mjs --apply` (which revokes `TEMPORARY`) on every database before it is deployed there; the patients Preview has now received `0060` and equivalent grant reapplication through an authenticated Neon transaction; otherwise `db:check-runtime` fails and production mode rejects the connection. The official database at `0012` now has 48 pending migrations (`0013`–`0060`).
 
@@ -401,3 +401,7 @@ Purchase receiving now serializes deliveries with a transaction advisory lock an
 ### Follow-up verification of `7bf7771`
 
 Independent reproduction found two further gaps, now fixed: the runtime identity guard also covers callback-based `Pool.connect` and native `Pool.query`, including concurrent valid calls; recovery delivery is bounded by the request-wide two-second budget even when provider headers or JSON stall. Regression tests cover an elevated callback connection, a 3.4-second provider and a never-ending response body. Local verification passed 171 unit/UI tests, 213 PostgreSQL integration tests, three runtime/tooling checks, eight inventory E2E, typecheck and the production-bundle migration/restore scenario. No real messages were sent. The final integrated SHA still needs external acceptance before official clinical use.
+
+### Patient and schedule list access auditing
+
+Patient lists, appointment lists and appointment patient-search results now persist per-record READ events before disclosure, using one atomic insert into the existing append-only clinical access table. Events identify the authenticated actor, organization, unit, patient and optional appointment; they do not store search text or record contents. Audit persistence failure blocks the response. Empty results and denied access produce no patient READ event. No new migration or broader runtime privileges are needed. The final branch HEAD needs external retest, including these list flows.

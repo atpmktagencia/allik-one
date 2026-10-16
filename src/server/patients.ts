@@ -2,6 +2,7 @@ import "@tanstack/react-start/server-only";
 import { del, put } from "@vercel/blob";
 import { actor, authenticate, can, canAccessAllUnits } from "./auth";
 import { getPool } from "./db";
+import { recordClinicalListAccess } from "./clinical-access-audit";
 import { patientInput } from "../data/patient-input";
 
 const headers = { "Cache-Control": "private, no-store", Vary: "Cookie, Authorization" };
@@ -161,6 +162,10 @@ export async function patientsResponse(request: Request) {
         [auth.organizationId, unrestricted, auth.unitIds],
       ),
     ]);
+    await recordClinicalListAccess(
+      auth,
+      result.rows.map((row) => ({ unitId: row.primaryUnitId, patientId: row.id })),
+    );
     return Response.json(
       {
         data: {
