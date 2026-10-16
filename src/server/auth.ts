@@ -94,7 +94,7 @@ const allPermissions: Permission[] = [
 ];
 const permissions: Record<Role, ReadonlySet<Permission>> = {
   SUPER_ADMIN: new Set(allPermissions),
-  PARTNER_ADMIN: new Set(allPermissions.filter((permission) => permission !== "users.manage")),
+  PARTNER_ADMIN: new Set(allPermissions),
   INVENTORY_MANAGER: new Set(
     allPermissions.filter(
       (permission) =>

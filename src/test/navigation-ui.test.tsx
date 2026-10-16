@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { cleanup, render, screen, within } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 
 let currentPath = "/estoque";
 
@@ -73,5 +73,45 @@ describe("Inventory navigation", () => {
     expect(screen.getByRole("button", { name: "Abrir menu" })).toBeInTheDocument();
     expect(screen.queryByRole("navigation")).not.toBeInTheDocument();
     expect(screen.getByText("Atendimento focado").parentElement).toHaveClass("max-w-none");
+  });
+});
+
+describe("Account administration menu", () => {
+  it.each([
+    ["PARTNER_ADMIN", true, false],
+    ["SUPER_ADMIN", true, true],
+    ["VIEWER", false, false],
+  ] as const)("limits administrative links for %s", async (role, users, integrations) => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        Response.json({
+          data: {
+            user: {
+              id: "synthetic-user",
+              name: "Synthetic administrator",
+              email: "synthetic@example.test",
+            },
+            role,
+            units: [],
+          },
+        }),
+      ),
+    );
+    render(
+      <QueryClientProvider client={new QueryClient()}>
+        <AppShell>
+          <p>Conteúdo</p>
+        </AppShell>
+      </QueryClientProvider>,
+    );
+    const trigger = await screen.findByRole("button", {
+      name: "Abrir menu da conta de Synthetic administrator",
+    });
+    await waitFor(() => expect(trigger).toBeEnabled());
+    fireEvent.keyDown(trigger, { key: "Enter" });
+    const menu = await screen.findByRole("menu");
+    expect(!!within(menu).queryByRole("menuitem", { name: "Usuários" })).toBe(users);
+    expect(!!within(menu).queryByRole("menuitem", { name: "Integrações" })).toBe(integrations);
   });
 });

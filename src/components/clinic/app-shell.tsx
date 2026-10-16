@@ -235,7 +235,7 @@ function SidebarContent({
                 <ShieldCheck aria-hidden="true" /> Minha conta
               </Link>
             </DropdownMenuItem>
-            {identity?.role === "SUPER_ADMIN" && (
+            {(identity?.role === "SUPER_ADMIN" || identity?.role === "PARTNER_ADMIN") && (
               <>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem asChild>
@@ -243,11 +243,13 @@ function SidebarContent({
                     <Users aria-hidden="true" /> Usuários
                   </Link>
                 </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link to="/estoque/integracoes" onClick={onNavigate}>
-                    <KeyRound aria-hidden="true" /> Integrações
-                  </Link>
-                </DropdownMenuItem>
+                {identity?.role === "SUPER_ADMIN" && (
+                  <DropdownMenuItem asChild>
+                    <Link to="/estoque/integracoes" onClick={onNavigate}>
+                      <KeyRound aria-hidden="true" /> Integrações
+                    </Link>
+                  </DropdownMenuItem>
+                )}
               </>
             )}
           </DropdownMenuContent>

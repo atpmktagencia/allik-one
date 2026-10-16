@@ -4770,3 +4770,104 @@ it("emails invitations to the holder and returns the same one-use link for manua
     vi.unstubAllEnvs();
   }
 });
+
+it("lets partner administrators manage only other users wholly within their own units", async () => {
+  const own = "a1100000-0000-4000-8000-000000000101",
+    other = "a1100000-0000-4000-8000-000000000102";
+  const partner = await scopedCookie(own, "PARTNER_ADMIN"),
+    root = await scopedCookie(own, "SUPER_ADMIN");
+  const call = (cookie: string, body?: unknown) =>
+    userAdminResponse(
+      new Request(`${origin}/api/v1/inventory/users`, {
+        method: body ? "POST" : "GET",
+        headers: { cookie, origin, "Content-Type": "application/json" },
+        ...(body ? { body: JSON.stringify(body) } : {}),
+      }),
+    );
+  const create = (unitIds: string[], role = "VIEWER") => ({
+    action: "CREATE",
+    name: "Scoped synthetic user",
+    email: `${randomUUID()}@example.test`,
+    role,
+    unitIds,
+  });
+  const ownInput = create([own]);
+  const created = await call(partner, ownInput);
+  expect(created.status).toBe(201);
+  const target = (await created.json()).data;
+  expect((await call(partner, { action: "REINVITE", userId: target.id })).status).toBe(200);
+  expect(
+    (
+      await call(partner, {
+        ...ownInput,
+        action: "UPDATE",
+        userId: target.id,
+        name: "Scoped changed",
+        role: "CLINICIAN",
+      })
+    ).status,
+  ).toBe(200);
+  expect((await call(partner, { action: "DEACTIVATE", userId: target.id })).status).toBe(200);
+  expect((await call(partner, { action: "ACTIVATE", userId: target.id })).status).toBe(200);
+  for (const input of [
+    create([other]),
+    create([own, other]),
+    create([]),
+    create([own], "SUPER_ADMIN"),
+  ])
+    expect((await call(partner, input)).status).toBe(403);
+  const mixed = (await (await call(root, create([own, other]))).json()).data;
+  const foreign = (await (await call(root, create([other]))).json()).data;
+  const rootAuth = await authenticate(new Request(origin, { headers: { cookie: root } }));
+  const ownAuth = await authenticate(new Request(origin, { headers: { cookie: partner } }));
+  const shared = (await (await call(root, create([own]))).json()).data;
+  const foreignOrg = randomUUID();
+  await getPool().query(
+    "INSERT INTO inventory_organizations(id,name) VALUES($1,'Synthetic foreign org')",
+    [foreignOrg],
+  );
+  await getPool().query(
+    "INSERT INTO inventory_memberships(user_id,organization_id,role) VALUES($1,$2,'VIEWER')",
+    [shared.id, foreignOrg],
+  );
+  const protectedIds = [mixed.id, foreign.id, shared.id, rootAuth!.user.id, ownAuth!.user.id];
+  for (const id of protectedIds)
+    for (const action of ["DEACTIVATE", "ACTIVATE", "REINVITE"])
+      expect((await call(partner, { action, userId: id })).status).toBe(403);
+  expect(
+    (
+      await call(partner, {
+        ...ownInput,
+        action: "UPDATE",
+        userId: ownAuth!.user.id,
+        role: "SUPER_ADMIN",
+        unitIds: [own, other],
+      })
+    ).status,
+  ).toBe(403);
+  expect(
+    (
+      await call(partner, {
+        ...ownInput,
+        action: "UPDATE",
+        userId: target.id,
+        unitIds: [own, other],
+      })
+    ).status,
+  ).toBe(403);
+  for (const userId of protectedIds)
+    expect(
+      (await call(partner, { ...ownInput, action: "UPDATE", userId, role: "VIEWER" })).status,
+    ).toBe(403);
+  const listed = (await (await call(partner)).json()).data as Array<{ id: string }>;
+  expect(listed.some((u) => u.id === target.id)).toBe(true);
+  expect(
+    listed.some(
+      (u) =>
+        u.id === mixed.id ||
+        u.id === foreign.id ||
+        u.id === shared.id ||
+        u.id === rootAuth!.user.id,
+    ),
+  ).toBe(false);
+});

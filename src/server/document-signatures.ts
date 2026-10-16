@@ -102,7 +102,11 @@ export async function documentSignaturesResponse(request: Request) {
       can(auth, "patients.clinical.manage", document.unit_id),
     );
     const canManageIdentity = Boolean(
-      auth.user.id && !auth.preview && !auth.integration && can(auth, "users.manage"),
+      auth.user.id &&
+      !auth.preview &&
+      !auth.integration &&
+      auth.role === "SUPER_ADMIN" &&
+      can(auth, "users.manage"),
     );
     const identity = (
       await pool.query(

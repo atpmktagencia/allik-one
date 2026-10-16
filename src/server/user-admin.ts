@@ -4,6 +4,8 @@ import { randomBytes } from "node:crypto";
 import { z } from "zod";
 import { authenticate, can, hashPassword, hashToken, roles } from "./auth";
 import { getPool } from "./db";
+import type { AuthContext } from "./auth";
+import type { PoolClient } from "pg";
 import { sendInvitationEmail } from "./invitation-email";
 
 function registryError(error: unknown) {
@@ -60,10 +62,29 @@ function hasValidProfessionalRegistry(
   return !((input.profession && councilFields !== 3) || (!input.profession && councilFields !== 0));
 }
 
+async function partnerMayManage(
+  auth: AuthContext,
+  userId: string,
+  client: Pick<PoolClient, "query"> = getPool(),
+) {
+  if (auth.role !== "PARTNER_ADMIN") return true;
+  if (userId === auth.user.id) return false;
+  const result = await client.query(
+    `SELECT 1 FROM inventory_memberships m WHERE m.user_id=$1 AND m.organization_id=$2
+     AND m.role<>'SUPER_ADMIN'
+     AND EXISTS(SELECT 1 FROM inventory_unit_access ua WHERE ua.membership_id=m.id)
+     AND NOT EXISTS(SELECT 1 FROM inventory_unit_access ua WHERE ua.membership_id=m.id AND NOT(ua.unit_id=ANY($3::uuid[])))
+     AND NOT EXISTS(SELECT 1 FROM inventory_memberships other WHERE other.user_id=m.user_id AND other.organization_id<>$2)`,
+    [userId, auth.organizationId, auth.unitIds],
+  );
+  return !!result.rowCount;
+}
+
 async function createInvite(
   userId: string,
   organizationId: string,
   createdByUserId: string | null,
+  auth?: AuthContext,
 ) {
   const token = randomBytes(32).toString("base64url");
   const client = await getPool().connect();
@@ -75,6 +96,7 @@ async function createInvite(
       [userId],
     );
     if (!user.rowCount) throw new Error("ACCOUNT_ALREADY_ACTIVE");
+    if (auth && !(await partnerMayManage(auth, userId, client))) throw new Error("SCOPE_DENIED");
     email = user.rows[0].email;
     await client.query(
       "UPDATE inventory_invites SET revoked_at=now() WHERE user_id=$1 AND used_at IS NULL AND revoked_at IS NULL",
@@ -114,8 +136,13 @@ export async function userAdminResponse(request: Request) {
        COALESCE(jsonb_agg(jsonb_build_object('id',un.id,'name',un.name) ORDER BY un.name) FILTER (WHERE un.id IS NOT NULL),'[]') AS units
        FROM inventory_users u JOIN inventory_memberships m ON m.user_id=u.id
        LEFT JOIN inventory_unit_access ua ON ua.membership_id=m.id LEFT JOIN inventory_units un ON un.id=ua.unit_id
-       WHERE m.organization_id=$1 GROUP BY u.id,m.id ORDER BY u.name`,
-      [auth.organizationId],
+       WHERE m.organization_id=$1
+       AND (NOT $2::boolean OR (m.role<>'SUPER_ADMIN'
+         AND EXISTS(SELECT 1 FROM inventory_unit_access own WHERE own.membership_id=m.id)
+         AND NOT EXISTS(SELECT 1 FROM inventory_unit_access foreign_unit WHERE foreign_unit.membership_id=m.id AND NOT(foreign_unit.unit_id=ANY($3::uuid[])))
+         AND NOT EXISTS(SELECT 1 FROM inventory_memberships other WHERE other.user_id=u.id AND other.organization_id<>$1)))
+       GROUP BY u.id,m.id ORDER BY u.name`,
+      [auth.organizationId, auth.role === "PARTNER_ADMIN", auth.unitIds],
     );
     return Response.json({ data: result.rows }, { headers });
   }
@@ -139,6 +166,21 @@ export async function userAdminResponse(request: Request) {
   if (!parsed.success)
     return Response.json({ error: "Confira os dados do usuário." }, { status: 400, headers });
   const input = parsed.data;
+  if (auth.role === "PARTNER_ADMIN") {
+    const units = "unitIds" in input ? input.unitIds : null;
+    if (
+      (units && (!units.length || units.some((id) => !auth.unitIds.includes(id)))) ||
+      ("role" in input && input.role === "SUPER_ADMIN") ||
+      ("userId" in input && !(await partnerMayManage(auth, input.userId)))
+    )
+      return Response.json(
+        {
+          error:
+            "Você só pode administrar outros usuários vinculados exclusivamente às suas unidades. Contas globais e seu próprio acesso são protegidos.",
+        },
+        { status: 403, headers },
+      );
+  }
   if (input.action === "CREATE") {
     if (!hasValidProfessionalRegistry(input))
       return Response.json(
@@ -194,7 +236,12 @@ export async function userAdminResponse(request: Request) {
           [membership.rows[0].id, unitId],
         );
       await client.query("COMMIT");
-      const invitation = await createInvite(user.rows[0].id, auth.organizationId, auth.user.id);
+      const invitation = await createInvite(
+        user.rows[0].id,
+        auth.organizationId,
+        auth.user.id,
+        auth,
+      );
       return Response.json(
         { data: { id: user.rows[0].id, ...invitation } },
         { status: 201, headers },
@@ -237,6 +284,7 @@ export async function userAdminResponse(request: Request) {
       );
       const before = target.rows[0];
       if (!before) throw new Error("NOT_FOUND");
+      if (!(await partnerMayManage(auth, input.userId, client))) throw new Error("PROTECTED_ROLE");
       if (before.credentialed && before.email.toLowerCase() !== input.email.toLowerCase())
         throw new Error("EMAIL_LOCKED");
       // An activated professional's registry is their signing identity; reassigning it would
@@ -410,7 +458,7 @@ export async function userAdminResponse(request: Request) {
       );
     let invitation: Awaited<ReturnType<typeof createInvite>>;
     try {
-      invitation = await createInvite(input.userId, auth.organizationId, auth.user.id);
+      invitation = await createInvite(input.userId, auth.organizationId, auth.user.id, auth);
     } catch {
       return Response.json(
         { error: "Esta conta não aceita reconvite. Confira a situação do usuário." },
@@ -420,8 +468,21 @@ export async function userAdminResponse(request: Request) {
     return Response.json({ data: invitation }, { headers });
   }
   const active = input.action === "ACTIVATE";
-  await getPool().query(
-    `WITH changed AS (
+  const stateClient = await getPool().connect();
+  try {
+    await stateClient.query("BEGIN");
+    await stateClient.query("SELECT id FROM inventory_users WHERE id=$1 FOR UPDATE", [
+      input.userId,
+    ]);
+    if (!(await partnerMayManage(auth, input.userId, stateClient))) {
+      await stateClient.query("ROLLBACK");
+      return Response.json(
+        { error: "Usuário fora das unidades autorizadas." },
+        { status: 403, headers },
+      );
+    }
+    await stateClient.query(
+      `WITH changed AS (
        UPDATE inventory_users SET active=$2,session_version=session_version+1,updated_at=now()
        WHERE id=$1 RETURNING id
      ), revoked_invites AS (
@@ -430,8 +491,15 @@ export async function userAdminResponse(request: Request) {
          AND used_at IS NULL AND revoked_at IS NULL
      )
      INSERT INTO inventory_auth_events(user_id,event) SELECT id,$3 FROM changed`,
-    [input.userId, active, active ? "USER_ACTIVATED" : "USER_DEACTIVATED"],
-  );
+      [input.userId, active, active ? "USER_ACTIVATED" : "USER_DEACTIVATED"],
+    );
+    await stateClient.query("COMMIT");
+  } catch (error) {
+    await stateClient.query("ROLLBACK").catch(() => {});
+    throw error;
+  } finally {
+    stateClient.release();
+  }
   return Response.json({ data: { id: input.userId, active } }, { headers });
 }
 
