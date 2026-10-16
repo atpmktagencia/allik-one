@@ -57,3 +57,7 @@ These are planned names/settings, not applied Production changes:
 ## New-candidate local validation
 
 The manuscript-mode and safe-email-diagnostic changes passed 177 unit/UI tests, 230 PostgreSQL integration tests, three runtime/tooling checks, typecheck and lint (six preexisting Fast Refresh warnings). The updated production-bundle beta runner explicitly enables MANUSCRIPT and asserts paper-signature instructions in the rendered final, while retaining snapshot/PDF preservation, clinical isolation, migration and local restore checks. No new schema migration or new table grant is needed. Real provider delivery and a complete deployed individual browser flow are not established by these local results.
+
+## Published Preview checkpoint
+
+Code `df9b767400183de86769bf1abe7a6defc1acff87` deployed READY as `dpl_7MKDRriGyNxjupdVdw8dM77cJ4kS` at `https://allik-o2clgd91l-atp-mkt.vercel.app`. The branch-only MANUSCRIPT flag was configured before deployment. Access, Users, Patients and Agenda pages returned HTTP 200. This does not claim an authenticated clinical write/finalization browser flow on the deployed system. Production was reconfirmed unchanged at `dpl_Dks1dBbZWMSeGjitvxWY5QjugWr2` after publication. No real email, official migration, runtime-role creation or production environment/domain change was performed.
