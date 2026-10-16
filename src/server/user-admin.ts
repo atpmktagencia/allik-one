@@ -6,7 +6,7 @@ import { authenticate, can, hashPassword, hashToken, roles } from "./auth";
 import { getPool } from "./db";
 import type { AuthContext } from "./auth";
 import type { PoolClient } from "pg";
-import { sendInvitationEmail } from "./invitation-email";
+import { sendInvitationEmail, type InvitationEmailFailure } from "./invitation-email";
 
 function registryError(error: unknown) {
   const constraint =
@@ -117,8 +117,15 @@ async function createInvite(
   } finally {
     client.release();
   }
-  const emailDelivery = await sendInvitationEmail(email!, token);
-  return { activationPath: `/estoque/ativar#activate=${token}`, emailDelivery };
+  let emailDeliveryReason: InvitationEmailFailure | undefined;
+  const emailDelivery = await sendInvitationEmail(email!, token, (reason) => {
+    emailDeliveryReason = reason;
+  });
+  return {
+    activationPath: `/estoque/ativar#activate=${token}`,
+    emailDelivery,
+    ...(emailDeliveryReason ? { emailDeliveryReason } : {}),
+  };
 }
 
 export async function userAdminResponse(request: Request) {

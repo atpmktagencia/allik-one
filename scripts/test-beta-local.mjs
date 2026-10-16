@@ -255,6 +255,7 @@ if (process.argv.includes("--serve")) {
         INVENTORY_PREPARE_PREVIEW: "false",
         INVENTORY_ALLOW_SEED: "false",
         AUTH_RECOVERY_ENABLED: "false",
+        CLINICAL_SIGNATURE_MODE: "MANUSCRIPT",
       },
       stdio: ["ignore", "pipe", "pipe"],
     });
@@ -368,7 +369,10 @@ if (process.argv.includes("--serve")) {
     ).rows[0].final_snapshot;
     const printed = await api.get(`${documents}?documentId=${draft.id}&print=true`);
     assert.equal(printed.status(), 200);
-    assert.ok((await printed.text()).includes("Synthetic beta patient"));
+    const printedHtml = await printed.text();
+    assert.ok(printedHtml.includes("Synthetic beta patient"));
+    assert.ok(printedHtml.includes("Imprima esta via para assinatura manuscrita"));
+    assert.ok(printedHtml.includes("não comprova a assinatura no papel"));
     const sourcePath = `/api/v1/inventory/document-signatures?documentId=${draft.id}&source=true`;
     const pdf = await api.get(sourcePath);
     assert.equal(pdf.status(), 200);

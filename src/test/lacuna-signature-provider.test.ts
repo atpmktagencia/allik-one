@@ -249,3 +249,20 @@ describe("Lacuna fail-closed signature boundary", () => {
     });
   });
 });
+
+it("disables certified signing explicitly when manuscript mode is selected", async () => {
+  vi.stubEnv("CLINICAL_SIGNATURE_MODE", "MANUSCRIPT");
+  const outgoing = vi.fn();
+  vi.stubGlobal("fetch", outgoing);
+  expect(getLacunaSignatureConfiguration()).toMatchObject({ configured: false });
+  expect(getLacunaSignatureConfiguration().reason).toContain("Assinatura manuscrita");
+  await expect(
+    createLacunaSignatureSession({
+      pdfBytes: original,
+      expectedSignerCpf: cpf,
+      returnUrl: "https://allik.example.test/return",
+      callbackArgument: "opaque",
+    }),
+  ).rejects.toMatchObject({ code: "unavailable" });
+  expect(outgoing).not.toHaveBeenCalled();
+});

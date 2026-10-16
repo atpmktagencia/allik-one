@@ -19,3 +19,7 @@ The report did not verify real Neon/Vercel configuration, deployed individual cl
 ## Local follow-up verification
 
 The remediation passed typecheck, lint (six preexisting Fast Refresh warnings), 176 unit/UI tests, 224 PostgreSQL integration tests, three runtime/tooling checks and eight stock E2E. Browser execution used `/usr/bin/chromium` via `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH` after the bundled executable was unavailable. The supplier test passed with the explicit network-idle reload wait. Regression tests cover peer PARTNER_ADMIN create/promotion/edit/state/reinvite denial, retained SUPER_ADMIN capabilities, fragment and legacy-link consumption/URL cleanup, and stable per-invitation provider idempotency keys. Databases were disposable; delivery was mocked. No real messages were sent, and no live database migration was needed. These tests do not close A-1 or substitute for independent retest of the final SHA.
+
+## Subsequent release-owner decision
+
+The owner subsequently stated that A-1 is accepted for their release process and requested no further independent audit. Record this as risk acceptance and waiver of that process gate, not a code correction or an external approval. The historical external verdict above remains unchanged. Technical A-1 still exists, and the [current readiness plan](../beta-readiness-2026-10-16.md) separately tracks operational acceptance, delivery and official rollout. Certified signing is outside the selected paper-signature beta scope.

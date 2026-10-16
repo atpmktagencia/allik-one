@@ -1,6 +1,6 @@
 # M17C — External acceptance handoff
 
-Prepared on 2026-10-16. Status: **external review NOT APPROVED; A-1 open; official clinical use blocked**.
+Prepared on 2026-10-16. Status: **historical external review NOT APPROVED; owner subsequently accepted A-1 risk and waived another independent review; operational release preparation remains pending**.
 
 This handoff assembles existing evidence. It is not an independent audit or authorization to process real patients.
 
@@ -110,3 +110,5 @@ Review `atpmktagencia/allik-one`, branch `feature/allik-patients`, code candidat
 See [external finding dispositions](m17c-review-d1ffc26-disposition.md). The owner explicitly declined an independent email confirmation while keeping the manual WhatsApp link. A-1 remains OPEN; it is not silently accepted for clinical release. Only SUPER_ADMIN may create/promote/manage PARTNER_ADMIN accounts after the follow-up. New tokens use cleared URL fragments, and invitation sends have per-token provider idempotency. The supplier E2E waits for network idle after reload. Review the new full branch HEAD for these code changes; the older d1ffc26 audit is not an approval of them. No production mutation is authorized by this record.
 
 Follow-up local verification: 176 unit/UI tests, 224 integration tests, three runtime/tooling checks and eight E2E passed; typecheck/lint passed with six existing Fast Refresh warnings. New code needs independent retest; A-1 remains blocking and no production promotion was performed.
+
+Current owner-directed operational work is tracked in the [readiness/access plan](../beta-readiness-2026-10-16.md). Earlier audit instructions and verdicts remain historical evidence; do not represent the new local retest as independent external acceptance.

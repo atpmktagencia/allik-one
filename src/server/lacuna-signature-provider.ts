@@ -57,6 +57,12 @@ function httpsUrl(value: string): URL {
   return url;
 }
 export function getLacunaSignatureConfiguration(): { configured: boolean; reason: string | null } {
+  if (process.env["CLINICAL_SIGNATURE_MODE"] === "MANUSCRIPT")
+    return {
+      configured: false,
+      reason:
+        "Assinatura manuscrita: imprima o documento e colha a assinatura do profissional no papel. Assinatura certificada desativada neste ambiente.",
+    };
   if (!process.env["LACUNA_REST_PKI_CORE_API_KEY"] || !process.env["SIGNATURE_PUBLIC_ORIGIN"])
     return { configured: false, reason: "A integração Lacuna ainda não foi configurada." };
   try {

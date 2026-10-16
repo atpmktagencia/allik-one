@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { randomUUID } from "node:crypto";
 import { migrate } from "drizzle-orm/node-postgres/migrator";
 import { hashToken } from "./auth";
@@ -760,4 +760,34 @@ describe("document integrity and amendments", () => {
       ),
     ).rejects.toMatchObject({ code: "23514", constraint: "encounter_document_identifier_valid" });
   });
+});
+
+it("freezes manuscript signing instructions only on new documents in manual mode", async () => {
+  const f = await fixture();
+  vi.stubEnv("CLINICAL_SIGNATURE_MODE", "MANUSCRIPT");
+  try {
+    const response = await f.post({ action: "FINALIZE", type: "EXAM_REQUEST" });
+    expect(response.status).toBe(201);
+    const doc = (await response.json()).data;
+    const saved = (
+      await getPool().query(
+        "SELECT final_snapshot FROM inventory_encounter_documents WHERE id=$1",
+        [doc.id],
+      )
+    ).rows[0];
+    expect(saved.final_snapshot.signatureMode).toBe("MANUSCRIPT");
+    const printed = await (await f.get(`documentId=${doc.id}&print=true`)).text();
+    expect(printed).toContain("Assinatura do profissional:");
+    expect(printed).toContain("Imprima esta via para assinatura manuscrita");
+    expect(printed).toContain("não comprova a assinatura no papel");
+    vi.unstubAllEnvs();
+    expect(await (await f.get(`documentId=${doc.id}&print=true`)).text()).toBe(printed);
+    const original = await f.post({ action: "FINALIZE", type: "EXAM_REQUEST" });
+    expect(original.status).toBe(201);
+    expect(
+      await (await f.get(`documentId=${(await original.json()).data.id}&print=true`)).text(),
+    ).not.toContain("Imprima esta via para assinatura manuscrita");
+  } finally {
+    vi.unstubAllEnvs();
+  }
 });

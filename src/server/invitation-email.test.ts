@@ -64,3 +64,34 @@ it("uses a stable provider idempotency key without exposing the invitation token
   expect(keys[0]).toMatch(/^invitation\/[0-9a-f]{64}$/);
   expect(keys[0]).not.toContain("first-secret");
 });
+
+it.each([
+  [401, "invalid key", "INVALID_API_KEY"],
+  [403, "The domain is not verified", "DOMAIN_NOT_VERIFIED"],
+  [403, "You can only send testing emails to your own email address", "TEST_RECIPIENT_RESTRICTED"],
+  [429, "Too many requests", "RATE_LIMITED"],
+  [503, "Unavailable", "PROVIDER_UNAVAILABLE"],
+] as const)(
+  "returns safe delivery diagnostics for provider HTTP %s",
+  async (status, message, code) => {
+    configure();
+    const failure = vi.fn();
+    const log = vi.spyOn(console, "error").mockImplementation(() => {});
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json({ message }, { status })),
+    );
+    try {
+      expect(await sendInvitationEmail("holder@example.test", "raw-private-token", failure)).toBe(
+        "FAILED",
+      );
+      expect(failure).toHaveBeenCalledWith(code);
+      const logs = JSON.stringify(log.mock.calls);
+      expect(logs).not.toContain("holder@example.test");
+      expect(logs).not.toContain("raw-private-token");
+      expect(logs).not.toContain(message);
+    } finally {
+      log.mockRestore();
+    }
+  },
+);

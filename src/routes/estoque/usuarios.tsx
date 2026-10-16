@@ -25,6 +25,27 @@ type User = {
   prescribingPhone?: string | null;
   units: Unit[];
 };
+function invitationDeliveryMessage(data: { emailDelivery?: string; emailDeliveryReason?: string }) {
+  if (data.emailDelivery === "ACCEPTED")
+    return "O provedor aceitou o e-mail de convite ao titular; confira a caixa de entrada e spam.";
+  const reasons: Record<string, string> = {
+    NOT_CONFIGURED: "O envio de convite não está configurado neste ambiente.",
+    INVALID_ORIGIN: "A origem HTTPS do convite precisa ser corrigida.",
+    INVALID_API_KEY: "O provedor recusou a chave de envio; confira a configuração.",
+    DOMAIN_NOT_VERIFIED: "O domínio do remetente precisa ser verificado no Resend.",
+    TEST_RECIPIENT_RESTRICTED:
+      "O provedor está restringindo o envio a destinatários de teste; verifique o domínio no Resend.",
+    FORBIDDEN: "O provedor recusou a permissão de envio; confira a chave e o remetente.",
+    RATE_LIMITED: "O limite de envio foi atingido; aguarde antes de tentar novamente.",
+    INVALID_REQUEST: "O provedor recusou os dados do envio; confira o remetente.",
+    PROVIDER_UNAVAILABLE: "O provedor de e-mail está indisponível.",
+    INVALID_RESPONSE: "O provedor não confirmou uma resposta válida.",
+    TIMEOUT: "O provedor não confirmou o envio no prazo; o e-mail ainda pode chegar.",
+    NETWORK_ERROR: "Não foi possível conectar ao provedor de e-mail.",
+  };
+  return `${reasons[data.emailDeliveryReason ?? ""] ?? "O e-mail de convite não foi confirmado; confira a configuração ou tente reenviar."} O link manual continua disponível.`;
+}
+
 export const Route = createFileRoute("/estoque/usuarios")({ component: UserAdministration });
 export function UserAdministration() {
   const [users, setUsers] = useState<User[]>([]);
@@ -137,7 +158,7 @@ export function UserAdministration() {
       });
       const body = (await response.json()) as {
         error?: string;
-        data?: { activationPath?: string; emailDelivery?: string };
+        data?: { activationPath?: string; emailDelivery?: string; emailDeliveryReason?: string };
       };
       if (!response.ok || !body.data)
         throw new Error(body.error ?? "Não foi possível salvar o usuário.");
@@ -147,7 +168,7 @@ export function UserAdministration() {
         setInvitationLink(link);
         await navigator.clipboard?.writeText(link).catch(() => {});
         setMessage(
-          `Usuário criado. ${body.data.emailDelivery === "ACCEPTED" ? "O provedor aceitou o e-mail de convite ao titular." : "O e-mail de convite não foi confirmado; confira a configuração ou tente reenviar."} Link de ativação disponível abaixo para encaminhamento manual pelo WhatsApp; uso único, válido por 72 horas.`,
+          `Usuário criado. ${invitationDeliveryMessage(body.data)} Link de ativação disponível abaixo para encaminhamento manual pelo WhatsApp; uso único, válido por 72 horas.`,
         );
       }
       resetForm();
@@ -172,7 +193,7 @@ export function UserAdministration() {
       });
       const body = (await response.json()) as {
         error?: string;
-        data?: { activationPath?: string; emailDelivery?: string };
+        data?: { activationPath?: string; emailDelivery?: string; emailDeliveryReason?: string };
       };
       if (!response.ok || !body.data?.activationPath)
         throw new Error(body.error ?? "Não foi possível gerar o link de redefinição.");
@@ -180,7 +201,7 @@ export function UserAdministration() {
       setInvitationLink(link);
       await navigator.clipboard?.writeText(link).catch(() => {});
       setMessage(
-        `${body.data.emailDelivery === "ACCEPTED" ? "O provedor aceitou o e-mail de convite ao titular." : "O e-mail de convite não foi confirmado; confira a configuração ou tente reenviar."} Link de ativação de ${user.name} disponível abaixo para encaminhamento manual pelo WhatsApp. Uso único, válido por 72 horas.`,
+        `${invitationDeliveryMessage(body.data)} Link de ativação de ${user.name} disponível abaixo para encaminhamento manual pelo WhatsApp. Uso único, válido por 72 horas.`,
       );
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Falha de conexão.");

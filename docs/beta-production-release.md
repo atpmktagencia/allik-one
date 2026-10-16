@@ -114,3 +114,7 @@ On 2026-10-16, candidate `d1ffc26ed8828807acab48d97ad5f293ff572f3f` was reconfir
 ## External audit disposition — release still blocked
 
 The external audit of `d1ffc26` returned NOT APPROVED. See the [finding dispositions](audits/m17c-review-d1ffc26-disposition.md). A-1 remains open by explicit owner choice to keep manual invitation links without another confirmation factor. No new candidate is authorized for official clinical use. A-2, B-1, B-2 and provider idempotency have follow-up changes requiring independent retest. The real invitation email delivery problem remains unverified; manual link activation does not close it.
+
+## Latest owner-directed preparation
+
+The owner accepted the manual-invitation A-1 risk, waived another independent audit and chose printed documents with handwritten signatures instead of VIDaaS for the beta. The external negative verdict remains historical evidence, not a positive audit. The [2026-10-16 readiness/access plan](beta-readiness-2026-10-16.md) is the current operational preparation record, including read-only official account/target checks and the explicit configuration/maintenance plan. Official migration, runtime provisioning, staging, domain promotion and full deployed acceptance have not been performed by that preparation.

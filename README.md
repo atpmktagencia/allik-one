@@ -423,3 +423,11 @@ PARTNER_ADMIN can manage other individual users linked exclusively to the admini
 The [external-review disposition](docs/audits/m17c-review-d1ffc26-disposition.md) records A-1 (high, blocking) as open: an administrator holding an invitation can activate a professional account themselves. The owner explicitly chose manual WhatsApp links without independent email confirmation. No verified holder identity or clinical-release approval is implied.
 
 The requested follow-up restricts PARTNER_ADMIN grants and peer administration to SUPER_ADMIN; uses and clears invitation URL fragments; adds provider idempotency per invitation; and fixes the supplier E2E reload hydration wait. Reinvitation deliberately creates a new token/key. Production remains preserved and external retest of the new SHA is required.
+
+### Beta owner decision and paper signature mode
+
+The release owner requested proceeding without another independent audit, accepted the still-technical A-1 manual-invitation risk, and selected handwritten paper signatures instead of VIDaaS for the beta. This does not rewrite the external audit's negative verdict or establish verified professional identity. The current [readiness and access plan](docs/beta-readiness-2026-10-16.md) records these decisions, exact-candidate retests, official read-only observations and remaining operational tasks.
+
+`CLINICAL_SIGNATURE_MODE=MANUSCRIPT` explicitly disables the certified provider in that environment. New finalized snapshots record the mode and print a signature line/instructions for paper signing; previously frozen documents retain their original rendering. A PDF is not proof of a physical signature and is not marked cryptographically signed. This Preview-only configuration is not a production promotion.
+
+Invitation delivery now returns a static failure reason to the authorized administrator and logs only its fixed diagnostic code. Use that reason to correct configuration or provider restrictions; neither an accepted provider request nor the manual WhatsApp link establishes inbox delivery.

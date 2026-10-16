@@ -370,6 +370,9 @@ export async function encounterDocumentsResponse(request: Request) {
         };
       }
       finalSnapshot = {
+        ...(process.env["CLINICAL_SIGNATURE_MODE"] === "MANUSCRIPT"
+          ? { signatureMode: "MANUSCRIPT" }
+          : {}),
         documentId,
         verificationCode: documentVerificationCode(documentId),
         patientIdentity: {
