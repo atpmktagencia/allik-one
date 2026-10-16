@@ -46,6 +46,7 @@ export function UserAdministration() {
   });
   const [editing, setEditing] = useState<User | null>(null);
   const [message, setMessage] = useState("");
+  const [invitationLink, setInvitationLink] = useState("");
   const [error, setError] = useState("");
   const [pending, setPending] = useState(false);
   async function load() {
@@ -100,6 +101,7 @@ export function UserAdministration() {
     });
     setError("");
     setMessage("");
+    setInvitationLink("");
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
   async function submit(event: FormEvent) {
@@ -107,6 +109,7 @@ export function UserAdministration() {
     setPending(true);
     setError("");
     setMessage("");
+    setInvitationLink("");
     try {
       const response = await fetch("/api/v1/inventory/users", {
         method: "POST",
@@ -131,15 +134,18 @@ export function UserAdministration() {
       });
       const body = (await response.json()) as {
         error?: string;
-        data?: { activationPath?: string };
+        data?: { activationPath?: string; emailDelivery?: string };
       };
       if (!response.ok || !body.data)
         throw new Error(body.error ?? "Não foi possível salvar o usuário.");
       if (editing) setMessage("Dados do usuário atualizados e auditados.");
       else if (body.data.activationPath) {
         const link = `${window.location.origin}${body.data.activationPath}`;
-        await navigator.clipboard.writeText(link);
-        setMessage("Usuário criado. O link de ativação de uso único foi copiado.");
+        setInvitationLink(link);
+        await navigator.clipboard?.writeText(link).catch(() => {});
+        setMessage(
+          `Usuário criado. ${body.data.emailDelivery === "ACCEPTED" ? "O provedor aceitou o e-mail de convite ao titular." : "O e-mail de convite não foi confirmado; confira a configuração ou tente reenviar."} Link de ativação disponível abaixo para encaminhamento manual pelo WhatsApp; uso único, válido por 72 horas.`,
+        );
       }
       resetForm();
       await load();
@@ -154,6 +160,7 @@ export function UserAdministration() {
     setPending(true);
     setError("");
     setMessage("");
+    setInvitationLink("");
     try {
       const response = await fetch("/api/v1/inventory/users", {
         method: "POST",
@@ -162,14 +169,15 @@ export function UserAdministration() {
       });
       const body = (await response.json()) as {
         error?: string;
-        data?: { activationPath?: string };
+        data?: { activationPath?: string; emailDelivery?: string };
       };
       if (!response.ok || !body.data?.activationPath)
         throw new Error(body.error ?? "Não foi possível gerar o link de redefinição.");
       const link = `${window.location.origin}${body.data.activationPath}`;
-      await navigator.clipboard.writeText(link);
+      setInvitationLink(link);
+      await navigator.clipboard?.writeText(link).catch(() => {});
       setMessage(
-        `Link de redefinição para ${user.name} copiado. Ele é de uso único e expira em 72 horas.`,
+        `${body.data.emailDelivery === "ACCEPTED" ? "O provedor aceitou o e-mail de convite ao titular." : "O e-mail de convite não foi confirmado; confira a configuração ou tente reenviar."} Link de ativação de ${user.name} disponível abaixo para encaminhamento manual pelo WhatsApp. Uso único, válido por 72 horas.`,
       );
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Falha de conexão.");
@@ -345,7 +353,7 @@ export function UserAdministration() {
         </fieldset>
         <div className="flex flex-wrap gap-2">
           <Button disabled={pending}>
-            {pending ? "Salvando…" : editing ? "Salvar alterações" : "Criar e copiar convite"}
+            {pending ? "Salvando…" : editing ? "Salvar alterações" : "Criar e enviar convite"}
           </Button>
           {editing ? (
             <Button type="button" variant="outline" disabled={pending} onClick={resetForm}>
@@ -357,6 +365,27 @@ export function UserAdministration() {
           <p role="status" className="text-sm">
             {message}
           </p>
+        )}
+        {invitationLink && (
+          <div className="space-y-2 rounded-md border p-3">
+            <label className="block text-sm">
+              Link de ativação para envio manual ao titular
+              <Input readOnly value={invitationLink} onFocus={(event) => event.target.select()} />
+            </label>
+            <a
+              className="text-sm underline"
+              href={`https://wa.me/?text=${encodeURIComponent(`Ative sua conta Allik One pelo link de uso único, válido por 72 horas: ${invitationLink}`)}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              referrerPolicy="no-referrer"
+            >
+              Abrir WhatsApp para escolher o destinatário
+            </a>
+            <p className="text-sm text-muted-foreground">
+              Envie somente ao titular. Abrir o WhatsApp não confirma o envio. Um novo convite
+              invalida o link anterior.
+            </p>
+          </div>
         )}
         {error && (
           <p role="alert" className="text-sm text-destructive">

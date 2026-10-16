@@ -102,7 +102,7 @@ afterEach(() => {
 async function deliveryFixture() {
   const f = await fixture();
   await getPool().query(
-    "UPDATE inventory_patients SET email='synthetic-recipient@example.test',phone='+5585999999999' WHERE id=$1",
+    "UPDATE inventory_patients SET email='synthetic-recipient@example.test',phone='+5585999999999',consent_status='RECORDED',consent_recorded_at=now() WHERE id=$1",
     [f.patientId],
   );
   const finalResponse = await f.post({ action: "FINALIZE" });
@@ -446,7 +446,7 @@ describe("superseded and protected clinical records", () => {
     );
     const sent = await f.send();
     expect(sent.status).toBe(409);
-    expect((await sent.json()).error).toContain("revogou");
+    expect((await sent.json()).error).toContain("consentimento");
     expect(outgoing).not.toHaveBeenCalled();
   });
   it("keeps an encounter with finalized records from being canceled or marked as no-show", async () => {
@@ -499,5 +499,27 @@ describe("superseded and protected clinical records", () => {
         ])
       ).rows[0].status,
     ).toBe("SCHEDULED");
+  });
+});
+
+describe("Explicit consent for document delivery", () => {
+  it("blocks pending consent for email and WhatsApp before any outgoing call", async () => {
+    const f = await deliveryFixture();
+    await getPool().query(
+      "UPDATE inventory_patients SET consent_status='PENDING',consent_recorded_at=NULL WHERE id=$1",
+      [f.patientId],
+    );
+    const outgoing = vi.fn();
+    vi.stubGlobal("fetch", outgoing);
+    expect((await f.send()).status).toBe(409);
+    expect(
+      (await f.send({ action: "PREPARE_WHATSAPP", confirmedRecipient: "5585999999999" })).status,
+    ).toBe(409);
+    expect(outgoing).not.toHaveBeenCalled();
+    const events = await getPool().query(
+      "SELECT count(*)::int AS count FROM inventory_document_delivery_events WHERE document_id=$1",
+      [f.document.id],
+    );
+    expect(events.rows[0].count).toBe(0);
   });
 });

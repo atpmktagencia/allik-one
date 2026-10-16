@@ -4706,3 +4706,67 @@ it("preserves historical treatment unit scope after changing a patient's primary
   ).data;
   expect(consolidated.treatments.map((t: { id: string }) => t.id)).toContain(treatmentId);
 });
+
+it("emails invitations to the holder and returns the same one-use link for manual WhatsApp", async () => {
+  const unit = "a1100000-0000-4000-8000-000000000101";
+  const cookie = await scopedCookie(unit, "SUPER_ADMIN");
+  const holder = `${randomUUID()}@example.test`;
+  const sent: Array<{ to: string[]; text: string }> = [];
+  vi.stubEnv("AUTH_INVITES_ENABLED", "true");
+  vi.stubEnv("RESEND_API_KEY", "synthetic-key");
+  vi.stubEnv("AUTH_EMAIL_FROM", "Allik <sender@example.test>");
+  vi.stubEnv("AUTH_PUBLIC_ORIGIN", "https://allik.example.test");
+  vi.stubEnv("VERCEL_ENV", "production");
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (_url: string, init: RequestInit) => {
+      sent.push(JSON.parse(String(init.body)));
+      return Response.json({ id: randomUUID() });
+    }),
+  );
+  const admin = (body: unknown) =>
+    userAdminResponse(
+      new Request(`${origin}/api/v1/inventory/users`, {
+        method: "POST",
+        headers: { cookie, origin, "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      }),
+    );
+  try {
+    const response = await admin({
+      action: "CREATE",
+      name: "Synthetic invited holder",
+      email: holder,
+      role: "VIEWER",
+      unitIds: [unit],
+    });
+    expect(response.status).toBe(201);
+    const created = (await response.json()).data;
+    expect(created.emailDelivery).toBe("ACCEPTED");
+    expect(sent[0]!.to).toEqual([holder]);
+    expect(sent[0]!.text).toContain(`https://allik.example.test${created.activationPath}`);
+    const oldToken = new URL(created.activationPath, origin).searchParams.get("token")!;
+    const again = await admin({ action: "REINVITE", userId: created.id });
+    expect(again.status).toBe(200);
+    const renewed = (await again.json()).data;
+    expect(renewed.emailDelivery).toBe("ACCEPTED");
+    expect(sent[1]!.to).toEqual([holder]);
+    expect(sent[1]!.text).toContain(renewed.activationPath);
+    expect(renewed.activationPath).not.toBe(created.activationPath);
+    const activate = (token: string) =>
+      activationResponse(
+        new Request(`${origin}/api/inventory-activation`, {
+          method: "POST",
+          headers: { origin, "Content-Type": "application/json" },
+          body: JSON.stringify({ token, password: "Synthetic-test-password-2026!" }),
+        }),
+      );
+    expect((await activate(oldToken)).status).toBe(410);
+    const newToken = new URL(renewed.activationPath, origin).searchParams.get("token")!;
+    expect((await activate(newToken)).status).toBe(200);
+    expect((await activate(newToken)).status).toBe(410);
+  } finally {
+    vi.unstubAllGlobals();
+    vi.unstubAllEnvs();
+  }
+});

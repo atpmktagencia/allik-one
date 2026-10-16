@@ -4,6 +4,7 @@ import { randomBytes } from "node:crypto";
 import { z } from "zod";
 import { authenticate, can, hashPassword, hashToken, roles } from "./auth";
 import { getPool } from "./db";
+import { sendInvitationEmail } from "./invitation-email";
 
 function registryError(error: unknown) {
   const constraint =
@@ -66,13 +67,15 @@ async function createInvite(
 ) {
   const token = randomBytes(32).toString("base64url");
   const client = await getPool().connect();
+  let email: string;
   try {
     await client.query("BEGIN");
     const user = await client.query(
-      "SELECT id FROM inventory_users WHERE id=$1 AND active AND password_hash IS NULL FOR UPDATE",
+      "SELECT id,email FROM inventory_users WHERE id=$1 AND active AND password_hash IS NULL FOR UPDATE",
       [userId],
     );
     if (!user.rowCount) throw new Error("ACCOUNT_ALREADY_ACTIVE");
+    email = user.rows[0].email;
     await client.query(
       "UPDATE inventory_invites SET revoked_at=now() WHERE user_id=$1 AND used_at IS NULL AND revoked_at IS NULL",
       [userId],
@@ -92,7 +95,8 @@ async function createInvite(
   } finally {
     client.release();
   }
-  return token;
+  const emailDelivery = await sendInvitationEmail(email!, token);
+  return { activationPath: `/estoque/ativar?token=${token}`, emailDelivery };
 }
 
 export async function userAdminResponse(request: Request) {
@@ -190,9 +194,9 @@ export async function userAdminResponse(request: Request) {
           [membership.rows[0].id, unitId],
         );
       await client.query("COMMIT");
-      const token = await createInvite(user.rows[0].id, auth.organizationId, auth.user.id);
+      const invitation = await createInvite(user.rows[0].id, auth.organizationId, auth.user.id);
       return Response.json(
-        { data: { id: user.rows[0].id, activationPath: `/estoque/ativar?token=${token}` } },
+        { data: { id: user.rows[0].id, ...invitation } },
         { status: 201, headers },
       );
     } catch (error) {
@@ -404,19 +408,16 @@ export async function userAdminResponse(request: Request) {
         { error: "Ative o usuário antes de gerar um novo convite." },
         { status: 409, headers },
       );
-    let token: string;
+    let invitation: Awaited<ReturnType<typeof createInvite>>;
     try {
-      token = await createInvite(input.userId, auth.organizationId, auth.user.id);
+      invitation = await createInvite(input.userId, auth.organizationId, auth.user.id);
     } catch {
       return Response.json(
         { error: "Esta conta não aceita reconvite. Confira a situação do usuário." },
         { status: 409, headers },
       );
     }
-    return Response.json(
-      { data: { activationPath: `/estoque/ativar?token=${token}` } },
-      { headers },
-    );
+    return Response.json({ data: invitation }, { headers });
   }
   const active = input.action === "ACTIVATE";
   await getPool().query(
@@ -461,7 +462,7 @@ export async function activationResponse(request: Request) {
     );
     const lockedUser = candidate.rows[0]
       ? await client.query(
-          "SELECT id FROM inventory_users WHERE id=$1 AND active AND password_hash IS NULL FOR UPDATE",
+          "SELECT id,email FROM inventory_users WHERE id=$1 AND active AND password_hash IS NULL FOR UPDATE",
           [candidate.rows[0].user_id],
         )
       : { rowCount: 0 };

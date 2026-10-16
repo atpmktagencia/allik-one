@@ -103,8 +103,11 @@ export async function documentDeliveryResponse(request: Request) {
       return fail("Cadastre um e-mail válido para o paciente.", 409);
     if (data.action === "PREPARE_WHATSAPP" && !/^\d{10,15}$/.test(number))
       return fail("Cadastre um telefone válido com DDD e código do país.", 409);
-    if (doc.consent_status === "REVOKED")
-      return fail("O paciente revogou o consentimento. Documentos não podem ser enviados.", 409);
+    if (doc.consent_status !== "RECORDED")
+      return fail(
+        "Registre o consentimento do paciente antes de enviar documentos por e-mail ou preparar o envio por WhatsApp.",
+        409,
+      );
     if (doc.rectified)
       return fail("Este documento foi substituído por uma retificação. Envie a retificação.", 409);
     if (doc.has_amendments && !data.confirmAmendments)
