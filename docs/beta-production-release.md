@@ -106,3 +106,7 @@ For the earlier Preview activation, remove only the new `feature/allik-patients`
 ## Follow-up list-access hardening
 
 The candidate after `5574d73` adds pre-disclosure READ auditing for patient lists, appointment lists and appointment patient-search results using existing append-only grants. Empty lists create no event; failed persistence blocks disclosure. This supersedes the earlier code candidate for external acceptance. Real provider/inbox checks and official rollout gates remain pending; production was not modified.
+
+## M17C candidate frozen for external review
+
+On 2026-10-16, candidate `d1ffc26ed8828807acab48d97ad5f293ff572f3f` was reconfirmed READY in Preview at `https://allik-wlyus66kf-atp-mkt.vercel.app`. The release owner reported successful PARTNER_ADMIN account creation and activation via the manual WhatsApp invitation link, but did not receive the invitation email. Invitation email delivery remains pending and provider acceptance for that request is unverified. The owner requested continuing the independent M17C review; no production rollout is implied. Use the updated [external handoff](audits/m17c-external-acceptance.md) and its copyable audit instruction. Official deployment and database were not modified by this handoff preparation.

@@ -7,8 +7,8 @@ This handoff assembles existing evidence. It is not an independent audit or auth
 ## Freeze and scope
 
 - Repository: `atpmktagencia/allik-one`, branch `feature/allik-patients`.
-- Current tested code candidate: `fcea75d46b5a5265c65a51688b2ee37fc1b0c534`, superseding `9f532b9d9b87e824cc811f5c5465057c24272f9e`. Record the full reviewed branch HEAD and identify later documentation-only differences.
-- Verified Preview: `https://allik-anpho49la-atp-mkt.vercel.app`, deployment `dpl_2FU1GMHdgyvgVJdm5WwfpN5MxbfU` at the current tested code candidate.
+- Current tested code candidate: `d1ffc26ed8828807acab48d97ad5f293ff572f3f`, including scoped PARTNER_ADMIN administration, invitation email/manual sharing and recorded-consent enforcement. Record the full reviewed branch HEAD and identify later documentation-only differences.
+- Verified Preview: `https://allik-wlyus66kf-atp-mkt.vercel.app`, deployment `dpl_3PMnhmsRRmKA3fb3oQH8GZbvX5rr` at the current tested code candidate.
 - Intended use: real patients plus operational inventory, after all release gates pass.
 - Record the full reviewed SHA in the report. This handoff may be committed after the code candidate; compare any intervening commits and explicitly identify documentation-only differences. Any subsequent application, migration or configuration change requires assessment against the reviewed scope.
 
@@ -20,8 +20,8 @@ Use disposable synthetic databases. Do not mutate Production, read real clinical
 
 | Evidence                         | Recorded result                                                                                                                                                            | Limit                                                       |
 | -------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------- |
-| Local unit/UI                    | 171 passed                                                                                                                                                                 | Synthetic execution, not independent acceptance             |
-| Local PostgreSQL integration     | 213 passed; three runtime/tooling checks                                                                                                                                   | Disposable PostgreSQL                                       |
+| Local unit/UI                    | 171 passed; subsequently expanded navigation suite: five passed                                                                                                            | Synthetic execution, not independent acceptance             |
+| Local PostgreSQL integration     | 223 passed; three runtime/tooling checks                                                                                                                                   | Disposable PostgreSQL                                       |
 | Build preparation/journal guards | Seven passed                                                                                                                                                               | No live migrations during builds                            |
 | Inventory browser E2E            | Eight passed with restricted SQL role                                                                                                                                      | Local test deployment                                       |
 | Production-bundle beta scenario  | Passed login, clinical isolation/finalization, migration `0012`→`0060` and local restore                                                                                   | Synthetic database and intercepted delivery                 |
@@ -42,14 +42,14 @@ Previous findings and remediations are described in the README. In particular, r
 5. **Operations:** receiving, consumption, duplicate operations, concurrent updates and rollback with actual restricted credentials; migration locks/timeouts and edited/unknown/skipped history rejection; synthetic legacy migration and restore integrity.
 6. **Deployment configuration:** verify the exact candidate's scoped runtime identity, disabled automatic seed/migration, no owner aliases or maintenance secret, and no Preview access flags in official configuration. Report inaccessible checks as unverified.
 
-## Open decisions that require explicit disposition
+## Release-owner decisions and remaining assessment
 
-| Item             | Current behavior                                                                                                                                              | Required report/release disposition                                                                                                  |
-| ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
-| Printed identity | CPF/birth date present on all printed document types                                                                                                          | Assess minimum necessary disclosure; approve scope or specify a prospective correction without rewriting sealed historical bytes     |
-| List access      | Follow-up code records READ events for each disclosed patient, appointment and patient-search result before responding; persistence failure blocks disclosure | Retest scope, actor attribution and audit-failure behavior; assess remaining exposed fields and accountability requirements          |
-| Invitations      | Invitation token returned to administrator                                                                                                                    | Assess holder identity/activation controls and token access; accept with rationale or require holder-only delivery                   |
-| Delivery consent | REVOKED blocks sending; PENDING does not necessarily block                                                                                                    | Define whether recorded affirmative consent is required and which channels/legal basis apply; verify implementation matches decision |
+| Item             | Current behavior and owner decision                                                                                                                                                              | External assessment still required                                                                                                                    |
+| ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Printed identity | Owner requested complete available identity on prescriptions, including CPF/document and address; frozen historical documents remain unchanged                                                   | Verify canonical source and sealed bytes; assess minimum necessary identity on other document types                                                   |
+| List access      | READ events are persisted before each authorized list disclosure; audit failure blocks response                                                                                                  | Retest actor/unit/organization boundaries and failure handling                                                                                        |
+| Invitations      | Owner explicitly retained administrator-visible single-use links for manual WhatsApp sharing, in addition to holder email; owner reports successful manual-link activation but no received email | Assess administrator token access as an explicit exception; test link invalidation/single use and distinguish provider acceptance from inbox delivery |
+| Delivery consent | Owner chose recorded consent: PENDING and REVOKED block email and WhatsApp preparation; existing general consent evidence is used                                                                | Retest enforcement; assess whether separate channel-specific evidence is necessary                                                                    |
 
 Do not label these resolved merely because regression tests pass. Record the accountable release owner's disposition and any required remediation. No formal legal/compliance certification is claimed by this repository.
 
@@ -60,12 +60,12 @@ Provide the reviewed full SHA, environment and commands actually used, per-findi
 External acceptance requires:
 
 - No unresolved release-blocking finding; every remaining finding has an explicit disposition by the accountable release owner.
-- All four open decisions above addressed explicitly.
+- All four items above assessed explicitly, including recorded owner decisions and remaining limitations.
 - Retest of original findings plus the callback and slow/stalled-provider regressions.
 - Exact reviewed candidate and any later differences identified.
 - Separate list of operational gates still pending, even if code review passes.
 
-Audit outcome: **PENDING**. Reviewer identity/date: **PENDING**. Reviewed SHA: **PENDING**. Release-owner dispositions: **PENDING**.
+Audit outcome: **PENDING**. Reviewer identity/date: **PENDING**. Reviewed SHA: **PENDING**. Release-owner decisions: **RECORDED ABOVE; independent assessment pending**.
 
 ## After audit acceptance
 
@@ -94,3 +94,13 @@ The updated 171 unit/UI tests passed. The invitation UI tests additionally verif
 The release owner explicitly authorized PARTNER_ADMIN user administration within their own units, with SUPER_ADMIN protected and no self-escalation. The policy now permits scoped administration and filters the account list. Mutations reject self-targets, SUPER_ADMIN, zero-unit targets, targets with any outside unit and accounts shared across organizations. Requested unit assignments must be nonempty and wholly within the caller's existing units. Update/reinvite/state changes recheck target scope while holding the user lock. Integration-credential and signing-identity administration remain SUPER_ADMIN-only. This changes authorization code, not existing memberships, and requires external review of the new final SHA.
 
 Scoped administration validation: 223 PostgreSQL integration tests and three runtime/tooling checks passed, including allowed create/edit/state/reinvite operations, denial of outside-unit/empty-unit/SUPER_ADMIN grants, protected self/SUPER_ADMIN/mixed-unit/shared-organization targets, and filtered lists. The 171 existing unit/UI tests passed; the subsequently expanded navigation suite passed all five cases, confirming PARTNER_ADMIN sees Users but not Integrations, SUPER_ADMIN sees both and VIEWER sees neither. Typecheck and lint passed (six existing Fast Refresh warnings). The restricted-role production-bundle clinical/migration/local-restore scenario passed. Read-only Preview metadata confirmed the reported PARTNER_ADMIN account is active with two units; no memberships or account permissions were rewritten in the database. No real email was sent during verification. Official Production remains unchanged.
+
+## M17C handoff checkpoint — 2026-10-16
+
+The release owner confirmed that scoped PARTNER_ADMIN user creation now works and that the test account activated through the manually shared WhatsApp link. The invitation email was not received. These are owner-reported observations, not independently reproduced inbox or delivery evidence. Provider acceptance for that actual invitation is unknown; do not mark email delivery passed or assume a cause. The user authorized proceeding with M17C while this remains an operational delivery issue. Recovery was separately reported working; it must not be confused with invitation delivery.
+
+Read-only deployment inspection reconfirmed the code candidate `d1ffc26ed8828807acab48d97ad5f293ff572f3f` READY at the Preview above, and official Production unchanged at `dpl_Dks1dBbZWMSeGjitvxWY5QjugWr2`, commit `4368887e819f181cccc600fa1c367fe7cd4b1aa4`. This handoff update changes documentation only. No further feature work or production promotion is part of the audit request. M17B provider homologation, actual invitation email delivery and official operational acceptance remain separate pending gates.
+
+### Copyable auditor instruction
+
+Review `atpmktagencia/allik-one`, branch `feature/allik-patients`, code candidate `d1ffc26ed8828807acab48d97ad5f293ff572f3f`. Read `AGENTS.md`, the README M17C release gate, this handoff and `docs/beta-production-release.md`. Record the full reviewed SHA and compare later commits; documentation-only handoff changes do not replace the code candidate. Perform a read-only source audit and adversarial reproduction on disposable synthetic databases, without using live credentials, production/Preview mutations or real messages. Do not edit the application during the initial review. Retest all required checks in this handoff, especially callbacks, temporary-table trigger bypass, recovery timing, scoped PARTNER_ADMIN administration, token/activation races, consent and clinical immutability/isolation. Report severity, file/line, synthetic reproduction, impact, missing tests, actual checks executed and unverified environmental gates. Assess the documented owner decisions rather than assuming they close technical risks. Manual-link activation succeeded according to the owner; invitation email was not received. Certified VIDaaS signing is not homologated. Return an explicit code-audit verdict and release-blocking findings; do not authorize official clinical use solely from passing tests.
