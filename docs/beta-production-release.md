@@ -73,6 +73,8 @@ Before applying `0060`, Neon preserved `recovery/m17c-before-0060` (`br-patient-
 
 Authenticated checks as `allik_runtime` verified 80 inventory tables, 43 append-only tables, zero invalid table/sequence grants, zero migration-write grants, zero elevated attributes/memberships/ownership, and no CREATE, TEMPORARY, replication-setting bypass or executable SECURITY DEFINER functions. All 28 inventory functions have pinned search paths. An actual temporary-table creation was denied. Movement/audit/access counts and the aggregate digest of five document seals were unchanged. This was equivalent SQL application and checking through Neon MCP; the live local CLI was not executed because executor TCP was unavailable. Production was not modified.
 
+The [external acceptance handoff](audits/m17c-external-acceptance.md) freezes the code candidate, assembles evidence and lists unresolved policy decisions. External acceptance is pending.
+
 ## Gates before official clinical use
 
 | Gate                        | Required evidence                                                                                                                                                                                                                                                                                                                             |
