@@ -25,7 +25,9 @@ describe("User administration UI", () => {
         const url = String(input);
         if (init?.method === "POST") {
           submittedBody = JSON.parse(String(init.body)) as Record<string, unknown>;
-          return Response.json({ data: { activationPath: "/estoque/ativar?token=test" } });
+          return Response.json({
+            data: { activationPath: "/estoque/ativar?token=test", emailDelivery: "ACCEPTED" },
+          });
         }
         if (url.endsWith("/api/inventory-session"))
           return Response.json({
@@ -61,7 +63,7 @@ describe("User administration UI", () => {
     fireEvent.change(screen.getByLabelText("UF do conselho"), { target: { value: "ce" } });
     fireEvent.click(await screen.findByLabelText("Fortaleza"));
     fireEvent.click(screen.getByLabelText("Juazeiro do Norte"));
-    fireEvent.click(screen.getByRole("button", { name: "Criar e copiar convite" }));
+    fireEvent.click(screen.getByRole("button", { name: "Criar e enviar convite" }));
 
     await waitFor(() =>
       expect(submittedBody?.["unitIds"]).toEqual([unitIds.fortaleza, unitIds.juazeiro]),
@@ -142,10 +144,12 @@ describe("User administration UI", () => {
     );
   });
 
-  it("copies a one-time password reset link for an active user", async () => {
+  it("keeps the manual invitation available when email or clipboard fails", async () => {
     const userId = "33333333-3333-4333-8333-333333333333";
     let submittedBody: Record<string, unknown> | undefined;
-    const writeText = vi.fn(async () => undefined);
+    const writeText = vi.fn(async () => {
+      throw new Error("Synthetic clipboard denial");
+    });
     Object.defineProperty(navigator, "clipboard", {
       configurable: true,
       value: { writeText },
@@ -156,7 +160,7 @@ describe("User administration UI", () => {
         if (init?.method === "POST") {
           submittedBody = JSON.parse(String(init.body)) as Record<string, unknown>;
           return Response.json({
-            data: { activationPath: "/estoque/ativar?token=reset-token" },
+            data: { activationPath: "/estoque/ativar?token=reset-token", emailDelivery: "FAILED" },
           });
         }
         if (String(input).endsWith("/api/inventory-session"))
@@ -176,11 +180,20 @@ describe("User administration UI", () => {
       }),
     );
     render(<UserAdministration />);
-    fireEvent.click(await screen.findByRole("button", { name: "Redefinir senha" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Reenviar convite" }));
     await waitFor(() => expect(submittedBody).toEqual({ action: "REINVITE", userId }));
     expect(writeText).toHaveBeenCalledWith(
       `${window.location.origin}/estoque/ativar?token=reset-token`,
     );
-    expect(await screen.findByRole("status")).toHaveTextContent("expira em 72 horas");
+    expect(await screen.findByRole("status")).toHaveTextContent("válido por 72 horas");
+    expect(screen.getByRole("status")).toHaveTextContent("não foi confirmado");
+    expect(screen.getByLabelText("Link de ativação para envio manual ao titular")).toHaveValue(
+      `${window.location.origin}/estoque/ativar?token=reset-token`,
+    );
+    const share = screen.getByRole("link", { name: "Abrir WhatsApp para escolher o destinatário" });
+    expect(new URL(share.getAttribute("href")!).searchParams.get("text")).toContain(
+      "/estoque/ativar?token=reset-token",
+    );
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
 });

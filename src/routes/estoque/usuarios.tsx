@@ -447,7 +447,7 @@ export function UserAdministration() {
                         disabled={pending}
                         onClick={() => resetPassword(user)}
                       >
-                        <KeyRound className="mr-1.5 size-3.5" /> Redefinir senha
+                        <KeyRound className="mr-1.5 size-3.5" /> Reenviar convite
                       </Button>
                     ) : user.credentialed ? (
                       <span className="text-xs text-muted-foreground">
