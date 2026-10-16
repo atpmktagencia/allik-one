@@ -121,7 +121,7 @@ test("maintain suppliers/catalog and order grouped boxes with costs, exports, Wh
     ).data;
     expect(stock).toEqual([]);
   }
-  await page.reload();
+  await page.reload({ waitUntil: "networkidle" });
   await page.getByRole("button", { name: `Abrir pedido ${reference}`, exact: true }).click();
   await expect(region).toContainText("Total estimado:");
   await page.screenshot({ path: "/tmp/oi-suppliers-e2e.png", fullPage: true });

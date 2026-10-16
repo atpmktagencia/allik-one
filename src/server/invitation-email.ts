@@ -1,4 +1,5 @@
 import "@tanstack/react-start/server-only";
+import { createHash } from "node:crypto";
 
 export async function sendInvitationEmail(email: string, token: string) {
   const key = process.env["RESEND_API_KEY"];
@@ -43,12 +44,16 @@ export async function sendInvitationEmail(email: string, token: string) {
       const response = await fetch("https://api.resend.com/emails", {
         method: "POST",
         signal: controller.signal,
-        headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+        headers: {
+          Authorization: `Bearer ${key}`,
+          "Content-Type": "application/json",
+          "Idempotency-Key": `invitation/${createHash("sha256").update(token).digest("hex")}`,
+        },
         body: JSON.stringify({
           from,
           to: [email],
           subject: "Allik One — ative sua conta",
-          text: `Você recebeu um convite para o Allik One. Defina sua senha pelo link de uso único, válido por 72 horas:\n${origin.origin}/estoque/ativar?token=${token}\n\nNão compartilhe este link. Se não reconhece o convite, ignore a mensagem.`,
+          text: `Você recebeu um convite para o Allik One. Defina sua senha pelo link de uso único, válido por 72 horas:\n${origin.origin}/estoque/ativar#activate=${token}\n\nNão compartilhe este link. Se não reconhece o convite, ignore a mensagem.`,
         }),
       });
       if (!response.ok || typeof (await response.json()).id !== "string")

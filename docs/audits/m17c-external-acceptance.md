@@ -1,14 +1,14 @@
 # M17C — External acceptance handoff
 
-Prepared on 2026-10-16. Status: **external acceptance pending; official clinical use blocked**.
+Prepared on 2026-10-16. Status: **external review NOT APPROVED; A-1 open; official clinical use blocked**.
 
 This handoff assembles existing evidence. It is not an independent audit or authorization to process real patients.
 
 ## Freeze and scope
 
 - Repository: `atpmktagencia/allik-one`, branch `feature/allik-patients`.
-- Current tested code candidate: `d1ffc26ed8828807acab48d97ad5f293ff572f3f`, including scoped PARTNER_ADMIN administration, invitation email/manual sharing and recorded-consent enforcement. Record the full reviewed branch HEAD and identify later documentation-only differences.
-- Verified Preview: `https://allik-wlyus66kf-atp-mkt.vercel.app`, deployment `dpl_3PMnhmsRRmKA3fb3oQH8GZbvX5rr` at the current tested code candidate.
+- Previously audited code candidate: `d1ffc26ed8828807acab48d97ad5f293ff572f3f`, including scoped PARTNER_ADMIN administration, invitation email/manual sharing and recorded-consent enforcement. Record the full reviewed branch HEAD and identify later documentation-only differences.
+- Previously reviewed Preview: `https://allik-wlyus66kf-atp-mkt.vercel.app`, deployment `dpl_3PMnhmsRRmKA3fb3oQH8GZbvX5rr` at the previously audited code candidate.
 - Intended use: real patients plus operational inventory, after all release gates pass.
 - Record the full reviewed SHA in the report. This handoff may be committed after the code candidate; compare any intervening commits and explicitly identify documentation-only differences. Any subsequent application, migration or configuration change requires assessment against the reviewed scope.
 
@@ -38,7 +38,7 @@ Previous findings and remediations are described in the README. In particular, r
 1. **Database boundary:** owner aliases and maintenance credentials rejected in production mode; Promise and callback query/connect paths fail closed; valid concurrent runtime calls work; no TEMP/CREATE, ownership, memberships, replication-setting bypass, executable SECURITY DEFINER or migration-write grants. Try temporary-name shadowing against audit/balance triggers. Verify append-only enforcement and pinned paths after migration.
 2. **Clinical authorization:** cross-organization/unit IDOR across reads, writes, print, PDF, verification, delivery and signing; other-author drafts excluded from quotes and summaries; allergies follow the patient appropriately; clinical problem editing remains unit-scoped; every disclosed private clinical record has the required access event.
 3. **Clinical integrity:** finalized content immutable; rectified originals visibly superseded and refused for signing/delivery; finalized encounters cannot be canceled/no-show; frozen issuer/patient identity and document seals survive later profile edits; prescriptions do not imply administration or stock consumption.
-4. **Accounts and recovery:** immutable activated registry, normalized/inactive/concurrent duplicate prevention, holder-controlled single-use activation, Preview/integration account-write denial, login throttling without third-party global lockout, generic recovery responses for known/unknown accounts, slow headers and stalled JSON bounded, ambiguous tokens revoked, session/token race handling, fixed public origin and no raw token logging.
+4. **Accounts and recovery:** immutable activated registry, normalized/inactive/concurrent duplicate prevention, single-use activation and the unresolved A-1 administrator-impersonation risk, Preview/integration account-write denial, login throttling without third-party global lockout, generic recovery responses for known/unknown accounts, slow headers and stalled JSON bounded, ambiguous tokens revoked, session/token race handling, fixed public origin and no raw token logging.
 5. **Operations:** receiving, consumption, duplicate operations, concurrent updates and rollback with actual restricted credentials; migration locks/timeouts and edited/unknown/skipped history rejection; synthetic legacy migration and restore integrity.
 6. **Deployment configuration:** verify the exact candidate's scoped runtime identity, disabled automatic seed/migration, no owner aliases or maintenance secret, and no Preview access flags in official configuration. Report inaccessible checks as unverified.
 
@@ -65,7 +65,7 @@ External acceptance requires:
 - Exact reviewed candidate and any later differences identified.
 - Separate list of operational gates still pending, even if code review passes.
 
-Audit outcome: **PENDING**. Reviewer identity/date: **PENDING**. Reviewed SHA: **PENDING**. Release-owner decisions: **RECORDED ABOVE; independent assessment pending**.
+Audit outcome for d1ffc26: **NOT APPROVED (A-1 blocking)**. Reviewer identity/date: **PENDING**. Reviewed SHA: **PENDING**. Release-owner decisions: **RECORDED ABOVE; independent assessment pending**.
 
 ## After audit acceptance
 
@@ -104,3 +104,9 @@ Read-only deployment inspection reconfirmed the code candidate `d1ffc26ed8828807
 ### Copyable auditor instruction
 
 Review `atpmktagencia/allik-one`, branch `feature/allik-patients`, code candidate `d1ffc26ed8828807acab48d97ad5f293ff572f3f`. Read `AGENTS.md`, the README M17C release gate, this handoff and `docs/beta-production-release.md`. Record the full reviewed SHA and compare later commits; documentation-only handoff changes do not replace the code candidate. Perform a read-only source audit and adversarial reproduction on disposable synthetic databases, without using live credentials, production/Preview mutations or real messages. Do not edit the application during the initial review. Retest all required checks in this handoff, especially callbacks, temporary-table trigger bypass, recovery timing, scoped PARTNER_ADMIN administration, token/activation races, consent and clinical immutability/isolation. Report severity, file/line, synthetic reproduction, impact, missing tests, actual checks executed and unverified environmental gates. Assess the documented owner decisions rather than assuming they close technical risks. Manual-link activation succeeded according to the owner; invitation email was not received. Certified VIDaaS signing is not homologated. Return an explicit code-audit verdict and release-blocking findings; do not authorize official clinical use solely from passing tests.
+
+## Follow-up after external report
+
+See [external finding dispositions](m17c-review-d1ffc26-disposition.md). The owner explicitly declined an independent email confirmation while keeping the manual WhatsApp link. A-1 remains OPEN; it is not silently accepted for clinical release. Only SUPER_ADMIN may create/promote/manage PARTNER_ADMIN accounts after the follow-up. New tokens use cleared URL fragments, and invitation sends have per-token provider idempotency. The supplier E2E waits for network idle after reload. Review the new full branch HEAD for these code changes; the older d1ffc26 audit is not an approval of them. No production mutation is authorized by this record.
+
+Follow-up local verification: 176 unit/UI tests, 224 integration tests, three runtime/tooling checks and eight E2E passed; typecheck/lint passed with six existing Fast Refresh warnings. New code needs independent retest; A-1 remains blocking and no production promotion was performed.

@@ -1,17 +1,24 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
 export const Route = createFileRoute("/estoque/ativar")({
-  validateSearch: (search: Record<string, unknown>) => ({
-    token: typeof search["token"] === "string" ? search["token"] : "",
-  }),
   component: ActivateInventoryAccount,
 });
 
-function ActivateInventoryAccount() {
-  const { token } = Route.useSearch();
+export function ActivateInventoryAccount() {
+  const [token, setToken] = useState("");
+  useEffect(() => {
+    const url = new URL(window.location.href);
+    // Query links issued before this update remain usable, but are removed on arrival too.
+    const value =
+      new URLSearchParams(url.hash.slice(1)).get("activate") ?? url.searchParams.get("token") ?? "";
+    if (value) setToken(value);
+    url.searchParams.delete("token");
+    url.hash = "";
+    window.history.replaceState(window.history.state, "", `${url.pathname}${url.search}`);
+  }, []);
   const [password, setPassword] = useState("");
   const [confirmation, setConfirmation] = useState("");
   const [error, setError] = useState("");

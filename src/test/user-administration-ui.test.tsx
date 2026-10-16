@@ -26,7 +26,7 @@ describe("User administration UI", () => {
         if (init?.method === "POST") {
           submittedBody = JSON.parse(String(init.body)) as Record<string, unknown>;
           return Response.json({
-            data: { activationPath: "/estoque/ativar?token=test", emailDelivery: "ACCEPTED" },
+            data: { activationPath: "/estoque/ativar#activate=test", emailDelivery: "ACCEPTED" },
           });
         }
         if (url.endsWith("/api/inventory-session"))
@@ -160,7 +160,10 @@ describe("User administration UI", () => {
         if (init?.method === "POST") {
           submittedBody = JSON.parse(String(init.body)) as Record<string, unknown>;
           return Response.json({
-            data: { activationPath: "/estoque/ativar?token=reset-token", emailDelivery: "FAILED" },
+            data: {
+              activationPath: "/estoque/ativar#activate=reset-token",
+              emailDelivery: "FAILED",
+            },
           });
         }
         if (String(input).endsWith("/api/inventory-session"))
@@ -183,16 +186,16 @@ describe("User administration UI", () => {
     fireEvent.click(await screen.findByRole("button", { name: "Reenviar convite" }));
     await waitFor(() => expect(submittedBody).toEqual({ action: "REINVITE", userId }));
     expect(writeText).toHaveBeenCalledWith(
-      `${window.location.origin}/estoque/ativar?token=reset-token`,
+      `${window.location.origin}/estoque/ativar#activate=reset-token`,
     );
     expect(await screen.findByRole("status")).toHaveTextContent("válido por 72 horas");
     expect(screen.getByRole("status")).toHaveTextContent("não foi confirmado");
     expect(screen.getByLabelText("Link de ativação para envio manual ao titular")).toHaveValue(
-      `${window.location.origin}/estoque/ativar?token=reset-token`,
+      `${window.location.origin}/estoque/ativar#activate=reset-token`,
     );
     const share = screen.getByRole("link", { name: "Abrir WhatsApp para escolher o destinatário" });
     expect(new URL(share.getAttribute("href")!).searchParams.get("text")).toContain(
-      "/estoque/ativar?token=reset-token",
+      "/estoque/ativar#activate=reset-token",
     );
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });

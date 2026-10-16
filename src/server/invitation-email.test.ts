@@ -21,7 +21,9 @@ describe("Holder invitation email", () => {
     expect(await sendInvitationEmail("holder@example.test", "synthetic-token")).toBe("ACCEPTED");
     const body = JSON.parse(String(outgoing.mock.calls[0]?.[1]?.body));
     expect(body.to).toEqual(["holder@example.test"]);
-    expect(body.text).toContain("https://allik.example.test/estoque/ativar?token=synthetic-token");
+    expect(body.text).toContain(
+      "https://allik.example.test/estoque/ativar#activate=synthetic-token",
+    );
     expect(body.text).toContain("72 horas");
   });
   it("does not send when disabled or configured with an unsafe origin", async () => {
@@ -43,4 +45,22 @@ describe("Holder invitation email", () => {
     );
     expect(await sendInvitationEmail("holder@example.test", "token")).toBe("FAILED");
   });
+});
+
+it("uses a stable provider idempotency key without exposing the invitation token", async () => {
+  configure();
+  const outgoing = vi.fn(async (_url: string, _init: RequestInit) =>
+    Response.json({ id: "synthetic" }),
+  );
+  vi.stubGlobal("fetch", outgoing);
+  await sendInvitationEmail("holder@example.test", "first-secret");
+  await sendInvitationEmail("holder@example.test", "first-secret");
+  await sendInvitationEmail("holder@example.test", "second-secret");
+  const keys = outgoing.mock.calls.map((call) =>
+    new Headers(call[1].headers).get("Idempotency-Key"),
+  );
+  expect(keys[0]).toBe(keys[1]);
+  expect(keys[0]).not.toBe(keys[2]);
+  expect(keys[0]).toMatch(/^invitation\/[0-9a-f]{64}$/);
+  expect(keys[0]).not.toContain("first-secret");
 });

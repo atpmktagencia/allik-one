@@ -3268,7 +3268,9 @@ describe("Pilot invitation lifecycle", () => {
     });
     expect(created.status).toBe(201);
     const createdData = (await created.json()).data;
-    const token = new URL(createdData.activationPath, origin).searchParams.get("token")!;
+    const token = new URLSearchParams(
+      new URL(createdData.activationPath, origin).hash.slice(1),
+    ).get("activate")!;
     expect((await adminRequest({ action: "DEACTIVATE", userId: createdData.id })).status).toBe(200);
     const activation = await activationResponse(
       new Request(`${origin}/api/inventory-activation`, {
@@ -4745,7 +4747,9 @@ it("emails invitations to the holder and returns the same one-use link for manua
     expect(created.emailDelivery).toBe("ACCEPTED");
     expect(sent[0]!.to).toEqual([holder]);
     expect(sent[0]!.text).toContain(`https://allik.example.test${created.activationPath}`);
-    const oldToken = new URL(created.activationPath, origin).searchParams.get("token")!;
+    const oldToken = new URLSearchParams(new URL(created.activationPath, origin).hash.slice(1)).get(
+      "activate",
+    )!;
     const again = await admin({ action: "REINVITE", userId: created.id });
     expect(again.status).toBe(200);
     const renewed = (await again.json()).data;
@@ -4762,7 +4766,9 @@ it("emails invitations to the holder and returns the same one-use link for manua
         }),
       );
     expect((await activate(oldToken)).status).toBe(410);
-    const newToken = new URL(renewed.activationPath, origin).searchParams.get("token")!;
+    const newToken = new URLSearchParams(new URL(renewed.activationPath, origin).hash.slice(1)).get(
+      "activate",
+    )!;
     expect((await activate(newToken)).status).toBe(200);
     expect((await activate(newToken)).status).toBe(410);
   } finally {
@@ -4814,8 +4820,23 @@ it("lets partner administrators manage only other users wholly within their own 
     create([own, other]),
     create([]),
     create([own], "SUPER_ADMIN"),
+    create([own], "PARTNER_ADMIN"),
   ])
     expect((await call(partner, input)).status).toBe(403);
+  const peerInput = create([own], "PARTNER_ADMIN");
+  const peerResponse = await call(root, peerInput);
+  expect(peerResponse.status).toBe(201);
+  const peer = (await peerResponse.json()).data;
+  expect(
+    (
+      await call(partner, {
+        ...ownInput,
+        action: "UPDATE",
+        userId: target.id,
+        role: "PARTNER_ADMIN",
+      })
+    ).status,
+  ).toBe(403);
   const mixed = (await (await call(root, create([own, other]))).json()).data;
   const foreign = (await (await call(root, create([other]))).json()).data;
   const rootAuth = await authenticate(new Request(origin, { headers: { cookie: root } }));
@@ -4830,7 +4851,14 @@ it("lets partner administrators manage only other users wholly within their own 
     "INSERT INTO inventory_memberships(user_id,organization_id,role) VALUES($1,$2,'VIEWER')",
     [shared.id, foreignOrg],
   );
-  const protectedIds = [mixed.id, foreign.id, shared.id, rootAuth!.user.id, ownAuth!.user.id];
+  const protectedIds = [
+    peer.id,
+    mixed.id,
+    foreign.id,
+    shared.id,
+    rootAuth!.user.id,
+    ownAuth!.user.id,
+  ];
   for (const id of protectedIds)
     for (const action of ["DEACTIVATE", "ACTIVATE", "REINVITE"])
       expect((await call(partner, { action, userId: id })).status).toBe(403);
@@ -4862,8 +4890,21 @@ it("lets partner administrators manage only other users wholly within their own 
   const listed = (await (await call(partner)).json()).data as Array<{ id: string }>;
   expect(listed.some((u) => u.id === target.id)).toBe(true);
   expect(
+    (
+      await call(root, {
+        ...peerInput,
+        action: "UPDATE",
+        userId: peer.id,
+        name: "Synthetic edited partner",
+      })
+    ).status,
+  ).toBe(200);
+  expect((await call(root, { action: "DEACTIVATE", userId: peer.id })).status).toBe(200);
+  expect((await call(root, { action: "ACTIVATE", userId: peer.id })).status).toBe(200);
+  expect(
     listed.some(
       (u) =>
+        u.id === peer.id ||
         u.id === mixed.id ||
         u.id === foreign.id ||
         u.id === shared.id ||

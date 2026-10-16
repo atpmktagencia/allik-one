@@ -29,6 +29,7 @@ export const Route = createFileRoute("/estoque/usuarios")({ component: UserAdmin
 export function UserAdministration() {
   const [users, setUsers] = useState<User[]>([]);
   const [units, setUnits] = useState<Unit[]>([]);
+  const [administratorRole, setAdministratorRole] = useState<string | null>(null);
   const [form, setForm] = useState({
     name: "",
     email: "",
@@ -58,7 +59,9 @@ export function UserAdministration() {
       setError("Você não tem acesso à administração de usuários.");
       return;
     }
-    setUnits(((await sessionResponse.json()) as { data: { units: Unit[] } }).data.units);
+    const session = (await sessionResponse.json()) as { data: { units: Unit[]; role?: string } };
+    setUnits(session.data.units);
+    setAdministratorRole(session.data.role ?? null);
     setUsers(((await usersResponse.json()) as { data: User[] }).data);
   }
   useEffect(() => {
@@ -311,7 +314,7 @@ export function UserAdministration() {
         >
           {[
             ...(editing?.role === "SUPER_ADMIN" ? ["SUPER_ADMIN"] : []),
-            "PARTNER_ADMIN",
+            ...(administratorRole === "PARTNER_ADMIN" ? [] : ["PARTNER_ADMIN"]),
             "CLINICIAN",
             "INVENTORY_MANAGER",
             "UNIT_MANAGER",

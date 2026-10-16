@@ -71,7 +71,7 @@ async function partnerMayManage(
   if (userId === auth.user.id) return false;
   const result = await client.query(
     `SELECT 1 FROM inventory_memberships m WHERE m.user_id=$1 AND m.organization_id=$2
-     AND m.role<>'SUPER_ADMIN'
+     AND m.role NOT IN ('SUPER_ADMIN','PARTNER_ADMIN')
      AND EXISTS(SELECT 1 FROM inventory_unit_access ua WHERE ua.membership_id=m.id)
      AND NOT EXISTS(SELECT 1 FROM inventory_unit_access ua WHERE ua.membership_id=m.id AND NOT(ua.unit_id=ANY($3::uuid[])))
      AND NOT EXISTS(SELECT 1 FROM inventory_memberships other WHERE other.user_id=m.user_id AND other.organization_id<>$2)`,
@@ -118,7 +118,7 @@ async function createInvite(
     client.release();
   }
   const emailDelivery = await sendInvitationEmail(email!, token);
-  return { activationPath: `/estoque/ativar?token=${token}`, emailDelivery };
+  return { activationPath: `/estoque/ativar#activate=${token}`, emailDelivery };
 }
 
 export async function userAdminResponse(request: Request) {
@@ -137,7 +137,7 @@ export async function userAdminResponse(request: Request) {
        FROM inventory_users u JOIN inventory_memberships m ON m.user_id=u.id
        LEFT JOIN inventory_unit_access ua ON ua.membership_id=m.id LEFT JOIN inventory_units un ON un.id=ua.unit_id
        WHERE m.organization_id=$1
-       AND (NOT $2::boolean OR (m.role<>'SUPER_ADMIN'
+       AND (NOT $2::boolean OR (m.role NOT IN ('SUPER_ADMIN','PARTNER_ADMIN')
          AND EXISTS(SELECT 1 FROM inventory_unit_access own WHERE own.membership_id=m.id)
          AND NOT EXISTS(SELECT 1 FROM inventory_unit_access foreign_unit WHERE foreign_unit.membership_id=m.id AND NOT(foreign_unit.unit_id=ANY($3::uuid[])))
          AND NOT EXISTS(SELECT 1 FROM inventory_memberships other WHERE other.user_id=u.id AND other.organization_id<>$1)))
@@ -170,13 +170,13 @@ export async function userAdminResponse(request: Request) {
     const units = "unitIds" in input ? input.unitIds : null;
     if (
       (units && (!units.length || units.some((id) => !auth.unitIds.includes(id)))) ||
-      ("role" in input && input.role === "SUPER_ADMIN") ||
+      ("role" in input && ["SUPER_ADMIN", "PARTNER_ADMIN"].includes(input.role)) ||
       ("userId" in input && !(await partnerMayManage(auth, input.userId)))
     )
       return Response.json(
         {
           error:
-            "Você só pode administrar outros usuários vinculados exclusivamente às suas unidades. Contas globais e seu próprio acesso são protegidos.",
+            "Você só pode administrar outros usuários vinculados exclusivamente às suas unidades. Contas SUPER_ADMIN, PARTNER_ADMIN e seu próprio acesso são protegidos.",
         },
         { status: 403, headers },
       );
