@@ -1,5 +1,6 @@
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { prescriptionReferenceIngredients } from "@/data/prescription-reference";
 import { PrescriptionComposer } from "@/components/clinic/prescription-composer";
 
 vi.mock("@/data/inventory-api", async (importOriginal) => ({
@@ -203,5 +204,94 @@ describe("Structured prescription review", () => {
       if (descriptor) Object.defineProperty(document, "elementFromPoint", descriptor);
       else Reflect.deleteProperty(document, "elementFromPoint");
     }
+  });
+  it("loads the photo reference without selecting ingredients, inferring doses or making requests", () => {
+    const { requests } = setup();
+    fireEvent.click(screen.getByRole("button", { name: /^Modelo da foto · conferir$/ }));
+    const include = screen.getAllByRole("checkbox", { name: /^Incluir componente / });
+    expect(include).toHaveLength(prescriptionReferenceIngredients.length);
+    include.forEach((checkbox) => expect(checkbox).not.toBeChecked());
+    expect(
+      screen
+        .getAllByLabelText("Nome do componente")
+        .map((input) => (input as HTMLInputElement).value),
+    ).toEqual([...prescriptionReferenceIngredients]);
+    screen
+      .getAllByLabelText("Quantidade por unidade")
+      .forEach((input) => expect(input).toHaveValue(""));
+    screen
+      .getAllByLabelText("Unidade da quantidade (ex.: mg)")
+      .forEach((input) => expect(input).toHaveValue(""));
+    expect(screen.getByLabelText("Unidades por administração")).toHaveValue(null);
+    expect(screen.getByLabelText("Administrações por dia")).toHaveValue(null);
+    expect(screen.getByLabelText("Duração em dias")).toHaveValue(null);
+    expect(screen.getByLabelText("Via de administração")).toHaveValue("");
+    expect(screen.getByLabelText("Apresentação (unidade de administração)")).toHaveValue("");
+    expect(screen.getByRole("button", { name: /^Calcular e revisar composição$/ })).toBeDisabled();
+    expect(requests).toHaveLength(0);
+  });
+  it("calculates and saves only the chosen reference ingredients with explicitly entered dispensing values", async () => {
+    const { requests } = setup();
+    fireEvent.click(screen.getByRole("button", { name: /^Modelo da foto · conferir$/ }));
+    fireEvent.click(screen.getByLabelText("Incluir componente 1"));
+    fireEvent.change(screen.getAllByLabelText("Quantidade por unidade")[0]!, {
+      target: { value: "1,25" },
+    });
+    fireEvent.change(screen.getAllByLabelText("Unidade da quantidade (ex.: mg)")[0]!, {
+      target: { value: "mg" },
+    });
+    fireEvent.change(screen.getByLabelText("Apresentação (unidade de administração)"), {
+      target: { value: "cápsula" },
+    });
+    fireEvent.change(screen.getByLabelText("Via de administração"), { target: { value: "oral" } });
+    for (const [label, value] of [
+      ["Unidades por administração", "1"],
+      ["Administrações por dia", "1"],
+      ["Duração em dias", "30"],
+    ])
+      fireEvent.change(screen.getByLabelText(label!), { target: { value } });
+    fireEvent.change(screen.getByLabelText("Quantidade a dispensar"), { target: { value: "90" } });
+    fireEvent.change(screen.getByLabelText("Unidade de dispensação"), {
+      target: { value: "cápsulas" },
+    });
+    const live = screen.getByRole("complementary", { name: "Prévia do documento" });
+    expect(within(live).getByText(/Quantidade a dispensar: 90 cápsulas/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /^Calcular e revisar composição$/ }));
+    await screen.findByRole("button", { name: /^Inserir no rascunho da receita$/ });
+    const expected = {
+      ingredients: [
+        {
+          medicationName: prescriptionReferenceIngredients[0],
+          dose: "1,25",
+          doseUnit: "mg",
+          individualCapsule: false,
+        },
+      ],
+      dispenseQuantity: "90",
+      dispenseUnit: "cápsulas",
+    };
+    expect(requests[0]).toMatchObject({ action: "PREVIEW", formula: expected });
+    expect((requests[0]!["formula"] as { ingredients: unknown[] }).ingredients).toHaveLength(1);
+    fireEvent.click(screen.getByRole("button", { name: /^Salvar protocolo$/ }));
+    await screen.findByText("Protocolo pessoal salvo.");
+    expect(requests[1]).toMatchObject({ action: "SAVE", formula: expected });
+    expect((requests[1]!["formula"] as { ingredients: unknown[] }).ingredients).toHaveLength(1);
+  });
+  it("requires a new server review after manual dispensing quantity changes", async () => {
+    setup();
+    fireEvent.click(screen.getByRole("button", { name: /^Calcular e revisar composição$/ }));
+    await screen.findByRole("button", { name: /^Inserir no rascunho da receita$/ });
+    fireEvent.click(screen.getByLabelText(/^Conferi composição/));
+    fireEvent.change(screen.getByLabelText("Quantidade a dispensar"), { target: { value: "30" } });
+    expect(screen.queryByRole("region", { name: "Revisão da composição" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^Calcular e revisar composição$/ })).toBeDisabled();
+    fireEvent.change(screen.getByLabelText("Unidade de dispensação"), {
+      target: { value: "cápsulas" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /^Calcular e revisar composição$/ }));
+    expect(
+      await screen.findByRole("button", { name: /^Inserir no rascunho da receita$/ }),
+    ).toBeDisabled();
+    expect(screen.getByLabelText(/^Conferi composição/)).not.toBeChecked();
   });
 });

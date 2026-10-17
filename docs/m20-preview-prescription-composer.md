@@ -27,3 +27,15 @@ Cada ativo pode ser marcado/desmarcado. O arraste começa no seletor e aplica a 
 A prévia local acompanha a seleção e os campos válidos; a inserção no rascunho exige novamente a prévia calculada no servidor e confirmação explícita. Qualquer alteração clínica invalida essa confirmação. A mudança é de interface, sem migration ou alteração de permissões, dados de produção ou regras clínicas.
 
 Verificação do M20B: typecheck, build e lint aprovados (somente os seis avisos existentes); 209 testes unitários/interface e 11 E2E aprovados. O navegador exercitou arraste contínuo real, exclusão e nova seleção, conteúdo final do rascunho, disposição desktop e ausência de transbordamento horizontal na largura de 390 px. Nenhuma migration foi necessária. A implantação oficial manteve o mesmo identificador.
+
+## M20C — Referência visual e quantidade de dispensação
+
+A montagem adota linhas compactas com colunas de seleção, ativo, quantidade e unidade, próximas da referência visual enviada. O botão **Modelo da foto · conferir** carrega 63 nomes transcritos das fotografias, inclusive referências das imagens anteriores. É um auxílio editável de transcrição: nomes precisam ser conferidos; trechos ilegíveis não são completados por inferência. Não se copiam dados pessoais presentes nas fotografias.
+
+O modelo abre com todos os componentes desmarcados, quantidades/unidades e posologia vazias, sem via/apresentação predefinidas. Não constitui uma fórmula combinada ou recomendação clínica. O profissional seleciona e informa os campos antes de calcular, salvar ou inserir. O limite de componentes passa a 100 para comportar essa biblioteca; o protocolo enviado contém somente os itens selecionados.
+
+Na coluna do documento, **Quantidade a dispensar** e **Unidade de dispensação** são preenchidas explicitamente. São opcionais como par para preservar os modelos anteriores; quando usadas, devem estar ambas preenchidas, com quantidade decimal positiva. O texto da receita identifica a quantidade informada pelo prescritor separadamente das unidades calculadas da posologia. Não se convertem unidades nem se substitui silenciosamente o cálculo. Editar esses campos invalida a revisão anterior.
+
+Sem migration: os novos campos são opcionais dentro da fórmula JSON existente. A entrega permanece exclusiva do Preview; não cria usuários, não envia mensagens e não altera documentos finalizados ou produção.
+
+Verificação do M20C: typecheck, build e lint aprovados (os seis avisos existentes); 230 testes unitários/interface, 260 de integração, runtime 3/3 e 11 E2E aprovados. O teste de navegador confirma a quantidade/unidade manual no texto salvo e o modelo de referência sem seleção/posologia predefinida; preencher e selecionar o modelo não altera a receita já salva. Revisão visual confirmou cabeçalhos alinhados aos campos e painel de documento separado. Nenhuma migration ou operação no banco oficial foi executada.

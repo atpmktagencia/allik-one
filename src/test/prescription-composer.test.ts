@@ -112,3 +112,78 @@ describe("Prescription composition arithmetic", () => {
     expect(Number.isSafeInteger(composePrescription(f).quantity)).toBe(true);
   });
 });
+
+describe("Explicit manual dispensing quantity", () => {
+  it("preserves old formulas and accepts absent or paired blank optional fields", () => {
+    expect(composePrescription(formula()).text).not.toContain("Quantidade a dispensar:");
+    expect(composePrescription({ ...formula(), dispenseQuantity: " ", dispenseUnit: " " })).toEqual(
+      composePrescription(formula()),
+    );
+  });
+  it.each([
+    { dispenseQuantity: "30" },
+    { dispenseUnit: "cápsulas" },
+    { dispenseQuantity: "", dispenseUnit: "cápsulas" },
+    ...["0", "-1", "1e3", "1/2", "01", "0.0000", "1000000", "1.23456"].map((dispenseQuantity) => ({
+      dispenseQuantity,
+      dispenseUnit: "g",
+    })),
+  ])("rejects incomplete or invalid explicit quantity %j", (fields) => {
+    expect(prescriptionFormulaSchema.safeParse({ ...formula(), ...fields }).success).toBe(false);
+  });
+  it.each(["30", "2.5", "0,125"])(
+    "prints explicit %s without calculating a dispensing quantity or changing administration arithmetic",
+    (dispenseQuantity) => {
+      const result = composePrescription({ ...formula(), dispenseQuantity, dispenseUnit: "g" });
+      expect(result.quantity).toBe(74);
+      expect(result.text).toContain(
+        `Quantidade a dispensar: ${dispenseQuantity} g (informada pelo prescritor).`,
+      );
+      expect(result.text).toContain("Quantidade: 74 unidade(s)");
+      expect(result.warnings.join(" ")).toContain("não há conversão automática");
+      expect(result.warnings.join(" ")).not.toContain("difere do total");
+    },
+  );
+  it("warns about differences only when explicitly entered units match exactly", () => {
+    expect(
+      composePrescription({
+        ...formula(),
+        dispenseQuantity: "30",
+        dispenseUnit: "Cápsula",
+      }).warnings.join(" "),
+    ).toContain("difere do total");
+    expect(
+      composePrescription({
+        ...formula(),
+        dispenseQuantity: "74",
+        dispenseUnit: "Cápsula",
+      }).warnings.join(" "),
+    ).not.toContain("difere do total");
+    expect(
+      composePrescription({
+        ...formula(),
+        dispenseQuantity: "30",
+        dispenseUnit: "cápsulas",
+      }).warnings.join(" "),
+    ).not.toContain("difere do total");
+  });
+  it("keeps indefinite maintenance indefinite even with an explicit dispensing quantity", () => {
+    const f = formula();
+    f.phases[1]!.maintenance = true;
+    const result = composePrescription({ ...f, dispenseQuantity: "30", dispenseUnit: "cápsulas" });
+    expect(result.quantity).toBeNull();
+    expect(result.text).toContain(
+      "Quantidade a dispensar: 30 cápsulas (informada pelo prescritor).",
+    );
+  });
+  it("accepts up to100explicit components without recommending ingredients", () => {
+    const ingredients = Array.from({ length: 100 }, (_, i) => ({
+      ...formula().ingredients[0]!,
+      medicationName: `Componente ${i}`,
+    }));
+    expect(composePrescription({ ...formula(), ingredients }).quantity).toBe(74);
+    expect(() =>
+      composePrescription({ ...formula(), ingredients: [...ingredients, ingredients[0]] }),
+    ).toThrow();
+  });
+});

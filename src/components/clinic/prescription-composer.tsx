@@ -9,6 +9,7 @@ import {
   type PrescriptionFormula,
   type PrescriptionProtocol,
 } from "@/data/prescription-composer";
+import { prescriptionReferenceIngredients } from "@/data/prescription-reference";
 import { InventoryState } from "./inventory-state";
 
 const emptyIngredient = () => ({
@@ -28,6 +29,8 @@ const emptyFormula = (): PrescriptionFormula => ({
   route: "",
   presentation: "",
   instructions: "",
+  dispenseQuantity: "",
+  dispenseUnit: "",
   phases: [emptyPhase()],
 });
 
@@ -221,7 +224,7 @@ export function PrescriptionComposer({
         {" "}
         <fieldset
           disabled={pending}
-          className="min-w-0 space-y-4 rounded-2xl border bg-slate-50/60 p-4 xl:max-h-[76dvh] xl:overflow-y-auto"
+          className="min-w-0 space-y-4 rounded-2xl border bg-teal-50/40 p-4 xl:max-h-[76dvh] xl:overflow-y-auto"
         >
           <h3 className="font-semibold">Protocolos pessoais / padrão</h3>
           <p className="text-xs text-muted-foreground">
@@ -280,6 +283,34 @@ export function PrescriptionComposer({
             >
               Nova composição
             </Button>
+            <Button
+              type="button"
+              variant="outline"
+              className="h-auto w-full justify-start whitespace-normal border-teal-300 bg-teal-50 py-3 text-left text-teal-900"
+              onClick={() => {
+                const next = {
+                  ...emptyFormula(),
+                  phases: [
+                    { doseUnits: NaN, frequencyPerDay: NaN, durationDays: NaN, maintenance: false },
+                  ],
+                  ingredients: prescriptionReferenceIngredients.map((medicationName) => ({
+                    ...emptyIngredient(),
+                    medicationName,
+                  })),
+                };
+                setProtocol(null);
+                setTitle("Modelo da foto — conferência");
+                setExcluded(new Set(next.ingredients.map((_, index) => index)));
+                change(next);
+              }}
+            >
+              Modelo da foto · conferir
+            </Button>
+            <p className="text-xs text-muted-foreground">
+              Referência transcrita de foto com trechos pouco legíveis; confirme cada nome.
+              Selecione os componentes e informe quantidades e unidades; nada será prescrito ou
+              salvo automaticamente.
+            </p>
             {query.data.templates
               .filter((item) =>
                 item.title.toLocaleLowerCase("pt-BR").includes(search.toLocaleLowerCase("pt-BR")),
@@ -289,7 +320,7 @@ export function PrescriptionComposer({
                   key={item.id}
                   type="button"
                   aria-pressed={protocol?.id === item.id}
-                  className="block w-full rounded-xl border bg-white p-3 text-left hover:border-blue-400 aria-pressed:border-blue-500"
+                  className="block w-full rounded-xl border bg-white p-3 text-left hover:border-teal-400 aria-pressed:border-teal-600"
                   onClick={() => loadProtocol(item)}
                 >
                   <span className="block font-medium">{item.title}</span>
@@ -309,14 +340,32 @@ export function PrescriptionComposer({
             Marque componentes para incluir. Com mouse ou caneta, arraste a partir do seletor sobre
             outros seletores para aplicar a mesma seleção.
           </p>
-          <div className="space-y-3">
-            <h3 className="font-medium">Componentes por unidade de administração</h3>
+          <div className="space-y-0">
+            <h3 className="mb-2 font-medium">Componentes por unidade de administração</h3>
+            <div
+              className="sticky top-0 z-10 grid grid-cols-[24px_minmax(0,1fr)_78px_60px_24px] gap-1 border-b border-teal-200 bg-teal-50 px-2 py-2 text-xs font-semibold text-teal-950"
+              aria-label="Colunas dos componentes"
+            >
+              <span aria-hidden="true" />
+              <span>Nome do componente</span>
+              <span>Quantidade</span>
+              <span>Unidade</span>
+              <span aria-hidden="true" />
+            </div>
             {formula.ingredients.map((ingredient, index) => (
-              <fieldset key={index} className="space-y-1 rounded-xl border p-2">
-                <legend>Componente {index + 1}</legend>
+              <fieldset
+                key={index}
+                className={`grid min-w-0 grid-cols-[24px_minmax(0,1fr)_78px_60px_24px] items-center gap-1 border-b px-2 py-1 ${excluded.has(index) ? "bg-white" : "bg-teal-50/70"}`}
+              >
+                <legend className="sr-only">Componente {index + 1}</legend>
                 <label
-                  className="flex cursor-pointer items-center gap-2 rounded-lg bg-slate-50 p-2"
+                  className="flex h-8 cursor-pointer items-center justify-center"
                   data-composer-selector={index}
+                  title={
+                    excluded.has(index)
+                      ? "Excluído · valores preservados"
+                      : "Incluído na composição"
+                  }
                 >
                   <input
                     type="checkbox"
@@ -342,84 +391,92 @@ export function PrescriptionComposer({
                       if (!pointerClick.current) selectIngredient(index, event.target.checked);
                     }}
                   />
-                  {excluded.has(index)
-                    ? "Excluído desta composição · valores preservados"
-                    : "Incluir nesta composição"}
+                  <span className="sr-only">
+                    {excluded.has(index)
+                      ? "Excluído desta composição · valores preservados"
+                      : "Incluir nesta composição"}
+                  </span>
                 </label>
-                <div className="grid gap-2 sm:grid-cols-3">
-                  {(
-                    [
-                      ["medicationName", "Nome do componente", 160],
-                      ["dose", "Quantidade por unidade", 20],
-                      ["doseUnit", "Unidade da quantidade (ex.: mg)", 40],
-                    ] as const
-                  ).map(([key, label, max]) => (
-                    <label key={key} className="min-w-0 text-xs">
-                      <span className="sr-only">{label}</span>
-                      <Input
-                        className="h-8 min-w-0 text-sm"
-                        placeholder={label}
-                        value={ingredient[key]}
-                        maxLength={max}
-                        inputMode={key === "dose" ? "decimal" : undefined}
-                        onChange={(e) =>
-                          change({
-                            ...formula,
-                            ingredients: formula.ingredients.map((v, i) =>
-                              i === index ? { ...v, [key]: e.target.value } : v,
-                            ),
-                          })
-                        }
-                      />
-                    </label>
-                  ))}
-                </div>
-                <details className="text-xs">
-                  <summary className="cursor-pointer py-1 text-muted-foreground">
-                    Opções do componente
-                  </summary>
-                  <label className="flex gap-2">
-                    <input
-                      type="checkbox"
-                      checked={ingredient.individualCapsule}
-                      onChange={(e) =>
+                {(
+                  [
+                    ["medicationName", "Nome do componente", 160],
+                    ["dose", "Quantidade por unidade", 20],
+                    ["doseUnit", "Unidade da quantidade (ex.: mg)", 40],
+                  ] as const
+                ).map(([key, label, max]) => (
+                  <label key={key} className="min-w-0">
+                    <span className="sr-only">{label}</span>
+                    <Input
+                      className="h-8 min-w-0 rounded-md border-slate-200 bg-white px-2 text-xs"
+                      placeholder={
+                        key === "medicationName" ? "Componente" : key === "dose" ? "Qtd." : "Un."
+                      }
+                      title={label}
+                      value={ingredient[key]}
+                      maxLength={max}
+                      inputMode={key === "dose" ? "decimal" : undefined}
+                      onChange={(event) =>
                         change({
                           ...formula,
-                          ingredients: formula.ingredients.map((v, i) =>
-                            i === index ? { ...v, individualCapsule: e.target.checked } : v,
+                          ingredients: formula.ingredients.map((value, i) =>
+                            i === index ? { ...value, [key]: event.target.value } : value,
                           ),
                         })
                       }
                     />
-                    Componente em cápsula individual (quantidade exige conferência separada)
                   </label>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    disabled={formula.ingredients.length === 1}
-                    onClick={() => {
-                      setExcluded(
-                        new Set(
-                          [...excluded]
-                            .filter((i) => i !== index)
-                            .map((i) => (i > index ? i - 1 : i)),
-                        ),
-                      );
-                      change({
-                        ...formula,
-                        ingredients: formula.ingredients.filter((_, i) => i !== index),
-                      });
-                    }}
+                ))}
+                <details className="relative text-xs">
+                  <summary
+                    className="cursor-pointer list-none py-1 text-center text-teal-900"
+                    aria-label={`Opções do componente ${index + 1}`}
                   >
-                    Remover componente {index + 1}
-                  </Button>
+                    ⋯
+                  </summary>
+                  <div className="absolute right-0 z-20 w-64 space-y-2 rounded-lg border bg-white p-3 shadow-lg">
+                    <label className="flex gap-2">
+                      <input
+                        type="checkbox"
+                        checked={ingredient.individualCapsule}
+                        onChange={(e) =>
+                          change({
+                            ...formula,
+                            ingredients: formula.ingredients.map((v, i) =>
+                              i === index ? { ...v, individualCapsule: e.target.checked } : v,
+                            ),
+                          })
+                        }
+                      />
+                      Componente em cápsula individual (quantidade exige conferência separada)
+                    </label>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      disabled={formula.ingredients.length === 1}
+                      onClick={() => {
+                        setExcluded(
+                          new Set(
+                            [...excluded]
+                              .filter((i) => i !== index)
+                              .map((i) => (i > index ? i - 1 : i)),
+                          ),
+                        );
+                        change({
+                          ...formula,
+                          ingredients: formula.ingredients.filter((_, i) => i !== index),
+                        });
+                      }}
+                    >
+                      Remover componente {index + 1}
+                    </Button>
+                  </div>
                 </details>
               </fieldset>
             ))}
             <Button
               type="button"
               variant="outline"
-              disabled={formula.ingredients.length >= 30}
+              disabled={formula.ingredients.length >= 100}
               onClick={() =>
                 change({ ...formula, ingredients: [...formula.ingredients, emptyIngredient()] })
               }
@@ -542,17 +599,47 @@ export function PrescriptionComposer({
           </Button>
         </fieldset>
         <aside
-          className="min-w-0 space-y-4 rounded-2xl border bg-slate-50 p-4 xl:max-h-[76dvh] xl:overflow-y-auto"
+          className="min-w-0 space-y-4 rounded-2xl border bg-teal-50/40 p-4 xl:max-h-[76dvh] xl:overflow-y-auto"
           aria-label="Prévia do documento"
         >
-          <h3 className="font-semibold">Prévia — não finalizado</h3>
+          <h3 className="border-b border-teal-200 pb-2 font-semibold text-teal-950">
+            Prescrição · prévia não finalizada
+          </h3>
+          <fieldset
+            disabled={pending}
+            className="grid min-w-0 grid-cols-2 gap-2 rounded-lg border border-teal-200 bg-teal-50 p-3"
+          >
+            <label className="min-w-0 text-xs">
+              Quantidade a dispensar
+              <Input
+                className="mt-1 min-w-0 bg-white"
+                inputMode="decimal"
+                maxLength={20}
+                value={formula.dispenseQuantity ?? ""}
+                onChange={(event) => change({ ...formula, dispenseQuantity: event.target.value })}
+              />
+            </label>
+            <label className="min-w-0 text-xs">
+              Unidade de dispensação
+              <Input
+                className="mt-1 min-w-0 bg-white"
+                maxLength={60}
+                value={formula.dispenseUnit ?? ""}
+                onChange={(event) => change({ ...formula, dispenseUnit: event.target.value })}
+              />
+            </label>
+            <p className="col-span-2 text-xs text-teal-900">
+              Preenchimento manual opcional. Não converte doses nem substitui a conferência da
+              quantidade calculada.
+            </p>
+          </fieldset>
           <p className="text-xs text-muted-foreground">
             Atualização local ilustrativa. Calcule e revise no servidor antes de inserir no
             rascunho.
           </p>
           {livePreview ? (
             <>
-              <pre className="whitespace-pre-wrap break-words rounded-xl border bg-white p-4 font-sans text-sm">
+              <pre className="whitespace-pre-wrap break-words min-h-72 whitespace-pre-wrap rounded-none border border-slate-200 bg-white p-5 font-sans text-sm shadow-sm">
                 {livePreview.text}
               </pre>
               {livePreview.warnings.map((warning) => (

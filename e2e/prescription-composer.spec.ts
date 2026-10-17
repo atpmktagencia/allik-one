@@ -85,6 +85,8 @@ test("individual clinician composes a prescription and explicitly saves a draft"
       .getByLabel("Apresentação (unidade de administração)", { exact: true })
       .fill("cápsula");
     await dialog.getByLabel("Via de administração", { exact: true }).fill("oral");
+    await dialog.getByLabel("Quantidade a dispensar", { exact: true }).fill("70");
+    await dialog.getByLabel("Unidade de dispensação", { exact: true }).fill("cápsulas");
     const first = dialog.getByRole("group", { name: "Etapa 1", exact: true });
     await first.getByLabel("Unidades por administração", { exact: true }).fill("1");
     await first.getByLabel("Administrações por dia", { exact: true }).fill("2");
@@ -186,10 +188,46 @@ test("individual clinician composes a prescription and explicitly saves a draft"
     expect(stored.rows[0].status).toBe("DRAFT");
     expect(stored.rows[0].content).toContain("Componente sintético: 10 mg");
     expect(stored.rows[0].content).toContain("70 unidade(s)");
+    expect(stored.rows[0].content).toContain(
+      "Quantidade a dispensar: 70 cápsulas (informada pelo prescritor).",
+    );
     expect(stored.rows[0].content).not.toContain("Ingrediente excluído B");
     expect(stored.rows[0].content).not.toContain("Ingrediente excluído C");
     await page.reload({ waitUntil: "networkidle" });
     await expect(documents.getByText(/Componente sintético: 10 mg/)).toBeVisible();
+    await documents
+      .getByRole("button", { name: "Compor receita estruturada", exact: true })
+      .click();
+    await dialog.getByRole("button", { name: "Modelo da foto · conferir", exact: true }).click();
+    const photoSelectors = dialog.getByRole("checkbox", { name: /^Incluir componente \d+$/ });
+    expect(await photoSelectors.count()).toBeGreaterThan(60);
+    expect(
+      await photoSelectors.evaluateAll((nodes) =>
+        nodes.every((node) => !(node as HTMLInputElement).checked),
+      ),
+    ).toBe(true);
+    await expect(livePreview).not.toContainText("Glycyrrhiza glabra");
+    await expect(livePreview).not.toContainText("Rhodiola rosea");
+    await dialog.getByRole("checkbox", { name: "Incluir componente 1", exact: true }).click();
+    await component(1).getByLabel("Quantidade por unidade", { exact: true }).fill("10");
+    await component(1).getByLabel("Unidade da quantidade (ex.: mg)", { exact: true }).fill("mg");
+    await dialog
+      .getByLabel("Apresentação (unidade de administração)", { exact: true })
+      .fill("cápsula");
+    await dialog.getByLabel("Via de administração", { exact: true }).fill("oral");
+    const referencePhase = dialog.getByRole("group", { name: "Etapa 1", exact: true });
+    await referencePhase.getByLabel("Unidades por administração", { exact: true }).fill("1");
+    await referencePhase.getByLabel("Administrações por dia", { exact: true }).fill("1");
+    await referencePhase.getByLabel("Duração em dias", { exact: true }).fill("30");
+    await expect(livePreview).toContainText("Glycyrrhiza glabra: 10 mg");
+    await expect(livePreview).not.toContainText("Rhodiola rosea");
+    await expect(livePreview).not.toContainText("Progesterona base lipofílica");
+    // Loading/reference selection alone never writes a template or modifies the saved prescription.
+    const unchanged = await pool.query(
+      "SELECT content FROM inventory_encounter_documents WHERE appointment_id=$1",
+      [appointment],
+    );
+    expect(unchanged.rows[0].content).toBe(stored.rows[0].content);
   } finally {
     await pool.end();
   }

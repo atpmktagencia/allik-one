@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+const positiveDecimal = /^(?:0|[1-9]\d{0,5})(?:[.,]\d{1,4})?$/;
 const text = (max: number) => z.string().trim().min(1).max(max);
 export const prescriptionFormulaSchema = z
   .object({
@@ -11,7 +12,7 @@ export const prescriptionFormulaSchema = z
             dose: z
               .string()
               .trim()
-              .regex(/^(?:0|[1-9]\d{0,5})(?:[.,]\d{1,4})?$/)
+              .regex(positiveDecimal)
               .refine((v) => Number(v.replace(",", ".")) > 0),
             doseUnit: text(40),
             individualCapsule: z.boolean().default(false),
@@ -19,10 +20,20 @@ export const prescriptionFormulaSchema = z
           .strict(),
       )
       .min(1)
-      .max(30),
+      .max(100),
     route: text(100),
     presentation: text(100),
     instructions: z.string().trim().max(2000).default(""),
+    dispenseQuantity: z
+      .string()
+      .trim()
+      .max(11)
+      .refine(
+        (v) => !v || (positiveDecimal.test(v) && Number(v.replace(",", ".")) > 0),
+        "Informe uma quantidade positiva sem conversão de unidades.",
+      )
+      .optional(),
+    dispenseUnit: z.string().trim().max(100).optional(),
     phases: z
       .array(
         z
@@ -39,6 +50,12 @@ export const prescriptionFormulaSchema = z
   })
   .strict()
   .superRefine((f, ctx) => {
+    if (Boolean(f.dispenseQuantity) !== Boolean(f.dispenseUnit))
+      ctx.addIssue({
+        code: "custom",
+        path: [f.dispenseQuantity ? "dispenseUnit" : "dispenseQuantity"],
+        message: "Informe quantidade a dispensar e unidade juntas.",
+      });
     if (f.phases.some((p, i) => p.maintenance && i !== f.phases.length - 1))
       ctx.addIssue({
         code: "custom",
@@ -75,6 +92,19 @@ export function composePrescription(value: unknown): PrescriptionComposition {
       "Componentes em cápsula individual exigem conferência separada de quantidades; o total calculado não é a quantidade de cápsulas de cada componente.",
     );
   const quantity = maintenance ? null : finite;
+  if (f.dispenseQuantity && f.dispenseUnit) {
+    warnings.push(
+      "Quantidade a dispensar informada pelo prescritor; não há conversão automática entre unidades nem substituição do total calculado.",
+    );
+    if (
+      quantity !== null &&
+      f.dispenseUnit === f.presentation &&
+      Number(f.dispenseQuantity.replace(",", ".")) !== quantity
+    )
+      warnings.push(
+        "A quantidade a dispensar difere do total calculado na mesma unidade informada. Confira antes de salvar.",
+      );
+  }
   const quantityLabel = maintenance
     ? `Total indeterminado: manutenção sem prazo. Etapas anteriores: ${finite} unidade(s) de administração.`
     : `${finite} unidade(s) de administração da apresentação informada.`;
@@ -92,6 +122,11 @@ export function composePrescription(value: unknown): PrescriptionComposition {
         `${i + 1}. ${p.doseUnits} unidade(s) por administração, ${p.frequencyPerDay} vez(es) ao dia, ${p.maintenance ? "em manutenção, sem prazo definido" : `por ${p.durationDays} dia(s)`}.`,
     ),
     `Quantidade: ${quantityLabel}`,
+    ...(f.dispenseQuantity && f.dispenseUnit
+      ? [
+          `Quantidade a dispensar: ${f.dispenseQuantity} ${f.dispenseUnit} (informada pelo prescritor).`,
+        ]
+      : []),
     ...(f.instructions ? [`Orientações: ${f.instructions}`] : []),
   ].join("\n");
   return { text, quantity, quantityLabel, warnings };
