@@ -19,6 +19,8 @@ import { Route as EstoqueRouteImport } from './routes/estoque'
 import { Route as ExamesRouteImport } from './routes/exames'
 import { Route as FinanceiroRouteImport } from './routes/financeiro'
 import { Route as PacientesRouteImport } from './routes/pacientes'
+import { Route as PreConsultasRouteImport } from './routes/pre-consultas'
+import { Route as PreconsultaRouteImport } from './routes/preconsulta'
 import { Route as ProntuarioRouteImport } from './routes/prontuario'
 import { Route as TarefasRouteImport } from './routes/tarefas'
 import { Route as VendasRouteImport } from './routes/vendas'
@@ -97,6 +99,16 @@ const FinanceiroRoute = FinanceiroRouteImport.update({
 const PacientesRoute = PacientesRouteImport.update({
   id: '/pacientes',
   path: '/pacientes',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PreConsultasRoute = PreConsultasRouteImport.update({
+  id: '/pre-consultas',
+  path: '/pre-consultas',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PreconsultaRoute = PreconsultaRouteImport.update({
+  id: '/preconsulta',
+  path: '/preconsulta',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ProntuarioRoute = ProntuarioRouteImport.update({
@@ -261,6 +273,8 @@ export interface FileRoutesByFullPath {
   '/exames': typeof ExamesRoute
   '/financeiro': typeof FinanceiroRoute
   '/pacientes': typeof PacientesRouteWithChildren
+  '/pre-consultas': typeof PreConsultasRoute
+  '/preconsulta': typeof PreconsultaRoute
   '/prontuario': typeof ProntuarioRoute
   '/tarefas': typeof TarefasRoute
   '/vendas': typeof VendasRoute
@@ -299,6 +313,8 @@ export interface FileRoutesByTo {
   '/crm': typeof CrmRoute
   '/exames': typeof ExamesRoute
   '/financeiro': typeof FinanceiroRoute
+  '/pre-consultas': typeof PreConsultasRoute
+  '/preconsulta': typeof PreconsultaRoute
   '/prontuario': typeof ProntuarioRoute
   '/tarefas': typeof TarefasRoute
   '/vendas': typeof VendasRoute
@@ -341,6 +357,8 @@ export interface FileRoutesById {
   '/exames': typeof ExamesRoute
   '/financeiro': typeof FinanceiroRoute
   '/pacientes': typeof PacientesRouteWithChildren
+  '/pre-consultas': typeof PreConsultasRoute
+  '/preconsulta': typeof PreconsultaRoute
   '/prontuario': typeof ProntuarioRoute
   '/tarefas': typeof TarefasRoute
   '/vendas': typeof VendasRoute
@@ -384,6 +402,8 @@ export interface FileRouteTypes {
     | '/exames'
     | '/financeiro'
     | '/pacientes'
+    | '/pre-consultas'
+    | '/preconsulta'
     | '/prontuario'
     | '/tarefas'
     | '/vendas'
@@ -422,6 +442,8 @@ export interface FileRouteTypes {
     | '/crm'
     | '/exames'
     | '/financeiro'
+    | '/pre-consultas'
+    | '/preconsulta'
     | '/prontuario'
     | '/tarefas'
     | '/vendas'
@@ -463,6 +485,8 @@ export interface FileRouteTypes {
     | '/exames'
     | '/financeiro'
     | '/pacientes'
+    | '/pre-consultas'
+    | '/preconsulta'
     | '/prontuario'
     | '/tarefas'
     | '/vendas'
@@ -505,6 +529,8 @@ export interface RootRouteChildren {
   ExamesRoute: typeof ExamesRoute
   FinanceiroRoute: typeof FinanceiroRoute
   PacientesRoute: typeof PacientesRouteWithChildren
+  PreConsultasRoute: typeof PreConsultasRoute
+  PreconsultaRoute: typeof PreconsultaRoute
   ProntuarioRoute: typeof ProntuarioRoute
   TarefasRoute: typeof TarefasRoute
   VendasRoute: typeof VendasRoute
@@ -585,6 +611,20 @@ declare module '@tanstack/react-router' {
       path: '/pacientes'
       fullPath: '/pacientes'
       preLoaderRoute: typeof PacientesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/pre-consultas': {
+      id: '/pre-consultas'
+      path: '/pre-consultas'
+      fullPath: '/pre-consultas'
+      preLoaderRoute: typeof PreConsultasRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/preconsulta': {
+      id: '/preconsulta'
+      path: '/preconsulta'
+      fullPath: '/preconsulta'
+      preLoaderRoute: typeof PreconsultaRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/prontuario': {
@@ -884,6 +924,8 @@ const rootRouteChildren: RootRouteChildren = {
   ExamesRoute: ExamesRoute,
   FinanceiroRoute: FinanceiroRoute,
   PacientesRoute: PacientesRouteWithChildren,
+  PreConsultasRoute: PreConsultasRoute,
+  PreconsultaRoute: PreconsultaRoute,
   ProntuarioRoute: ProntuarioRoute,
   TarefasRoute: TarefasRoute,
   VendasRoute: VendasRoute,

@@ -2467,3 +2467,88 @@ export const careTaskEvents = pgTable(
   },
   (t) => [index("care_task_event_history").on(t.taskId, t.createdAt, t.id)],
 );
+
+export const preconsultationForms = pgTable("inventory_preconsultation_forms", {
+  id: uuid("id").primaryKey(),
+  organizationId: uuid("organization_id")
+    .notNull()
+    .references(() => organizations.id),
+  unitId: uuid("unit_id")
+    .notNull()
+    .references(() => units.id),
+  title: text("title").notNull(),
+  description: text("description").notNull().default(""),
+  questions: jsonb("questions").notNull(),
+  version: integer("version").notNull().default(0),
+  createdByUserId: uuid("created_by_user_id")
+    .notNull()
+    .references(() => users.id),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+export const preconsultationVersions = pgTable(
+  "inventory_preconsultation_versions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    formId: uuid("form_id")
+      .notNull()
+      .references(() => preconsultationForms.id),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id),
+    unitId: uuid("unit_id")
+      .notNull()
+      .references(() => units.id),
+    version: integer("version").notNull(),
+    title: text("title").notNull(),
+    description: text("description").notNull(),
+    questions: jsonb("questions").notNull(),
+    publishedByUserId: uuid("published_by_user_id")
+      .notNull()
+      .references(() => users.id),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("preconsultation_version_unique").on(t.formId, t.version)],
+);
+export const preconsultationInvitations = pgTable(
+  "inventory_preconsultation_invitations",
+  {
+    id: uuid("id").primaryKey(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id),
+    unitId: uuid("unit_id")
+      .notNull()
+      .references(() => units.id),
+    patientId: uuid("patient_id")
+      .notNull()
+      .references(() => patients.id),
+    appointmentId: uuid("appointment_id").references(() => careAppointments.id),
+    versionId: uuid("version_id")
+      .notNull()
+      .references(() => preconsultationVersions.id),
+    tokenHash: text("token_hash").notNull(),
+    createdByUserId: uuid("created_by_user_id")
+      .notNull()
+      .references(() => users.id),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    revokedAt: timestamp("revoked_at", { withTimezone: true }),
+    submittedAt: timestamp("submitted_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("preconsultation_token_unique").on(t.tokenHash),
+    index("preconsultation_patient_list").on(t.organizationId, t.patientId),
+  ],
+);
+export const preconsultationResponses = pgTable(
+  "inventory_preconsultation_responses",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    invitationId: uuid("invitation_id")
+      .notNull()
+      .references(() => preconsultationInvitations.id),
+    answers: jsonb("answers").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("preconsultation_response_unique").on(t.invitationId)],
+);

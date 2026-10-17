@@ -51,6 +51,7 @@ const operationItems = [
 ] as const;
 
 const careItems = [
+  { label: "Pré-consultas", to: "/pre-consultas", icon: ListChecks },
   { label: "Tarefas da equipe", to: "/tarefas", icon: ListChecks },
   { label: "Agendamentos", to: "/agenda", icon: CalendarDays },
   { label: "Pacientes", to: "/pacientes", icon: UserRound },
@@ -65,6 +66,7 @@ const procedureItems = [
 
 const pageTitles: Record<string, string> = {
   "/tarefas": "Tarefas da equipe",
+  "/pre-consultas": "Pré-consultas",
   "/estoque": "Estoque atual",
   "/estoque/recebimento": "Pedidos e entradas",
   "/estoque/movimentacoes": "Movimentações e histórico",
@@ -270,6 +272,8 @@ export function AppShell({ children }: { children: ReactNode }) {
   const queryClient = useQueryClient();
   useEffect(() => {
     if (
+      !path.startsWith("/pre-consultas") &&
+      !path.startsWith("/tarefas") &&
       !path.startsWith("/estoque") &&
       !path.startsWith("/pacientes") &&
       !path.startsWith("/agenda") &&
@@ -295,6 +299,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       })
       .catch(() => {});
   }, [path]);
+  if (path === "/preconsulta") return <>{children}</>;
   const title = path.startsWith("/atendimentos/")
     ? "Atendimento"
     : path.startsWith("/pacientes/") && path.endsWith("/prontuario")

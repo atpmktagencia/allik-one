@@ -1,3 +1,4 @@
+import { PreconsultationPanel } from "./preconsultation-panel";
 import { CareTasksPanel } from "./care-tasks-panel";
 import { PatientAllergySummary } from "./patient-allergy-summary";
 import type { AllergySummary } from "@/lib/patient-allergies";
@@ -922,6 +923,12 @@ export function CareEncounterPage({ appointmentId }: { appointmentId: string }) 
                 </label>
               </div>
             </section>
+            <PreconsultationPanel
+              key={`pre-${appointmentId}`}
+              patientId={data.appointment.patientId}
+              appointmentId={appointmentId}
+              unitId={data.appointment.unitId}
+            />
             <CareTasksPanel
               key={appointmentId}
               unitId={data.appointment.unitId}

@@ -1,3 +1,4 @@
+import { preconsultationResponse, preconsultationPublicResponse } from "@/server/preconsultation";
 import { careTasksResponse } from "@/server/care-tasks";
 import { documentDeliveryResponse } from "@/server/document-delivery";
 import { passwordSecurityResponse } from "@/server/password-security";
@@ -53,6 +54,15 @@ export const Route = createFileRoute("/api/v1/inventory/$")({
   server: {
     handlers: {
       GET: ({ request }) => {
+        if (
+          new URL(request.url).pathname.replace(/\/$/, "") === "/api/v1/inventory/preconsultation"
+        )
+          return preconsultationResponse(request);
+        if (
+          new URL(request.url).pathname.replace(/\/$/, "") ===
+          "/api/v1/inventory/preconsultation-public"
+        )
+          return preconsultationPublicResponse(request);
         if (new URL(request.url).pathname.replace(/\/$/, "") === "/api/v1/inventory/care-tasks")
           return careTasksResponse(request);
         if (
@@ -143,6 +153,15 @@ export const Route = createFileRoute("/api/v1/inventory/$")({
           : inventoryResponse(request);
       },
       POST: ({ request }) => {
+        if (
+          new URL(request.url).pathname.replace(/\/$/, "") === "/api/v1/inventory/preconsultation"
+        )
+          return preconsultationResponse(request);
+        if (
+          new URL(request.url).pathname.replace(/\/$/, "") ===
+          "/api/v1/inventory/preconsultation-public"
+        )
+          return preconsultationPublicResponse(request);
         if (new URL(request.url).pathname.replace(/\/$/, "") === "/api/v1/inventory/care-tasks")
           return careTasksResponse(request);
         if (

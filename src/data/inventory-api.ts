@@ -94,6 +94,7 @@ export function useInventory<T>(resource: string, options?: { enabled?: boolean 
   const patientResource =
     resource.startsWith("patient-") ||
     resource.startsWith("care-tasks") ||
+    resource.startsWith("preconsultation") ||
     resource.startsWith("care-encounter") ||
     resource.startsWith("encounter-documents");
   const requestPath = withSelectedUnit(`/api/v1/inventory/${resource}`);

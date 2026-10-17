@@ -443,3 +443,11 @@ GET/POST `/api/v1/inventory/care-tasks` validam identidade, organização, unida
 As migrations `0061_care_team_tasks` e `0062_care_task_transfer_scope` criam tabelas de tarefas/histórico, índices, validação de vínculos e triggers com `search_path` fixado. A ativação desta entrega é exclusiva do banco sintético de Preview, com grants específicos para a conta restrita. Não aplicar em Produção como efeito de build. Lembretes externos, recorrência, notificações automáticas e conclusão vinculada a um novo agendamento ficam para incrementos posteriores. Não registrar diagnósticos ou detalhes clínicos nas orientações operacionais.
 
 Após transferência de paciente, tarefas preservam a unidade de origem; listagem, histórico e alteração exigem acesso tanto à unidade da tarefa quanto à unidade atual do paciente. A migration corretiva 0062 preserva o hash da 0061, já aplicada ao Preview antes dessa revisão.
+
+### M19A — Pré-consulta por link (Preview)
+
+A área **Pré-consultas** permite preparar questionários por unidade, publicar versões e gerar links individuais com validade/revogação para envio manual. O paciente responde perguntas opcionais de texto ou escolha; respostas omitidas continuam como **Não informado**, sem transformação em anamnese ou diagnóstico. As versões enviadas e as respostas recebidas ficam preservadas. No atendimento, respostas da consulta e questionários gerais do mesmo paciente são apresentados como relato recebido por link, sem comprovação independente da identidade.
+
+Gerenciamento exige conta individual e `patients.manage`; leitura de respostas exige `patients.private.read` e auditoria antes da resposta. A página pública não expõe cadastro/histórico, recebe o token em fragmento removido da URL, mantém estado apenas em memória e consome o convite uma única vez. O backend valida origem, escopo, validade, revogação, concorrência e limites compartilhados de requisições. Após transferência de paciente, os acessos da equipe exigem as duas unidades. Não há IA, importação automática na evolução nem envio automático de mensagens.
+
+Ativação somente no banco sintético do Preview pela migration `0063_preconsultation_intake`. A proteção Vercel do Preview permanece ativa; os links não são um serviço externo irrestrito para pacientes. Consulte [fluxo, limites e evidências do M19A](docs/m19-preview-preconsultation.md).

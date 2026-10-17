@@ -29,6 +29,16 @@ describe("Care encounter UI", () => {
     vi.stubGlobal(
       "fetch",
       vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+        if (String(_input).includes("preconsultation"))
+          return Response.json({
+            data: {
+              forms: [],
+              invitations: [],
+              units: [],
+              canManage: false,
+              canReadAnswers: false,
+            },
+          });
         if (String(_input).includes("care-tasks"))
           return Response.json({
             data: {
@@ -156,6 +166,16 @@ describe("Care encounter UI", () => {
     vi.stubGlobal(
       "fetch",
       vi.fn(async (input: RequestInfo | URL) => {
+        if (String(input).includes("preconsultation"))
+          return Response.json({
+            data: {
+              forms: [],
+              invitations: [],
+              units: [],
+              canManage: false,
+              canReadAnswers: false,
+            },
+          });
         if (String(input).includes("care-tasks"))
           return Response.json({
             data: {
@@ -252,6 +272,16 @@ describe("Clinical draft concurrency", () => {
     vi.stubGlobal(
       "fetch",
       vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        if (String(input).includes("preconsultation"))
+          return Response.json({
+            data: {
+              forms: [],
+              invitations: [],
+              units: [],
+              canManage: false,
+              canReadAnswers: false,
+            },
+          });
         if (String(input).includes("care-tasks"))
           return Response.json({
             data: {
