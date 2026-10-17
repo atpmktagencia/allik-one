@@ -197,3 +197,43 @@ describe("Explicit manual dispensing quantity", () => {
     ).toThrow();
   });
 });
+
+describe("Explicit optional pharmaceutical metadata", () => {
+  it("prints only supplied metadata without inferring clinical compatibility", () => {
+    const metadata = {
+      pharmaceuticalForm: " Cápsula ",
+      capsuleType: "Vegetal",
+      excipient: "Base informada",
+      packaging: "Frasco",
+    };
+    const result = composePrescription({ ...formula(), ...metadata });
+    expect(result.text).toContain("Forma farmacêutica: Cápsula");
+    expect(result.text).toContain("Tipo de cápsula: Vegetal");
+    expect(result.text).toContain("Base / excipiente: Base informada");
+    expect(result.text).toContain("Embalagem: Frasco");
+    expect(result.quantity).toBe(74);
+    expect(prescriptionFormulaSchema.parse({ ...formula(), ...metadata }).pharmaceuticalForm).toBe(
+      "Cápsula",
+    );
+  });
+  it.each(["pharmaceuticalForm", "capsuleType", "excipient", "packaging"] as const)(
+    "bounds and validates optional %s",
+    (field) => {
+      expect(() => composePrescription({ ...formula(), [field]: "x".repeat(101) })).toThrow();
+      expect(() => composePrescription({ ...formula(), [field]: 12 })).toThrow();
+      expect(composePrescription({ ...formula(), [field]: " " })).toEqual(
+        composePrescription(formula()),
+      );
+    },
+  );
+  it("does not add old default metadata when fields are absent", () => {
+    const text = composePrescription(formula()).text;
+    for (const label of [
+      "Forma farmacêutica:",
+      "Tipo de cápsula:",
+      "Base / excipiente:",
+      "Embalagem:",
+    ])
+      expect(text).not.toContain(label);
+  });
+});

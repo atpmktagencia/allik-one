@@ -49,3 +49,13 @@ A progressão altera unidades por administração e frequência/duração inform
 Sem nova migration ou promoção para produção. A inserção continua limitada a rascunhos com confirmação do profissional, e alterações da posologia invalidam a prévia validada anteriormente.
 
 Verificação do M20D: typecheck, build e lint aprovados (somente seis avisos preexistentes); 232 testes unitários/interface e 11 E2E aprovados. A cobertura nova valida início e fim dos períodos, manutenção após etapa finita, segunda posologia vazia até preenchimento, remoção explícita e quantidade total. O navegador cria a segunda etapa pelo novo botão, confere a sequência na prévia e salva somente um rascunho. A implantação oficial permaneceu com o mesmo identificador.
+
+## M20E — Campos selecionáveis da formulação
+
+O bloco da formulação aproxima os controles da referência visual: via de administração, forma farmacêutica, tipo de cápsula, base/excipiente, apresentação e embalagem têm seleção explícita e possibilidade de valor personalizado. Não há dose, compatibilidade, excipiente ou embalagem escolhidos automaticamente. Os controles descrevem escolhas do profissional; não constituem validação farmacotécnica ou classificação do receituário.
+
+Unidades por ativo e de dispensação oferecem listas de valores usuais, mantendo a digitação livre e sem conversão automática. Os novos dados opcionais são preservados no protocolo pessoal e aparecem no texto calculado quando preenchidos. Valores personalizados dos modelos existentes continuam editáveis. Qualquer mudança invalida a revisão anterior, exigindo nova conferência no servidor antes da inserção no rascunho. Posologia inicial, segunda etapa opcional e quantidade/unidade de dispensação são mantidas.
+
+A frequência continua explicitamente em administrações por dia e a duração em dias, conforme o cálculo implementado. Não se oferece um seletor de calendário semanal que o cálculo ainda não suporta. Sem migration: campos opcionais na fórmula JSON; documentos finalizados não são reprocessados. Ativação exclusivamente no Preview, sem manutenção de produção.
+
+Verificação do M20E: 240 testes unitários/interface e 11 E2E aprovados; após a revisão dos rótulos dos seletores, os 11 testes específicos da interface também passaram. Typecheck, build e lint aprovados (somente os seis avisos preexistentes). O navegador seleciona os campos, preenche uma base personalizada e confere sua preservação no protocolo e no rascunho salvo. A interface também preserva valores desconhecidos de modelos antigos e exige nova revisão após alterações. A implantação oficial manteve o identificador anterior; nenhum banco recebeu migration nesta rodada.

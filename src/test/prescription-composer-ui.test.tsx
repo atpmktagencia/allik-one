@@ -1,12 +1,15 @@
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { prescriptionReferenceIngredients } from "@/data/prescription-reference";
+import type { PrescriptionProtocol } from "@/data/prescription-composer";
 import { PrescriptionComposer } from "@/components/clinic/prescription-composer";
+
+const fixtures = vi.hoisted(() => ({ templates: [] as PrescriptionProtocol[] }));
 
 vi.mock("@/data/inventory-api", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/data/inventory-api")>()),
   useInventory: () => ({
-    data: { templates: [], canCompose: true },
+    data: { templates: fixtures.templates, canCompose: true },
     isPending: false,
     error: null,
     refetch: vi.fn(),
@@ -14,6 +17,7 @@ vi.mock("@/data/inventory-api", async (importOriginal) => ({
 }));
 afterEach(() => {
   cleanup();
+  fixtures.templates = [];
   vi.unstubAllGlobals();
 });
 function fill() {
@@ -254,32 +258,37 @@ describe("Structured prescription review", () => {
   });
   it("calculates and saves only the chosen reference ingredients with explicitly entered dispensing values", async () => {
     const { requests } = setup();
-    fireEvent.click(screen.getByRole("button", { name: /^Modelo da foto · conferir$/ }));
-    fireEvent.click(screen.getByLabelText("Incluir componente 1"));
-    fireEvent.change(screen.getAllByLabelText("Quantidade por unidade")[0]!, {
-      target: { value: "1,25" },
-    });
-    fireEvent.change(screen.getAllByLabelText("Unidade da quantidade (ex.: mg)")[0]!, {
-      target: { value: "mg" },
-    });
-    fireEvent.change(screen.getByLabelText("Apresentação (unidade de administração)"), {
-      target: { value: "cápsula" },
-    });
-    fireEvent.change(screen.getByLabelText("Via de administração"), { target: { value: "oral" } });
-    for (const [label, value] of [
-      ["Unidades por administração", "1"],
-      ["Administrações por dia", "1"],
-      ["Duração em dias", "30"],
-    ])
-      fireEvent.change(screen.getByLabelText(label!), { target: { value } });
-    fireEvent.change(screen.getByLabelText("Quantidade a dispensar"), { target: { value: "90" } });
-    fireEvent.change(screen.getByLabelText("Unidade de dispensação"), {
-      target: { value: "cápsulas" },
-    });
+    const calculate = screen.getByRole("button", { name: /^Calcular e revisar composição$/ });
+    const save = screen.getByRole("button", { name: /^Salvar protocolo$/ });
     const live = screen.getByRole("complementary", { name: "Prévia do documento" });
+    const reference = screen.getByRole("button", { name: /^Modelo da foto · conferir$/ });
+    const include = screen.getByLabelText("Incluir componente 1");
+    const quantity = screen.getByLabelText("Quantidade por unidade");
+    const unit = screen.getByLabelText("Unidade da quantidade (ex.: mg)");
+    const presentation = screen.getByLabelText("Apresentação (unidade de administração)");
+    const route = screen.getByLabelText("Via de administração");
+    const perDose = screen.getByLabelText("Unidades por administração");
+    const frequency = screen.getByLabelText("Administrações por dia");
+    const duration = screen.getByLabelText("Duração em dias");
+    const dispenseQuantity = screen.getByLabelText("Quantidade a dispensar");
+    const dispenseUnit = screen.getByLabelText("Unidade de dispensação");
+    fireEvent.click(reference);
+    fireEvent.click(include);
+    for (const [control, value] of [
+      [quantity, "1,25"],
+      [unit, "mg"],
+      [presentation, "cápsula"],
+      [route, "oral"],
+      [perDose, "1"],
+      [frequency, "1"],
+      [duration, "30"],
+      [dispenseQuantity, "90"],
+      [dispenseUnit, "cápsulas"],
+    ] as const)
+      fireEvent.change(control, { target: { value } });
     expect(within(live).getByText(/Quantidade a dispensar: 90 cápsulas/)).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: /^Calcular e revisar composição$/ }));
-    await screen.findByRole("button", { name: /^Inserir no rascunho da receita$/ });
+    fireEvent.click(calculate);
+    await within(live).findByRole("button", { name: /^Inserir no rascunho da receita$/ });
     const expected = {
       ingredients: [
         {
@@ -294,8 +303,8 @@ describe("Structured prescription review", () => {
     };
     expect(requests[0]).toMatchObject({ action: "PREVIEW", formula: expected });
     expect((requests[0]!["formula"] as { ingredients: unknown[] }).ingredients).toHaveLength(1);
-    fireEvent.click(screen.getByRole("button", { name: /^Salvar protocolo$/ }));
-    await screen.findByText("Protocolo pessoal salvo.");
+    fireEvent.click(save);
+    await within(live).findByText("Protocolo pessoal salvo.");
     expect(requests[1]).toMatchObject({ action: "SAVE", formula: expected });
     expect((requests[1]!["formula"] as { ingredients: unknown[] }).ingredients).toHaveLength(1);
   });
@@ -315,5 +324,103 @@ describe("Structured prescription review", () => {
       await screen.findByRole("button", { name: /^Inserir no rascunho da receita$/ }),
     ).toBeDisabled();
     expect(screen.getByLabelText(/^Conferi composição/)).not.toBeChecked();
+  });
+  it("prints and submits explicit pharmaceutical form, capsule, custom base and packaging choices", async () => {
+    const { requests } = setup();
+    for (const label of ["Forma farmacêutica", "Tipo de cápsula", "Base / excipiente", "Embalagem"])
+      expect(screen.getByLabelText(label)).toHaveValue("");
+    fireEvent.change(screen.getByLabelText("Forma farmacêutica"), { target: { value: "cápsula" } });
+    fireEvent.change(screen.getByLabelText("Tipo de cápsula"), { target: { value: "vegetal" } });
+    fireEvent.change(screen.getByLabelText("Base / excipiente"), {
+      target: { value: "__custom__" },
+    });
+    fireEvent.change(screen.getByLabelText("Base / excipiente personalizado"), {
+      target: { value: "Base informada pelo prescritor" },
+    });
+    fireEvent.change(screen.getByLabelText("Embalagem"), { target: { value: "frasco" } });
+    const live = screen.getByRole("complementary", { name: "Prévia do documento" });
+    expect(within(live).getByText(/Forma farmacêutica: cápsula/)).toBeInTheDocument();
+    expect(within(live).getByText(/Tipo de cápsula: vegetal/)).toBeInTheDocument();
+    expect(within(live).getByText(/Base informada pelo prescritor/)).toBeInTheDocument();
+    expect(within(live).getByText(/Embalagem: frasco/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /^Calcular e revisar composição$/ }));
+    await screen.findByRole("button", { name: /^Inserir no rascunho da receita$/ });
+    const choices = {
+      pharmaceuticalForm: "cápsula",
+      capsuleType: "vegetal",
+      excipient: "Base informada pelo prescritor",
+      packaging: "frasco",
+    };
+    expect(requests[0]).toMatchObject({ action: "PREVIEW", formula: choices });
+    fireEvent.change(screen.getByLabelText("Nome do protocolo pessoal"), {
+      target: { value: "Escolhas explícitas" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /^Salvar protocolo$/ }));
+    await screen.findByText("Protocolo pessoal salvo.");
+    expect(requests[1]).toMatchObject({ action: "SAVE", formula: choices });
+    fireEvent.click(screen.getByLabelText(/^Conferi composição/));
+    fireEvent.change(screen.getByLabelText("Embalagem"), { target: { value: "pote" } });
+    expect(screen.queryByRole("region", { name: "Revisão da composição" })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /^Calcular e revisar composição$/ }));
+    expect(
+      await screen.findByRole("button", { name: /^Inserir no rascunho da receita$/ }),
+    ).toBeDisabled();
+  });
+  it("preserves previously saved values outside the choice lists and allows explicit custom overrides", async () => {
+    fixtures.templates = [
+      {
+        id: "legacy-protocol",
+        title: "Modelo anterior",
+        version: 1,
+        formula: {
+          ingredients: [
+            {
+              medicationName: "Sintético legado",
+              dose: "2",
+              doseUnit: "mg",
+              individualCapsule: false,
+            },
+          ],
+          route: "Via personalizada anterior",
+          presentation: "Apresentação anterior",
+          pharmaceuticalForm: "Forma anterior",
+          capsuleType: "Cápsula anterior",
+          excipient: "Base anterior",
+          packaging: "Embalagem anterior",
+          instructions: "",
+          phases: [{ doseUnits: 1, frequencyPerDay: 1, durationDays: 7, maintenance: false }],
+        },
+      },
+    ];
+    const { requests } = setup();
+    fireEvent.change(screen.getByLabelText("Protocolo pessoal"), {
+      target: { value: "legacy-protocol" },
+    });
+    for (const [label, value] of [
+      ["Via de administração", "Via personalizada anterior"],
+      ["Apresentação (unidade de administração)", "Apresentação anterior"],
+      ["Forma farmacêutica", "Forma anterior"],
+      ["Tipo de cápsula", "Cápsula anterior"],
+      ["Base / excipiente", "Base anterior"],
+      ["Embalagem", "Embalagem anterior"],
+    ]) {
+      expect(screen.getByLabelText(label!)).toHaveValue("__custom__");
+      expect(screen.getByLabelText(`${label} personalizado`)).toHaveValue(value);
+    }
+    fireEvent.change(screen.getByLabelText("Via de administração personalizado"), {
+      target: { value: "Via ajustada explicitamente" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /^Calcular e revisar composição$/ }));
+    await screen.findByRole("button", { name: /^Inserir no rascunho da receita$/ });
+    expect(requests[0]).toMatchObject({
+      formula: {
+        route: "Via ajustada explicitamente",
+        presentation: "Apresentação anterior",
+        pharmaceuticalForm: "Forma anterior",
+        capsuleType: "Cápsula anterior",
+        excipient: "Base anterior",
+        packaging: "Embalagem anterior",
+      },
+    });
   });
 });

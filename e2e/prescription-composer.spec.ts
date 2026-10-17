@@ -83,8 +83,15 @@ test("individual clinician composes a prescription and explicitly saves a draft"
     }
     await dialog
       .getByLabel("Apresentação (unidade de administração)", { exact: true })
-      .fill("cápsula");
-    await dialog.getByLabel("Via de administração", { exact: true }).fill("oral");
+      .selectOption("cápsula");
+    await dialog.getByLabel("Via de administração", { exact: true }).selectOption("oral");
+    await dialog.getByLabel("Forma farmacêutica", { exact: true }).selectOption("cápsula");
+    await dialog.getByLabel("Tipo de cápsula", { exact: true }).selectOption("vegetal");
+    await dialog.getByLabel("Base / excipiente", { exact: true }).selectOption("__custom__");
+    await dialog
+      .getByLabel("Base / excipiente personalizado", { exact: true })
+      .fill("Base sintética informada");
+    await dialog.getByLabel("Embalagem", { exact: true }).selectOption("frasco");
     await dialog.getByLabel("Quantidade a dispensar", { exact: true }).fill("70");
     await dialog.getByLabel("Unidade de dispensação", { exact: true }).fill("cápsulas");
     const first = dialog.getByRole("group", { name: "Etapa 1", exact: true });
@@ -190,6 +197,20 @@ test("individual clinician composes a prescription and explicitly saves a draft"
     expect(stored.rows[0].status).toBe("DRAFT");
     expect(stored.rows[0].content).toContain("Componente sintético: 10 mg");
     expect(stored.rows[0].content).toContain("70 unidade(s)");
+    expect(stored.rows[0].content).toContain("Forma farmacêutica: cápsula");
+    expect(stored.rows[0].content).toContain("Tipo de cápsula: vegetal");
+    expect(stored.rows[0].content).toContain("Base / excipiente: Base sintética informada");
+    expect(stored.rows[0].content).toContain("Embalagem: frasco");
+    const savedMetadata = await pool.query(
+      "SELECT formula FROM inventory_prescription_protocols WHERE id=$1",
+      [protocol.rows[0].id],
+    );
+    expect(savedMetadata.rows[0].formula).toMatchObject({
+      pharmaceuticalForm: "cápsula",
+      capsuleType: "vegetal",
+      excipient: "Base sintética informada",
+      packaging: "frasco",
+    });
     expect(stored.rows[0].content).toContain(
       "Quantidade a dispensar: 70 cápsulas (informada pelo prescritor).",
     );
@@ -215,8 +236,8 @@ test("individual clinician composes a prescription and explicitly saves a draft"
     await component(1).getByLabel("Unidade da quantidade (ex.: mg)", { exact: true }).fill("mg");
     await dialog
       .getByLabel("Apresentação (unidade de administração)", { exact: true })
-      .fill("cápsula");
-    await dialog.getByLabel("Via de administração", { exact: true }).fill("oral");
+      .selectOption("cápsula");
+    await dialog.getByLabel("Via de administração", { exact: true }).selectOption("oral");
     const referencePhase = dialog.getByRole("group", { name: "Etapa 1", exact: true });
     await referencePhase.getByLabel("Unidades por administração", { exact: true }).fill("1");
     await referencePhase.getByLabel("Administrações por dia", { exact: true }).fill("1");

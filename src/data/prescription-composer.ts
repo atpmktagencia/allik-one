@@ -22,6 +22,10 @@ export const prescriptionFormulaSchema = z
       .min(1)
       .max(100),
     route: text(100),
+    pharmaceuticalForm: z.string().trim().max(100).optional(),
+    capsuleType: z.string().trim().max(100).optional(),
+    excipient: z.string().trim().max(100).optional(),
+    packaging: z.string().trim().max(100).optional(),
     presentation: text(100),
     instructions: z.string().trim().max(2000).default(""),
     dispenseQuantity: z
@@ -116,6 +120,10 @@ export function composePrescription(value: unknown): PrescriptionComposition {
     ),
     `Apresentação: ${f.presentation}`,
     `Via: ${f.route}`,
+    ...(f.pharmaceuticalForm ? [`Forma farmacêutica: ${f.pharmaceuticalForm}`] : []),
+    ...(f.capsuleType ? [`Tipo de cápsula: ${f.capsuleType}`] : []),
+    ...(f.excipient ? [`Base / excipiente: ${f.excipient}`] : []),
+    ...(f.packaging ? [`Embalagem: ${f.packaging}`] : []),
     "Posologia:",
     ...f.phases.map((p, i) => {
       const firstDay =

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { readInventoryResponse, useInventory } from "@/data/inventory-api";
@@ -10,6 +10,7 @@ import {
   type PrescriptionProtocol,
 } from "@/data/prescription-composer";
 import { prescriptionReferenceIngredients } from "@/data/prescription-reference";
+import { PrescriptionChoiceField } from "./prescription-choice-field";
 import { InventoryState } from "./inventory-state";
 
 const emptyIngredient = () => ({
@@ -45,6 +46,8 @@ export function PrescriptionComposer({
   const query = useInventory<{ templates: PrescriptionProtocol[]; canCompose: boolean }>(
     `prescription-composer?appointmentId=${encodeURIComponent(appointmentId)}`,
   );
+  const unitListId = useId();
+  const dispenseListId = useId();
   const [formula, setFormula] = useState<PrescriptionFormula>(emptyFormula);
   const [title, setTitle] = useState("");
   const [protocol, setProtocol] = useState<PrescriptionProtocol | null>(null);
@@ -216,6 +219,16 @@ export function PrescriptionComposer({
     return <p>A composição exige o profissional responsável pelo atendimento.</p>;
   return (
     <div className="space-y-4 text-sm">
+      <datalist id={unitListId}>
+        {["mg", "g", "mcg", "µg", "UI", "mL", "%"].map((unit) => (
+          <option key={unit} value={unit} />
+        ))}
+      </datalist>
+      <datalist id={dispenseListId}>
+        {["cápsulas", "comprimidos", "mL", "g", "gotas", "sachês", "unidades"].map((unit) => (
+          <option key={unit} value={unit} />
+        ))}
+      </datalist>
       <p className="rounded-xl bg-amber-50 p-3">
         Informe a composição por unidade de administração e confira cada etapa. Este recurso calcula
         quantidades; não recomenda doses, avalia compatibilidade ou define o tipo de receituário.
@@ -415,6 +428,7 @@ export function PrescriptionComposer({
                       value={ingredient[key]}
                       maxLength={max}
                       inputMode={key === "dose" ? "decimal" : undefined}
+                      list={key === "doseUnit" ? unitListId : undefined}
                       onChange={(event) =>
                         change({
                           ...formula,
@@ -484,24 +498,67 @@ export function PrescriptionComposer({
               Adicionar componente
             </Button>
           </div>
-          <div className="grid gap-3 sm:grid-cols-2">
-            <label>
-              Apresentação (unidade de administração)
-              <Input
-                maxLength={100}
-                value={formula.presentation}
-                onChange={(e) => change({ ...formula, presentation: e.target.value })}
-              />
-            </label>
-            <label>
-              Via de administração
-              <Input
-                maxLength={100}
-                value={formula.route}
-                onChange={(e) => change({ ...formula, route: e.target.value })}
-              />
-            </label>
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+            <PrescriptionChoiceField
+              label="Via de administração"
+              value={formula.route}
+              options={[
+                "oral",
+                "tópica",
+                "sublingual",
+                "bucal",
+                "nasal",
+                "oftálmica",
+                "otológica",
+                "retal",
+                "vaginal",
+              ]}
+              onChange={(route) => change({ ...formula, route })}
+            />
+            <PrescriptionChoiceField
+              label="Forma farmacêutica"
+              value={formula.pharmaceuticalForm ?? ""}
+              options={[
+                "cápsula",
+                "comprimido",
+                "solução",
+                "suspensão",
+                "creme",
+                "gel",
+                "pomada",
+                "pó",
+              ]}
+              onChange={(pharmaceuticalForm) => change({ ...formula, pharmaceuticalForm })}
+            />
+            <PrescriptionChoiceField
+              label="Tipo de cápsula"
+              value={formula.capsuleType ?? ""}
+              options={["gelatinosa", "vegetal", "gastrorresistente", "liberação prolongada"]}
+              onChange={(capsuleType) => change({ ...formula, capsuleType })}
+            />
+            <PrescriptionChoiceField
+              label="Base / excipiente"
+              value={formula.excipient ?? ""}
+              options={[]}
+              onChange={(excipient) => change({ ...formula, excipient })}
+            />
+            <PrescriptionChoiceField
+              label="Apresentação (unidade de administração)"
+              value={formula.presentation}
+              options={["cápsula", "comprimido", "mL", "g", "gota", "sachê", "unidade"]}
+              onChange={(presentation) => change({ ...formula, presentation })}
+            />
+            <PrescriptionChoiceField
+              label="Embalagem"
+              value={formula.packaging ?? ""}
+              options={["frasco", "blíster", "pote", "sachê"]}
+              onChange={(packaging) => change({ ...formula, packaging })}
+            />
           </div>
+          <p className="text-xs text-muted-foreground">
+            Selecione uma opção ou escolha Personalizar… para digitar outro valor. Forma
+            farmacêutica, tipo de cápsula, base e embalagem são opcionais.
+          </p>
           <div className="space-y-3">
             <h3 className="font-medium">Posologia e progressão de dose</h3>
             <p className="text-xs text-muted-foreground">
@@ -680,6 +737,7 @@ export function PrescriptionComposer({
               <Input
                 className="mt-1 min-w-0 bg-white"
                 maxLength={60}
+                list={dispenseListId}
                 value={formula.dispenseUnit ?? ""}
                 onChange={(event) => change({ ...formula, dispenseUnit: event.target.value })}
               />
