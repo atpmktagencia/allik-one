@@ -2552,3 +2552,40 @@ export const preconsultationResponses = pgTable(
   },
   (t) => [uniqueIndex("preconsultation_response_unique").on(t.invitationId)],
 );
+
+export const prescriptionProtocols = pgTable("inventory_prescription_protocols", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  organizationId: uuid("organization_id")
+    .notNull()
+    .references(() => organizations.id),
+  authorUserId: uuid("author_user_id")
+    .notNull()
+    .references(() => users.id),
+  title: text("title").notNull(),
+  formula: jsonb("formula").notNull(),
+  version: integer("version").notNull().default(1),
+  archived: boolean("archived").notNull().default(false),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+export const prescriptionProtocolVersions = pgTable(
+  "inventory_prescription_protocol_versions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    protocolId: uuid("protocol_id")
+      .notNull()
+      .references(() => prescriptionProtocols.id),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id),
+    authorUserId: uuid("author_user_id")
+      .notNull()
+      .references(() => users.id),
+    version: integer("version").notNull(),
+    title: text("title").notNull(),
+    formula: jsonb("formula").notNull(),
+    archived: boolean("archived").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("prescription_protocol_version_unique").on(t.protocolId, t.version)],
+);

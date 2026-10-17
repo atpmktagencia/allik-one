@@ -451,3 +451,9 @@ A área **Pré-consultas** permite preparar questionários por unidade, publicar
 Gerenciamento exige conta individual e `patients.manage`; leitura de respostas exige `patients.private.read` e auditoria antes da resposta. A página pública não expõe cadastro/histórico, recebe o token em fragmento removido da URL, mantém estado apenas em memória e consome o convite uma única vez. O backend valida origem, escopo, validade, revogação, concorrência e limites compartilhados de requisições. Após transferência de paciente, os acessos da equipe exigem as duas unidades. Não há IA, importação automática na evolução nem envio automático de mensagens.
 
 Ativação somente no banco sintético do Preview pela migration `0063_preconsultation_intake`. A proteção Vercel do Preview permanece ativa; os links não são um serviço externo irrestrito para pacientes. Consulte [fluxo, limites e evidências do M19A](docs/m19-preview-preconsultation.md).
+
+### M20A — Composição de receita e protocolos pessoais (Preview)
+
+O profissional responsável pode estruturar componentes, doses informadas, apresentação, via e etapas de posologia, conferir o cálculo de unidades e transferir o texto para um rascunho de receita. Protocolos pessoais mantêm histórico imutável de versões. Manutenção sem prazo não produz quantidade total; cápsulas individuais exigem conferência separada. Não há sugestão de dose, conversão de unidades ou validação clínica automática.
+
+A finalização e a assinatura física seguem o fluxo existente. Ativação exclusiva do Preview sintético pela migration aditiva `0064_prescription_composer`, com conta SQL restrita; Produção permanece preservada. Consulte [escopo e verificação do M20A](docs/m20-preview-prescription-composer.md).

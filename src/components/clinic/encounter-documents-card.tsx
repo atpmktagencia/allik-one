@@ -1,3 +1,4 @@
+import { PrescriptionComposer } from "./prescription-composer";
 import { DocumentDelivery } from "./document-delivery";
 import { ClinicalDocumentVerification } from "./clinical-document-verification";
 import { allergyLabel, type AllergySummary } from "@/lib/patient-allergies";
@@ -172,6 +173,7 @@ export function EncounterDocumentsCard({ appointmentId }: { appointmentId: strin
   const [verificationOpen, setVerificationOpen] = useState(false);
   const [deliveryOpen, setDeliveryOpen] = useState(false);
   const [expanded, setExpanded] = useState(false);
+  const [composerOpen, setComposerOpen] = useState(false);
   useEffect(() => {
     if (!expanded) return;
     const handleEscape = (event: KeyboardEvent) => {
@@ -821,6 +823,18 @@ export function EncounterDocumentsCard({ appointmentId }: { appointmentId: strin
               </span>
             </label>
           )}
+          {selected.type === "PRESCRIPTION" && !readonly && (
+            <div className="px-4 pb-3 sm:px-6">
+              <Button
+                type="button"
+                variant="outline"
+                disabled={pending}
+                onClick={() => setComposerOpen(true)}
+              >
+                Compor receita estruturada
+              </Button>
+            </div>
+          )}
           <div className="clinical-document-editor-slot px-3 pb-2 sm:px-5">
             <ClinicalDocumentEditor
               key={selected.id}
@@ -942,6 +956,36 @@ export function EncounterDocumentsCard({ appointmentId }: { appointmentId: strin
           )}
         </div>
       )}
+      <Dialog open={composerOpen} onOpenChange={setComposerOpen}>
+        <DialogContent className="max-h-[90dvh] max-w-3xl overflow-y-auto rounded-2xl">
+          <DialogHeader>
+            <DialogTitle>Composição estruturada e protocolos pessoais</DialogTitle>
+            <DialogDescription>
+              Prepare e confira a composição antes de inseri-la na receita. A responsabilidade
+              clínica permanece com o prescritor.
+            </DialogDescription>
+          </DialogHeader>
+          {composerOpen && selected?.type === "PRESCRIPTION" && !readonly && !pending && (
+            <PrescriptionComposer
+              key={`${appointmentId}:${selected.id}`}
+              appointmentId={appointmentId}
+              onInsert={(text) => {
+                if (!editorRef.current || readonly || pending) return;
+                editorRef.current
+                  .chain()
+                  .focus()
+                  .insertContentAt(
+                    editorRef.current.state.doc.content.size,
+                    plainTextRichContent(text).content ?? [],
+                  )
+                  .run();
+                setComposerOpen(false);
+                setMessage("Composição inserida. Revise o texto e salve o rascunho.");
+              }}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
       <Dialog
         open={amendmentKind !== null}
         onOpenChange={(open) => {
