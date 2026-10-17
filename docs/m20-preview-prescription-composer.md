@@ -39,3 +39,13 @@ Na coluna do documento, **Quantidade a dispensar** e **Unidade de dispensação*
 Sem migration: os novos campos são opcionais dentro da fórmula JSON existente. A entrega permanece exclusiva do Preview; não cria usuários, não envia mensagens e não altera documentos finalizados ou produção.
 
 Verificação do M20C: typecheck, build e lint aprovados (os seis avisos existentes); 230 testes unitários/interface, 260 de integração, runtime 3/3 e 11 E2E aprovados. O teste de navegador confirma a quantidade/unidade manual no texto salvo e o modelo de referência sem seleção/posologia predefinida; preencher e selecionar o modelo não altera a receita já salva. Revisão visual confirmou cabeçalhos alinhados aos campos e painel de documento separado. Nenhuma migration ou operação no banco oficial foi executada.
+
+## M20D — Posologia inicial e progressão de dose
+
+A área de posologia apresenta o período inicial e o botão **Adicionar aumento de dose**, que abre uma segunda posologia opcional com campos vazios para unidades por administração, administrações por dia e duração em dias. As etapas são sequenciais: o texto calculado informa os intervalos de dias e o início da etapa seguinte após concluir a anterior. Etapas adicionais continuam disponíveis e cada período pode ser removido explicitamente. Não se aumenta dose automaticamente nem se recomenda um valor de titulação.
+
+A progressão altera unidades por administração e frequência/duração informadas; a concentração de cada componente por unidade é preservada. Quantidade a dispensar e unidade permanecem separadas do total de unidades calculado. Uma manutenção sem prazo só pode ser a última etapa e mantém o total indeterminado. Protocolos antigos permanecem compatíveis; documentos já finalizados não são reprocessados.
+
+Sem nova migration ou promoção para produção. A inserção continua limitada a rascunhos com confirmação do profissional, e alterações da posologia invalidam a prévia validada anteriormente.
+
+Verificação do M20D: typecheck, build e lint aprovados (somente seis avisos preexistentes); 232 testes unitários/interface e 11 E2E aprovados. A cobertura nova valida início e fim dos períodos, manutenção após etapa finita, segunda posologia vazia até preenchimento, remoção explícita e quantidade total. O navegador cria a segunda etapa pelo novo botão, confere a sequência na prévia e salva somente um rascunho. A implantação oficial permaneceu com o mesmo identificador.

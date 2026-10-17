@@ -503,10 +503,27 @@ export function PrescriptionComposer({
             </label>
           </div>
           <div className="space-y-3">
-            <h3 className="font-medium">Etapas em sequência</h3>
+            <h3 className="font-medium">Posologia e progressão de dose</h3>
+            <p className="text-xs text-muted-foreground">
+              Defina a posologia inicial e, se necessário, uma segunda posologia para aumento ou
+              ajuste. As etapas serão aplicadas em sequência, sem alterar a quantidade de cada ativo
+              por unidade de administração.
+            </p>
             {formula.phases.map((phase, index) => (
               <fieldset key={index} className="space-y-2 rounded-xl border p-3">
                 <legend>Etapa {index + 1}</legend>
+                <h4 className="font-medium text-teal-950">
+                  {index === 0
+                    ? "Posologia inicial"
+                    : index === 1
+                      ? "Segunda posologia · aumento ou ajuste"
+                      : "Continuação da posologia"}
+                </h4>
+                <p className="text-xs text-muted-foreground">
+                  {index === 0
+                    ? "Primeiro período do tratamento."
+                    : "Iniciar somente após concluir a etapa anterior, conforme orientação do prescritor."}
+                </p>
                 <div className="grid gap-2 sm:grid-cols-3">
                   {(
                     [
@@ -576,14 +593,53 @@ export function PrescriptionComposer({
                 </Button>
               </fieldset>
             ))}
-            <Button
-              type="button"
-              variant="outline"
-              disabled={formula.phases.length >= 12 || formula.phases.some((p) => p.maintenance)}
-              onClick={() => change({ ...formula, phases: [...formula.phases, emptyPhase()] })}
-            >
-              Adicionar etapa
-            </Button>
+            {formula.phases.length === 1 && (
+              <Button
+                type="button"
+                variant="outline"
+                disabled={formula.phases[0]?.maintenance}
+                className="border-teal-300 text-teal-950"
+                onClick={() =>
+                  change({
+                    ...formula,
+                    phases: [
+                      ...formula.phases,
+                      {
+                        doseUnits: NaN,
+                        frequencyPerDay: NaN,
+                        durationDays: NaN,
+                        maintenance: false,
+                      },
+                    ],
+                  })
+                }
+              >
+                Adicionar aumento de dose
+              </Button>
+            )}
+            {formula.phases.length > 1 && (
+              <Button
+                type="button"
+                variant="outline"
+                disabled={formula.phases.length >= 12 || formula.phases.some((p) => p.maintenance)}
+                onClick={() =>
+                  change({
+                    ...formula,
+                    phases: [
+                      ...formula.phases,
+                      {
+                        doseUnits: NaN,
+                        frequencyPerDay: NaN,
+                        durationDays: NaN,
+                        maintenance: false,
+                      },
+                    ],
+                  })
+                }
+              >
+                Adicionar etapa
+              </Button>
+            )}
           </div>
           <label className="block">
             Orientações adicionais

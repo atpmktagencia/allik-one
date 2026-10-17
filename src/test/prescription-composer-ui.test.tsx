@@ -77,6 +77,28 @@ function pointer(target: Element | Window | Document, type: string) {
   fireEvent(target, event);
 }
 describe("Structured prescription review", () => {
+  it("adds an optional second dose schedule without suggesting values and removes it explicitly", () => {
+    setup();
+    expect(screen.getByText("Posologia inicial")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Adicionar aumento de dose" }));
+    const second = screen.getByRole("group", { name: /^Etapa 2$/ });
+    expect(within(second).getByText("Segunda posologia · aumento ou ajuste")).toBeInTheDocument();
+    for (const label of ["Unidades por administração", "Administrações por dia", "Duração em dias"])
+      expect(within(second).getByLabelText(label)).toHaveValue(null);
+    expect(screen.getByRole("button", { name: /^Calcular e revisar composição$/ })).toBeDisabled();
+    fireEvent.change(within(second).getByLabelText("Unidades por administração"), {
+      target: { value: "2" },
+    });
+    fireEvent.change(within(second).getByLabelText("Administrações por dia"), {
+      target: { value: "1" },
+    });
+    fireEvent.change(within(second).getByLabelText("Duração em dias"), { target: { value: "10" } });
+    expect(screen.getByRole("button", { name: /^Calcular e revisar composição$/ })).toBeEnabled();
+    expect(screen.getByText(/Após concluir a etapa anterior \(dias 2 a 11\)/)).toBeInTheDocument();
+    fireEvent.click(within(second).getByRole("button", { name: "Remover etapa 2" }));
+    expect(screen.queryByRole("group", { name: /^Etapa 2$/ })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Adicionar aumento de dose" })).toBeEnabled();
+  });
   it("requires explicit review before inserting text and never saves or finalizes a document", async () => {
     const { insert, requests } = setup();
     fireEvent.click(screen.getByRole("button", { name: /^Calcular e revisar composição$/ }));

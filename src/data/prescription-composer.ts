@@ -117,10 +117,14 @@ export function composePrescription(value: unknown): PrescriptionComposition {
     `Apresentação: ${f.presentation}`,
     `Via: ${f.route}`,
     "Posologia:",
-    ...f.phases.map(
-      (p, i) =>
-        `${i + 1}. ${p.doseUnits} unidade(s) por administração, ${p.frequencyPerDay} vez(es) ao dia, ${p.maintenance ? "em manutenção, sem prazo definido" : `por ${p.durationDays} dia(s)`}.`,
-    ),
+    ...f.phases.map((p, i) => {
+      const firstDay =
+        1 + f.phases.slice(0, i).reduce((days, phase) => days + phase.durationDays, 0);
+      const period = p.maintenance
+        ? `a partir do dia ${firstDay}`
+        : `dias ${firstDay} a ${firstDay + p.durationDays - 1}`;
+      return `${i + 1}. ${i === 0 ? "Posologia inicial" : "Após concluir a etapa anterior"} (${period}): ${p.doseUnits} unidade(s) por administração, ${p.frequencyPerDay} vez(es) ao dia, ${p.maintenance ? "em manutenção, sem prazo definido" : `por ${p.durationDays} dia(s)`}.`;
+    }),
     `Quantidade: ${quantityLabel}`,
     ...(f.dispenseQuantity && f.dispenseUnit
       ? [

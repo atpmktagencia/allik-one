@@ -24,6 +24,16 @@ const formula = () => ({
   ],
 });
 describe("Prescription composition arithmetic", () => {
+  it("prints the initial schedule and the subsequent dose as sequential day ranges", () => {
+    const result = composePrescription(formula());
+    expect(result.text).toContain("Posologia inicial (dias 1 a 7): 1 unidade(s)");
+    expect(result.text).toContain("Após concluir a etapa anterior (dias 8 a 17): 2 unidade(s)");
+    const maintenance = formula();
+    maintenance.phases[1]!.maintenance = true;
+    expect(composePrescription(maintenance).text).toContain(
+      "Após concluir a etapa anterior (a partir do dia 8)",
+    );
+  });
   it("sums administration units across phases without multiplying by ingredient count or converting dose", () => {
     const f = formula(),
       result = composePrescription(f);

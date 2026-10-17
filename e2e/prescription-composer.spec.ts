@@ -91,7 +91,7 @@ test("individual clinician composes a prescription and explicitly saves a draft"
     await first.getByLabel("Unidades por administração", { exact: true }).fill("1");
     await first.getByLabel("Administrações por dia", { exact: true }).fill("2");
     await first.getByLabel("Duração em dias", { exact: true }).fill("10");
-    await dialog.getByRole("button", { name: "Adicionar etapa", exact: true }).click();
+    await dialog.getByRole("button", { name: "Adicionar aumento de dose", exact: true }).click();
     const second = dialog.getByRole("group", { name: "Etapa 2", exact: true });
     await second.getByLabel("Unidades por administração", { exact: true }).fill("2");
     await second.getByLabel("Administrações por dia", { exact: true }).fill("1");
@@ -145,6 +145,8 @@ test("individual clinician composes a prescription and explicitly saves a draft"
       .click();
     const preview = dialog.getByRole("region", { name: "Revisão da composição" });
     await expect(preview.getByRole("heading")).toContainText("70 unidade(s)");
+    await expect(preview).toContainText("Posologia inicial (dias 1 a 10)");
+    await expect(preview).toContainText("Após concluir a etapa anterior (dias 11 a 35)");
     await expect(
       dialog.getByRole("button", { name: "Inserir no rascunho da receita" }),
     ).toBeDisabled();
