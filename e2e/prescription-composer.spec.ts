@@ -52,6 +52,7 @@ test("individual clinician composes a prescription and explicitly saves a draft"
       [user, createHash("sha256").update(token).digest("hex")],
     );
     await context.addCookies([{ name: "allik_inventory_session", value: token, url: baseURL! }]);
+    await page.setViewportSize({ width: 1500, height: 1000 });
     await page.goto(`/atendimentos/${appointment}`);
     const documents = page.locator("#documentos");
     await documents.getByRole("button", { name: "Novo documento", exact: true }).click();
@@ -62,9 +63,24 @@ test("individual clinician composes a prescription and explicitly saves a draft"
     const dialog = page.getByRole("dialog", {
       name: "Composição estruturada e protocolos pessoais",
     });
-    await dialog.getByLabel("Nome do componente", { exact: true }).fill("Componente sintético");
-    await dialog.getByLabel("Quantidade por unidade", { exact: true }).fill("10");
-    await dialog.getByLabel("Unidade da quantidade (ex.: mg)", { exact: true }).fill("mg");
+    const component = (n: number) =>
+      dialog.getByRole("group", { name: `Componente ${n}`, exact: true });
+    await component(1)
+      .getByLabel("Nome do componente", { exact: true })
+      .fill("Componente sintético");
+    await component(1).getByLabel("Quantidade por unidade", { exact: true }).fill("10");
+    await component(1).getByLabel("Unidade da quantidade (ex.: mg)", { exact: true }).fill("mg");
+    for (const [number, name] of [
+      [2, "Ingrediente excluído B"],
+      [3, "Ingrediente excluído C"],
+    ] as const) {
+      await dialog.getByRole("button", { name: "Adicionar componente", exact: true }).click();
+      await component(number).getByLabel("Nome do componente", { exact: true }).fill(name);
+      await component(number).getByLabel("Quantidade por unidade", { exact: true }).fill("5");
+      await component(number)
+        .getByLabel("Unidade da quantidade (ex.: mg)", { exact: true })
+        .fill("mg");
+    }
     await dialog
       .getByLabel("Apresentação (unidade de administração)", { exact: true })
       .fill("cápsula");
@@ -78,6 +94,50 @@ test("individual clinician composes a prescription and explicitly saves a draft"
     await second.getByLabel("Unidades por administração", { exact: true }).fill("2");
     await second.getByLabel("Administrações por dia", { exact: true }).fill("1");
     await second.getByLabel("Duração em dias", { exact: true }).fill("25");
+    const livePreview = dialog.getByRole("complementary", {
+      name: "Prévia do documento",
+      exact: true,
+    });
+    await expect(livePreview).toContainText("Ingrediente excluído B");
+    await page.screenshot({ path: "/workspace/work/m20b-composer-desktop.png", fullPage: false });
+    await page.setViewportSize({ width: 390, height: 844 });
+    expect(
+      await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
+    ).toBe(true);
+    expect(await dialog.evaluate((node) => node.scrollWidth <= node.clientWidth + 1)).toBe(true);
+    // A tall desktop viewport keeps all three selectors visible for a genuine continuous pointer drag.
+    await page.setViewportSize({ width: 1500, height: 1600 });
+    await dialog.locator('[data-composer-selector="0"]').scrollIntoViewIfNeeded();
+    const boxes = await Promise.all(
+      [1, 2, 3].map((n) =>
+        dialog
+          .getByRole("checkbox", { name: `Incluir componente ${n}`, exact: true })
+          .boundingBox(),
+      ),
+    );
+    expect(boxes.every(Boolean)).toBe(true);
+    const points = boxes.map((box) => ({
+      x: box!.x + box!.width / 2,
+      y: box!.y + box!.height / 2,
+    }));
+    await page.mouse.move(points[0].x, points[0].y);
+    await page.mouse.down();
+    await page.mouse.move(points[1].x, points[1].y, { steps: 12 });
+    await page.mouse.move(points[2].x, points[2].y, { steps: 12 });
+    await page.mouse.up();
+    for (const n of [1, 2, 3])
+      await expect(
+        dialog.getByRole("checkbox", { name: `Incluir componente ${n}`, exact: true }),
+      ).not.toBeChecked();
+    await expect(livePreview).not.toContainText("Componente sintético");
+    await dialog.getByRole("checkbox", { name: "Incluir componente 1", exact: true }).click();
+    await expect(
+      dialog.getByRole("checkbox", { name: "Incluir componente 1", exact: true }),
+    ).toBeChecked();
+    await expect(livePreview).toContainText("Componente sintético: 10 mg");
+    await expect(livePreview).not.toContainText("Ingrediente excluído B");
+    await expect(livePreview).not.toContainText("Ingrediente excluído C");
+    await page.setViewportSize({ width: 1500, height: 1000 });
     await dialog
       .getByRole("button", { name: "Calcular e revisar composição", exact: true })
       .click();
@@ -100,7 +160,7 @@ test("individual clinician composes a prescription and explicitly saves a draft"
     await dialog
       .getByRole("combobox", { name: "Protocolo pessoal", exact: true })
       .selectOption(protocol.rows[0].id);
-    await expect(dialog.getByLabel("Nome do componente", { exact: true })).toHaveValue(
+    await expect(component(1).getByLabel("Nome do componente", { exact: true })).toHaveValue(
       "Componente sintético",
     );
     await dialog
@@ -126,6 +186,8 @@ test("individual clinician composes a prescription and explicitly saves a draft"
     expect(stored.rows[0].status).toBe("DRAFT");
     expect(stored.rows[0].content).toContain("Componente sintético: 10 mg");
     expect(stored.rows[0].content).toContain("70 unidade(s)");
+    expect(stored.rows[0].content).not.toContain("Ingrediente excluído B");
+    expect(stored.rows[0].content).not.toContain("Ingrediente excluído C");
     await page.reload({ waitUntil: "networkidle" });
     await expect(documents.getByText(/Componente sintético: 10 mg/)).toBeVisible();
   } finally {

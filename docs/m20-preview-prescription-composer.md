@@ -17,3 +17,13 @@ O projeto atingiu o limite de branches na rodada anterior; nenhum backup será r
 Verificação concluída: typecheck, build e lint aprovados (seis avisos preexistentes de Fast Refresh); 204 testes unitários e mais dois testes específicos de interface, 260 testes de integração, 11 E2E com runtime restrito, verificações do runtime 3/3 e guardas de build/migration 7/7. O E2E novo confirma cálculo, reutilização de protocolo, revisão explícita e persistência como DRAFT, sem finalização.
 
 Os 64 hashes existentes foram conferidos integralmente antes da transação. A 0064 foi aplicada somente no Preview, que agora possui 65 migrations. A conta restrita recebeu os grants específicos; histórico sem UPDATE/DELETE/TRUNCATE, TEMP negado. Não houve criação de usuários, envio de mensagens ou alteração de credenciais. A base oficial permaneceu com 61 migrations e sem as tabelas do M20.
+
+## M20B — Compositor em três painéis
+
+A biblioteca de protocolos pessoais fica à esquerda; os ativos e a posologia, no centro; a prévia do texto, à direita. Em telas pequenas, o conteúdo se adapta sem exigir três colunas comprimidas. O documento mostrado continua uma prévia, sem finalização ou assinatura automática.
+
+Cada ativo pode ser marcado/desmarcado. O arraste começa no seletor e aplica a mesma intenção aos demais seletores percorridos: iniciar num item marcado desmarca o grupo; iniciar num desmarcado marca o grupo. Os campos de edição e a rolagem não iniciam essa seleção. O clique e o teclado continuam disponíveis. Itens desmarcados mantêm seus valores durante a edição, mas não entram na composição enviada ao servidor ou salva como protocolo. Não selecionar nenhum item bloqueia a composição.
+
+A prévia local acompanha a seleção e os campos válidos; a inserção no rascunho exige novamente a prévia calculada no servidor e confirmação explícita. Qualquer alteração clínica invalida essa confirmação. A mudança é de interface, sem migration ou alteração de permissões, dados de produção ou regras clínicas.
+
+Verificação do M20B: typecheck, build e lint aprovados (somente os seis avisos existentes); 209 testes unitários/interface e 11 E2E aprovados. O navegador exercitou arraste contínuo real, exclusão e nova seleção, conteúdo final do rascunho, disposição desktop e ausência de transbordamento horizontal na largura de 390 px. Nenhuma migration foi necessária. A implantação oficial manteve o mesmo identificador.

@@ -957,7 +957,7 @@ export function EncounterDocumentsCard({ appointmentId }: { appointmentId: strin
         </div>
       )}
       <Dialog open={composerOpen} onOpenChange={setComposerOpen}>
-        <DialogContent className="max-h-[90dvh] max-w-3xl overflow-y-auto rounded-2xl">
+        <DialogContent className="max-h-[94dvh] w-[96vw] max-w-[1600px] overflow-y-auto rounded-2xl">
           <DialogHeader>
             <DialogTitle>Composição estruturada e protocolos pessoais</DialogTitle>
             <DialogDescription>
