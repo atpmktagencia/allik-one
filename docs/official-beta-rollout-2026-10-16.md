@@ -1,6 +1,6 @@
 # Official clinical beta — migration rehearsal
 
-Status: database rehearsal passed; official rollout remains pending. No new application users or invitations were created. Production database, configuration and domains were not changed.
+Status at rehearsal: database rehearsal passed; official rollout remained pending. The rehearsal did not change Production database, configuration or domains. For the subsequently authorized rollout, see [official deployment record](official-beta-deployment-2026-10-17.md).
 
 Candidate: `36635a3b1e6e0084cbc06fbc91d2ff3c1ecca63f` (documentation after tested code `df9b767400183de86769bf1abe7a6defc1acff87`). Release-owner decisions and test limits remain in [beta readiness](beta-readiness-2026-10-16.md).
 
