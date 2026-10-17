@@ -29,6 +29,19 @@ describe("Care encounter UI", () => {
     vi.stubGlobal(
       "fetch",
       vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+        if (String(_input).includes("care-tasks"))
+          return Response.json({
+            data: {
+              tasks: [],
+              units: [],
+              assignees: [],
+              canManage: false,
+              hasMore: false,
+              userId: null,
+            },
+          });
+        if (String(_input).includes("/inventory/patients"))
+          return Response.json({ data: { patients: [] } });
         if (String(_input).includes("encounter-documents"))
           return Response.json({ data: { documents: [], templates: [], canAuthor: true } });
         if (init?.method === "POST") {
@@ -143,6 +156,19 @@ describe("Care encounter UI", () => {
     vi.stubGlobal(
       "fetch",
       vi.fn(async (input: RequestInfo | URL) => {
+        if (String(input).includes("care-tasks"))
+          return Response.json({
+            data: {
+              tasks: [],
+              units: [],
+              assignees: [],
+              canManage: false,
+              hasMore: false,
+              userId: null,
+            },
+          });
+        if (String(input).includes("/inventory/patients"))
+          return Response.json({ data: { patients: [] } });
         if (String(input).includes("encounter-documents"))
           return Response.json({ data: { documents: [], templates: [], canAuthor: false } });
         if (String(input).includes("encounter-prescriptions"))
@@ -226,6 +252,19 @@ describe("Clinical draft concurrency", () => {
     vi.stubGlobal(
       "fetch",
       vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        if (String(input).includes("care-tasks"))
+          return Response.json({
+            data: {
+              tasks: [],
+              units: [],
+              assignees: [],
+              canManage: false,
+              hasMore: false,
+              userId: null,
+            },
+          });
+        if (String(input).includes("/inventory/patients"))
+          return Response.json({ data: { patients: [] } });
         if (String(input).includes("encounter-documents"))
           return Response.json({ data: { documents: [], templates: [], canAuthor: false } });
         if (String(input).includes("encounter-prescriptions"))

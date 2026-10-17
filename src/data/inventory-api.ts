@@ -90,13 +90,15 @@ export async function fetchInventory<T>(resource: string): Promise<T> {
   const body = await readInventoryResponse<T>(response, "Não foi possível consultar os dados.");
   return body.data as T;
 }
-export function useInventory<T>(resource: string) {
+export function useInventory<T>(resource: string, options?: { enabled?: boolean }) {
   const patientResource =
     resource.startsWith("patient-") ||
+    resource.startsWith("care-tasks") ||
     resource.startsWith("care-encounter") ||
     resource.startsWith("encounter-documents");
   const requestPath = withSelectedUnit(`/api/v1/inventory/${resource}`);
   return useQuery<T>({
+    enabled: options?.enabled ?? true,
     queryKey: ["inventory", requestPath],
     queryFn: async () => {
       const response = await fetch(requestPath, { credentials: "same-origin" });

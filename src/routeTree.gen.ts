@@ -20,6 +20,7 @@ import { Route as ExamesRouteImport } from './routes/exames'
 import { Route as FinanceiroRouteImport } from './routes/financeiro'
 import { Route as PacientesRouteImport } from './routes/pacientes'
 import { Route as ProntuarioRouteImport } from './routes/prontuario'
+import { Route as TarefasRouteImport } from './routes/tarefas'
 import { Route as VendasRouteImport } from './routes/vendas'
 import { Route as ApiInventoryActivationRouteImport } from './routes/api/inventory-activation'
 import { Route as ApiInventorySessionRouteImport } from './routes/api/inventory-session'
@@ -101,6 +102,11 @@ const PacientesRoute = PacientesRouteImport.update({
 const ProntuarioRoute = ProntuarioRouteImport.update({
   id: '/prontuario',
   path: '/prontuario',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TarefasRoute = TarefasRouteImport.update({
+  id: '/tarefas',
+  path: '/tarefas',
   getParentRoute: () => rootRouteImport,
 } as any)
 const VendasRoute = VendasRouteImport.update({
@@ -256,6 +262,7 @@ export interface FileRoutesByFullPath {
   '/financeiro': typeof FinanceiroRoute
   '/pacientes': typeof PacientesRouteWithChildren
   '/prontuario': typeof ProntuarioRoute
+  '/tarefas': typeof TarefasRoute
   '/vendas': typeof VendasRoute
   '/api/inventory-activation': typeof ApiInventoryActivationRoute
   '/api/inventory-session': typeof ApiInventorySessionRoute
@@ -293,6 +300,7 @@ export interface FileRoutesByTo {
   '/exames': typeof ExamesRoute
   '/financeiro': typeof FinanceiroRoute
   '/prontuario': typeof ProntuarioRoute
+  '/tarefas': typeof TarefasRoute
   '/vendas': typeof VendasRoute
   '/api/inventory-activation': typeof ApiInventoryActivationRoute
   '/api/inventory-session': typeof ApiInventorySessionRoute
@@ -334,6 +342,7 @@ export interface FileRoutesById {
   '/financeiro': typeof FinanceiroRoute
   '/pacientes': typeof PacientesRouteWithChildren
   '/prontuario': typeof ProntuarioRoute
+  '/tarefas': typeof TarefasRoute
   '/vendas': typeof VendasRoute
   '/api/inventory-activation': typeof ApiInventoryActivationRoute
   '/api/inventory-session': typeof ApiInventorySessionRoute
@@ -376,6 +385,7 @@ export interface FileRouteTypes {
     | '/financeiro'
     | '/pacientes'
     | '/prontuario'
+    | '/tarefas'
     | '/vendas'
     | '/api/inventory-activation'
     | '/api/inventory-session'
@@ -413,6 +423,7 @@ export interface FileRouteTypes {
     | '/exames'
     | '/financeiro'
     | '/prontuario'
+    | '/tarefas'
     | '/vendas'
     | '/api/inventory-activation'
     | '/api/inventory-session'
@@ -453,6 +464,7 @@ export interface FileRouteTypes {
     | '/financeiro'
     | '/pacientes'
     | '/prontuario'
+    | '/tarefas'
     | '/vendas'
     | '/api/inventory-activation'
     | '/api/inventory-session'
@@ -494,6 +506,7 @@ export interface RootRouteChildren {
   FinanceiroRoute: typeof FinanceiroRoute
   PacientesRoute: typeof PacientesRouteWithChildren
   ProntuarioRoute: typeof ProntuarioRoute
+  TarefasRoute: typeof TarefasRoute
   VendasRoute: typeof VendasRoute
   ApiInventoryActivationRoute: typeof ApiInventoryActivationRoute
   ApiInventorySessionRoute: typeof ApiInventorySessionRoute
@@ -579,6 +592,13 @@ declare module '@tanstack/react-router' {
       path: '/prontuario'
       fullPath: '/prontuario'
       preLoaderRoute: typeof ProntuarioRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/tarefas': {
+      id: '/tarefas'
+      path: '/tarefas'
+      fullPath: '/tarefas'
+      preLoaderRoute: typeof TarefasRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/vendas': {
@@ -865,6 +885,7 @@ const rootRouteChildren: RootRouteChildren = {
   FinanceiroRoute: FinanceiroRoute,
   PacientesRoute: PacientesRouteWithChildren,
   ProntuarioRoute: ProntuarioRoute,
+  TarefasRoute: TarefasRoute,
   VendasRoute: VendasRoute,
   ApiInventoryActivationRoute: ApiInventoryActivationRoute,
   ApiInventorySessionRoute: ApiInventorySessionRoute,

@@ -2395,3 +2395,75 @@ export const documentDeliveryEvents = pgTable(
     ),
   ],
 );
+
+export const careTasks = pgTable(
+  "inventory_care_tasks",
+  {
+    id: uuid("id").primaryKey(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id),
+    unitId: uuid("unit_id")
+      .notNull()
+      .references(() => units.id),
+    patientId: uuid("patient_id")
+      .notNull()
+      .references(() => patients.id),
+    appointmentId: uuid("appointment_id").references(() => careAppointments.id),
+    kind: text("kind").notNull(),
+    title: text("title").notNull(),
+    instructions: text("instructions").notNull().default(""),
+    dueOn: date("due_on").notNull(),
+    assigneeUserId: uuid("assignee_user_id").references(() => users.id),
+    status: text("status").notNull().default("OPEN"),
+    resolution: text("resolution").notNull().default(""),
+    createdByUserId: uuid("created_by_user_id")
+      .notNull()
+      .references(() => users.id),
+    updatedByUserId: uuid("updated_by_user_id")
+      .notNull()
+      .references(() => users.id),
+    changeReason: text("change_reason").notNull(),
+    version: integer("version").notNull().default(0),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("care_task_unit_queue").on(t.organizationId, t.unitId, t.status, t.dueOn, t.id),
+    index("care_task_patient").on(t.organizationId, t.patientId, t.createdAt),
+    index("care_task_assignee").on(t.assigneeUserId, t.status, t.dueOn),
+    check(
+      "care_task_kind_valid",
+      sql`${t.kind} IN ('RETURN','EXAMS','CONTACT','DOCUMENT','OTHER')`,
+    ),
+    check("care_task_status_valid", sql`${t.status} IN ('OPEN','IN_PROGRESS','DONE','CANCELED')`),
+    check("care_task_title_valid", sql`char_length(trim(${t.title})) BETWEEN 3 AND 160`),
+    check("care_task_instructions_valid", sql`char_length(${t.instructions}) <= 1000`),
+    check("care_task_reason_valid", sql`char_length(trim(${t.changeReason})) BETWEEN 3 AND 500`),
+    check(
+      "care_task_resolution_valid",
+      sql`char_length(${t.resolution}) <= 1000 AND (${t.status} NOT IN ('DONE','CANCELED') OR char_length(trim(${t.resolution})) >= 3)`,
+    ),
+    check("care_task_version_valid", sql`${t.version} >= 0`),
+  ],
+);
+
+export const careTaskEvents = pgTable(
+  "inventory_care_task_events",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    taskId: uuid("task_id")
+      .notNull()
+      .references(() => careTasks.id),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id),
+    actorUserId: uuid("actor_user_id")
+      .notNull()
+      .references(() => users.id),
+    beforeData: jsonb("before_data"),
+    afterData: jsonb("after_data").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("care_task_event_history").on(t.taskId, t.createdAt, t.id)],
+);

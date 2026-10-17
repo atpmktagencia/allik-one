@@ -1,3 +1,4 @@
+import { CareTasksPanel } from "./care-tasks-panel";
 import { PatientAllergySummary } from "./patient-allergy-summary";
 import type { AllergySummary } from "@/lib/patient-allergies";
 import { Link, useBlocker } from "@tanstack/react-router";
@@ -921,6 +922,13 @@ export function CareEncounterPage({ appointmentId }: { appointmentId: string }) 
                 </label>
               </div>
             </section>
+            <CareTasksPanel
+              key={appointmentId}
+              unitId={data.appointment.unitId}
+              patientId={data.appointment.patientId}
+              appointmentId={appointmentId}
+              returnOn={clinicalClosure.returnOn}
+            />
             <label id="conduta" className="block scroll-mt-40 space-y-2 text-sm font-medium">
               Conduta
               <Textarea

@@ -584,6 +584,11 @@ export function PatientTreatmentPage({ patientId }: { patientId: string }) {
         action={
           <div className="flex flex-wrap gap-2">
             <Button asChild variant="outline">
+              <Link to="/tarefas" search={{ patientId }}>
+                Tarefas da equipe
+              </Link>
+            </Button>
+            <Button asChild variant="outline">
               <Link to="/pacientes/$patientId/prontuario" params={{ patientId }}>
                 <Stethoscope /> Abrir prontuário
               </Link>

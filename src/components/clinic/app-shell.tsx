@@ -51,6 +51,7 @@ const operationItems = [
 ] as const;
 
 const careItems = [
+  { label: "Tarefas da equipe", to: "/tarefas", icon: ListChecks },
   { label: "Agendamentos", to: "/agenda", icon: CalendarDays },
   { label: "Pacientes", to: "/pacientes", icon: UserRound },
 ] as const;
@@ -63,6 +64,7 @@ const procedureItems = [
 ] as const;
 
 const pageTitles: Record<string, string> = {
+  "/tarefas": "Tarefas da equipe",
   "/estoque": "Estoque atual",
   "/estoque/recebimento": "Pedidos e entradas",
   "/estoque/movimentacoes": "Movimentações e histórico",

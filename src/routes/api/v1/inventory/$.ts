@@ -1,3 +1,4 @@
+import { careTasksResponse } from "@/server/care-tasks";
 import { documentDeliveryResponse } from "@/server/document-delivery";
 import { passwordSecurityResponse } from "@/server/password-security";
 import { createFileRoute } from "@tanstack/react-router";
@@ -52,6 +53,8 @@ export const Route = createFileRoute("/api/v1/inventory/$")({
   server: {
     handlers: {
       GET: ({ request }) => {
+        if (new URL(request.url).pathname.replace(/\/$/, "") === "/api/v1/inventory/care-tasks")
+          return careTasksResponse(request);
         if (
           new URL(request.url).pathname.replace(/\/$/, "") === "/api/v1/inventory/document-delivery"
         )
@@ -140,6 +143,8 @@ export const Route = createFileRoute("/api/v1/inventory/$")({
           : inventoryResponse(request);
       },
       POST: ({ request }) => {
+        if (new URL(request.url).pathname.replace(/\/$/, "") === "/api/v1/inventory/care-tasks")
+          return careTasksResponse(request);
         if (
           new URL(request.url).pathname.replace(/\/$/, "") === "/api/v1/inventory/document-delivery"
         )

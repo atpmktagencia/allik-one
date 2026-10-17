@@ -428,6 +428,20 @@
       "when": 1794272400017,
       "tag": "0060_function_search_path",
       "breakpoints": true
+    },
+    {
+      "idx": 61,
+      "version": "7",
+      "when": 1794272400018,
+      "tag": "0061_care_team_tasks",
+      "breakpoints": true
+    },
+    {
+      "idx": 62,
+      "version": "7",
+      "when": 1794272400019,
+      "tag": "0062_care_task_transfer_scope",
+      "breakpoints": true
     }
   ]
 }
