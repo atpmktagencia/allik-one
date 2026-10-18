@@ -86,3 +86,7 @@ The typed catalog, explicit active/SKU and commercial associations, unit sale-pr
 ## M21C implementation
 
 Existing personal protocol heads and immutable versions now support explicit private-reader grants, organization sharing, unit restrictions and institutional submission/independent approval. Reviewed use creates an immutable formula instance linked to the existing prescription document; source updates cannot rewrite it. See [M21C policy and migration](m21c-shared-templates.md). General longitudinal plans and calendar/dispensing adapters remain the next milestone, M21D; general automatic quote calculation is not part of this delivery.
+
+## M21D implementation
+
+The general clinical-plan aggregate is independent of existing product-specific execution treatments and commercial quotes. Stable intervention items can reference existing catalog, treatment, appointment and immutable prescription-instance identities. A pure bounded calendar/quantity module handles explicit stages, weekdays/times, unknown totals and exact same-unit dispensing/package arithmetic. Immutable plan versions and idempotent events preserve clinical history. See [M21D design and validation](m21d-clinical-plans.md). No scheduling, prescription finalization or stock/commerce side effects are introduced. M21E, the general probable-quote engine, is next.

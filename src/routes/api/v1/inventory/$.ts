@@ -1,3 +1,4 @@
+import { patientTreatmentPlansResponse } from "@/server/patient-treatment-plans";
 import { engineCatalogResponse } from "@/server/engine-catalog";
 import { prescriptionComposerResponse } from "@/server/prescription-composer";
 import { preconsultationResponse, preconsultationPublicResponse } from "@/server/preconsultation";
@@ -56,6 +57,11 @@ export const Route = createFileRoute("/api/v1/inventory/$")({
   server: {
     handlers: {
       GET: ({ request }) => {
+        if (
+          new URL(request.url).pathname.replace(/\/$/, "") ===
+          "/api/v1/inventory/patient-treatment-plans"
+        )
+          return patientTreatmentPlansResponse(request);
         if (new URL(request.url).pathname.replace(/\/$/, "") === "/api/v1/inventory/engine-catalog")
           return engineCatalogResponse(request);
         if (
@@ -162,6 +168,11 @@ export const Route = createFileRoute("/api/v1/inventory/$")({
           : inventoryResponse(request);
       },
       POST: ({ request }) => {
+        if (
+          new URL(request.url).pathname.replace(/\/$/, "") ===
+          "/api/v1/inventory/patient-treatment-plans"
+        )
+          return patientTreatmentPlansResponse(request);
         if (new URL(request.url).pathname.replace(/\/$/, "") === "/api/v1/inventory/engine-catalog")
           return engineCatalogResponse(request);
         if (

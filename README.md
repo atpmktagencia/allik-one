@@ -475,3 +475,11 @@ Itens sem preço ou com referência desativada permanecem indisponíveis. Não h
 A biblioteca da composição agora permite transformar uma fórmula revisada em modelo privado, da organização ou institucional, com categoria, descrição e unidades. Modelos privados não ficam acessíveis a administradores automaticamente: o autor concede consulta expressa. A edição da origem exige ação explícita; modelos institucionais passam por submissão e aprovação independente de um SUPER_ADMIN prescritor habilitado.
 
 Inserir uma composição revisada registra uma instância imutável vinculada ao rascunho, com fórmula própria e revisão de origem quando disponível. Mudanças posteriores no modelo não alteram essa cópia nem receitas anteriores. O fluxo normal de salvar rascunho, finalizar e assinar permanece explícito. A confirmação de ausência de dados pessoais é obrigatória para modelos; verificações de texto complementam a revisão humana. Consulte [política, arquitetura e validação do M21C](docs/m21c-shared-templates.md). Ativação somente no Preview pela migration `0066_prescription_protocol_governance`.
+
+### M21D — Plano clínico, posologia e dispensação modular (Preview)
+
+A página do paciente tem uma seção independente “Plano clínico estruturado”, carregada apenas ao abrir. O plano reúne prescrições, procedimentos, consultas, sessões, serviços e retornos, com itens opcionais e vínculos explícitos ao catálogo e aos registros clínicos existentes. Não substitui os tratamentos operacionais por produto.
+
+As etapas usam data inicial, intervalo, frequência, dias da semana e horários informados. Totais indeterminados permanecem indeterminados; a prévia de calendário é limitada sem truncar os totais finitos. A quantidade prescrita para dispensação é separada do total de administração, e o cálculo de embalagens exige capacidade e unidade idêntica explícitas, com aritmética decimal exata. Não há conversão de medicamentos ou sugestão de doses.
+
+Salvar ou ativar um plano não finaliza receitas, agenda sessões, cria orçamento/venda nem reserva ou consome estoque. Alterações têm versões imutáveis, auditoria idempotente e permissões clínicas por paciente e unidades. Consulte [desenho, limites e validação do M21D](docs/m21d-clinical-plans.md). Migração aditiva `0067_clinical_treatment_plans`, somente no Preview nesta entrega.

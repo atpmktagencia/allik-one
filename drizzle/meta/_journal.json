@@ -470,6 +470,13 @@
       "when": 1794272400023,
       "tag": "0066_prescription_protocol_governance",
       "breakpoints": true
+    },
+    {
+      "idx": 67,
+      "version": "7",
+      "when": 1794272400024,
+      "tag": "0067_clinical_treatment_plans",
+      "breakpoints": true
     }
   ]
 }
