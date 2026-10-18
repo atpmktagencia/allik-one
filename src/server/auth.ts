@@ -546,7 +546,11 @@ export async function sessionResponse(request: Request) {
           units: unitsResult.rows,
           capabilities: {
             canReadPricingCosts: can(context, "pricing.costs.read"),
-            canManagePricing: can(context, "pricing.manage"),
+            canManagePricing:
+              Boolean(context.user.id) &&
+              !context.preview &&
+              !context.integration &&
+              can(context, "pricing.manage"),
           },
         },
       },

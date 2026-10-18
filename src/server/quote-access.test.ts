@@ -2,7 +2,14 @@ import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { migrate } from "drizzle-orm/node-postgres/migrator";
 import { getDb, getPool } from "./db";
-import { hashToken, can, type AuthContext, type Role, type Permission } from "./auth";
+import {
+  sessionResponse,
+  hashToken,
+  can,
+  type AuthContext,
+  type Role,
+  type Permission,
+} from "./auth";
 import { encounterQuotesResponse } from "./encounter-quotes";
 import { pricingResponse } from "./pricing";
 const origin = "https://quote-access.example.test";
@@ -296,6 +303,11 @@ describe("Quote and cost segregation", () => {
     vi.stubEnv("INVENTORY_DISABLE_PREVIEW_LOGIN", "true");
     vi.stubEnv("INVENTORY_PREVIEW_DATA_CLASSIFICATION", "synthetic");
     try {
+      const session = await sessionResponse(new Request(`${origin}/api/inventory-session`));
+      expect(session.status).toBe(200);
+      const body = await session.json();
+      expect(body.data.capabilities.canReadPricingCosts).toBe(true);
+      expect(body.data.capabilities.canManagePricing).toBe(false);
       const response = await pricingResponse(
         new Request(`${origin}/api/v1/inventory/pricing`, {
           method: "POST",
