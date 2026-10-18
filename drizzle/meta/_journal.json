@@ -477,6 +477,13 @@
       "when": 1794272400024,
       "tag": "0067_clinical_treatment_plans",
       "breakpoints": true
+    },
+    {
+      "idx": 68,
+      "version": "7",
+      "when": 1794272400025,
+      "tag": "0068_plan_quote_estimates",
+      "breakpoints": true
     }
   ]
 }

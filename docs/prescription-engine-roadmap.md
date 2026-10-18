@@ -90,3 +90,7 @@ Existing personal protocol heads and immutable versions now support explicit pri
 ## M21D implementation
 
 The general clinical-plan aggregate is independent of existing product-specific execution treatments and commercial quotes. Stable intervention items can reference existing catalog, treatment, appointment and immutable prescription-instance identities. A pure bounded calendar/quantity module handles explicit stages, weekdays/times, unknown totals and exact same-unit dispensing/package arithmetic. Immutable plan versions and idempotent events preserve clinical history. See [M21D design and validation](m21d-clinical-plans.md). No scheduling, prescription finalization or stock/commerce side effects are introduced. M21E, the general probable-quote engine, is next.
+
+## M21E implementation
+
+The general probable-quote engine uses typed commercial mappings and the clinical plan's unit price book. Snapshots preserve plan/price revisions and explicit commercial selections; same-origin charge groups prevent included-insumable duplication. Missing prices/quantities remain unresolved, discounts use an explicit initial SUPER_ADMIN-only policy, and commercial responses omit clinical content and internal costs. Preview digests protect against price changes before saving. See [M21E design and validation](m21e-probable-quotes.md). The saved-plan quote tab and commercial desk are implemented; integrating the complete prescription RECEITA/ORÇAMENTO pane and proposal output remains M21F. No sale/payment or operational stock coupling is introduced.

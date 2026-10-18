@@ -483,3 +483,11 @@ A página do paciente tem uma seção independente “Plano clínico estruturado
 As etapas usam data inicial, intervalo, frequência, dias da semana e horários informados. Totais indeterminados permanecem indeterminados; a prévia de calendário é limitada sem truncar os totais finitos. A quantidade prescrita para dispensação é separada do total de administração, e o cálculo de embalagens exige capacidade e unidade idêntica explícitas, com aritmética decimal exata. Não há conversão de medicamentos ou sugestão de doses.
 
 Salvar ou ativar um plano não finaliza receitas, agenda sessões, cria orçamento/venda nem reserva ou consome estoque. Alterações têm versões imutáveis, auditoria idempotente e permissões clínicas por paciente e unidades. Consulte [desenho, limites e validação do M21D](docs/m21d-clinical-plans.md). Migração aditiva `0067_clinical_treatment_plans`, somente no Preview nesta entrega.
+
+### M21E — Orçamento provável do plano clínico (Preview)
+
+O detalhe do plano salvo possui a aba “Orçamento”, e a área `/orcamentos-planos` permite trabalho comercial sem carregar o conteúdo clínico. As estimativas usam os vínculos explícitos e o preço vigente da unidade original do plano, com origem, data e versões congeladas. Itens pendentes não recebem preço fictício; insumos incluídos exigem uma cobrança principal resolvida no mesmo grupo e origem.
+
+Ajustes comerciais de quantidade/unidade e exclusão de itens opcionais preservam o plano clínico. Descontos são exclusivos do SUPER_ADMIN nesta política inicial. O salvamento confere se preços e vínculos ainda correspondem à prévia exibida; mudanças exigem novo cálculo. Revisões anteriores permanecem imutáveis, e alternar abas preserva os ajustes.
+
+Tudo permanece “Orçamento estimado — não aprovado”: não gera venda, pagamento, reserva, agendamento ou consumo de estoque. Projeções comerciais omitem doses, fórmulas, instruções, custos e margens. Consulte [desenho, políticas e validação do M21E](docs/m21e-probable-quotes.md). Ativação aditiva exclusivamente no Preview pela migration `0068_plan_quote_estimates`.

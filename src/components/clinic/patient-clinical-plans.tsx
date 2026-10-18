@@ -13,6 +13,7 @@ import {
   type TreatmentPlanStage,
   type ComputedTreatmentPlan,
 } from "@/data/treatment-plan";
+import { PlanQuotePanel } from "./plan-quote-panel";
 import { InventoryState } from "./inventory-state";
 type Unit = TreatmentPlanItem["administrationUnit"];
 type FormItem = Omit<TreatmentPlanItem, "dispense" | "package"> & {
@@ -874,6 +875,8 @@ function PlanDetail({
   canManage: boolean;
   onEdit: (plan: TreatmentPlanInput, record?: Head) => void;
 }) {
+  const [tab, setTab] = useState<"clinical" | "quote">("clinical");
+  const [quoteOpened, setQuoteOpened] = useState(false);
   const query = useInventory<{
     plan: TreatmentPlanInput;
     preview: ComputedTreatmentPlan;
@@ -899,7 +902,41 @@ function PlanDetail({
           Editar plano clínico
         </Button>
       )}
-      <Preview plan={data.plan} preview={data.preview} />
+      <div role="tablist" aria-label="Visões do plano clínico" className="flex flex-wrap gap-2">
+        <Button
+          type="button"
+          role="tab"
+          aria-selected={tab === "clinical"}
+          variant={tab === "clinical" ? "default" : "outline"}
+          onClick={() => setTab("clinical")}
+        >
+          Plano clínico
+        </Button>
+        <Button
+          type="button"
+          role="tab"
+          aria-selected={tab === "quote"}
+          variant={tab === "quote" ? "default" : "outline"}
+          onClick={() => {
+            setQuoteOpened(true);
+            setTab("quote");
+          }}
+        >
+          Orçamento
+        </Button>
+      </div>
+      <div hidden={tab !== "clinical"}>
+        <Preview plan={data.plan} preview={data.preview} />
+      </div>
+      {quoteOpened && (
+        <div hidden={tab !== "quote"}>
+          <PlanQuotePanel
+            patientId={patientId}
+            planId={head.id}
+            expectedPlanVersion={data.record?.version ?? head.version}
+          />
+        </div>
+      )}
     </div>
   );
 }

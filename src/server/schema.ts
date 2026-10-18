@@ -2882,3 +2882,75 @@ export const clinicalPlanEvents = pgTable(
   },
   (t) => [uniqueIndex("clinical_plan_operation_unique").on(t.organizationId, t.operationId)],
 );
+
+export const planQuotes = pgTable(
+  "inventory_plan_quotes",
+  {
+    id: uuid("id").primaryKey(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id),
+    patientId: uuid("patient_id")
+      .notNull()
+      .references(() => patients.id),
+    unitId: uuid("unit_id")
+      .notNull()
+      .references(() => units.id),
+    planId: uuid("plan_id")
+      .notNull()
+      .references(() => clinicalPlans.id),
+    planVersion: integer("plan_version").notNull(),
+    createdByUserId: uuid("created_by_user_id")
+      .notNull()
+      .references(() => users.id),
+    status: text("status").notNull().default("DRAFT_ESTIMATE"),
+    version: integer("version").notNull().default(1),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("plan_quotes_patient").on(t.organizationId, t.patientId, t.planId)],
+);
+export const planQuoteVersions = pgTable(
+  "inventory_plan_quote_versions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    quoteId: uuid("quote_id")
+      .notNull()
+      .references(() => planQuotes.id),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id),
+    unitId: uuid("unit_id")
+      .notNull()
+      .references(() => units.id),
+    version: integer("version").notNull(),
+    snapshot: jsonb("snapshot").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("plan_quote_revision_unique").on(t.quoteId, t.version)],
+);
+export const planQuoteEvents = pgTable(
+  "inventory_plan_quote_events",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    quoteId: uuid("quote_id")
+      .notNull()
+      .references(() => planQuotes.id),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id),
+    unitId: uuid("unit_id")
+      .notNull()
+      .references(() => units.id),
+    actorUserId: uuid("actor_user_id")
+      .notNull()
+      .references(() => users.id),
+    operationId: uuid("operation_id").notNull(),
+    requestHash: text("request_hash").notNull(),
+    beforeData: jsonb("before_data"),
+    afterData: jsonb("after_data").notNull(),
+    result: jsonb("result").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("plan_quote_operation_unique").on(t.organizationId, t.operationId)],
+);

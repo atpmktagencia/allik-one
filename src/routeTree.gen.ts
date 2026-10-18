@@ -19,6 +19,7 @@ import { Route as CrmRouteImport } from './routes/crm'
 import { Route as EstoqueRouteImport } from './routes/estoque'
 import { Route as ExamesRouteImport } from './routes/exames'
 import { Route as FinanceiroRouteImport } from './routes/financeiro'
+import { Route as OrcamentosPlanosRouteImport } from './routes/orcamentos-planos'
 import { Route as PacientesRouteImport } from './routes/pacientes'
 import { Route as PreConsultasRouteImport } from './routes/pre-consultas'
 import { Route as PreconsultaRouteImport } from './routes/preconsulta'
@@ -100,6 +101,11 @@ const ExamesRoute = ExamesRouteImport.update({
 const FinanceiroRoute = FinanceiroRouteImport.update({
   id: '/financeiro',
   path: '/financeiro',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const OrcamentosPlanosRoute = OrcamentosPlanosRouteImport.update({
+  id: '/orcamentos-planos',
+  path: '/orcamentos-planos',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PacientesRoute = PacientesRouteImport.update({
@@ -279,6 +285,7 @@ export interface FileRoutesByFullPath {
   '/estoque': typeof EstoqueRouteWithChildren
   '/exames': typeof ExamesRoute
   '/financeiro': typeof FinanceiroRoute
+  '/orcamentos-planos': typeof OrcamentosPlanosRoute
   '/pacientes': typeof PacientesRouteWithChildren
   '/pre-consultas': typeof PreConsultasRoute
   '/preconsulta': typeof PreconsultaRoute
@@ -321,6 +328,7 @@ export interface FileRoutesByTo {
   '/crm': typeof CrmRoute
   '/exames': typeof ExamesRoute
   '/financeiro': typeof FinanceiroRoute
+  '/orcamentos-planos': typeof OrcamentosPlanosRoute
   '/pre-consultas': typeof PreConsultasRoute
   '/preconsulta': typeof PreconsultaRoute
   '/prontuario': typeof ProntuarioRoute
@@ -365,6 +373,7 @@ export interface FileRoutesById {
   '/estoque': typeof EstoqueRouteWithChildren
   '/exames': typeof ExamesRoute
   '/financeiro': typeof FinanceiroRoute
+  '/orcamentos-planos': typeof OrcamentosPlanosRoute
   '/pacientes': typeof PacientesRouteWithChildren
   '/pre-consultas': typeof PreConsultasRoute
   '/preconsulta': typeof PreconsultaRoute
@@ -411,6 +420,7 @@ export interface FileRouteTypes {
     | '/estoque'
     | '/exames'
     | '/financeiro'
+    | '/orcamentos-planos'
     | '/pacientes'
     | '/pre-consultas'
     | '/preconsulta'
@@ -453,6 +463,7 @@ export interface FileRouteTypes {
     | '/crm'
     | '/exames'
     | '/financeiro'
+    | '/orcamentos-planos'
     | '/pre-consultas'
     | '/preconsulta'
     | '/prontuario'
@@ -496,6 +507,7 @@ export interface FileRouteTypes {
     | '/estoque'
     | '/exames'
     | '/financeiro'
+    | '/orcamentos-planos'
     | '/pacientes'
     | '/pre-consultas'
     | '/preconsulta'
@@ -541,6 +553,7 @@ export interface RootRouteChildren {
   EstoqueRoute: typeof EstoqueRouteWithChildren
   ExamesRoute: typeof ExamesRoute
   FinanceiroRoute: typeof FinanceiroRoute
+  OrcamentosPlanosRoute: typeof OrcamentosPlanosRoute
   PacientesRoute: typeof PacientesRouteWithChildren
   PreConsultasRoute: typeof PreConsultasRoute
   PreconsultaRoute: typeof PreconsultaRoute
@@ -624,6 +637,13 @@ declare module '@tanstack/react-router' {
       path: '/financeiro'
       fullPath: '/financeiro'
       preLoaderRoute: typeof FinanceiroRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/orcamentos-planos': {
+      id: '/orcamentos-planos'
+      path: '/orcamentos-planos'
+      fullPath: '/orcamentos-planos'
+      preLoaderRoute: typeof OrcamentosPlanosRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/pacientes': {
@@ -944,6 +964,7 @@ const rootRouteChildren: RootRouteChildren = {
   EstoqueRoute: EstoqueRouteWithChildren,
   ExamesRoute: ExamesRoute,
   FinanceiroRoute: FinanceiroRoute,
+  OrcamentosPlanosRoute: OrcamentosPlanosRoute,
   PacientesRoute: PacientesRouteWithChildren,
   PreConsultasRoute: PreConsultasRoute,
   PreconsultaRoute: PreconsultaRoute,
