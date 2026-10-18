@@ -90,6 +90,7 @@ const pageTitles: Record<string, string> = {
 type Identity = {
   user: { name: string };
   role: string;
+  capabilities?: { canReadPricingCosts?: boolean; canManagePricing?: boolean };
   units: Array<{ id: string; name: string }>;
 };
 
@@ -131,7 +132,13 @@ function ProductMark() {
   );
 }
 
-function Navigation({ onNavigate }: { onNavigate?: (() => void) | undefined }) {
+function Navigation({
+  onNavigate,
+  canReadPricingCosts = false,
+}: {
+  onNavigate?: (() => void) | undefined;
+  canReadPricingCosts?: boolean;
+}) {
   const path = useRouterState({ select: (state) => state.location.pathname });
   const renderItems = (
     items: ReadonlyArray<
@@ -166,7 +173,11 @@ function Navigation({ onNavigate }: { onNavigate?: (() => void) | undefined }) {
       <p className="mb-2 px-3 text-[10px] font-semibold uppercase tracking-widest text-sidebar-muted">
         Estoque
       </p>
-      <div className="space-y-1">{renderItems(operationItems)}</div>
+      <div className="space-y-1">
+        {renderItems(
+          operationItems.filter((item) => item.to !== "/estoque/valores" || canReadPricingCosts),
+        )}
+      </div>
       <p className="mb-2 mt-7 px-3 text-[10px] font-semibold uppercase tracking-widest text-sidebar-muted">
         Atendimento
       </p>
@@ -193,7 +204,10 @@ function SidebarContent({
         <ProductMark />
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
-        <Navigation onNavigate={onNavigate} />
+        <Navigation
+          onNavigate={onNavigate}
+          canReadPricingCosts={identity?.capabilities?.canReadPricingCosts === true}
+        />
       </div>
       <div className="border-t border-sidebar-border p-4">
         <div className="mb-4 flex items-center gap-2 rounded-md bg-sidebar-accent/50 px-3 py-2 text-[11px] text-sidebar-muted">

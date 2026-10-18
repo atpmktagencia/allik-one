@@ -1,3 +1,4 @@
+import { quoteActivationDto } from "../data/quote-access";
 import "@tanstack/react-start/server-only";
 import { z } from "zod";
 import { actor, can, type authenticate } from "./auth";
@@ -75,7 +76,7 @@ export async function activateEncounterQuote(
       !patient ||
       !patient.active ||
       patient.primary_unit_id !== quote.unit_id ||
-      !can(auth, "patients.read", patient.primary_unit_id)
+      !can(auth, "patients.clinical.manage", patient.primary_unit_id)
     )
       throw new Error("O paciente deve estar ativo e cadastrado na unidade deste orçamento.");
     const existing = (
@@ -86,7 +87,10 @@ export async function activateEncounterQuote(
     ).rows[0];
     if (existing) {
       await client.query("COMMIT");
-      return Response.json({ data: { activation: existing.snapshot } }, { headers });
+      return Response.json(
+        { data: { activation: quoteActivationDto(existing.snapshot) } },
+        { headers },
+      );
     }
     if (quote.status !== "PAID") {
       await client.query("ROLLBACK");
@@ -251,7 +255,7 @@ export async function activateEncounterQuote(
       );
     }
     await client.query("COMMIT");
-    return Response.json({ data: { activation } }, { headers });
+    return Response.json({ data: { activation: quoteActivationDto(activation) } }, { headers });
   } catch (error) {
     await client.query("ROLLBACK").catch(() => {});
     const message = error instanceof Error ? error.message : "";

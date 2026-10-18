@@ -44,11 +44,13 @@ describe("Inventory navigation", () => {
       "Movimentações e histórico",
       "Produtos e sede",
       "Fazer compra",
-      "Precificação",
       "Aplicações",
       "Pacientes",
     ])
       expect(within(desktopNavigation).getByRole("link", { name: item })).toBeInTheDocument();
+    expect(
+      within(desktopNavigation).queryByRole("link", { name: "Precificação" }),
+    ).not.toBeInTheDocument();
     expect(within(desktopNavigation).queryByText("Administração")).not.toBeInTheDocument();
     expect(
       within(desktopNavigation).queryByRole("link", { name: "Minha conta" }),

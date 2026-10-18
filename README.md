@@ -457,3 +457,9 @@ Ativação somente no banco sintético do Preview pela migration `0063_preconsul
 O profissional responsável pode estruturar componentes, doses informadas, apresentação, via e etapas de posologia, conferir o cálculo de unidades e transferir o texto para um rascunho de receita. Protocolos pessoais mantêm histórico imutável de versões. Manutenção sem prazo não produz quantidade total; cápsulas individuais exigem conferência separada. Não há sugestão de dose, conversão de unidades ou validação clínica automática.
 
 A finalização e a assinatura física seguem o fluxo existente. Ativação exclusiva do Preview sintético pela migration aditiva `0064_prescription_composer`, com conta SQL restrita; Produção permanece preservada. Consulte [escopo e verificação do M20A](docs/m20-preview-prescription-composer.md).
+
+### M21A — Governança comercial (Preview)
+
+Custos internos, gestão de precificação, aprovação de orçamento e registro de pagamento usam capacidades distintas no backend. O responsável clínico mantém a preparação do orçamento com preços de venda; custos/margens não são enviados sem autorização. Respostas para perfis comerciais omitem a prescrição detalhada e os dados clínicos desnecessários. A navegação e os controles seguem capacidades informadas pelo servidor, com bloqueio por padrão quando ausentes.
+
+Histórico e cálculos anteriores são preservados, sem migration. A evolução seguinte — catálogo tipado, modelos compartilhados, plano geral e orçamento integrado — está descrita no [diagnóstico e roteiro do motor de prescrição](docs/prescription-engine-roadmap.md). Este incremento cobre precificação/orçamentos e não representa uma revisão concluída de todos os módulos de compras/estoque.

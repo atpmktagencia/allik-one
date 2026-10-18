@@ -65,7 +65,7 @@ export async function pricingResponse(request: Request) {
   const auth = await authenticate(request);
   if (!auth)
     return Response.json({ error: "Entre para acessar a precificação." }, { status: 401, headers });
-  if (!can(auth, "inventory.read"))
+  if (request.method === "GET" && !can(auth, "pricing.costs.read"))
     return Response.json({ error: "Acesso negado." }, { status: 403, headers });
 
   if (request.method === "GET") {
@@ -108,7 +108,11 @@ export async function pricingResponse(request: Request) {
           ),
           products: products.rows,
           legacyPrices: legacyPrices.rows,
-          canManage: can(auth, "inventory.catalog.manage"),
+          canManage:
+            Boolean(auth.user.id) &&
+            !auth.preview &&
+            !auth.integration &&
+            can(auth, "pricing.manage"),
         },
       },
       { headers },
@@ -119,7 +123,7 @@ export async function pricingResponse(request: Request) {
     return Response.json({ error: "Método não permitido." }, { status: 405, headers });
   if (request.headers.get("origin") !== new URL(request.url).origin)
     return Response.json({ error: "Origem não autorizada." }, { status: 403, headers });
-  if (!can(auth, "inventory.catalog.manage"))
+  if (!auth.user.id || auth.preview || auth.integration || !can(auth, "pricing.manage"))
     return Response.json(
       { error: "Sem permissão para alterar a precificação." },
       { status: 403, headers },

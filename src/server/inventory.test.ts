@@ -184,6 +184,7 @@ describe("revocable integration credentials", () => {
 
 describe("fractional presentation and dose pricing", () => {
   it("persists audited Tirzepatide pricing and returns exact safety calculations", async () => {
+    const cookie = await scopedCookie("a1100000-0000-4000-8000-000000000101", "SUPER_ADMIN");
     const presentationId = randomUUID();
     const presentationResponse = await pricingResponse(
       new Request(`${origin}/api/v1/inventory/pricing`, {
@@ -299,7 +300,7 @@ describe("fractional presentation and dose pricing", () => {
       beyondUseHours: 24,
       pricingStatus: "VALIDATED",
       costSource: "Cotação de teste",
-      validatedByActor: "preview-operator",
+      validatedByActor: "Usuário de escopo",
     });
     expect(created.doses[0]).toMatchObject({
       id: doseId,

@@ -54,6 +54,10 @@ export type Permission =
   | "patients.private.read"
   | "patients.clinical.manage"
   | "quotes.manage"
+  | "quotes.approve"
+  | "quotes.payment.record"
+  | "pricing.costs.read"
+  | "pricing.manage"
   | "users.manage"
   | "organization.read";
 export type AuthContext = {
@@ -89,6 +93,10 @@ const allPermissions: Permission[] = [
   "patients.private.read",
   "patients.clinical.manage",
   "quotes.manage",
+  "quotes.approve",
+  "quotes.payment.record",
+  "pricing.costs.read",
+  "pricing.manage",
   "users.manage",
   "organization.read",
 ];
@@ -102,7 +110,9 @@ const permissions: Record<Role, ReadonlySet<Permission>> = {
         permission !== "patients.manage" &&
         permission !== "patients.private.read" &&
         permission !== "patients.clinical.manage" &&
-        permission !== "quotes.manage",
+        permission !== "quotes.manage" &&
+        permission !== "quotes.approve" &&
+        permission !== "quotes.payment.record",
     ),
   ),
   CLINICIAN: new Set([
@@ -130,10 +140,14 @@ const permissions: Record<Role, ReadonlySet<Permission>> = {
     "patients.read",
     "patients.manage",
     "quotes.manage",
+    "quotes.approve",
     "organization.read",
   ]),
   FINANCE: new Set([
     "quotes.manage",
+    "quotes.approve",
+    "quotes.payment.record",
+    "pricing.costs.read",
     "inventory.read",
     "inventory.purchase.manage",
     "inventory.trace",
@@ -526,7 +540,16 @@ export async function sessionResponse(request: Request) {
       [context.organizationId, allowedUnits],
     );
     return Response.json(
-      { data: { ...context, units: unitsResult.rows } },
+      {
+        data: {
+          ...context,
+          units: unitsResult.rows,
+          capabilities: {
+            canReadPricingCosts: can(context, "pricing.costs.read"),
+            canManagePricing: can(context, "pricing.manage"),
+          },
+        },
+      },
       { headers: { "Cache-Control": "private, no-store" } },
     );
   }

@@ -363,7 +363,7 @@ describe("clinical scope across authors and units", () => {
       "INSERT INTO inventory_sessions(user_id,token_hash,session_version,expires_at) VALUES($1,$2,0,now()+interval '1 hour')",
       [reader, hashToken(readerToken)],
     );
-    const items = [{ id: randomUUID(), name: "Item sintético confidencial" }];
+    const items = [{ id: randomUUID(), medicationName: "Item sintético confidencial" }];
     await getPool().query(
       `INSERT INTO inventory_encounter_prescriptions(organization_id,unit_id,appointment_id,patient_id,author_user_id,author_name,professional_council,council_number,council_region,items)
        VALUES($1,$2,$3,$4,$5,'Synthetic clinician','CRM','123','CE',$6)`,
@@ -393,7 +393,7 @@ describe("clinical scope across authors and units", () => {
       "UPDATE inventory_encounter_prescriptions SET status='FINAL',finalized_at=now() WHERE appointment_id=$1",
       [f.appointment],
     );
-    expect((await read()).items[0].name).toBe("Item sintético confidencial");
+    expect((await read()).items[0].medicationName).toBe("Item sintético confidencial");
     expect(await events()).toBe(1);
   });
 });

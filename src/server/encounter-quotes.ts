@@ -1,3 +1,9 @@
+import {
+  quoteResponseDto,
+  quotePricingOptionDto,
+  quotePrescriptionDto,
+  quoteActivationDto,
+} from "../data/quote-access";
 import "@tanstack/react-start/server-only";
 import { recordClinicalAccess } from "./clinical-access-audit";
 import { z } from "zod";
@@ -90,15 +96,17 @@ export async function encounterQuotesResponse(request: Request) {
     return Response.json({ error: "Atendimento inválido." }, { status: 400, headers });
   const pool = getPool();
   const appointmentResult = await pool.query(
-    `SELECT id,unit_id AS "unitId",patient_id AS "patientId",professional_user_id AS "professionalUserId",status
-     FROM inventory_care_appointments WHERE id=$1 AND organization_id=$2`,
+    `SELECT a.id,a.unit_id AS "unitId",a.patient_id AS "patientId",a.professional_user_id AS "professionalUserId",a.status,p.primary_unit_id AS "currentUnitId"
+     FROM inventory_care_appointments a JOIN inventory_patients p ON p.id=a.patient_id AND p.organization_id=a.organization_id WHERE a.id=$1 AND a.organization_id=$2`,
     [appointmentId, auth.organizationId],
   );
   const appointment = appointmentResult.rows[0];
   if (
     !appointment ||
     (!can(auth, "patients.private.read", appointment.unitId) &&
-      !can(auth, "quotes.manage", appointment.unitId))
+      !can(auth, "quotes.manage", appointment.unitId)) ||
+    (!can(auth, "patients.private.read", appointment.currentUnitId) &&
+      !can(auth, "quotes.manage", appointment.currentUnitId))
   )
     return Response.json({ error: "Atendimento não encontrado." }, { status: 404, headers });
 
@@ -139,7 +147,12 @@ export async function encounterQuotesResponse(request: Request) {
         )
       ).rows[0]?.snapshot ?? null)
     : null;
-  const clinicalReader = can(auth, "patients.private.read", appointment.unitId);
+  const clinicalReader =
+    can(auth, "patients.private.read", appointment.unitId) &&
+    can(auth, "patients.private.read", appointment.currentUnitId);
+  const costsReader =
+    can(auth, "pricing.costs.read", appointment.unitId) &&
+    can(auth, "pricing.costs.read", appointment.currentUnitId);
   if (clinicalReader && (prescriptionResult.rows[0] || activation))
     await recordClinicalAccess(auth, {
       unitId: appointment.unitId,
@@ -156,42 +169,52 @@ export async function encounterQuotesResponse(request: Request) {
     !auth.integration &&
     auth.user.id === appointment.professionalUserId &&
     can(auth, "patients.clinical.manage", appointment.unitId) &&
+    can(auth, "patients.clinical.manage", appointment.currentUnitId) &&
     (!quote || quote.status === "DRAFT") &&
     !["NO_SHOW", "CANCELED"].includes(appointment.status);
   return Response.json(
     {
       data: {
-        prescription: clinicalReader ? (prescriptionResult.rows[0] ?? null) : null,
-        quote,
-        activation: clinicalReader ? activation : null,
+        prescription: clinicalReader ? quotePrescriptionDto(prescriptionResult.rows[0]) : null,
+        canReadCosts: costsReader,
+        canReadClinical: clinicalReader,
+        quote: quoteResponseDto(quote, {
+          canReadCosts: costsReader,
+          canReadClinical: clinicalReader,
+        }),
+        activation: clinicalReader ? quoteActivationDto(activation) : null,
         canActivate:
           Boolean(auth.user.id) &&
           !auth.preview &&
           !auth.integration &&
           can(auth, "patients.clinical.manage", appointment.unitId) &&
+          can(auth, "patients.clinical.manage", appointment.currentUnitId) &&
           quote?.status === "PAID" &&
           !activation,
-        pricingOptions: can(auth, "patients.private.read", appointment.unitId)
-          ? optionResult.rows
+        pricingOptions: clinicalReader
+          ? optionResult.rows.map((option) => quotePricingOptionDto(option, costsReader))
           : [],
         canManage,
         canApprove:
           !auth.preview &&
           !auth.integration &&
           Boolean(auth.user.id) &&
-          can(auth, "quotes.manage", appointment.unitId) &&
+          can(auth, "quotes.approve", appointment.unitId) &&
+          can(auth, "quotes.approve", appointment.currentUnitId) &&
           quote?.status === "ISSUED",
         canDecline:
           !auth.preview &&
           !auth.integration &&
           Boolean(auth.user.id) &&
-          can(auth, "quotes.manage", appointment.unitId) &&
+          can(auth, "quotes.approve", appointment.unitId) &&
+          can(auth, "quotes.approve", appointment.currentUnitId) &&
           quote?.status === "ISSUED",
         canRegisterPayment:
           !auth.preview &&
           !auth.integration &&
           Boolean(auth.user.id) &&
-          can(auth, "quotes.manage", appointment.unitId) &&
+          can(auth, "quotes.payment.record", appointment.unitId) &&
+          can(auth, "quotes.payment.record", appointment.currentUnitId) &&
           quote?.status === "APPROVED",
       },
     },
@@ -212,6 +235,10 @@ async function transitionQuote(
       { status: 400, headers },
     );
   const input = parsed.data;
+  const permission =
+    input.action === "REGISTER_PAYMENT" ? "quotes.payment.record" : "quotes.approve";
+  if (!can(auth, permission))
+    return Response.json({ error: "Acesso negado." }, { status: 403, headers });
   if (input.payment && Date.parse(input.payment.paidAt) > Date.now())
     return Response.json(
       { error: "A data do pagamento não pode estar no futuro." },
@@ -222,11 +249,15 @@ async function transitionQuote(
     await client.query("BEGIN");
     // Match the creation lock order to avoid deadlocks with draft/issue writes.
     const appointmentResult = await client.query(
-      `SELECT id,unit_id FROM inventory_care_appointments WHERE id=$1 AND organization_id=$2 FOR UPDATE`,
+      `SELECT a.id,a.unit_id,p.primary_unit_id FROM inventory_care_appointments a JOIN inventory_patients p ON p.id=a.patient_id AND p.organization_id=a.organization_id WHERE a.id=$1 AND a.organization_id=$2 FOR UPDATE OF a FOR SHARE OF p`,
       [input.appointmentId, auth.organizationId],
     );
     const appointment = appointmentResult.rows[0];
-    if (!appointment || !can(auth, "quotes.manage", appointment.unit_id)) {
+    if (
+      !appointment ||
+      !can(auth, permission, appointment.unit_id) ||
+      !can(auth, permission, appointment.primary_unit_id)
+    ) {
       await client.query("ROLLBACK");
       return Response.json({ error: "Acesso negado ao atendimento." }, { status: 403, headers });
     }
@@ -335,12 +366,16 @@ async function saveQuote(
   try {
     await client.query("BEGIN");
     const appointmentResult = await client.query(
-      `SELECT id,unit_id,patient_id,professional_user_id,status FROM inventory_care_appointments
-       WHERE id=$1 AND organization_id=$2 FOR UPDATE`,
+      `SELECT a.id,a.unit_id,a.patient_id,a.professional_user_id,a.status,p.primary_unit_id FROM inventory_care_appointments a JOIN inventory_patients p ON p.id=a.patient_id AND p.organization_id=a.organization_id
+       WHERE a.id=$1 AND a.organization_id=$2 FOR UPDATE OF a FOR SHARE OF p`,
       [parsed.data.appointmentId, auth.organizationId],
     );
     const appointment = appointmentResult.rows[0];
-    if (!appointment || !can(auth, "patients.clinical.manage", appointment.unit_id))
+    if (
+      !appointment ||
+      !can(auth, "patients.clinical.manage", appointment.unit_id) ||
+      !can(auth, "patients.clinical.manage", appointment.primary_unit_id)
+    )
       throw new Error("NOT_FOUND");
     if (appointment.professional_user_id !== auth.user.id) throw new Error("NOT_AUTHOR");
     if (["NO_SHOW", "CANCELED"].includes(appointment.status)) throw new Error("TERMINAL");

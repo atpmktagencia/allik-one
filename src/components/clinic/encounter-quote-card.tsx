@@ -9,10 +9,11 @@ import { InventoryState } from "./inventory-state";
 type PrescriptionItem = {
   id: string;
   productId: string | null;
-  medicationName: string;
-  doseQuantity: number;
-  doseUnit: string;
+  medicationName?: string | undefined;
+  doseQuantity?: number | undefined;
+  doseUnit?: string | undefined;
   plannedAdministrations: number | null;
+  presentationName?: string;
 };
 
 type PricingOption = {
@@ -21,30 +22,30 @@ type PricingOption = {
   name: string;
   doseQuantity: string;
   salePrice: string;
-  materialCost: string;
+  materialCost?: string;
   productId: string | null;
   presentationName: string;
   baseUnit: string;
-  totalBaseQuantity: string;
-  acquisitionCost: string;
-  additionalPresentationCost: string;
-  technicalLossPercent: string;
+  totalBaseQuantity?: string;
+  acquisitionCost?: string;
+  additionalPresentationCost?: string;
+  technicalLossPercent?: string;
 };
 
 type QuoteItem = {
   prescriptionItemId: string;
   productId: string | null;
-  medicationName: string;
-  doseQuantity: number;
-  doseUnit: string;
+  medicationName?: string | undefined;
+  doseQuantity?: number | undefined;
+  doseUnit?: string | undefined;
   pricingDoseId: string;
-  pricingDoseName: string;
+  pricingDoseName?: string;
   presentationName: string;
   quantity: number;
   unitSalePrice: number;
-  unitEstimatedCost: number;
+  unitEstimatedCost?: number;
   subtotalSale: number;
-  subtotalEstimatedCost: number;
+  subtotalEstimatedCost?: number;
 };
 
 type Activation = {
@@ -71,8 +72,8 @@ type Payload = {
     items: QuoteItem[];
     commercialNotes: string;
     totalSale: string;
-    estimatedCost: string;
-    grossResult: string;
+    estimatedCost?: string;
+    grossResult?: string;
     status: "DRAFT" | "ISSUED" | "APPROVED" | "DECLINED" | "PAID";
     version: number;
     issuedAt: string | null;
@@ -83,6 +84,8 @@ type Payload = {
     paymentReference: string | null;
   };
   pricingOptions: PricingOption[];
+  canReadCosts?: boolean;
+  canReadClinical?: boolean;
   canManage: boolean;
   canApprove: boolean;
   canDecline: boolean;
@@ -113,12 +116,22 @@ function matches(item: PrescriptionItem, option: PricingOption) {
   return (
     Boolean(item.productId) &&
     item.productId === option.productId &&
-    item.doseUnit.toUpperCase() === option.baseUnit &&
+    item.doseUnit?.toUpperCase() === option.baseUnit &&
     Math.abs(Number(item.doseQuantity) - Number(option.doseQuantity)) < 0.0000001
   );
 }
 
-function estimate(option: PricingOption, quantity: number) {
+function estimate(option: PricingOption, quantity: number): number | null {
+  if (
+    [
+      option.totalBaseQuantity,
+      option.technicalLossPercent,
+      option.acquisitionCost,
+      option.additionalPresentationCost,
+      option.materialCost,
+    ].some((value) => value === undefined || !Number.isFinite(Number(value)))
+  )
+    return null;
   const usable = Number(option.totalBaseQuantity) * (1 - Number(option.technicalLossPercent) / 100);
   const medication =
     usable > 0
@@ -126,10 +139,7 @@ function estimate(option: PricingOption, quantity: number) {
         Number(option.doseQuantity)
       : 0;
   const unitCost = medication + Number(option.materialCost);
-  return {
-    sale: Number(option.salePrice) * quantity,
-    cost: unitCost * quantity,
-  };
+  return unitCost * quantity;
 }
 
 export function EncounterQuoteCard({ appointmentId }: { appointmentId: string }) {
@@ -190,12 +200,16 @@ export function EncounterQuoteCard({ appointmentId }: { appointmentId: string })
             ({ id }) => id === selection.pricingDoseId,
           );
           if (!option) return total;
-          const value = estimate(option, selection.quantity);
-          return { sale: total.sale + value.sale, cost: total.cost + value.cost };
+          const cost =
+            query.data?.canReadCosts === true ? estimate(option, selection.quantity) : null;
+          return {
+            sale: total.sale + Number(option.salePrice) * selection.quantity,
+            cost: total.cost === null || cost === null ? null : total.cost + cost,
+          };
         },
-        { sale: 0, cost: 0 },
+        { sale: 0, cost: query.data?.canReadCosts === true ? (0 as number | null) : null },
       ),
-    [query.data?.pricingOptions, selections],
+    [query.data?.pricingOptions, query.data?.canReadCosts, selections],
   );
 
   if (query.isPending || query.error)
@@ -203,19 +217,23 @@ export function EncounterQuoteCard({ appointmentId }: { appointmentId: string })
       <InventoryState pending={query.isPending} error={query.error} retry={() => query.refetch()} />
     );
   const data = query.data!;
+  const canReadCosts = data.canReadCosts === true;
+  const canReadClinical = data.canReadClinical === true;
   if (!data.quote && (!data.prescription || data.prescription.status !== "FINAL"))
     return (
       <section className="rounded-xl border bg-card p-5">
         <h2 className="font-semibold">Orçamento do tratamento</h2>
         <p className="mt-2 text-sm text-muted-foreground">
-          Finalize a prescrição para montar o orçamento com valores validados.
+          {canReadClinical
+            ? "Finalize a prescrição para montar o orçamento com valores validados."
+            : "Nenhum orçamento comercial disponível para este atendimento."}
         </p>
       </section>
     );
 
   const issued = Boolean(data.quote && data.quote.status !== "DRAFT");
   const displayedItems: PrescriptionItem[] =
-    issued || !data.prescription
+    issued || !data.prescription || !canReadClinical
       ? (data.quote?.items ?? []).map((item) => ({
           id: item.prescriptionItemId,
           productId: item.productId,
@@ -223,9 +241,11 @@ export function EncounterQuoteCard({ appointmentId }: { appointmentId: string })
           doseQuantity: item.doseQuantity,
           doseUnit: item.doseUnit,
           plannedAdministrations: item.quantity,
+          presentationName: item.presentationName,
         }))
       : data.prescription.items;
   const complete =
+    canReadClinical &&
     Boolean(data.prescription?.items.length) &&
     displayedItems.every((item) => {
       const selection = selections.find(({ prescriptionItemId }) => prescriptionItemId === item.id);
@@ -264,6 +284,7 @@ export function EncounterQuoteCard({ appointmentId }: { appointmentId: string })
       !window.confirm("Emitir este orçamento? Depois disso ele será imutável.")
     )
       return;
+    if (!data.canManage || !canReadClinical || pending) return;
     setPending(true);
     setMessage("");
     setError("");
@@ -291,7 +312,14 @@ export function EncounterQuoteCard({ appointmentId }: { appointmentId: string })
   }
 
   async function transition(action: "APPROVE" | "DECLINE" | "REGISTER_PAYMENT") {
-    if (!data.quote || pending) return;
+    if (
+      !data.quote ||
+      pending ||
+      (action === "APPROVE" && !data.canApprove) ||
+      (action === "DECLINE" && !data.canDecline) ||
+      (action === "REGISTER_PAYMENT" && !data.canRegisterPayment)
+    )
+      return;
     if (action === "REGISTER_PAYMENT" && (!paymentDate || !paymentReason.trim())) {
       setError("Informe a data do pagamento e o motivo do registro manual.");
       return;
@@ -344,7 +372,7 @@ export function EncounterQuoteCard({ appointmentId }: { appointmentId: string })
   }
 
   async function activate(action: "PREVIEW_ACTIVATION" | "ACTIVATE_PLAN") {
-    if (!data.quote || pending || !data.canActivate) return;
+    if (!data.quote || pending || !data.canActivate || !canReadClinical) return;
     if (!firstScheduledOn || activationReason.trim().length < 10) {
       setError("Informe a primeira data e um motivo com pelo menos 10 caracteres.");
       return;
@@ -431,7 +459,9 @@ export function EncounterQuoteCard({ appointmentId }: { appointmentId: string })
       ) : null}
       <div className="space-y-3">
         {displayedItems.map((item) => {
-          const options = data.pricingOptions.filter((option) => matches(item, option));
+          const options = canReadClinical
+            ? data.pricingOptions.filter((option) => matches(item, option))
+            : [];
           const selection = selections.find(
             ({ prescriptionItemId }) => prescriptionItemId === item.id,
           );
@@ -444,19 +474,31 @@ export function EncounterQuoteCard({ appointmentId }: { appointmentId: string })
               className="grid gap-3 rounded-lg border p-4 md:grid-cols-[1.4fr_1fr_8rem]"
             >
               <div>
-                <p className="font-medium">{item.medicationName}</p>
-                <p className="text-xs text-muted-foreground">
-                  {item.doseQuantity} {item.doseUnit} ·{" "}
-                  {item.plannedAdministrations ?? "quantidade a definir"} aplicação(ões)
+                <p className="font-medium">
+                  {canReadClinical
+                    ? (item.medicationName ?? item.presentationName ?? "Item do orçamento")
+                    : (item.presentationName ?? "Item do orçamento")}
                 </p>
+                {canReadClinical ? (
+                  <p className="text-xs text-muted-foreground">
+                    {item.doseQuantity} {item.doseUnit} ·{" "}
+                    {item.plannedAdministrations ?? "quantidade a definir"} aplicação(ões)
+                  </p>
+                ) : (
+                  <p className="text-xs text-muted-foreground">
+                    {item.plannedAdministrations ?? "Quantidade não informada"} unidade(s) orçada(s)
+                  </p>
+                )}
               </div>
-              {issued ? (
+              {issued || !canReadClinical ? (
                 <div className="text-sm">
                   <p>
-                    {saved?.presentationName} · {saved?.pricingDoseName}
+                    {saved?.presentationName}
+                    {canReadClinical && saved?.pricingDoseName ? ` · ${saved.pricingDoseName}` : ""}
                   </p>
                   <p className="text-muted-foreground">
-                    {money.format(saved?.unitSalePrice ?? 0)} por aplicação
+                    {money.format(saved?.unitSalePrice ?? 0)}{" "}
+                    {canReadClinical ? "por aplicação" : "por unidade"}
                   </p>
                 </div>
               ) : options.length ? (
@@ -490,7 +532,9 @@ export function EncounterQuoteCard({ appointmentId }: { appointmentId: string })
                   type="number"
                   min="1"
                   max="1000"
-                  disabled={pending || issued || !data.canManage || !options.length}
+                  disabled={
+                    pending || issued || !data.canManage || !canReadClinical || !options.length
+                  }
                   value={selection?.quantity ?? item.plannedAdministrations ?? 1}
                   onChange={(event) =>
                     updateSelection(item, { quantity: Number(event.target.value) })
@@ -505,21 +549,39 @@ export function EncounterQuoteCard({ appointmentId }: { appointmentId: string })
         <div>
           <p className="text-xs text-muted-foreground">Valor ao paciente</p>
           <p className="text-lg font-semibold">
-            {money.format(issued ? Number(data.quote?.totalSale) : preview.sale)}
+            {money.format(
+              issued || !canReadClinical ? Number(data.quote?.totalSale ?? 0) : preview.sale,
+            )}
           </p>
         </div>
-        <div>
-          <p className="text-xs text-muted-foreground">Custo estimado</p>
-          <p className="text-lg font-semibold">
-            {money.format(issued ? Number(data.quote?.estimatedCost) : preview.cost)}
-          </p>
-        </div>
-        <div>
-          <p className="text-xs text-muted-foreground">Resultado bruto estimado</p>
-          <p className="text-lg font-semibold">
-            {money.format(issued ? Number(data.quote?.grossResult) : preview.sale - preview.cost)}
-          </p>
-        </div>
+        {canReadCosts && (
+          <>
+            <div>
+              <p className="text-xs text-muted-foreground">Custo estimado</p>
+              <p className="text-lg font-semibold">
+                {issued
+                  ? data.quote?.estimatedCost !== undefined
+                    ? money.format(Number(data.quote.estimatedCost))
+                    : "Indisponível"
+                  : preview.cost !== null
+                    ? money.format(preview.cost)
+                    : "Indisponível"}
+              </p>
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground">Resultado bruto estimado</p>
+              <p className="text-lg font-semibold">
+                {issued
+                  ? data.quote?.grossResult !== undefined
+                    ? money.format(Number(data.quote.grossResult))
+                    : "Indisponível"
+                  : preview.cost !== null
+                    ? money.format(preview.sale - preview.cost)
+                    : "Indisponível"}
+              </p>
+            </div>
+          </>
+        )}
       </div>
       <label className="block space-y-1 text-sm font-medium">
         Observações comerciais
@@ -531,7 +593,7 @@ export function EncounterQuoteCard({ appointmentId }: { appointmentId: string })
           onChange={(event) => setCommercialNotes(event.target.value)}
         />
       </label>
-      {!issued && data.canManage ? (
+      {!issued && data.canManage && canReadClinical ? (
         <div className="flex flex-wrap gap-2">
           <Button variant="outline" disabled={pending} onClick={() => save("SAVE_DRAFT")}>
             {pending ? "Salvando…" : "Salvar rascunho"}
@@ -636,7 +698,7 @@ export function EncounterQuoteCard({ appointmentId }: { appointmentId: string })
           {data.quote.paymentReference ? ` · Referência: ${data.quote.paymentReference}` : ""}
         </p>
       ) : null}
-      {data.activation?.activated ? (
+      {canReadClinical && data.activation?.activated ? (
         <div className="space-y-2 rounded-lg border p-4">
           <h3 className="text-sm font-semibold">Plano terapêutico ativo</h3>
           <p className="text-sm text-muted-foreground">
@@ -651,7 +713,7 @@ export function EncounterQuoteCard({ appointmentId }: { appointmentId: string })
             Abrir plano terapêutico do paciente
           </a>
         </div>
-      ) : data.quote?.status === "PAID" && data.canActivate ? (
+      ) : canReadClinical && data.quote?.status === "PAID" && data.canActivate ? (
         <div className="space-y-4 rounded-lg border p-4">
           <div>
             <h3 className="text-sm font-semibold">Programar plano terapêutico</h3>
