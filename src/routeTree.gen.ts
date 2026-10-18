@@ -13,6 +13,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AgendaRouteImport } from './routes/agenda'
 import { Route as AgendaAplicacoesRouteImport } from './routes/agenda-aplicacoes'
 import { Route as AplicacoesRouteImport } from './routes/aplicacoes'
+import { Route as CatalogoClinicoRouteImport } from './routes/catalogo-clinico'
 import { Route as ConfiguracoesRouteImport } from './routes/configuracoes'
 import { Route as CrmRouteImport } from './routes/crm'
 import { Route as EstoqueRouteImport } from './routes/estoque'
@@ -69,6 +70,11 @@ const AgendaAplicacoesRoute = AgendaAplicacoesRouteImport.update({
 const AplicacoesRoute = AplicacoesRouteImport.update({
   id: '/aplicacoes',
   path: '/aplicacoes',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CatalogoClinicoRoute = CatalogoClinicoRouteImport.update({
+  id: '/catalogo-clinico',
+  path: '/catalogo-clinico',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ConfiguracoesRoute = ConfiguracoesRouteImport.update({
@@ -267,6 +273,7 @@ export interface FileRoutesByFullPath {
   '/agenda': typeof AgendaRoute
   '/agenda-aplicacoes': typeof AgendaAplicacoesRoute
   '/aplicacoes': typeof AplicacoesRouteWithChildren
+  '/catalogo-clinico': typeof CatalogoClinicoRoute
   '/configuracoes': typeof ConfiguracoesRoute
   '/crm': typeof CrmRoute
   '/estoque': typeof EstoqueRouteWithChildren
@@ -309,6 +316,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/agenda': typeof AgendaRoute
   '/agenda-aplicacoes': typeof AgendaAplicacoesRoute
+  '/catalogo-clinico': typeof CatalogoClinicoRoute
   '/configuracoes': typeof ConfiguracoesRoute
   '/crm': typeof CrmRoute
   '/exames': typeof ExamesRoute
@@ -351,6 +359,7 @@ export interface FileRoutesById {
   '/agenda': typeof AgendaRoute
   '/agenda-aplicacoes': typeof AgendaAplicacoesRoute
   '/aplicacoes': typeof AplicacoesRouteWithChildren
+  '/catalogo-clinico': typeof CatalogoClinicoRoute
   '/configuracoes': typeof ConfiguracoesRoute
   '/crm': typeof CrmRoute
   '/estoque': typeof EstoqueRouteWithChildren
@@ -396,6 +405,7 @@ export interface FileRouteTypes {
     | '/agenda'
     | '/agenda-aplicacoes'
     | '/aplicacoes'
+    | '/catalogo-clinico'
     | '/configuracoes'
     | '/crm'
     | '/estoque'
@@ -438,6 +448,7 @@ export interface FileRouteTypes {
     | '/'
     | '/agenda'
     | '/agenda-aplicacoes'
+    | '/catalogo-clinico'
     | '/configuracoes'
     | '/crm'
     | '/exames'
@@ -479,6 +490,7 @@ export interface FileRouteTypes {
     | '/agenda'
     | '/agenda-aplicacoes'
     | '/aplicacoes'
+    | '/catalogo-clinico'
     | '/configuracoes'
     | '/crm'
     | '/estoque'
@@ -523,6 +535,7 @@ export interface RootRouteChildren {
   AgendaRoute: typeof AgendaRoute
   AgendaAplicacoesRoute: typeof AgendaAplicacoesRoute
   AplicacoesRoute: typeof AplicacoesRouteWithChildren
+  CatalogoClinicoRoute: typeof CatalogoClinicoRoute
   ConfiguracoesRoute: typeof ConfiguracoesRoute
   CrmRoute: typeof CrmRoute
   EstoqueRoute: typeof EstoqueRouteWithChildren
@@ -569,6 +582,13 @@ declare module '@tanstack/react-router' {
       path: '/aplicacoes'
       fullPath: '/aplicacoes'
       preLoaderRoute: typeof AplicacoesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/catalogo-clinico': {
+      id: '/catalogo-clinico'
+      path: '/catalogo-clinico'
+      fullPath: '/catalogo-clinico'
+      preLoaderRoute: typeof CatalogoClinicoRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/configuracoes': {
@@ -918,6 +938,7 @@ const rootRouteChildren: RootRouteChildren = {
   AgendaRoute: AgendaRoute,
   AgendaAplicacoesRoute: AgendaAplicacoesRoute,
   AplicacoesRoute: AplicacoesRouteWithChildren,
+  CatalogoClinicoRoute: CatalogoClinicoRoute,
   ConfiguracoesRoute: ConfiguracoesRoute,
   CrmRoute: CrmRoute,
   EstoqueRoute: EstoqueRouteWithChildren,

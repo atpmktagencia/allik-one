@@ -463,3 +463,9 @@ A finalização e a assinatura física seguem o fluxo existente. Ativação excl
 Custos internos, gestão de precificação, aprovação de orçamento e registro de pagamento usam capacidades distintas no backend. O responsável clínico mantém a preparação do orçamento com preços de venda; custos/margens não são enviados sem autorização. Respostas para perfis comerciais omitem a prescrição detalhada e os dados clínicos desnecessários. A navegação e os controles seguem capacidades informadas pelo servidor, com bloqueio por padrão quando ausentes.
 
 Histórico e cálculos anteriores são preservados, sem migration. A evolução seguinte — catálogo tipado, modelos compartilhados, plano geral e orçamento integrado — está descrita no [diagnóstico e roteiro do motor de prescrição](docs/prescription-engine-roadmap.md). Este incremento cobre precificação/orçamentos e não representa uma revisão concluída de todos os módulos de compras/estoque.
+
+### M21B — Catálogo tipado e preços por unidade (Preview)
+
+O catálogo clínico em `/catalogo-clinico` separa ativos, medicamentos, serviços e procedimentos dos SKUs existentes. Permite vínculos explícitos, insumos incluídos ou separados e preços comerciais por unidade com origem, vigência, disponibilidade, versões e auditoria idempotente. Apenas contas individuais autorizadas podem alterar cadastros e preços; o acesso compartilhado permanece de leitura.
+
+Itens sem preço ou com referência desativada permanecem indisponíveis. Não há geração automática de orçamento, venda, reserva ou consumo de estoque. A migration aditiva `0065_engine_catalog` é exclusiva do Preview nesta entrega. Consulte o [desenho, limites e validação do M21B](docs/m21b-typed-catalog.md); modelos compartilhados e orçamento integrado seguem nos próximos marcos do [roteiro](docs/prescription-engine-roadmap.md).

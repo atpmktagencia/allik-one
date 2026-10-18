@@ -96,6 +96,7 @@ export function useInventory<T>(resource: string, options?: { enabled?: boolean 
     resource.startsWith("care-tasks") ||
     resource.startsWith("preconsultation") ||
     resource.startsWith("prescription-composer") ||
+    resource.startsWith("engine-catalog") ||
     resource.startsWith("care-encounter") ||
     resource.startsWith("encounter-documents");
   const requestPath = withSelectedUnit(`/api/v1/inventory/${resource}`);

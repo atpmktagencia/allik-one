@@ -1,3 +1,4 @@
+import { engineCatalogResponse } from "@/server/engine-catalog";
 import { prescriptionComposerResponse } from "@/server/prescription-composer";
 import { preconsultationResponse, preconsultationPublicResponse } from "@/server/preconsultation";
 import { careTasksResponse } from "@/server/care-tasks";
@@ -55,6 +56,8 @@ export const Route = createFileRoute("/api/v1/inventory/$")({
   server: {
     handlers: {
       GET: ({ request }) => {
+        if (new URL(request.url).pathname.replace(/\/$/, "") === "/api/v1/inventory/engine-catalog")
+          return engineCatalogResponse(request);
         if (
           new URL(request.url).pathname.replace(/\/$/, "") ===
           "/api/v1/inventory/prescription-composer"
@@ -159,6 +162,8 @@ export const Route = createFileRoute("/api/v1/inventory/$")({
           : inventoryResponse(request);
       },
       POST: ({ request }) => {
+        if (new URL(request.url).pathname.replace(/\/$/, "") === "/api/v1/inventory/engine-catalog")
+          return engineCatalogResponse(request);
         if (
           new URL(request.url).pathname.replace(/\/$/, "") ===
           "/api/v1/inventory/prescription-composer"

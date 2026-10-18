@@ -51,6 +51,7 @@ const operationItems = [
 ] as const;
 
 const careItems = [
+  { label: "Catálogo clínico", to: "/catalogo-clinico", icon: FlaskConical },
   { label: "Pré-consultas", to: "/pre-consultas", icon: ListChecks },
   { label: "Tarefas da equipe", to: "/tarefas", icon: ListChecks },
   { label: "Agendamentos", to: "/agenda", icon: CalendarDays },
@@ -65,6 +66,7 @@ const procedureItems = [
 ] as const;
 
 const pageTitles: Record<string, string> = {
+  "/catalogo-clinico": "Catálogo clínico",
   "/tarefas": "Tarefas da equipe",
   "/pre-consultas": "Pré-consultas",
   "/estoque": "Estoque atual",
@@ -286,6 +288,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const queryClient = useQueryClient();
   useEffect(() => {
     if (
+      !path.startsWith("/catalogo-clinico") &&
       !path.startsWith("/pre-consultas") &&
       !path.startsWith("/tarefas") &&
       !path.startsWith("/estoque") &&

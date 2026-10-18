@@ -2589,3 +2589,131 @@ export const prescriptionProtocolVersions = pgTable(
   },
   (t) => [uniqueIndex("prescription_protocol_version_unique").on(t.protocolId, t.version)],
 );
+
+export const engineCatalogItems = pgTable("inventory_engine_catalog_items", {
+  id: uuid("id").primaryKey(),
+  organizationId: uuid("organization_id")
+    .notNull()
+    .references(() => organizations.id),
+  kind: text("kind").notNull(),
+  category: text("category").notNull().default(""),
+  unit: text("unit").notNull().default(""),
+  presentation: text("presentation"),
+  concentration: text("concentration"),
+  internalCode: text("internal_code"),
+  supplierId: uuid("supplier_id").references(() => suppliers.id),
+  name: text("name").notNull(),
+  description: text("description").notNull().default(""),
+  active: boolean("active").notNull().default(true),
+  version: integer("version").notNull().default(1),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+export const engineProductActiveLinks = pgTable(
+  "inventory_engine_product_active_links",
+  {
+    id: uuid("id").primaryKey(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id),
+    productId: uuid("product_id")
+      .notNull()
+      .references(() => products.id),
+    activeItemId: uuid("active_item_id")
+      .notNull()
+      .references(() => engineCatalogItems.id),
+    active: boolean("active").notNull().default(true),
+    version: integer("version").notNull().default(1),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("engine_product_active_unique").on(t.organizationId, t.productId, t.activeItemId),
+  ],
+);
+export const engineCommercialMappings = pgTable("inventory_engine_commercial_mappings", {
+  id: uuid("id").primaryKey(),
+  organizationId: uuid("organization_id")
+    .notNull()
+    .references(() => organizations.id),
+  sourceItemId: uuid("source_item_id")
+    .notNull()
+    .references(() => engineCatalogItems.id),
+  targetProductId: uuid("target_product_id").references(() => products.id),
+  targetItemId: uuid("target_item_id").references(() => engineCatalogItems.id),
+  billingMode: text("billing_mode").notNull(),
+  chargeGroup: text("charge_group").notNull(),
+  active: boolean("active").notNull().default(true),
+  version: integer("version").notNull().default(1),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+export const engineUnitSalePrices = pgTable(
+  "inventory_engine_unit_sale_prices",
+  {
+    id: uuid("id").primaryKey(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id),
+    unitId: uuid("unit_id")
+      .notNull()
+      .references(() => units.id),
+    productId: uuid("product_id").references(() => products.id),
+    catalogItemId: uuid("catalog_item_id").references(() => engineCatalogItems.id),
+    amount: numeric("amount", { precision: 12, scale: 2 }).notNull(),
+    sellingUnit: text("selling_unit").notNull(),
+    source: text("source").notNull(),
+    validFrom: date("valid_from").notNull(),
+    validUntil: date("valid_until"),
+    availability: text("availability").notNull(),
+    active: boolean("active").notNull().default(true),
+    version: integer("version").notNull().default(1),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("engine_unit_product_price_unique").on(t.organizationId, t.unitId, t.productId),
+    uniqueIndex("engine_unit_catalog_price_unique").on(t.organizationId, t.unitId, t.catalogItemId),
+  ],
+);
+export const engineUnitSalePriceVersions = pgTable(
+  "inventory_engine_unit_sale_price_versions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id),
+    unitId: uuid("unit_id")
+      .notNull()
+      .references(() => units.id),
+    priceId: uuid("price_id")
+      .notNull()
+      .references(() => engineUnitSalePrices.id),
+    version: integer("version").notNull(),
+    snapshot: jsonb("snapshot").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("engine_unit_price_version_unique").on(t.priceId, t.version)],
+);
+export const engineCatalogEvents = pgTable(
+  "inventory_engine_catalog_events",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id),
+    unitId: uuid("unit_id").references(() => units.id),
+    actorUserId: uuid("actor_user_id")
+      .notNull()
+      .references(() => users.id),
+    operationId: uuid("operation_id").notNull(),
+    requestHash: text("request_hash").notNull(),
+    action: text("action").notNull(),
+    resourceId: uuid("resource_id").notNull(),
+    beforeData: jsonb("before_data"),
+    afterData: jsonb("after_data").notNull(),
+    result: jsonb("result").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("engine_operation_unique").on(t.organizationId, t.operationId)],
+);

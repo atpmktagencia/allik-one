@@ -233,6 +233,14 @@ export function PrescriptionComposer({
         Informe a composição por unidade de administração e confira cada etapa. Este recurso calcula
         quantidades; não recomenda doses, avalia compatibilidade ou define o tipo de receituário.
       </p>
+      <a
+        href="/catalogo-clinico"
+        target="_blank"
+        rel="noreferrer"
+        className="inline-block text-sm font-medium text-teal-800 underline underline-offset-4"
+      >
+        Consultar catálogo clínico (nova aba)
+      </a>
       <div className="grid items-start gap-4 xl:grid-cols-[minmax(220px,.8fr)_minmax(360px,1.5fr)_minmax(280px,1fr)]">
         {" "}
         <fieldset

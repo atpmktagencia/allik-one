@@ -78,3 +78,7 @@ Mutating quote actions check the appointment's original unit and patient's curre
 Validation passed: 244 unit/UI tests, 275 PostgreSQL integration tests, runtime provisioning/guard checks 3/3 and 11 browser E2E tests. Typecheck, build and lint passed; lint retains only the six pre-existing Fast Refresh warnings. New regression tests inspect raw JSON, injected unknown/nested fields, lifecycle capabilities and tenant/unit-transfer denial. Existing pricing tests now use a synthetic individual administrator rather than the shared demo writer, matching the tightened policy.
 
 No migration was generated or applied. Deployment scope is exclusively the feature-branch Preview. Production remains pinned to its earlier deployment; no user creation, credential changes, email or clinical production-data access was required.
+
+## M21B implementation
+
+The typed catalog, explicit active/SKU and commercial associations, unit sale-price heads and immutable versions/events are implemented as an additive Preview increment. See [M21B schema and boundaries](m21b-typed-catalog.md). The composer links to the catalog in a separate tab; this delivery does not silently bind free-text photo references or older prescriptions to new commercial identities. M21C is the next milestone.
