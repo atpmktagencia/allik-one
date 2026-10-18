@@ -73,6 +73,18 @@ export type PrescriptionProtocol = {
   title: string;
   version: number;
   formula: PrescriptionFormula;
+  category?: string;
+  description?: string;
+  visibility?: "PRIVATE" | "ORGANIZATION" | "INSTITUTIONAL";
+  status?: "DRAFT" | "PENDING" | "APPROVED";
+  unitIds?: string[];
+  authorUserId?: string;
+  authorName?: string;
+  canEdit?: boolean;
+  canArchive?: boolean;
+  canSubmit?: boolean;
+  canApprove?: boolean;
+  canGrantAccess?: boolean;
 };
 export type PrescriptionComposition = {
   text: string;
@@ -142,4 +154,17 @@ export function composePrescription(value: unknown): PrescriptionComposition {
     ...(f.instructions ? [`Orientações: ${f.instructions}`] : []),
   ].join("\n");
   return { text, quantity, quantityLabel, warnings };
+}
+
+/** Heuristic screening only; user confirmation remains mandatory and cannot prove absence of patient data. */
+export function protocolContainsObviousPersonalData(value: unknown): boolean {
+  const text = JSON.stringify(value);
+  return (
+    /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i.test(text) ||
+    /\b\d{3}\.\d{3}\.\d{3}-\d{2}\b/.test(text) ||
+    /(?:CPF\s*[:=]?\s*\d{11}\b)/i.test(text) ||
+    /(?:\(\d{2}\)\s*\d{4,5}[- ]\d{4}\b|(?:telefone|celular|whatsapp)\s*[:=]?\s*\+?\d[\d ()-]{8,18}\d)/i.test(
+      text,
+    )
+  );
 }

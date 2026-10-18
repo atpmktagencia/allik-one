@@ -82,3 +82,7 @@ No migration was generated or applied. Deployment scope is exclusively the featu
 ## M21B implementation
 
 The typed catalog, explicit active/SKU and commercial associations, unit sale-price heads and immutable versions/events are implemented as an additive Preview increment. See [M21B schema and boundaries](m21b-typed-catalog.md). The composer links to the catalog in a separate tab; this delivery does not silently bind free-text photo references or older prescriptions to new commercial identities. M21C is the next milestone.
+
+## M21C implementation
+
+Existing personal protocol heads and immutable versions now support explicit private-reader grants, organization sharing, unit restrictions and institutional submission/independent approval. Reviewed use creates an immutable formula instance linked to the existing prescription document; source updates cannot rewrite it. See [M21C policy and migration](m21c-shared-templates.md). General longitudinal plans and calendar/dispensing adapters remain the next milestone, M21D; general automatic quote calculation is not part of this delivery.

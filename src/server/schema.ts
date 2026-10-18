@@ -2563,6 +2563,11 @@ export const prescriptionProtocols = pgTable("inventory_prescription_protocols",
     .references(() => users.id),
   title: text("title").notNull(),
   formula: jsonb("formula").notNull(),
+  category: text("category").notNull().default(""),
+  description: text("description").notNull().default(""),
+  visibility: text("visibility").notNull().default("PRIVATE"),
+  status: text("status").notNull().default("DRAFT"),
+  unitIds: jsonb("unit_ids").notNull().default([]),
   version: integer("version").notNull().default(1),
   archived: boolean("archived").notNull().default(false),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
@@ -2584,6 +2589,11 @@ export const prescriptionProtocolVersions = pgTable(
     version: integer("version").notNull(),
     title: text("title").notNull(),
     formula: jsonb("formula").notNull(),
+    category: text("category").notNull().default(""),
+    description: text("description").notNull().default(""),
+    visibility: text("visibility").notNull().default("PRIVATE"),
+    status: text("status").notNull().default("DRAFT"),
+    unitIds: jsonb("unit_ids").notNull().default([]),
     archived: boolean("archived").notNull(),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
@@ -2717,3 +2727,62 @@ export const engineCatalogEvents = pgTable(
   },
   (t) => [uniqueIndex("engine_operation_unique").on(t.organizationId, t.operationId)],
 );
+
+export const prescriptionProtocolGrants = pgTable(
+  "inventory_prescription_protocol_grants",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id),
+    protocolId: uuid("protocol_id")
+      .notNull()
+      .references(() => prescriptionProtocols.id),
+    granteeUserId: uuid("grantee_user_id")
+      .notNull()
+      .references(() => users.id),
+    grantedByUserId: uuid("granted_by_user_id")
+      .notNull()
+      .references(() => users.id),
+    active: boolean("active").notNull().default(true),
+    version: integer("version").notNull().default(1),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("prescription_protocol_grantee_unique").on(t.protocolId, t.granteeUserId)],
+);
+export const prescriptionProtocolEvents = pgTable("inventory_prescription_protocol_events", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  organizationId: uuid("organization_id")
+    .notNull()
+    .references(() => organizations.id),
+  protocolId: uuid("protocol_id")
+    .notNull()
+    .references(() => prescriptionProtocols.id),
+  actorUserId: uuid("actor_user_id")
+    .notNull()
+    .references(() => users.id),
+  action: text("action").notNull(),
+  beforeData: jsonb("before_data"),
+  afterData: jsonb("after_data").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+export const prescriptionProtocolInstances = pgTable("inventory_prescription_protocol_instances", {
+  id: uuid("id").primaryKey(),
+  organizationId: uuid("organization_id")
+    .notNull()
+    .references(() => organizations.id),
+  appointmentId: uuid("appointment_id")
+    .notNull()
+    .references(() => careAppointments.id),
+  documentId: uuid("document_id")
+    .notNull()
+    .references(() => encounterDocuments.id),
+  authorUserId: uuid("author_user_id")
+    .notNull()
+    .references(() => users.id),
+  sourceProtocolId: uuid("source_protocol_id").references(() => prescriptionProtocols.id),
+  sourceVersion: integer("source_version"),
+  formula: jsonb("formula").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});

@@ -37,6 +37,7 @@ export const roles = [
 ] as const;
 export type Role = (typeof roles)[number];
 export type Permission =
+  | "clinical.templates.approve"
   | "inventory.read"
   | "inventory.catalog.manage"
   | "inventory.supplier.manage"
@@ -101,7 +102,7 @@ const allPermissions: Permission[] = [
   "organization.read",
 ];
 const permissions: Record<Role, ReadonlySet<Permission>> = {
-  SUPER_ADMIN: new Set(allPermissions),
+  SUPER_ADMIN: new Set([...allPermissions, "clinical.templates.approve"]),
   PARTNER_ADMIN: new Set(allPermissions),
   INVENTORY_MANAGER: new Set(
     allPermissions.filter(

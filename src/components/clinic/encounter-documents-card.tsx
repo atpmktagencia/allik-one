@@ -969,6 +969,7 @@ export function EncounterDocumentsCard({ appointmentId }: { appointmentId: strin
             <PrescriptionComposer
               key={`${appointmentId}:${selected.id}`}
               appointmentId={appointmentId}
+              documentId={selected.id}
               onInsert={(text) => {
                 if (!editorRef.current || readonly || pending) return;
                 editorRef.current

@@ -1,6 +1,7 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { withSelectedUnit } from "@/data/unit-context";
 import { readInventoryResponse, useInventory } from "@/data/inventory-api";
 import {
   composePrescription,
@@ -11,6 +12,8 @@ import {
 } from "@/data/prescription-composer";
 import { prescriptionReferenceIngredients } from "@/data/prescription-reference";
 import { PrescriptionChoiceField } from "./prescription-choice-field";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { PrescriptionModelForm, type ModelFields } from "./prescription-model-form";
 import { InventoryState } from "./inventory-state";
 
 const emptyIngredient = () => ({
@@ -38,19 +41,54 @@ const emptyFormula = (): PrescriptionFormula => ({
 /** Produces reviewed text only. Saving/finalizing the clinical document remains explicit. */
 export function PrescriptionComposer({
   appointmentId,
+  documentId,
   onInsert,
 }: {
   appointmentId: string;
-  onInsert: (text: string) => void;
+  documentId: string;
+  onInsert: (text: string, instanceId?: string) => void;
 }) {
-  const query = useInventory<{ templates: PrescriptionProtocol[]; canCompose: boolean }>(
-    `prescription-composer?appointmentId=${encodeURIComponent(appointmentId)}`,
-  );
+  const query = useInventory<{
+    templates: PrescriptionProtocol[];
+    canCompose: boolean;
+    units?: { id: string; name: string }[];
+    eligibleGrantees?: { id: string; name: string }[];
+    canCreateShared?: boolean;
+    canCreateInstitutional?: boolean;
+  }>(`prescription-composer?appointmentId=${encodeURIComponent(appointmentId)}`);
   const unitListId = useId();
   const dispenseListId = useId();
   const [formula, setFormula] = useState<PrescriptionFormula>(emptyFormula);
   const [title, setTitle] = useState("");
   const [protocol, setProtocol] = useState<PrescriptionProtocol | null>(null);
+  const [editingSource, setEditingSource] = useState(false);
+  const [modelOpen, setModelOpen] = useState(false);
+  const [grantee, setGrantee] = useState("");
+  const librarySelectId = useId();
+  const grantSelectId = useId();
+  const insertion = useRef<{ key: string; id: string } | null>(null);
+  const scopeRevision = useRef(0);
+  useEffect(() => {
+    function reset() {
+      scopeRevision.current += 1;
+      setFormula(emptyFormula());
+      setProtocol(null);
+      setEditingSource(false);
+      setModelOpen(false);
+      setGrantee("");
+      setTitle("");
+      setPreview(null);
+      setReviewed(false);
+      setExcluded(new Set());
+      insertion.current = null;
+    }
+    reset();
+    window.addEventListener("inventory-unit-change", reset);
+    return () => {
+      window.removeEventListener("inventory-unit-change", reset);
+      scopeRevision.current += 1;
+    };
+  }, [appointmentId, documentId]);
   const [preview, setPreview] = useState<PrescriptionComposition | null>(null);
   const [reviewed, setReviewed] = useState(false);
   const [pending, setPending] = useState(false);
@@ -118,6 +156,9 @@ export function PrescriptionComposer({
   const livePreview = validComposition ? composePrescription(selectedFormula) : null;
   function loadProtocol(item: PrescriptionProtocol | null) {
     setProtocol(item);
+    setEditingSource(false);
+    setModelOpen(false);
+    setGrantee("");
     setTitle(item?.title ?? "");
     setExcluded(new Set());
     change(item ? structuredClone(item.formula) : emptyFormula());
@@ -129,7 +170,7 @@ export function PrescriptionComposer({
     setError("");
     setMessage("");
   }
-  async function submit(action: "PREVIEW" | "SAVE" | "ARCHIVE") {
+  async function submit(action: "PREVIEW" | "SAVE" | "ARCHIVE", fields?: ModelFields) {
     if (lock.current) return;
     if (action !== "ARCHIVE") {
       const parsed = prescriptionFormulaSchema.safeParse(selectedFormula);
@@ -140,17 +181,10 @@ export function PrescriptionComposer({
         return;
       }
     }
-    if (action === "SAVE" && !title.trim()) {
+    if (action === "SAVE" && (!fields?.confirmedNoPatientData || fields.title.trim().length < 2)) {
       setError("Informe um nome para o protocolo pessoal.");
       return;
     }
-    if (
-      action === "SAVE" &&
-      !window.confirm(
-        "O protocolo é reutilizável. Confirme que não contém nomes nem dados pessoais do paciente.",
-      )
-    )
-      return;
     if (
       action === "ARCHIVE" &&
       (!protocol ||
@@ -159,12 +193,13 @@ export function PrescriptionComposer({
         ))
     )
       return;
+    const scope = scopeRevision.current;
     lock.current = true;
     setPending(true);
     setError("");
     setMessage("");
     try {
-      const response = await fetch("/api/v1/inventory/prescription-composer", {
+      const response = await fetch(withSelectedUnit("/api/v1/inventory/prescription-composer"), {
         method: "POST",
         credentials: "same-origin",
         headers: { "Content-Type": "application/json" },
@@ -175,9 +210,11 @@ export function PrescriptionComposer({
             ? { formula: selectedFormula }
             : action === "SAVE"
               ? {
-                  title,
+                  ...fields,
                   formula: selectedFormula,
-                  ...(protocol ? { id: protocol.id, version: protocol.version } : {}),
+                  ...(editingSource && protocol?.canEdit
+                    ? { id: protocol.id, version: protocol.version }
+                    : {}),
                 }
               : { id: protocol!.id, version: protocol!.version }),
         }),
@@ -185,27 +222,120 @@ export function PrescriptionComposer({
       const result = await readInventoryResponse<
         PrescriptionComposition & { id: string; version: number }
       >(response, "Não foi possível processar a composição.");
+      if (scope !== scopeRevision.current) return;
       if (!result.data) throw new Error("Não foi possível confirmar a operação.");
       if (action === "PREVIEW") {
         setPreview(result.data);
         setReviewed(false);
       } else {
-        await query.refetch();
-        if (action === "SAVE")
-          setProtocol({
-            id: result.data.id,
-            version: result.data.version,
-            title,
-            formula: selectedFormula,
-          });
-        else {
-          setProtocol(null);
-          setTitle("");
-        }
+        const refreshed = await query.refetch();
+        if (scope !== scopeRevision.current) return;
+        setProtocol(
+          action === "SAVE"
+            ? (refreshed?.data?.templates.find(
+                (entry) => entry.id === result.data!.id && entry.version === result.data!.version,
+              ) ?? null)
+            : null,
+        );
+        setPreview(null);
+        setReviewed(false);
+        insertion.current = null;
+        setEditingSource(false);
+        setModelOpen(false);
+        if (action === "SAVE") setTitle(fields?.title ?? "");
+        else setTitle("");
         setMessage(action === "SAVE" ? "Protocolo pessoal salvo." : "Protocolo arquivado.");
       }
     } catch (cause) {
+      if (scope !== scopeRevision.current) return;
       setError(cause instanceof Error ? cause.message : "Não foi possível processar a composição.");
+    } finally {
+      lock.current = false;
+      setPending(false);
+    }
+  }
+  async function protocolAction(
+    action: "SUBMIT" | "APPROVE" | "REJECT" | "GRANT_ACCESS" | "REVOKE_ACCESS",
+  ) {
+    if (!protocol || lock.current) return;
+    if (
+      !window.confirm(
+        "Confirmar esta alteração de governança do modelo? A composição do atendimento não será alterada.",
+      )
+    )
+      return;
+    const scope = scopeRevision.current;
+    lock.current = true;
+    setPending(true);
+    setError("");
+    try {
+      const response = await fetch(withSelectedUnit("/api/v1/inventory/prescription-composer"), {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action,
+          appointmentId,
+          id: protocol.id,
+          version: protocol.version,
+          ...(action === "GRANT_ACCESS" || action === "REVOKE_ACCESS"
+            ? { granteeUserId: grantee }
+            : {}),
+        }),
+      });
+      const result = await readInventoryResponse<{ id: string; version: number }>(
+        response,
+        "Não foi possível atualizar o modelo.",
+      );
+      if (scope !== scopeRevision.current) return;
+      const refreshed = await query.refetch();
+      setProtocol(
+        refreshed?.data?.templates.find((entry) => entry.id === protocol.id) ??
+          (result.data ? { ...protocol, version: result.data.version } : null),
+      );
+      setEditingSource(false);
+      setMessage("Governança do modelo atualizada. A composição do atendimento foi preservada.");
+    } catch (cause) {
+      if (scope !== scopeRevision.current) return;
+      setError(cause instanceof Error ? cause.message : "Não foi possível atualizar o modelo.");
+    } finally {
+      lock.current = false;
+      setPending(false);
+    }
+  }
+  async function insertReviewed() {
+    if (!preview || !reviewed || lock.current) return;
+    const body = {
+      action: "INSTANTIATE",
+      appointmentId,
+      documentId,
+      formula: selectedFormula,
+      ...(protocol ? { sourceId: protocol.id, sourceVersion: protocol.version } : {}),
+    };
+    const key = JSON.stringify(body);
+    if (insertion.current?.key !== key) insertion.current = { key, id: crypto.randomUUID() };
+    const scope = scopeRevision.current;
+    lock.current = true;
+    setPending(true);
+    setError("");
+    try {
+      const response = await fetch(withSelectedUnit("/api/v1/inventory/prescription-composer"), {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...body, id: insertion.current.id }),
+      });
+      const result = await readInventoryResponse<PrescriptionComposition & { instanceId: string }>(
+        response,
+        "Não foi possível registrar a cópia do modelo.",
+      );
+      if (scope !== scopeRevision.current) return;
+      if (!result.data?.instanceId)
+        throw new Error("O servidor não confirmou o registro da composição.");
+      onInsert(result.data.text, result.data.instanceId);
+    } catch (cause) {
+      if (scope !== scopeRevision.current) return;
+      setError(cause instanceof Error ? cause.message : "Não foi possível inserir a composição.");
     } finally {
       lock.current = false;
       setPending(false);
@@ -256,41 +386,170 @@ export function PrescriptionComposer({
             Buscar protocolos
             <Input value={search} onChange={(event) => setSearch(event.target.value)} />
           </label>
-          <label className="block">
-            Protocolo pessoal
+          <div>
+            <label htmlFor={librarySelectId}>Protocolo pessoal</label>
             <select
+              id={librarySelectId}
               className="mt-1 w-full rounded-xl border bg-white p-2"
               value={protocol?.id ?? ""}
-              onChange={(event) => {
-                const item = query.data?.templates.find((t) => t.id === event.target.value);
-                loadProtocol(item ?? null);
-              }}
+              onChange={(event) =>
+                loadProtocol(
+                  query.data?.templates.find((entry) => entry.id === event.target.value) ?? null,
+                )
+              }
             >
               <option value="">Nova composição</option>
-              {query.data.templates.map((item) => (
-                <option key={item.id} value={item.id}>
-                  {item.title} · v{item.version}
+              {query.data.templates.map((entry) => (
+                <option key={entry.id} value={entry.id}>
+                  {entry.title} · v{entry.version}
                 </option>
               ))}
             </select>
-          </label>
-          <div className="flex flex-wrap items-end gap-2">
-            <label className="min-w-48 flex-1">
-              Nome do protocolo pessoal
-              <Input value={title} maxLength={160} onChange={(e) => setTitle(e.target.value)} />
-            </label>
-            <Button type="button" variant="outline" onClick={() => void submit("SAVE")}>
-              Salvar protocolo
-            </Button>
-            {protocol && (
-              <Button type="button" variant="outline" onClick={() => void submit("ARCHIVE")}>
-                Arquivar protocolo
-              </Button>
-            )}
           </div>
+          <Popover
+            open={modelOpen}
+            onOpenChange={(open) => {
+              setModelOpen(open);
+              if (!open) setEditingSource(false);
+            }}
+          >
+            <PopoverTrigger asChild>
+              <Button
+                type="button"
+                variant="outline"
+                disabled={pending}
+                onClick={() => setEditingSource(false)}
+              >
+                Transformar em modelo
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent
+              side="right"
+              align="start"
+              className="max-h-[80dvh] w-[min(360px,90vw)] overflow-y-auto"
+            >
+              <h4 className="mb-3 font-semibold">
+                {editingSource ? "Editar modelo de origem" : "Salvar nova cópia como modelo"}
+              </h4>
+              <PrescriptionModelForm
+                key={`${protocol?.id ?? "new"}:${editingSource}`}
+                initial={{
+                  title,
+                  category: editingSource ? (protocol?.category ?? "") : "",
+                  description: editingSource ? (protocol?.description ?? "") : "",
+                  visibility: editingSource ? (protocol?.visibility ?? "PRIVATE") : "PRIVATE",
+                  unitIds: editingSource ? (protocol?.unitIds ?? []) : [],
+                  confirmedNoPatientData: false,
+                }}
+                units={query.data.units ?? []}
+                canCreateShared={query.data.canCreateShared === true}
+                canCreateInstitutional={query.data.canCreateInstitutional === true}
+                pending={pending}
+                onSave={(fields) => void submit("SAVE", fields)}
+              />
+            </PopoverContent>
+          </Popover>
+          {protocol && (
+            <section
+              className="space-y-2 rounded-lg border p-3 text-xs"
+              aria-label="Governança do modelo selecionado"
+            >
+              <p>
+                {
+                  {
+                    PRIVATE: "Privado",
+                    ORGANIZATION: "Organização",
+                    INSTITUTIONAL: "Institucional",
+                  }[protocol.visibility ?? "PRIVATE"]
+                }{" "}
+                ·{" "}
+                {
+                  { DRAFT: "Rascunho", PENDING: "Aguardando aprovação", APPROVED: "Aprovado" }[
+                    protocol.status ?? "DRAFT"
+                  ]
+                }{" "}
+                · versão {protocol.version}
+              </p>
+              <p>Autor: {protocol.authorName ?? "Autor não informado"}</p>
+              <p>
+                A composição é uma cópia para este atendimento; alterações locais não editam o
+                modelo de origem.
+              </p>
+              {protocol.canEdit === true && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    setEditingSource(true);
+                    setModelOpen(true);
+                  }}
+                >
+                  Editar este modelo
+                </Button>
+              )}
+              {protocol.canArchive === true && (
+                <Button type="button" variant="outline" onClick={() => void submit("ARCHIVE")}>
+                  Arquivar protocolo
+                </Button>
+              )}
+              {protocol.canSubmit === true && (
+                <Button type="button" onClick={() => void protocolAction("SUBMIT")}>
+                  Submeter para aprovação
+                </Button>
+              )}
+              {protocol.canApprove === true && (
+                <>
+                  <Button type="button" onClick={() => void protocolAction("APPROVE")}>
+                    Aprovar modelo institucional
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => void protocolAction("REJECT")}
+                  >
+                    Rejeitar modelo institucional
+                  </Button>
+                </>
+              )}
+              {protocol.canGrantAccess === true && (
+                <div className="space-y-2">
+                  <label htmlFor={grantSelectId}>Administrador com acesso privado</label>
+                  <select
+                    id={grantSelectId}
+                    className="w-full rounded-lg border bg-white p-2"
+                    value={grantee}
+                    onChange={(event) => setGrantee(event.target.value)}
+                  >
+                    <option value="">Selecionar administrador</option>
+                    {(query.data.eligibleGrantees ?? []).map((entry) => (
+                      <option key={entry.id} value={entry.id}>
+                        {entry.name}
+                      </option>
+                    ))}
+                  </select>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    disabled={!grantee}
+                    onClick={() => void protocolAction("GRANT_ACCESS")}
+                  >
+                    Conceder leitura privada
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    disabled={!grantee}
+                    onClick={() => void protocolAction("REVOKE_ACCESS")}
+                  >
+                    Revogar leitura privada
+                  </Button>
+                </div>
+              )}
+            </section>
+          )}
           <p className="text-xs text-muted-foreground">
-            Exibindo até os 100 protocolos pessoais atualizados mais recentemente. Protocolos são
-            pessoais. Não inclua dados que identifiquem o paciente.
+            Exibindo até os 100 modelos visíveis atualizados mais recentemente. Modelos privados não
+            são expostos automaticamente a administradores. Não inclua dados pessoais de pacientes.
           </p>
           <div
             className="max-h-64 space-y-2 overflow-y-auto"
@@ -346,7 +605,20 @@ export function PrescriptionComposer({
                 >
                   <span className="block font-medium">{item.title}</span>
                   <span className="text-xs text-muted-foreground">
-                    Versão {item.version} · {item.formula.ingredients.length} componente(s)
+                    {
+                      {
+                        PRIVATE: "Privado",
+                        ORGANIZATION: "Organização",
+                        INSTITUTIONAL: "Institucional",
+                      }[item.visibility ?? "PRIVATE"]
+                    }{" "}
+                    ·{" "}
+                    {
+                      { DRAFT: "Rascunho", PENDING: "Aguardando aprovação", APPROVED: "Aprovado" }[
+                        item.status ?? "DRAFT"
+                      ]
+                    }{" "}
+                    · v{item.version} · {item.authorName ?? "Autor não informado"}
                   </span>
                 </button>
               ))}
@@ -803,7 +1075,7 @@ export function PrescriptionComposer({
               <Button
                 type="button"
                 disabled={pending || !reviewed}
-                onClick={() => onInsert(preview.text)}
+                onClick={() => void insertReviewed()}
               >
                 Inserir no rascunho da receita
               </Button>

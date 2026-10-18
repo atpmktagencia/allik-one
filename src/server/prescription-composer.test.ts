@@ -91,6 +91,7 @@ async function fixture() {
   const save = (overrides = {}) =>
     post({
       action: "SAVE",
+      confirmedNoPatientData: true,
       appointmentId: appointment,
       title: "Protocolo privado sintético",
       formula: formula(),

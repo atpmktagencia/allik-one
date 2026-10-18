@@ -463,6 +463,13 @@
       "when": 1794272400022,
       "tag": "0065_engine_catalog",
       "breakpoints": true
+    },
+    {
+      "idx": 66,
+      "version": "7",
+      "when": 1794272400023,
+      "tag": "0066_prescription_protocol_governance",
+      "breakpoints": true
     }
   ]
 }

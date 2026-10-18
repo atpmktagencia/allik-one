@@ -4,20 +4,36 @@ import { prescriptionReferenceIngredients } from "@/data/prescription-reference"
 import type { PrescriptionProtocol } from "@/data/prescription-composer";
 import { PrescriptionComposer } from "@/components/clinic/prescription-composer";
 
-const fixtures = vi.hoisted(() => ({ templates: [] as PrescriptionProtocol[] }));
+const fixtures = vi.hoisted(() => ({
+  templates: [] as PrescriptionProtocol[],
+  refreshedTemplates: null as PrescriptionProtocol[] | null,
+}));
 
 vi.mock("@/data/inventory-api", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/data/inventory-api")>()),
   useInventory: () => ({
-    data: { templates: fixtures.templates, canCompose: true },
+    data: {
+      templates: fixtures.templates,
+      canCompose: true,
+      units: [
+        { id: "unit-a", name: "Unidade A" },
+        { id: "unit-b", name: "Unidade B" },
+      ],
+      canCreateShared: true,
+      canCreateInstitutional: true,
+    },
     isPending: false,
     error: null,
-    refetch: vi.fn(),
+    refetch: vi.fn(async () => {
+      if (fixtures.refreshedTemplates) fixtures.templates = fixtures.refreshedTemplates;
+      return { data: { templates: fixtures.templates } };
+    }),
   }),
 }));
 afterEach(() => {
   cleanup();
   fixtures.templates = [];
+  fixtures.refreshedTemplates = null;
   vi.unstubAllGlobals();
 });
 function fill() {
@@ -51,11 +67,18 @@ function setup() {
                 quantity: 1,
                 quantityLabel: "1 unidade",
                 warnings: ["Conferir clinicamente."],
+                instanceId: "synthetic-instance",
               },
       });
     }),
   );
-  render(<PrescriptionComposer appointmentId="synthetic-appointment" onInsert={insert} />);
+  render(
+    <PrescriptionComposer
+      appointmentId="synthetic-appointment"
+      documentId="synthetic-document"
+      onInsert={insert}
+    />,
+  );
   fill();
   return { insert, requests };
 }
@@ -113,8 +136,18 @@ describe("Structured prescription review", () => {
     fireEvent.click(screen.getByLabelText(/^Conferi composição/));
     expect(button).toBeEnabled();
     fireEvent.click(button);
-    expect(insert).toHaveBeenCalledWith("Composição revisada no servidor");
-    expect(requests).toHaveLength(1);
+    await waitFor(() =>
+      expect(insert).toHaveBeenCalledWith("Composição revisada no servidor", "synthetic-instance"),
+    );
+    expect(requests).toHaveLength(2);
+    expect(requests[1]).toMatchObject({
+      action: "INSTANTIATE",
+      documentId: "synthetic-document",
+      formula: { ingredients: [{ medicationName: "Componente sintético" }] },
+    });
+    expect(
+      requests.every((request) => !["FINALIZE", "SAVE_DRAFT"].includes(String(request["action"]))),
+    ).toBe(true);
     expect(requests[0]).toMatchObject({
       action: "PREVIEW",
       appointmentId: "synthetic-appointment",
@@ -149,10 +182,14 @@ describe("Structured prescription review", () => {
       action: "PREVIEW",
       formula: { ingredients: [{ medicationName: "Segundo sintético", dose: "10" }] },
     });
-    fireEvent.change(screen.getByLabelText("Nome do protocolo pessoal"), {
+    fireEvent.click(screen.getByRole("button", { name: "Transformar em modelo" }));
+    fireEvent.change(screen.getByLabelText("Nome do modelo"), {
       target: { value: "Selecionados" },
     });
-    fireEvent.click(screen.getByRole("button", { name: /^Salvar protocolo$/ }));
+    fireEvent.click(
+      screen.getByLabelText("Confirmei que o modelo não contém dados pessoais de pacientes."),
+    );
+    fireEvent.click(screen.getByRole("button", { name: /^Salvar modelo$/ }));
     await waitFor(() => expect(requests).toHaveLength(2));
     expect(requests[1]).toMatchObject({
       action: "SAVE",
@@ -259,7 +296,7 @@ describe("Structured prescription review", () => {
   it("calculates and saves only the chosen reference ingredients with explicitly entered dispensing values", async () => {
     const { requests } = setup();
     const calculate = screen.getByRole("button", { name: /^Calcular e revisar composição$/ });
-    const save = screen.getByRole("button", { name: /^Salvar protocolo$/ });
+    const save = screen.getByRole("button", { name: /^Transformar em modelo$/ });
     const live = screen.getByRole("complementary", { name: "Prévia do documento" });
     const reference = screen.getByRole("button", { name: /^Modelo da foto · conferir$/ });
     const include = screen.getByLabelText("Incluir componente 1");
@@ -304,6 +341,10 @@ describe("Structured prescription review", () => {
     expect(requests[0]).toMatchObject({ action: "PREVIEW", formula: expected });
     expect((requests[0]!["formula"] as { ingredients: unknown[] }).ingredients).toHaveLength(1);
     fireEvent.click(save);
+    fireEvent.click(
+      screen.getByLabelText("Confirmei que o modelo não contém dados pessoais de pacientes."),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Salvar modelo" }));
     await within(live).findByText("Protocolo pessoal salvo.");
     expect(requests[1]).toMatchObject({ action: "SAVE", formula: expected });
     expect((requests[1]!["formula"] as { ingredients: unknown[] }).ingredients).toHaveLength(1);
@@ -352,12 +393,19 @@ describe("Structured prescription review", () => {
       packaging: "frasco",
     };
     expect(requests[0]).toMatchObject({ action: "PREVIEW", formula: choices });
-    fireEvent.change(screen.getByLabelText("Nome do protocolo pessoal"), {
+    fireEvent.click(screen.getByRole("button", { name: "Transformar em modelo" }));
+    fireEvent.change(screen.getByLabelText("Nome do modelo"), {
       target: { value: "Escolhas explícitas" },
     });
-    fireEvent.click(screen.getByRole("button", { name: /^Salvar protocolo$/ }));
+    fireEvent.click(
+      screen.getByLabelText("Confirmei que o modelo não contém dados pessoais de pacientes."),
+    );
+    fireEvent.click(screen.getByRole("button", { name: /^Salvar modelo$/ }));
     await screen.findByText("Protocolo pessoal salvo.");
     expect(requests[1]).toMatchObject({ action: "SAVE", formula: choices });
+    expect(screen.queryByRole("region", { name: "Revisão da composição" })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Calcular e revisar composição" }));
+    await screen.findByRole("button", { name: "Inserir no rascunho da receita" });
     fireEvent.click(screen.getByLabelText(/^Conferi composição/));
     fireEvent.change(screen.getByLabelText("Embalagem"), { target: { value: "pote" } });
     expect(screen.queryByRole("region", { name: "Revisão da composição" })).not.toBeInTheDocument();
@@ -422,5 +470,149 @@ describe("Structured prescription review", () => {
         packaging: "Embalagem anterior",
       },
     });
+  });
+  it("copies a shared model without updating its source and requires an explicit no-patient-data acknowledgement", async () => {
+    fixtures.templates = [
+      {
+        id: "shared",
+        title: "Modelo compartilhado",
+        version: 3,
+        visibility: "ORGANIZATION",
+        canEdit: false,
+        formula: {
+          ingredients: [
+            {
+              medicationName: "Ativo sintético",
+              dose: "5",
+              doseUnit: "mg",
+              individualCapsule: false,
+            },
+          ],
+          route: "oral",
+          presentation: "cápsula",
+          instructions: "",
+          phases: [{ doseUnits: 1, frequencyPerDay: 1, durationDays: 10, maintenance: false }],
+        },
+      },
+    ];
+    const original = JSON.stringify(fixtures.templates);
+    const { requests } = setup();
+    fireEvent.change(screen.getByLabelText("Protocolo pessoal"), { target: { value: "shared" } });
+    expect(screen.queryByRole("button", { name: "Editar este modelo" })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Transformar em modelo" }));
+    expect(screen.getByRole("button", { name: "Salvar modelo" })).toBeDisabled();
+    expect(requests).toHaveLength(0);
+    fireEvent.click(
+      screen.getByLabelText("Confirmei que o modelo não contém dados pessoais de pacientes."),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Salvar modelo" }));
+    await waitFor(() => expect(requests).toHaveLength(1));
+    expect(requests[0]).toMatchObject({
+      action: "SAVE",
+      visibility: "PRIVATE",
+      confirmedNoPatientData: true,
+      title: "Modelo compartilhado",
+    });
+    expect(requests[0]).not.toHaveProperty("id");
+    expect(requests[0]).not.toHaveProperty("version");
+    expect(JSON.stringify(fixtures.templates)).toBe(original);
+  });
+  it("updates a source only after its explicit owner edit action and never broadens the last selected unit implicitly", async () => {
+    fixtures.templates = [
+      {
+        id: "owned",
+        title: "Modelo próprio",
+        version: 2,
+        visibility: "PRIVATE",
+        unitIds: ["unit-a"],
+        canEdit: true,
+        formula: {
+          ingredients: [
+            {
+              medicationName: "Ativo sintético",
+              dose: "5",
+              doseUnit: "mg",
+              individualCapsule: false,
+            },
+          ],
+          route: "oral",
+          presentation: "cápsula",
+          instructions: "",
+          phases: [{ doseUnits: 1, frequencyPerDay: 1, durationDays: 10, maintenance: false }],
+        },
+      },
+    ];
+    const { requests } = setup();
+    fireEvent.change(screen.getByLabelText("Protocolo pessoal"), { target: { value: "owned" } });
+    fireEvent.click(screen.getByRole("button", { name: "Editar este modelo" }));
+    expect(screen.getByLabelText("Unidade A")).toBeChecked();
+    fireEvent.click(screen.getByLabelText("Unidade A"));
+    expect(screen.getByLabelText("Unidade A")).toBeChecked();
+    expect(screen.getByLabelText("Todas as unidades da organização")).not.toBeChecked();
+    fireEvent.click(
+      screen.getByLabelText("Confirmei que o modelo não contém dados pessoais de pacientes."),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Salvar modelo" }));
+    await waitFor(() => expect(requests).toHaveLength(1));
+    expect(requests[0]).toMatchObject({
+      action: "SAVE",
+      id: "owned",
+      version: 2,
+      unitIds: ["unit-a"],
+      confirmedNoPatientData: true,
+    });
+  });
+  it("links the instantiated copy to the newly saved model revision instead of its earlier shared source", async () => {
+    const source: PrescriptionProtocol = {
+      id: "earlier-source",
+      title: "Modelo compartilhado",
+      version: 3,
+      visibility: "ORGANIZATION",
+      canEdit: false,
+      formula: {
+        ingredients: [
+          {
+            medicationName: "Ativo sintético",
+            dose: "5",
+            doseUnit: "mg",
+            individualCapsule: false,
+          },
+        ],
+        route: "oral",
+        presentation: "cápsula",
+        instructions: "",
+        phases: [{ doseUnits: 1, frequencyPerDay: 1, durationDays: 10, maintenance: false }],
+      },
+    };
+    fixtures.templates = [source];
+    const { requests, insert } = setup();
+    fireEvent.change(screen.getByLabelText("Protocolo pessoal"), { target: { value: source.id } });
+    fireEvent.click(screen.getByRole("button", { name: "Calcular e revisar composição" }));
+    await screen.findByRole("button", { name: "Inserir no rascunho da receita" });
+    fireEvent.click(screen.getByLabelText(/^Conferi composição/));
+    fireEvent.click(screen.getByRole("button", { name: "Transformar em modelo" }));
+    fireEvent.click(
+      screen.getByLabelText("Confirmei que o modelo não contém dados pessoais de pacientes."),
+    );
+    fixtures.refreshedTemplates = [
+      { ...source, id: "synthetic-protocol", version: 1, visibility: "PRIVATE", canEdit: true },
+    ];
+    fireEvent.click(screen.getByRole("button", { name: "Salvar modelo" }));
+    await screen.findByText("Protocolo pessoal salvo.");
+    expect(
+      screen.queryByRole("button", { name: "Inserir no rascunho da receita" }),
+    ).not.toBeInTheDocument();
+    expect(screen.getByLabelText("Protocolo pessoal")).toHaveValue("synthetic-protocol");
+    fireEvent.click(screen.getByRole("button", { name: "Calcular e revisar composição" }));
+    await screen.findByRole("button", { name: "Inserir no rascunho da receita" });
+    fireEvent.click(screen.getByLabelText(/^Conferi composição/));
+    fireEvent.click(screen.getByRole("button", { name: "Inserir no rascunho da receita" }));
+    await waitFor(() => expect(insert).toHaveBeenCalled());
+    expect(requests.find((request) => request["action"] === "INSTANTIATE")).toMatchObject({
+      sourceId: "synthetic-protocol",
+      sourceVersion: 1,
+      documentId: "synthetic-document",
+    });
+    expect(requests.find((request) => request["action"] === "SAVE")).not.toHaveProperty("id");
   });
 });

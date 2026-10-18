@@ -157,11 +157,12 @@ test("individual clinician composes a prescription and explicitly saves a draft"
     await expect(
       dialog.getByRole("button", { name: "Inserir no rascunho da receita" }),
     ).toBeDisabled();
-    await dialog
-      .getByLabel("Nome do protocolo pessoal", { exact: true })
-      .fill("Protocolo sintético navegador");
-    page.once("dialog", (d) => d.accept());
-    await dialog.getByRole("button", { name: "Salvar protocolo", exact: true }).click();
+    await dialog.getByRole("button", { name: "Transformar em modelo", exact: true }).click();
+    await page.getByLabel("Nome do modelo", { exact: true }).fill("Protocolo sintético navegador");
+    await page
+      .getByLabel("Confirmei que o modelo não contém dados pessoais de pacientes.", { exact: true })
+      .check();
+    await page.getByRole("button", { name: "Salvar modelo", exact: true }).click();
     await expect(dialog.getByText("Protocolo pessoal salvo.", { exact: true })).toBeVisible();
     const protocol = await pool.query(
       "SELECT id FROM inventory_prescription_protocols WHERE organization_id=$1",
