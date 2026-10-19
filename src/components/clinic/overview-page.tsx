@@ -182,7 +182,7 @@ export function OverviewPage() {
             <Sparkles className="size-5" />
           </div>
           <p className="text-xs font-semibold uppercase tracking-widest text-brand-on/60">
-            Patient 360
+            Paciente360º
           </p>
           <h2 className="mt-2 font-display text-3xl font-semibold">Uma única história.</h2>
           <p className="mt-3 max-w-xl text-sm leading-6 text-brand-on/70">
@@ -191,7 +191,7 @@ export function OverviewPage() {
           </p>
           <Button asChild variant="secondary" className="mt-6">
             <Link to="/pacientes/$patientId" params={{ patientId: "ana-beatriz" }}>
-              Conhecer Patient 360 <ArrowRight />
+              Conhecer Paciente360º <ArrowRight />
             </Link>
           </Button>
         </div>

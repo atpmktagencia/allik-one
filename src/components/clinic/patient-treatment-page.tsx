@@ -1,3 +1,4 @@
+import { PreconsultationPanel } from "./preconsultation-panel";
 import { PatientDocumentCenter } from "./patient-document-center";
 import {
   PatientWorkspaceNavigation,
@@ -270,6 +271,7 @@ export function PatientTreatmentPage({ patientId }: { patientId: string }) {
   const query = useInventory<Payload>(`patient-detail?patientId=${patientId}`);
   const [workspaceSection, setWorkspaceSection] = useState<PatientWorkspaceSection>("overview");
   const [documentsOpened, setDocumentsOpened] = useState(false);
+  const [preconsultationOpen, setPreconsultationOpen] = useState(false);
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState(blank);
   const [pending, setPending] = useState(false);
@@ -586,15 +588,13 @@ export function PatientTreatmentPage({ patientId }: { patientId: string }) {
         Voltar aos pacientes
       </Link>
       <PageHeader
-        eyebrow={`${data.patient.internalCode} · ${data.patient.unitName}`}
+        eyebrow={`Paciente360º · ${data.patient.internalCode} · ${data.patient.unitName}`}
         title={data.patient.fullName}
-        description="Planos terapêuticos, aplicações e acompanhamento do paciente."
+        description="Prontuário, documentos, exames, questionários, prescrições e acompanhamento em um só contexto."
         action={
           <div className="flex flex-wrap gap-2">
-            <Button asChild variant="outline">
-              <Link to="/pre-consultas" search={{ patientId }}>
-                Pré-consulta
-              </Link>
+            <Button variant="outline" onClick={() => setPreconsultationOpen(true)}>
+              Pré-consulta
             </Button>
             <Button asChild variant="outline">
               <Link to="/tarefas" search={{ patientId }}>
@@ -633,6 +633,23 @@ export function PatientTreatmentPage({ patientId }: { patientId: string }) {
           </div>
         }
       />
+      <Dialog open={preconsultationOpen} onOpenChange={setPreconsultationOpen}>
+        <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-4xl">
+          <DialogHeader>
+            <DialogTitle>Pré-consulta · {data.patient.fullName}</DialogTitle>
+            <DialogDescription>
+              Questionários e respostas declaradas pelo paciente, no contexto do Paciente360º.
+            </DialogDescription>
+          </DialogHeader>
+          {preconsultationOpen && (
+            <PreconsultationPanel
+              key={patientId}
+              patientId={patientId}
+              unitId={data.patient.primaryUnitId}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
       {(message || error) && (
         <div
           role={error ? "alert" : "status"}

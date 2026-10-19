@@ -239,7 +239,9 @@ export async function patientDocumentsResponse(request: Request) {
               ? "/orcamentos-planos"
               : r.source_kind === "LEGACY_QUOTE"
                 ? `/atendimentos/${r.origin_appointment}`
-                : `/pacientes/${f.patientId}/prontuario`,
+                : r.source_kind === "PRECONSULTATION_RESPONSE"
+                  ? `/pre-consultas?patientId=${f.patientId}`
+                  : `/pacientes/${f.patientId}/prontuario`,
         };
       });
     await audited(

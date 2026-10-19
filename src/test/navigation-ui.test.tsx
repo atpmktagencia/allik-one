@@ -45,7 +45,7 @@ describe("Inventory navigation", () => {
       "Produtos e sede",
       "Fazer compra",
       "Aplicações",
-      "Pacientes",
+      "Paciente360º",
     ])
       expect(within(desktopNavigation).getByRole("link", { name: item })).toBeInTheDocument();
     expect(

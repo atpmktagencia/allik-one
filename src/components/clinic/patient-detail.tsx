@@ -46,7 +46,7 @@ export function PatientDetailPage({ patientId }: { patientId: string }) {
           </Link>
         </Button>
         <PageHeader
-          eyebrow="Patient 360"
+          eyebrow="Paciente360º"
           title={patient.name}
           description="Perfil fictício · nenhuma informação pertence a uma pessoa real"
           action={<PreviewNotice />}

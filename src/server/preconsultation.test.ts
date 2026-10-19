@@ -144,6 +144,160 @@ async function fixture() {
   };
 }
 describe("Preconsultation security and clinical integrity", () => {
+  it("stores only visible conditional answers and leaves rejected submissions reusable", async () => {
+    const f = await fixture();
+    const questions = [
+      { id: "medicine", label: "Usa medicamento?", type: "CHOICE", options: ["Sim", "Não"] },
+      {
+        id: "daily",
+        label: "Uso diário?",
+        type: "CHOICE",
+        options: ["Sim", "Não"],
+        visibleWhen: { questionId: "medicine", equals: "Sim" },
+      },
+      {
+        id: "details",
+        label: "Quais medicamentos?",
+        type: "TEXT",
+        visibleWhen: { questionId: "daily", equals: "Sim" },
+      },
+    ];
+    expect(
+      (
+        await f.post({
+          action: "SAVE_FORM",
+          id: f.formId,
+          unitId: f.unit,
+          title: "Anamnese condicional",
+          questions,
+        })
+      ).status,
+    ).toBe(200);
+    expect((await f.publish()).status).toBe(200);
+    const invitation = await f.issued();
+    const original = (await (await f.publicPost(invitation.token)).json()).data;
+    expect(original.questions[1].visibleWhen).toEqual({ questionId: "medicine", equals: "Sim" });
+    expect(
+      (
+        await f.publicPost(invitation.token, {
+          medicine: "Não",
+          daily: "Sim",
+          details: "Sensitive stale answer",
+        })
+      ).status,
+    ).toBe(400);
+    expect(
+      (
+        await getPool().query(
+          "SELECT count(*)::int n FROM inventory_preconsultation_responses WHERE invitation_id=$1",
+          [invitation.id],
+        )
+      ).rows[0].n,
+    ).toBe(0);
+    expect(
+      (
+        await getPool().query(
+          "SELECT submitted_at FROM inventory_preconsultation_invitations WHERE id=$1",
+          [invitation.id],
+        )
+      ).rows[0].submitted_at,
+    ).toBeNull();
+    expect(
+      (await f.publicPost(invitation.token, { medicine: "Não", daily: "", details: "   " })).status,
+    ).toBe(200);
+    expect(
+      (
+        await getPool().query(
+          "SELECT answers FROM inventory_preconsultation_responses WHERE invitation_id=$1",
+          [invitation.id],
+        )
+      ).rows[0].answers,
+    ).toEqual({ medicine: "Não" });
+    const expanded = await f.issued();
+    expect(
+      (
+        await f.publicPost(expanded.token, {
+          medicine: "Sim",
+          daily: "Sim",
+          details: "  Relato literal do paciente  ",
+        })
+      ).status,
+    ).toBe(200);
+    expect(
+      (
+        await getPool().query(
+          "SELECT answers FROM inventory_preconsultation_responses WHERE invitation_id=$1",
+          [expanded.id],
+        )
+      ).rows[0].answers,
+    ).toEqual({ medicine: "Sim", daily: "Sim", details: "  Relato literal do paciente  " });
+  });
+
+  it("rejects invalid dependencies and evaluates invitations against their immutable conditional version", async () => {
+    const f = await fixture();
+    const medicine = {
+      id: "medicine",
+      label: "Usa medicamento?",
+      type: "CHOICE",
+      options: ["Sim", "Não"],
+    };
+    const detail = {
+      id: "details",
+      label: "Quais?",
+      type: "TEXT",
+      visibleWhen: { questionId: "medicine", equals: "Sim" },
+    };
+    const save = (questions: unknown[], version?: number) =>
+      f.post({
+        action: "SAVE_FORM",
+        id: f.formId,
+        unitId: f.unit,
+        title: "Condições seguras",
+        questions,
+        version,
+      });
+    expect((await save([detail, medicine])).status).toBe(400);
+    expect(
+      (
+        await save([
+          medicine,
+          { ...detail, visibleWhen: { questionId: "medicine", equals: "Unknown" } },
+        ])
+      ).status,
+    ).toBe(400);
+    expect(
+      (await save([{ ...medicine, visibleWhen: { questionId: "medicine", equals: "Sim" } }]))
+        .status,
+    ).toBe(400);
+    expect((await save([medicine, detail])).status).toBe(200);
+    expect((await f.publish()).status).toBe(200);
+    const invitation = await f.issued();
+    expect(
+      (
+        await save(
+          [medicine, { ...detail, visibleWhen: { questionId: "medicine", equals: "Não" } }],
+          0,
+        )
+      ).status,
+    ).toBe(200);
+    expect((await f.publish(1)).status).toBe(200);
+    const old = (await (await f.publicPost(invitation.token)).json()).data;
+    expect(old.questions[1].visibleWhen.equals).toBe("Sim");
+    expect(
+      (
+        await f.publicPost(invitation.token, {
+          medicine: "Sim",
+          details: "Visible in original version",
+        })
+      ).status,
+    ).toBe(200);
+    const newer = await f.issued();
+    expect(
+      (await f.publicPost(newer.token, { medicine: "Sim", details: "No longer visible" })).status,
+    ).toBe(400);
+    expect((await f.publicPost(newer.token, { medicine: "Sim" })).status).toBe(200);
+  });
+
   it("publishes an immutable snapshot and preserves skipped answers without inventing negatives", async () => {
     const f = await fixture();
     await f.ready();

@@ -3,12 +3,11 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { readInventoryResponse } from "@/data/inventory-api";
 
-export type PreconsultationQuestion = {
-  id: string;
-  label: string;
-  type: "TEXT" | "CHOICE";
-  options?: string[];
-};
+import {
+  visibleQuestions as getVisibleQuestions,
+  type PreconsultationQuestion,
+} from "@/lib/preconsultation-questions";
+export type { PreconsultationQuestion } from "@/lib/preconsultation-questions";
 type Questionnaire = {
   title: string;
   description: string;
@@ -107,7 +106,11 @@ export function PreconsultationPublic() {
           referrerPolicy: "no-referrer",
           signal: controller.signal,
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ action: "SUBMIT", token: token.current, answers }),
+          body: JSON.stringify({
+            action: "SUBMIT",
+            token: token.current,
+            answers: visibleAnswers(questionnaire.questions, answers),
+          }),
         }),
       );
       if (generation.current !== current || controller.signal.aborted) return;
@@ -122,16 +125,25 @@ export function PreconsultationPublic() {
       if (generation.current === current && !controller.signal.aborted) setPending(false);
     }
   }
+  function visibleAnswers(questions: PreconsultationQuestion[], values: Record<string, string>) {
+    const ids = new Set(getVisibleQuestions(questions, values).map((q) => q.id));
+    return Object.fromEntries(Object.entries(values).filter(([id]) => ids.has(id)));
+  }
+  function answer(id: string, value: string) {
+    setAnswers((previous) =>
+      visibleAnswers(questionnaire?.questions ?? [], { ...previous, [id]: value }),
+    );
+  }
+  const activeQuestions = getVisibleQuestions(questionnaire?.questions ?? [], answers);
   const pageSize = 5;
-  const steps = Math.max(1, Math.ceil((questionnaire?.questions.length ?? 0) / pageSize));
+  const steps = Math.max(1, Math.ceil(activeQuestions.length / pageSize));
   const currentStep = Math.min(step, steps - 1);
-  const answered =
-    questionnaire?.questions.filter(
-      (question) => Object.hasOwn(answers, question.id) && !!answers[question.id]?.trim(),
-    ).length ?? 0;
+  const answered = activeQuestions.filter(
+    (question) => Object.hasOwn(answers, question.id) && !!answers[question.id]?.trim(),
+  ).length;
   const visibleQuestions = reviewing
     ? []
-    : (questionnaire?.questions.slice(currentStep * pageSize, (currentStep + 1) * pageSize) ?? []);
+    : activeQuestions.slice(currentStep * pageSize, (currentStep + 1) * pageSize);
   function navigate(next: number) {
     setStep(next);
     setReviewing(false);
@@ -178,7 +190,7 @@ export function PreconsultationPublic() {
                 <div className="space-y-2" aria-label="Progresso do questionário">
                   <p role="status" className="text-sm text-muted-foreground">
                     {reviewing ? "Revisão das respostas" : `Etapa ${currentStep + 1} de ${steps}`} ·{" "}
-                    {answered} de {questionnaire.questions.length} respostas preenchidas
+                    {answered} de {activeQuestions.length} respostas preenchidas
                   </p>
                   <progress
                     className="h-2 w-full accent-teal-600"
@@ -189,7 +201,7 @@ export function PreconsultationPublic() {
                 </div>
                 {reviewing && (
                   <dl className="space-y-4" aria-label="Revisão das respostas">
-                    {questionnaire.questions.map((question) => (
+                    {activeQuestions.map((question) => (
                       <div key={question.id} className="border-b pb-3">
                         <dt className="text-sm font-medium">{question.label}</dt>
                         <dd className="mt-1 whitespace-pre-wrap break-words text-sm text-muted-foreground">
@@ -214,7 +226,7 @@ export function PreconsultationPublic() {
                         value={
                           Object.hasOwn(answers, question.id) ? (answers[question.id] ?? "") : ""
                         }
-                        onChange={(e) => setAnswers({ ...answers, [question.id]: e.target.value })}
+                        onChange={(e) => answer(question.id, e.target.value)}
                       >
                         <option value="">Prefiro não responder / não informado</option>
                         {question.options?.map((option) => (
@@ -230,7 +242,7 @@ export function PreconsultationPublic() {
                         value={
                           Object.hasOwn(answers, question.id) ? (answers[question.id] ?? "") : ""
                         }
-                        onChange={(e) => setAnswers({ ...answers, [question.id]: e.target.value })}
+                        onChange={(e) => answer(question.id, e.target.value)}
                         rows={3}
                       />
                     )}

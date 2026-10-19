@@ -5,7 +5,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { InventoryState } from "./inventory-state";
-import type { PreconsultationQuestion } from "./preconsultation-public";
+import {
+  questions as preconsultationQuestions,
+  visibleQuestions,
+  type PreconsultationQuestion,
+} from "@/lib/preconsultation-questions";
 
 type Form = {
   id: string;
@@ -99,7 +103,14 @@ export function PreconsultationPanel({
   async function save(event: FormEvent) {
     event.preventDefault();
     if (!editor) return;
-    if (await mutate({ action: "SAVE_FORM", ...editor })) setEditor(null);
+    const checked = preconsultationQuestions.safeParse(editor.questions);
+    if (!checked.success) {
+      setError(
+        "Revise as perguntas e condições: cada condição deve usar uma escolha anterior e uma opção existente.",
+      );
+      return;
+    }
+    if (await mutate({ action: "SAVE_FORM", ...editor, questions: checked.data })) setEditor(null);
   }
   if (!query.data) return <InventoryState pending={query.isLoading} error={query.error} />;
   const data = query.data;
@@ -304,6 +315,99 @@ export function PreconsultationPanel({
                         />
                       </label>
                     )}
+                    <div className="space-y-2 rounded-md bg-muted/40 p-3">
+                      <label className="block text-sm">
+                        Exibir esta pergunta
+                        <select
+                          aria-label={`Condição da pergunta ${index + 1}`}
+                          className={selectClass}
+                          value={q.visibleWhen?.questionId ?? ""}
+                          onChange={(e) => {
+                            const parent = editor.questions
+                              .slice(0, index)
+                              .find((item) => item.id === e.target.value);
+                            setEditor({
+                              ...editor,
+                              questions: editor.questions.map((item) =>
+                                item.id === q.id
+                                  ? {
+                                      ...item,
+                                      visibleWhen: parent
+                                        ? {
+                                            questionId: parent.id,
+                                            equals:
+                                              parent.options?.find((option) => option.trim()) ?? "",
+                                          }
+                                        : undefined,
+                                    }
+                                  : item,
+                              ),
+                            });
+                          }}
+                        >
+                          <option value="">Sempre (opcional)</option>
+                          {editor.questions
+                            .slice(0, index)
+                            .filter((item) => item.type === "CHOICE")
+                            .map((item) => (
+                              <option value={item.id} key={item.id}>
+                                Quando responder: {item.label || "Pergunta sem título"}
+                              </option>
+                            ))}
+                          {q.visibleWhen &&
+                            !editor.questions
+                              .slice(0, index)
+                              .some(
+                                (item) =>
+                                  item.id === q.visibleWhen?.questionId && item.type === "CHOICE",
+                              ) && (
+                              <option value={q.visibleWhen.questionId}>
+                                Condição inválida — selecione outra pergunta
+                              </option>
+                            )}
+                        </select>
+                      </label>
+                      {q.visibleWhen && (
+                        <label className="block text-sm">
+                          Resposta que exibe a pergunta
+                          <select
+                            aria-label={`Resposta condicional da pergunta ${index + 1}`}
+                            className={selectClass}
+                            value={q.visibleWhen.equals}
+                            onChange={(e) =>
+                              setEditor({
+                                ...editor,
+                                questions: editor.questions.map((item) =>
+                                  item.id === q.id && item.visibleWhen
+                                    ? {
+                                        ...item,
+                                        visibleWhen: {
+                                          ...item.visibleWhen,
+                                          equals: e.target.value,
+                                        },
+                                      }
+                                    : item,
+                                ),
+                              })
+                            }
+                          >
+                            <option value="">Selecione uma opção</option>
+                            {editor.questions
+                              .find((item) => item.id === q.visibleWhen?.questionId)
+                              ?.options?.filter((option) => option.trim())
+                              .map((option) => (
+                                <option key={option} value={option}>
+                                  {option}
+                                </option>
+                              ))}
+                          </select>
+                        </label>
+                      )}
+                      <p className="text-xs text-muted-foreground">
+                        Use apenas uma pergunta de escolha anterior. A pergunta e suas dependentes
+                        ficam ocultas quando a condição não é atendida.
+                      </p>
+                    </div>
                     <Button
                       type="button"
                       size="sm"
@@ -320,6 +424,12 @@ export function PreconsultationPanel({
                     </Button>
                   </fieldset>
                 ))}
+                {!preconsultationQuestions.safeParse(editor.questions).success && (
+                  <p className="text-sm text-amber-900">
+                    Revise textos, opções e condições antes de salvar. Condições precisam de uma
+                    escolha anterior e uma opção válida.
+                  </p>
+                )}
                 <div className="flex flex-wrap gap-2">
                   <Button
                     type="button"
@@ -331,7 +441,12 @@ export function PreconsultationPanel({
                   >
                     Adicionar pergunta
                   </Button>
-                  <Button type="submit" disabled={pending}>
+                  <Button
+                    type="submit"
+                    disabled={
+                      pending || !preconsultationQuestions.safeParse(editor.questions).success
+                    }
+                  >
                     Salvar rascunho
                   </Button>
                   <Button
@@ -503,14 +618,18 @@ export function PreconsultationPanel({
                     validadas clinicamente nem incorporadas automaticamente ao prontuário. Questões
                     em branco significam “não informado”.
                   </p>
-                  {invitation.questions?.map((q) => (
-                    <div key={q.id}>
-                      <p className="text-sm font-medium">{q.label}</p>
-                      <p className="whitespace-pre-wrap break-words text-sm">
-                        {invitation.answers?.[q.id] || "Não informado"}
-                      </p>
-                    </div>
-                  ))}
+                  {visibleQuestions(invitation.questions ?? [], invitation.answers ?? {}).map(
+                    (q) => (
+                      <div key={q.id}>
+                        <p className="text-sm font-medium">{q.label}</p>
+                        <p className="whitespace-pre-wrap break-words text-sm">
+                          {invitation.answers && Object.hasOwn(invitation.answers, q.id)
+                            ? invitation.answers[q.id] || "Não informado"
+                            : "Não informado"}
+                        </p>
+                      </div>
+                    ),
+                  )}
                 </div>
               </details>
             )}

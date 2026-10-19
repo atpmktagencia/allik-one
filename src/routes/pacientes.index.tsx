@@ -23,7 +23,7 @@ export const Route = createFileRoute("/pacientes/")({
   validateSearch: searchSchema,
   head: () => ({
     meta: [
-      { title: "Pacientes — Allik One" },
+      { title: "Paciente360º — Allik One" },
       {
         name: "description",
         content: "Cadastro operacional de pacientes por unidade.",

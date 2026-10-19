@@ -5,6 +5,7 @@ import { authenticate, can, canAccessAllUnits } from "./auth";
 import { getPool } from "./db";
 import { consumeAuthRateLimit } from "./auth-rate-limit";
 import { recordClinicalListAccess } from "./clinical-access-audit";
+import { questions, sanitizePreconsultationAnswers } from "../lib/preconsultation-questions";
 
 const headers = {
   "Cache-Control": "private, no-store",
@@ -12,22 +13,6 @@ const headers = {
   "Referrer-Policy": "no-referrer",
 };
 const fail = (error: string, status: number) => Response.json({ error }, { status, headers });
-const question = z
-  .object({
-    id: z.string().regex(/^[a-zA-Z0-9_-]{1,64}$/),
-    label: z.string().trim().min(1).max(300),
-    type: z.enum(["TEXT", "CHOICE"]),
-    options: z.array(z.string().trim().min(1).max(150)).max(20).optional(),
-  })
-  .superRefine((q, ctx) => {
-    if (q.type === "CHOICE" && (!q.options?.length || new Set(q.options).size !== q.options.length))
-      ctx.addIssue({ code: "custom", message: "Opções inválidas" });
-  });
-const questions = z
-  .array(question)
-  .min(1)
-  .max(30)
-  .refine((q) => new Set(q.map((x) => x.id)).size === q.length);
 const input = z.discriminatedUnion("action", [
   z.object({
     action: z.literal("SAVE_FORM"),
@@ -206,6 +191,8 @@ export async function preconsultationResponse(request: Request) {
         return await rollback("Formulário não encontrado.", 404);
       if (d.version !== f.version)
         return await rollback("O formulário mudou. Atualize a lista.", 409);
+      if (!questions.safeParse(f.questions).success)
+        return await rollback("Confira as perguntas e condições antes de publicar.", 400);
       await client.query(
         "INSERT INTO inventory_preconsultation_versions(form_id,organization_id,unit_id,version,title,description,questions,published_by_user_id) VALUES($1,$2,$3,$4,$5,$6,$7,$8) ON CONFLICT(form_id,version) DO NOTHING",
         [
@@ -328,6 +315,11 @@ export async function preconsultationPublicResponse(request: Request) {
       await client.query("ROLLBACK");
       return fail("Link inválido ou indisponível.", 404);
     }
+    const questionnaire = questions.safeParse(i.questions);
+    if (!questionnaire.success) {
+      await client.query("ROLLBACK");
+      return fail("Formulário indisponível. Solicite um novo link à clínica.", 409);
+    }
     if (d.action === "READ") {
       await client.query("COMMIT");
       return Response.json(
@@ -335,24 +327,20 @@ export async function preconsultationPublicResponse(request: Request) {
           data: {
             title: i.title,
             description: i.description,
-            questions: i.questions,
+            questions: questionnaire.data,
             expiresAt: i.expires_at,
           },
         },
         { headers },
       );
     }
-    const qs = i.questions as z.infer<typeof question>[];
-    const values = d.answers ?? {};
-    const answer = (id: string): string => (Object.hasOwn(values, id) ? (values[id] ?? "") : "");
-    if (
-      Object.keys(values).some((k) => !qs.some((q) => q.id === k)) ||
-      qs.some((q) => q.type === "CHOICE" && answer(q.id) && !q.options?.includes(answer(q.id)))
-    ) {
+    let answers: Record<string, string>;
+    try {
+      answers = sanitizePreconsultationAnswers(questionnaire.data, d.answers ?? {});
+    } catch {
       await client.query("ROLLBACK");
       return fail("Confira as respostas.", 400);
     }
-    const answers = Object.fromEntries(qs.map((q) => [q.id, answer(q.id)]));
     await client.query(
       "INSERT INTO inventory_preconsultation_responses(invitation_id,answers) VALUES($1,$2)",
       [i.id, JSON.stringify(answers)],

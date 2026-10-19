@@ -57,7 +57,7 @@ const careItems = [
   { label: "Pré-consultas", to: "/pre-consultas", icon: ListChecks },
   { label: "Tarefas da equipe", to: "/tarefas", icon: ListChecks },
   { label: "Agendamentos", to: "/agenda", icon: CalendarDays },
-  { label: "Pacientes", to: "/pacientes", icon: UserRound },
+  { label: "Paciente360º", to: "/pacientes", icon: UserRound },
 ] as const;
 
 const procedureItems = [
@@ -81,7 +81,7 @@ const pageTitles: Record<string, string> = {
   "/estoque/valores": "Precificação",
   "/aplicacoes": "Aplicações",
   "/aplicacoes/nova": "Registrar aplicação",
-  "/pacientes": "Pacientes",
+  "/pacientes": "Paciente360º",
   "/pacientes/demanda": "Demanda futura",
   "/pacientes/fracionamento": "Apresentações abertas",
   "/agenda": "Agendamentos",

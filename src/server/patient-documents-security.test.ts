@@ -4,6 +4,7 @@ import { migrate } from "drizzle-orm/node-postgres/migrator";
 import { hashToken } from "./auth";
 import { getDb, getPool } from "./db";
 import { patientDocumentsResponse, patientDocumentFileResponse } from "./patient-document-center";
+import { preconsultationResponse, preconsultationPublicResponse } from "./preconsultation";
 
 const storage = vi.hoisted(() => ({ put: vi.fn(), get: vi.fn(), del: vi.fn() }));
 vi.mock("@vercel/blob", () => storage);
@@ -106,6 +107,55 @@ async function fixture(role = "CLINICIAN") {
   };
 }
 describe("Patient document center independent security", () => {
+  it("opens submitted questionnaires in the patient-scoped preconsultation workspace", async () => {
+    const f = await fixture("SUPER_ADMIN");
+    const formId = randomUUID();
+    const post = (body: Record<string, unknown>) =>
+      preconsultationResponse(
+        new Request(origin + "/api/v1/inventory/preconsultation", {
+          method: "POST",
+          headers: { ...f.headers, "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        }),
+      );
+    expect(
+      (
+        await post({
+          action: "SAVE_FORM",
+          id: formId,
+          unitId: f.unit,
+          title: "Questionário sintético",
+          questions: [{ id: "concern", type: "TEXT", label: "Relato" }],
+        })
+      ).status,
+    ).toBe(200);
+    expect((await post({ action: "PUBLISH_FORM", id: formId, version: 0 })).status).toBe(200);
+    const invitation = await post({
+      action: "INVITE",
+      id: randomUUID(),
+      patientId: f.patient,
+      formId,
+    });
+    expect(invitation.status).toBe(201);
+    const link = new URL((await invitation.json()).data.link);
+    const token = new URLSearchParams(link.hash.slice(1)).get("token");
+    const submitted = await preconsultationPublicResponse(
+      new Request(origin + "/api/v1/preconsultation", {
+        method: "POST",
+        headers: { origin, "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "SUBMIT", token, answers: { concern: "Relato sintético" } }),
+      }),
+    );
+    expect(submitted.status).toBe(200);
+    const response = await f.read("&sourceKind=PRECONSULTATION_RESPONSE");
+    expect(response.status).toBe(200);
+    const documents = (await response.json()).data.documents;
+    expect(documents).toHaveLength(1);
+    expect(documents[0].originUrl).toBe(`/pre-consultas?patientId=${f.patient}`);
+    expect(documents[0].previewUrl).toBeNull();
+    expect(documents[0].downloadUrl).toBeNull();
+  });
+
   it("isolates patient metadata and refuses mismatched patient file requests before storage", async () => {
     const f = await fixture(),
       own = await f.insert(),

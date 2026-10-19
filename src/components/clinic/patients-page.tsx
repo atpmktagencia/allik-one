@@ -312,8 +312,8 @@ export function PatientsPage({
     <div className="space-y-6">
       <PageHeader
         eyebrow="Atendimento"
-        title="Pacientes"
-        description="Cadastro operacional por unidade, com tratamentos, prescrições privadas e planejamento de demanda."
+        title="Paciente360º"
+        description="Pacientes, prontuários, exames e acompanhamento por unidade."
         action={
           data.canManage ? (
             <Button onClick={startCreate}>

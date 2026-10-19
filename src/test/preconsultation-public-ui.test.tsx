@@ -257,3 +257,105 @@ it("keeps optional answers in memory across steps and reviews without submitting
     answers: { q0: "Relato voluntário", q6: "Outro relato" },
   });
 });
+
+it("shows conditional branches, clears descendant answers and submits only visible answers", async () => {
+  const requests: Record<string, unknown>[] = [];
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (_url: unknown, init: RequestInit) => {
+      const body = JSON.parse(String(init.body));
+      requests.push(body);
+      return Response.json({
+        data:
+          body.action === "READ"
+            ? {
+                title: "Condicional",
+                description: "",
+                expiresAt: "2030-01-01",
+                questions: [
+                  {
+                    id: "meds",
+                    label: "Usa medicamentos?",
+                    type: "CHOICE",
+                    options: ["Sim", "Não"],
+                  },
+                  {
+                    id: "daily",
+                    label: "Uso diário?",
+                    type: "CHOICE",
+                    options: ["Sim", "Não"],
+                    visibleWhen: { questionId: "meds", equals: "Sim" },
+                  },
+                  {
+                    id: "names",
+                    label: "Quais medicamentos?",
+                    type: "TEXT",
+                    visibleWhen: { questionId: "daily", equals: "Sim" },
+                  },
+                ],
+              }
+            : { submitted: true },
+      });
+    }),
+  );
+  window.history.replaceState({}, "", `/preconsulta#token=${token}`);
+  render(<PreconsultationPublic />);
+  await screen.findByRole("heading", { name: "Condicional" });
+  expect(screen.queryByLabelText(/Uso diário/)).not.toBeInTheDocument();
+  fireEvent.change(screen.getByLabelText(/Usa medicamentos/), { target: { value: "Sim" } });
+  fireEvent.change(screen.getByLabelText(/Uso diário/), { target: { value: "Sim" } });
+  fireEvent.change(screen.getByLabelText(/Quais medicamentos/), {
+    target: { value: "Relato a descartar" },
+  });
+  fireEvent.change(screen.getByLabelText(/Usa medicamentos/), { target: { value: "Não" } });
+  expect(screen.queryByLabelText(/Uso diário/)).not.toBeInTheDocument();
+  expect(screen.queryByLabelText(/Quais medicamentos/)).not.toBeInTheDocument();
+  fireEvent.change(screen.getByLabelText(/Usa medicamentos/), { target: { value: "Sim" } });
+  expect(screen.getByLabelText(/Uso diário/)).toHaveValue("");
+  expect(screen.queryByLabelText(/Quais medicamentos/)).not.toBeInTheDocument();
+  fireEvent.change(screen.getByLabelText(/Usa medicamentos/), { target: { value: "Não" } });
+  fireEvent.click(screen.getByRole("button", { name: "Revisar respostas" }));
+  expect(screen.queryByText("Uso diário?")).not.toBeInTheDocument();
+  expect(screen.queryByText("Relato a descartar")).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "Enviar respostas" }));
+  await screen.findByRole("heading", { name: "Respostas enviadas" });
+  expect(requests.at(-1)).toEqual({ action: "SUBMIT", token, answers: { meds: "Não" } });
+  expect(window.localStorage.length).toBe(0);
+  expect(window.sessionStorage.length).toBe(0);
+});
+
+it("paginates the visible branch rather than hidden questions", async () => {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async () =>
+      Response.json({
+        data: {
+          title: "Etapas condicionais",
+          description: "",
+          expiresAt: "2030-01-01",
+          questions: [
+            { id: "gate", label: "Mostrar detalhes?", type: "CHOICE", options: ["Sim", "Não"] },
+            ...Array.from({ length: 6 }, (_, i) => ({
+              id: `detail${i}`,
+              label: `Detalhe ${i}`,
+              type: "TEXT",
+              visibleWhen: { questionId: "gate", equals: "Sim" },
+            })),
+          ],
+        },
+      }),
+    ),
+  );
+  window.history.replaceState({}, "", `/preconsulta#token=${token}`);
+  render(<PreconsultationPublic />);
+  await screen.findByRole("heading", { name: "Etapas condicionais" });
+  expect(screen.getByText(/Etapa 1 de 1/)).toBeInTheDocument();
+  fireEvent.change(screen.getByLabelText(/Mostrar detalhes/), { target: { value: "Sim" } });
+  expect(screen.getByText(/Etapa 1 de 2/)).toBeInTheDocument();
+  expect(screen.queryByLabelText(/Detalhe 4/)).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "Próxima etapa" }));
+  expect(screen.getByLabelText(/Detalhe 4/)).toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "Etapa anterior" }));
+  fireEvent.change(screen.getByLabelText(/Mostrar detalhes/), { target: { value: "Não" } });
+  expect(screen.getByText(/Etapa 1 de 1/)).toBeInTheDocument();
+});

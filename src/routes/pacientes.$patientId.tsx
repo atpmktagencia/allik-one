@@ -1,7 +1,7 @@
 import { createFileRoute, Outlet, useRouterState } from "@tanstack/react-router";
 import { PatientTreatmentPage } from "@/components/clinic/patient-treatment-page";
 export const Route = createFileRoute("/pacientes/$patientId")({
-  head: () => ({ meta: [{ title: "Tratamento do paciente — Allik One" }] }),
+  head: () => ({ meta: [{ title: "Paciente360º — Allik One" }] }),
   component: PatientRoute,
 });
 
