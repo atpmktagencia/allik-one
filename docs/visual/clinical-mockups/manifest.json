@@ -1,0 +1,109 @@
+{
+  "capturedAt": "2026-10-19T20:30:36.559Z",
+  "origin": "https://allik-cey8fhmme-atp-mkt.vercel.app",
+  "commit": "7e3432307487ebe5b51df711bf298907df2afb6e",
+  "screenshots": [
+    {
+      "name": "01-atendimento-anamnese",
+      "path": "/atendimentos/8ce907e1-a834-48ff-a9ee-4c000503f03d",
+      "viewport": {
+        "width": 1536,
+        "height": 1024
+      },
+      "overflow": {
+        "width": 1536,
+        "document": 1536,
+        "height": 1024
+      },
+      "pageErrors": 0,
+      "sizeBytes": 168271,
+      "sha256": "c43c946711b80f38128a84ae38b8316e5ec76c0d20891323a13d41b63cca19a2",
+      "noConfirmedResults": true
+    },
+    {
+      "name": "02-atendimento-exames",
+      "path": "/atendimentos/8ce907e1-a834-48ff-a9ee-4c000503f03d",
+      "viewport": {
+        "width": 1536,
+        "height": 1024
+      },
+      "overflow": {
+        "width": 1536,
+        "document": 1536,
+        "height": 1024
+      },
+      "pageErrors": 0,
+      "sizeBytes": 126949,
+      "sha256": "d585f8a5d593563aa3f0a3012b1a9d8b3946f8f5aef078fcf84c5f7c22baaabb",
+      "noConfirmedResults": true
+    },
+    {
+      "name": "03-atendimento-prescricao",
+      "path": "/atendimentos/8ce907e1-a834-48ff-a9ee-4c000503f03d",
+      "viewport": {
+        "width": 1536,
+        "height": 1024
+      },
+      "overflow": {
+        "width": 1536,
+        "document": 1536,
+        "height": 1024
+      },
+      "pageErrors": 0,
+      "sizeBytes": 158006,
+      "sha256": "d80eccc82087fd3ad001b727dee9940f8ea20b1c7e1e0f8f16988b54ce67765e",
+      "noConfirmedResults": false
+    },
+    {
+      "name": "04-atendimento-solicitacoes",
+      "path": "/atendimentos/8ce907e1-a834-48ff-a9ee-4c000503f03d",
+      "viewport": {
+        "width": 1536,
+        "height": 1024
+      },
+      "overflow": {
+        "width": 1536,
+        "document": 1536,
+        "height": 1024
+      },
+      "pageErrors": 0,
+      "sizeBytes": 134138,
+      "sha256": "335735778b64d5508bdb4122bc67c6d265f1391dbc3d8666877a06eac55092bb",
+      "noConfirmedResults": false
+    },
+    {
+      "name": "05-atendimento-revisao",
+      "path": "/atendimentos/8ce907e1-a834-48ff-a9ee-4c000503f03d",
+      "viewport": {
+        "width": 1536,
+        "height": 1024
+      },
+      "overflow": {
+        "width": 1536,
+        "document": 1536,
+        "height": 1024
+      },
+      "pageErrors": 0,
+      "sizeBytes": 141066,
+      "sha256": "7321232ce1a21eecb946100d911b3acf3324c129d6af2f3253fee89240af5ab4",
+      "noConfirmedResults": false
+    },
+    {
+      "name": "06-prontuario-visao-geral",
+      "path": "/pacientes/90319847-c7a6-4adc-a08a-47cf5e2aef21",
+      "viewport": {
+        "width": 1536,
+        "height": 1024
+      },
+      "overflow": {
+        "width": 1536,
+        "document": 1536,
+        "height": 1024
+      },
+      "pageErrors": 0,
+      "sizeBytes": 126383,
+      "sha256": "4c5bc71b9ffed575a6f4b5b6723719084f0f51d44532ce4c2f9f12fd93d011db",
+      "noConfirmedResults": true
+    }
+  ]
+}

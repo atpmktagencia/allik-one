@@ -46,7 +46,28 @@ Capturas em 1536 × 1024 no percurso sintético de um mesmo paciente:
 
 Após a primeira comparação, o cabeçalho foi reduzido em aproximadamente 20 px e a mensagem de sucesso passou a notificação sem deslocar o conteúdo. A prescrição recebeu categorias e tabela; solicitações receberam lista compacta; a revisão foi ajustada para seis resumos em linha no desktop. Os estados transitórios são aguardados antes das capturas.
 
-Typecheck e build aprovados; lint sem erros, com seis avisos de Fast Refresh preexistentes. **435 testes unitários/de interface e 365 testes de integração passaram**, além de 3/3 verificações do papel restrito. Os testes abrangem buffers entre abas, ponte explícita para a receita, salvamento concorrente, acesso por unidade e veto da troca de unidade durante edição. A suíte completa de navegador passou em **17/17 cenários**, incluindo o PDF privado no painel de exames, rascunhos entre etapas, finalização e impressão. As 8 verificações de Preview/build também passaram. A comparação publicada está em andamento.
+Typecheck e build aprovados; lint sem erros, com seis avisos de Fast Refresh preexistentes. **439 testes unitários/de interface e 365 testes de integração passaram**, além de 3/3 verificações do papel restrito. Os testes abrangem buffers entre abas, ponte explícita para a receita, salvamento concorrente, acesso por unidade e veto da troca de unidade durante edição. A suíte completa de navegador passou em **17/17 cenários**, incluindo o PDF privado no painel de exames, rascunhos entre etapas, finalização e impressão. As 8 verificações de Preview/build também passaram. Após a primeira comparação no Preview, foram corrigidos os estados sem permissão de emissão, sinais vitais ausentes e reconhecimento de documentos de orientações na Revisão. A segunda comparação foi concluída no Preview do candidato `7e34323`, incluindo as seis telas e esses refinamentos.
+
+### Comparação no Preview publicado
+
+**Candidato de aplicação:** `7e3432307487ebe5b51df711bf298907df2afb6e`. **Preview revisado:** <https://allik-cey8fhmme-atp-mkt.vercel.app>. Capturas realizadas em 19/10/2026, a partir de 20:30 UTC, em 1536 × 1024. O [CI desse candidato](https://github.com/atpmktagencia/allik-one/actions/runs/39319754805) terminou com sucesso.
+
+![Seis telas capturadas no Preview](visual/clinical-mockups/contact-sheet.png)
+
+| Tela                       | Captura original                                                       |
+| -------------------------- | ---------------------------------------------------------------------- |
+| Atendimento / Anamnese     | [1536 × 1024](visual/clinical-mockups/01-atendimento-anamnese.png)     |
+| Atendimento / Exames       | [1536 × 1024](visual/clinical-mockups/02-atendimento-exames.png)       |
+| Atendimento / Prescrição   | [1536 × 1024](visual/clinical-mockups/03-atendimento-prescricao.png)   |
+| Atendimento / Solicitações | [1536 × 1024](visual/clinical-mockups/04-atendimento-solicitacoes.png) |
+| Atendimento / Revisão      | [1536 × 1024](visual/clinical-mockups/05-atendimento-revisao.png)      |
+| Prontuário / Visão geral   | [1536 × 1024](visual/clinical-mockups/06-prontuario-visao-geral.png)   |
+
+O [manifesto](visual/clinical-mockups/manifest.json) registra origem, commit, dimensões e SHA-256 de cada original. As seis capturas não apresentaram erros JavaScript nem transbordamento horizontal. Foram comparadas a barra global, faixa clínica, proporções de sidebar/centro/contexto, etapas numeradas, bordas, tipografia, espaçamentos e estados ativos. A comparação técnica não substitui a homologação visual do responsável.
+
+A sessão publicada foi somente de consulta/navegação, usando o operador e paciente sintéticos já existentes. Não foram criados pacientes, enviados convites, processados exames por IA, confirmados resultados, finalizados documentos ou alterados dados clínicos. O atendimento escolhido já possuía evolução e receita finalizadas; não possuía resultados laboratoriais confirmados nem solicitações nessa categoria. As capturas preservam esses estados reais, incluindo ausência de sinais vitais e restrição de emissão pelo responsável. Por isso, as tabelas preenchidas e operações de edição são verificadas separadamente nos testes de navegador com dados sintéticos descartáveis.
+
+A segunda comparação confirmou as mensagens de permissão em Solicitações e de sinais vitais ausentes na Visão geral. O reconhecimento de orientações emitidas pela Prescrição foi coberto também por teste de interface. Não houve alteração de esquema ou migração nesta entrega. O alias de produção permaneceu no mesmo deployment durante a publicação e a verificação do Preview.
 
 ### Diferenças necessárias e limites
 
