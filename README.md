@@ -517,3 +517,5 @@ Os fluxos atuais de consulta e tratamento permanecem disponíveis. Nesta fase, E
 ### Patient Workspace — Fase 2: conferência de exames (Preview)
 
 PDF original e tabela editável lado a lado, com revisão explícita por resultado, confirmação do paciente, versões imutáveis e correção rastreável. A extração por IA depende de configuração do provedor; a conferência manual permanece disponível. Resultados incertos não são publicados automaticamente. Consulte [fluxo, limites e validação](docs/patient-workspace-phase2.md). Migração aditiva `0071_laboratory_review`; produção permanece preservada.
+
+A conferência de exames inclui [checagem independente de trechos e revisão por exceções](docs/patient-workspace-evidence-review.md): parser local do PDF, pendências visíveis e confirmação em lote explícita. Não realiza uma segunda chamada paga nem confirma resultados automaticamente. Extrações anteriores permanecem disponíveis para revisão individual.

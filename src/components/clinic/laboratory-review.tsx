@@ -1,3 +1,8 @@
+import {
+  laboratoryRowEvidenceIdentity,
+  laboratoryEvidenceIssueLabels,
+  type LaboratorySourceChecks,
+} from "@/lib/laboratory-review-checks";
 import { laboratoryFailureMessages } from "@/lib/laboratory-results";
 import { Fragment, useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -23,6 +28,9 @@ import { PrivateDocumentPreview } from "./private-document-preview";
 type HistoricalReview = { id: string; version: number; snapshot: LaboratoryDraft };
 type Data = {
   historicalReview?: HistoricalReview | null;
+  evidenceChecks?: Omit<LaboratorySourceChecks, "rows"> & {
+    rows: (LaboratorySourceChecks["rows"][number] | null)[];
+  };
   source: { id: string; title: string; sha256: string; previewUrl: string };
   import: {
     id: string;
@@ -70,6 +78,7 @@ export function LaboratoryReview({
     [error, setError] = useState(""),
     [message, setMessage] = useState(""),
     [tab, setTab] = useState("results");
+  const [rowFilter, setRowFilter] = useState<"all" | "attention" | "unverified">("all");
   const [pendingAction, setPendingAction] = useState<string | null>(null);
   const [historical, setHistorical] = useState<HistoricalReview | null>(null);
   const changed = useRef(onChanged);
@@ -238,6 +247,40 @@ export function LaboratoryReview({
   const editable = !!data?.import && !busy && !validated && !processing && !historical;
   const shownDraft = historical?.snapshot ?? draft;
   const problem = laboratoryValidationProblem(draft);
+  const rowCheck = (row: LaboratoryRow, index: number) => {
+    if (historical) return null;
+    const saved = data?.import?.draft.rows[index];
+    return saved && laboratoryRowEvidenceIdentity(saved) === laboratoryRowEvidenceIdentity(row)
+      ? (data?.evidenceChecks?.rows[index] ?? null)
+      : null;
+  };
+  const eligible = (row: LaboratoryRow, index: number) => {
+    const check = rowCheck(row, index);
+    return (
+      !!row.name.trim() &&
+      !!row.result.trim() &&
+      !row.uncertainty?.trim() &&
+      check?.basis === "source_text" &&
+      check.status === "literal_match"
+    );
+  };
+  const bulkCount = shownDraft.rows.filter(
+    (row, index) => !row.verified && eligible(row, index),
+  ).length;
+  const needsAttention = (row: LaboratoryRow, index: number) =>
+    !!row.uncertainty?.trim() ||
+    !row.name.trim() ||
+    !row.result.trim() ||
+    (!row.verified && !eligible(row, index));
+  const attentionCount = shownDraft.rows.filter(needsAttention).length;
+  const visibleRows = shownDraft.rows
+    .map((row, index) => ({ row, index }))
+    .filter(
+      ({ row, index }) =>
+        rowFilter === "all" ||
+        (rowFilter === "unverified" ? !row.verified : needsAttention(row, index)),
+    );
+
   const field = (
     row: LaboratoryRow,
     index: number,
@@ -460,20 +503,20 @@ export function LaboratoryReview({
                 )}
                 {!validated && (
                   <Button
-                    disabled={!editable || !draft.rows.length}
+                    disabled={!editable || !bulkCount}
                     variant="outline"
                     onClick={() => {
                       setDraft((p) => ({
                         ...p,
-                        rows: p.rows.map((r) => ({
+                        rows: p.rows.map((r, index) => ({
                           ...r,
-                          verified: !!r.name && !!r.result && !r.uncertainty,
+                          verified: r.verified || eligible(r, index),
                         })),
                       }));
                       setDirty(true);
                     }}
                   >
-                    Marcar linhas conferidas
+                    Conferi as {bulkCount} linhas sem pendências
                   </Button>
                 )}
               </div>
@@ -495,6 +538,46 @@ export function LaboratoryReview({
                   conferência.
                 </p>
               )}
+              {!!shownDraft.rows.length && (
+                <div className="space-y-2 rounded-lg bg-slate-50 p-3">
+                  <p className="text-sm" role="status">
+                    {shownDraft.rows.length} resultados ·{" "}
+                    {shownDraft.rows.filter((row) => row.verified).length} conferidos ·{" "}
+                    {attentionCount} para atenção individual
+                  </p>
+                  <div
+                    className="flex flex-wrap gap-2"
+                    aria-label="Filtrar resultados da conferência"
+                  >
+                    {(
+                      [
+                        ["all", "Todos"],
+                        ["attention", "Atenção individual"],
+                        ["unverified", "Não conferidos"],
+                      ] as const
+                    ).map(([value, label]) => (
+                      <Button
+                        key={value}
+                        size="sm"
+                        variant={rowFilter === value ? "secondary" : "ghost"}
+                        aria-pressed={rowFilter === value}
+                        onClick={() => setRowFilter(value)}
+                      >
+                        {label}
+                      </Button>
+                    ))}
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    A checagem compara trechos literais ao texto do PDF; não comprova completude nem
+                    interpretação clínica. Confira o original antes de confirmar em lote.
+                    {data?.evidenceChecks?.parserStatus !== "available" &&
+                      " Sem texto independente disponível: faça a conferência individual pelo original."}
+                  </p>
+                </div>
+              )}
+              {!!shownDraft.rows.length && !visibleRows.length && (
+                <p className="text-sm">Nenhum resultado neste filtro.</p>
+              )}
               <div className="max-w-full overflow-auto">
                 <table
                   className="w-full text-left text-sm"
@@ -511,7 +594,7 @@ export function LaboratoryReview({
                     </tr>
                   </thead>
                   <tbody>
-                    {shownDraft.rows.map((row, index) => (
+                    {visibleRows.map(({ row, index }) => (
                       <Fragment key={index}>
                         <tr className="border-t align-top">
                           <td className="p-1">
@@ -530,6 +613,25 @@ export function LaboratoryReview({
                               disabled={!editable}
                               onChange={(e) => edit(index, { name: e.target.value })}
                             />
+                            <p className="mt-1 text-xs text-muted-foreground">
+                              {row.verified && !needsAttention(row, index)
+                                ? "Conferido pelo profissional"
+                                : eligible(row, index)
+                                  ? "Trecho localizado no PDF"
+                                  : "Conferência individual"}
+                              {row.sourcePage ? " · pág. " + row.sourcePage : ""}
+                            </p>
+                            {needsAttention(row, index) && (
+                              <p className="mt-1 text-xs text-amber-800">
+                                {rowCheck(row, index)
+                                  ?.issues.map(
+                                    (issue) =>
+                                      laboratoryEvidenceIssueLabels[issue] ?? "Verifique a origem",
+                                  )
+                                  .join(" · ") ||
+                                  "Origem não localizada automaticamente ou linha editada"}
+                              </p>
+                            )}
                           </td>
                           <td className="min-w-32 p-1">
                             <Input

@@ -1,4 +1,4 @@
-import { beforeAll, afterAll, afterEach, describe, it, expect, vi } from "vitest";
+import { beforeAll, afterAll, beforeEach, afterEach, describe, it, expect, vi } from "vitest";
 import { randomUUID, createHash } from "node:crypto";
 import { migrate } from "drizzle-orm/node-postgres/migrator";
 import { getDb, getPool } from "./db";
@@ -7,6 +7,10 @@ import * as accessAudit from "./clinical-access-audit";
 import { laboratoryResultsResponse } from "./laboratory-results";
 import { emptyLaboratoryRow } from "../lib/laboratory-results";
 const ai = vi.hoisted(() => ({ extract: vi.fn() }));
+const pdfText = vi.hoisted(() => ({ extract: vi.fn() }));
+vi.mock("./laboratory-pdf-text", () => ({
+  extractLaboratoryPdfText: pdfText.extract,
+}));
 vi.mock("./laboratory-extraction", async (importOriginal) => ({
   ...(await importOriginal<typeof import("./laboratory-extraction")>()),
   laboratoryExtractionConfiguration: () => ({ enabled: true, model: "synthetic/model" }),
@@ -16,6 +20,9 @@ vi.mock("./laboratory-extraction", async (importOriginal) => ({
 const storage = vi.hoisted(() => ({ get: vi.fn(), put: vi.fn(), del: vi.fn() }));
 vi.mock("@vercel/blob", () => storage);
 const origin = "http://localhost:4317";
+beforeEach(() => {
+  pdfText.extract.mockResolvedValue({ status: "unavailable", reason: "NO_TEXT" });
+});
 beforeAll(async () => {
   if (!new URL(process.env["DATABASE_URL"] ?? "postgres://invalid").pathname.endsWith("_test"))
     throw Error("Disposable database required");
@@ -25,6 +32,7 @@ beforeAll(async () => {
 afterEach(() => {
   vi.restoreAllMocks();
   ai.extract.mockReset();
+  pdfText.extract.mockReset();
   storage.get.mockReset();
 });
 afterAll(async () => {
@@ -271,7 +279,16 @@ describe("laboratory import, review and isolation", () => {
       statusCode: 200,
       stream: new Blob([f.bytes]).stream(),
     }));
-    ai.extract.mockResolvedValue(confirmed());
+    const extracted = confirmed();
+    extracted.rows[0]!.sourcePage = 1;
+    extracted.rows[0]!.evidence = "TSH <0,1 µUI/mL Referência: 0,27–4,2";
+    const sourceText = "Cabeçalho exclusivo do PDF fictício\n" + extracted.rows[0]!.evidence;
+    ai.extract.mockResolvedValue(extracted);
+    pdfText.extract.mockResolvedValue({
+      status: "available",
+      totalPages: 1,
+      pages: [{ page: 1, text: sourceText }],
+    });
     const attempt = randomUUID();
     d = await data(
       await f.post({ action: "EXTRACT", version: d.import.version, operationId: attempt }),
@@ -280,12 +297,39 @@ describe("laboratory import, review and isolation", () => {
     expect(d.import.draft.patientConfirmed).toBe(false);
     expect(d.import.draft.rows[0].verified).toBe(false);
     expect(d.import.extracted_payload.rows[0].result).toBe("<0,1");
+    expect(d.evidenceChecks).toEqual({
+      version: 1,
+      parserStatus: "available",
+      totalPages: 1,
+      rows: [{ status: "literal_match", basis: "source_text", issues: [] }],
+    });
+    const metadata = (
+      await f.db.query(
+        "SELECT metadata FROM inventory_laboratory_import_events WHERE import_id=$1 AND action='EXTRACTION_READY'",
+        [d.import.id],
+      )
+    ).rows[0].metadata;
+    expect(metadata.sourceChecks).toEqual(d.evidenceChecks);
+    expect(JSON.stringify(metadata)).not.toContain(sourceText);
+    expect(JSON.stringify(metadata)).not.toContain(extracted.rows[0]!.evidence);
+    expect(
+      (
+        await f.db.query(
+          "SELECT count(*)::int n FROM inventory_laboratory_results WHERE patient_id=$1",
+          [f.patient],
+        )
+      ).rows[0].n,
+    ).toBe(0);
     await f.post({ action: "EXTRACT", version: 0, operationId: attempt });
     expect(ai.extract).toHaveBeenCalledTimes(1);
-    const next = confirmed();
+    const next = structuredClone(extracted);
+    d = await data(await f.post({ action: "SAVE", version: d.import.version, draft: next }));
+    expect(d.evidenceChecks.rows[0].status).toBe("literal_match");
+    expect(d.import.draft.rows[0].verified).toBe(true);
     next.rows[0]!.result = "0,3";
     d = await data(await f.post({ action: "SAVE", version: d.import.version, draft: next }));
     expect(d.import.extracted_payload.rows[0].result).toBe("<0,1");
+    expect(d.evidenceChecks.rows).toEqual([null]);
     await expect(
       f.db.query(
         "UPDATE inventory_laboratory_imports SET draft='{}',version=version+1 WHERE id=$1",

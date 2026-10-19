@@ -1,7 +1,7 @@
 import { afterEach, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { LaboratoryReview } from "@/components/clinic/laboratory-review";
-import { emptyLaboratoryDraft } from "@/lib/laboratory-results";
+import { emptyLaboratoryDraft, emptyLaboratoryRow } from "@/lib/laboratory-results";
 vi.mock("@/components/clinic/private-document-preview", () => ({
   PrivateDocumentPreview: () => <div>PDF original preservado</div>,
 }));
@@ -89,4 +89,107 @@ it("reviews beside the original, saves before validation and preserves literal r
   expect(actions[2]?.operationId).toMatch(/^[a-f0-9-]{36}$/);
   expect(screen.getByLabelText("Resultado da linha 1")).toBeDisabled();
   expect(screen.getByRole("button", { name: "Corrigir resultados" })).toBeInTheDocument();
+});
+
+async function openExtractedReview() {
+  const rows = [
+    { ...emptyLaboratoryRow(), name: "TSH", result: "<0,1", evidence: "TSH <0,1", sourcePage: 1 },
+    {
+      ...emptyLaboratoryRow(),
+      name: "Ferritina",
+      result: "20",
+      uncertainty: "Número pouco legível",
+    },
+    { ...emptyLaboratoryRow(), name: "Vitamina D", result: "30" },
+    {
+      ...emptyLaboratoryRow(),
+      name: "Antígeno",
+      result: "Não reagente",
+      evidence: "Antígeno Não reagente",
+      sourcePage: 1,
+    },
+  ];
+  const response = {
+    source: { id: "doc", title: "Exame sintético", sha256: "hash", previewUrl: "/private.pdf" },
+    import: {
+      id: "job",
+      status: "READY_REVIEW",
+      version: 1,
+      draft: { ...emptyLaboratoryDraft(), rows },
+      processing_started_at: null,
+      failure_code: null,
+    },
+    versions: [],
+    events: [],
+    extractionAvailable: true,
+    extractionMessage: null,
+    evidenceChecks: {
+      version: 1,
+      parserStatus: "available",
+      totalPages: 1,
+      rows: [
+        { status: "literal_match", basis: "source_text", issues: [] },
+        { status: "attention", basis: "source_text", issues: ["MODEL_UNCERTAINTY"] },
+        { status: "literal_match", basis: "model_evidence", issues: [] },
+        { status: "literal_match", basis: "source_text", issues: [] },
+      ],
+    },
+  };
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async () => Response.json({ data: response })),
+  );
+  render(<LaboratoryReview patientId="patient" documentId="doc" />);
+  fireEvent.click(screen.getByRole("button", { name: "Conferir resultados laboratoriais" }));
+  await screen.findByDisplayValue("Ferritina");
+  await waitFor(() =>
+    expect(
+      screen.getByRole("button", { name: "Conferi as 2 linhas sem pendências" }),
+    ).toBeEnabled(),
+  );
+}
+
+it("bulk confirmation only marks independently matched rows and still requires patient confirmation", async () => {
+  await openExtractedReview();
+  expect(screen.getByLabelText("Conferir linha 1")).not.toBeChecked();
+  fireEvent.click(screen.getByRole("button", { name: "Conferi as 2 linhas sem pendências" }));
+  expect(screen.getByLabelText("Conferir linha 1")).toBeChecked();
+  expect(screen.getByLabelText("Conferir linha 4")).toBeChecked();
+  expect(screen.getByLabelText("Conferir linha 2")).not.toBeChecked();
+  expect(screen.getByLabelText("Conferir linha 3")).not.toBeChecked();
+  expect(
+    screen.getByLabelText("Confirmei que o PDF corresponde ao paciente selecionado."),
+  ).not.toBeChecked();
+  expect(screen.getByRole("button", { name: "Confirmar resultados" })).toBeDisabled();
+  fireEvent.click(screen.getByLabelText("Conferir linha 3"));
+  expect(screen.getByLabelText("Conferir linha 3")).toBeChecked();
+  fireEvent.click(screen.getByLabelText("Conferir linha 2"));
+  fireEvent.click(screen.getByRole("button", { name: "Atenção individual" }));
+  expect(screen.getByLabelText("Conferir linha 2")).toBeChecked();
+  expect(screen.getByRole("button", { name: "Confirmar resultados" })).toBeDisabled();
+});
+
+it("edits the original row index when attention filtering hides other rows", async () => {
+  await openExtractedReview();
+  fireEvent.click(screen.getByRole("button", { name: "Atenção individual" }));
+  expect(screen.queryByLabelText("Exame da linha 1")).not.toBeInTheDocument();
+  fireEvent.change(screen.getByLabelText("Resultado da linha 2"), { target: { value: "21" } });
+  fireEvent.click(screen.getByRole("button", { name: "Todos" }));
+  expect(screen.getByLabelText("Resultado da linha 1")).toHaveValue("<0,1");
+  expect(screen.getByLabelText("Resultado da linha 2")).toHaveValue("21");
+  expect(screen.getByLabelText("Resultado da linha 3")).toHaveValue("30");
+  expect(screen.getByLabelText("Resultado da linha 4")).toHaveValue("Não reagente");
+});
+
+it("editing an independently matched result clears its confirmation and bulk eligibility", async () => {
+  await openExtractedReview();
+  fireEvent.click(screen.getByRole("button", { name: "Conferi as 2 linhas sem pendências" }));
+  fireEvent.change(screen.getByLabelText("Resultado da linha 1"), { target: { value: "0,2" } });
+  expect(screen.getByLabelText("Conferir linha 1")).not.toBeChecked();
+  expect(screen.getByRole("button", { name: "Conferi as 0 linhas sem pendências" })).toBeDisabled();
+  fireEvent.click(screen.getByRole("button", { name: "Não conferidos" }));
+  expect(screen.getByLabelText("Resultado da linha 1")).toHaveValue("0,2");
+  expect(screen.queryByLabelText("Resultado da linha 4")).not.toBeInTheDocument();
+  fireEvent.click(screen.getByLabelText("Conferir linha 1"));
+  expect(screen.queryByLabelText("Resultado da linha 1")).not.toBeInTheDocument();
 });

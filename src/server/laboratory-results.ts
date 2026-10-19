@@ -21,6 +21,14 @@ import {
   laboratoryProviderStatus,
 } from "./laboratory-extraction";
 
+import { extractLaboratoryPdfText } from "./laboratory-pdf-text";
+import { checkLaboratoryEvidence } from "../lib/laboratory-evidence";
+import {
+  laboratorySourceChecksSchema,
+  laboratoryRowEvidenceIdentity,
+  type LaboratorySourceChecks,
+} from "../lib/laboratory-review-checks";
+
 type Actor = AuthContext & { user: AuthContext["user"] & { id: string } };
 type Job = {
   id: string;
@@ -102,7 +110,13 @@ async function bounded(stream: ReadableStream<Uint8Array> | null, max: number) {
   }
   return bytes;
 }
-async function event(c: PoolClient, a: Actor, j: Job, action: string) {
+async function event(
+  c: PoolClient,
+  a: Actor,
+  j: Job,
+  action: string,
+  sourceChecks?: LaboratorySourceChecks,
+) {
   await c.query(
     "INSERT INTO inventory_laboratory_import_events(import_id,organization_id,unit_id,patient_id,actor_user_id,action,metadata) VALUES($1,$2,$3,$4,$5,$6,$7)",
     [
@@ -117,6 +131,7 @@ async function event(c: PoolClient, a: Actor, j: Job, action: string) {
         model: j.model ?? null,
         attemptId: j.attempt_id ?? null,
         failureCode: j.failure_code ?? null,
+        ...(sourceChecks ? { sourceChecks } : {}),
       },
     ],
   );
@@ -134,6 +149,7 @@ async function change(
     failure?: string | null;
     extracted?: unknown;
     review?: string;
+    sourceChecks?: LaboratorySourceChecks;
   } = {},
 ) {
   const next = (
@@ -152,7 +168,7 @@ async function change(
       ],
     )
   ).rows[0];
-  await event(c, a, next, action);
+  await event(c, a, next, action, options.sourceChecks);
   return next as Job;
 }
 async function view(a: Actor, s: Source, reviewId?: string) {
@@ -163,6 +179,31 @@ async function view(a: Actor, s: Source, reviewId?: string) {
         [s.id, a.organizationId],
       )
     ).rows[0] ?? null;
+  const evidenceMetadata = j
+    ? (
+        await getPool().query(
+          "SELECT metadata->'sourceChecks' AS checks FROM inventory_laboratory_import_events WHERE import_id=$1 AND organization_id=$2 AND action='EXTRACTION_READY' ORDER BY created_at DESC,id DESC LIMIT 1",
+          [j.id, a.organizationId],
+        )
+      ).rows[0]?.checks
+    : null;
+  const parsedChecks = laboratorySourceChecksSchema.safeParse(evidenceMetadata);
+  const originalDraft = laboratoryDraft.safeParse(j?.extracted_payload);
+  const evidenceChecks =
+    parsedChecks.success && originalDraft.success
+      ? {
+          ...parsedChecks.data,
+          rows: j.draft.rows.map(
+            (row: import("../lib/laboratory-results").LaboratoryRow, index: number) => {
+              const original = originalDraft.data.rows[index];
+              return original &&
+                laboratoryRowEvidenceIdentity(row) === laboratoryRowEvidenceIdentity(original)
+                ? (parsedChecks.data.rows[index] ?? null)
+                : null;
+            },
+          ),
+        }
+      : null;
   const versions = j
     ? (
         await getPool().query(
@@ -211,6 +252,7 @@ async function view(a: Actor, s: Source, reviewId?: string) {
             s.id,
         },
         import: j,
+        evidenceChecks,
         versions,
         historicalReview,
         events,
@@ -241,6 +283,7 @@ async function finishExtraction(
   let draft = emptyLaboratoryDraft(),
     failure: string | null = null;
   let stage: "SOURCE" | "PROVIDER" = "SOURCE";
+  let sourceChecks: LaboratorySourceChecks | undefined;
   try {
     const original = await patientDocumentFileResponse(
       new Request(
@@ -265,6 +308,15 @@ async function finishExtraction(
     draft = laboratoryDraft.parse(await extractLaboratoryPdf(bytes, model));
     draft.patientConfirmed = false;
     draft.rows = draft.rows.map((r) => ({ ...r, verified: false }));
+    const text = await extractLaboratoryPdfText(bytes);
+    sourceChecks = {
+      version: 1,
+      parserStatus: text.status,
+      totalPages: text.status === "available" ? text.totalPages : 0,
+      rows: draft.rows.map((row) =>
+        checkLaboratoryEvidence(row, text.status === "available" ? text.pages : undefined),
+      ),
+    };
   } catch (e) {
     failure = laboratoryFailureCode(e);
     if (stage === "SOURCE" && failure === "EXTRACTION_FAILED") failure = "SOURCE_UNAVAILABLE";
@@ -297,7 +349,11 @@ async function finishExtraction(
       failure ? "FAILED" : "READY_REVIEW",
       draft,
       failure ? "EXTRACTION_FAILED" : "EXTRACTION_READY",
-      { failure, extracted: failure ? null : draft },
+      {
+        failure,
+        extracted: failure ? null : draft,
+        ...(sourceChecks && !failure ? { sourceChecks } : {}),
+      },
     );
     await c.query("COMMIT");
   } catch (e) {
