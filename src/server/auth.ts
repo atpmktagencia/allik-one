@@ -12,6 +12,7 @@ import {
   fullPreviewOperatorEnabled,
   sharedPreviewBoundaryEnabled,
   sharedPreviewBoundaryProblem,
+  sharedPreviewRuntimeRoleState,
   previewOperatorIdentity,
 } from "../lib/preview-operator-policy";
 
@@ -582,10 +583,15 @@ export async function sessionResponse(request: Request) {
         process.env["VERCEL_ENV"] === "preview"
       ) {
         previewBoundaryWarningRecorded = true;
-        console.warn(
-          "SHARED_PREVIEW_ACCESS_DENIED",
-          sharedPreviewBoundaryProblem(process.env) ?? "PREVIEW_SHARED_SESSION_UNAVAILABLE",
-        );
+        const problem =
+          sharedPreviewBoundaryProblem(process.env) ?? "PREVIEW_SHARED_SESSION_UNAVAILABLE";
+        if (problem === "PREVIEW_BOUNDARY_RUNTIME_USER")
+          console.warn(
+            "SHARED_PREVIEW_ACCESS_DENIED",
+            problem,
+            sharedPreviewRuntimeRoleState(process.env),
+          );
+        else console.warn("SHARED_PREVIEW_ACCESS_DENIED", problem);
       }
       return Response.json({ error: "Sessão inválida ou expirada." }, { status: 401 });
     }

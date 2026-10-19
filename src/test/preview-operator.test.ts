@@ -4,6 +4,7 @@ import {
   previewOperatorIdentity,
   sharedPreviewBoundaryEnabled,
   sharedPreviewBoundaryProblem,
+  sharedPreviewRuntimeRoleState,
 } from "@/lib/preview-operator-policy";
 import { authenticate, can, hasPreviewSession, previewLogin, sessionResponse } from "@/server/auth";
 
@@ -28,6 +29,68 @@ afterEach(() => {
   query.mockReset();
 });
 describe("synthetic shared Preview operator", () => {
+  it("classifies only public runtime-role matches without disclosing actual identities or URL values", () => {
+    expect(sharedPreviewRuntimeRoleState(allowed)).toEqual({
+      expectedRoleIsAllikRuntime: true,
+      urlUserIsAllikRuntime: true,
+      pgUserIsAllikRuntime: false,
+    });
+    const state = sharedPreviewRuntimeRoleState({
+      ...allowed,
+      INVENTORY_RUNTIME_ROLE: "secret-expected-role",
+      PGUSER: "secret-pg-user",
+      DATABASE_URL:
+        "postgres://secret-url-user:secret-password@secret-host/secret-db?secret-param=secret-value",
+    });
+    expect(state).toEqual({
+      expectedRoleIsAllikRuntime: false,
+      urlUserIsAllikRuntime: false,
+      pgUserIsAllikRuntime: false,
+    });
+    expect(Object.values(state).every((value) => typeof value === "boolean")).toBe(true);
+    expect(JSON.stringify(state)).not.toMatch(/secret|postgres|neon\.tech/);
+    expect(
+      sharedPreviewRuntimeRoleState({
+        DATABASE_URL: "invalid-secret-url",
+        INVENTORY_RUNTIME_ROLE: " allik_runtime ",
+        PGUSER: "allik_runtime",
+      }),
+    ).toEqual({
+      expectedRoleIsAllikRuntime: true,
+      urlUserIsAllikRuntime: false,
+      pgUserIsAllikRuntime: true,
+    });
+  });
+  it("adds only role-match booleans to the runtime-user warning and continues denying access", async () => {
+    environment();
+    vi.stubEnv("INVENTORY_RUNTIME_ROLE", "secret-configured-role");
+    vi.stubEnv("PGUSER", "secret-pg-user");
+    const warning = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      vi.resetModules();
+      const isolatedAuth = await import("@/server/auth");
+      const response = await isolatedAuth.sessionResponse(
+        new Request("https://preview.example.test/api/inventory-session"),
+      );
+      expect(response.status).toBe(401);
+      expect(await response.json()).toEqual({ error: "Sessão inválida ou expirada." });
+      expect(warning.mock.calls).toEqual([
+        [
+          "SHARED_PREVIEW_ACCESS_DENIED",
+          "PREVIEW_BOUNDARY_RUNTIME_USER",
+          {
+            expectedRoleIsAllikRuntime: false,
+            urlUserIsAllikRuntime: true,
+            pgUserIsAllikRuntime: false,
+          },
+        ],
+      ]);
+      expect(JSON.stringify(warning.mock.calls)).not.toMatch(/secret|postgres|neon\.tech/);
+      expect(query).not.toHaveBeenCalled();
+    } finally {
+      warning.mockRestore();
+    }
+  });
   it("returns only fixed boundary reason codes without connection credentials, parameter keys or values", () => {
     const cases = [
       [

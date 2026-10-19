@@ -75,6 +75,23 @@ export function sharedPreviewBoundaryEnabled(env: Record<string, string | undefi
   return sharedPreviewBoundaryProblem(env) === null;
 }
 
+/** Diagnostic booleans compare only with the public runtime-role identifier. */
+export function sharedPreviewRuntimeRoleState(env: Record<string, string | undefined>) {
+  let urlUserIsAllikRuntime = false;
+  try {
+    urlUserIsAllikRuntime =
+      decodeURIComponent(new URL(env["DATABASE_URL"] ?? "").username) === "allik_runtime";
+  } catch {
+    /* Do not return parser errors or any part of the connection string. */
+  }
+  return {
+    expectedRoleIsAllikRuntime:
+      (env["INVENTORY_RUNTIME_ROLE"]?.trim() || "allik_runtime") === "allik_runtime",
+    urlUserIsAllikRuntime,
+    pgUserIsAllikRuntime: env["PGUSER"]?.trim() === "allik_runtime",
+  };
+}
+
 /** Never activate shared clinical access outside the explicitly authorized synthetic branch. */
 export function fullPreviewOperatorEnabled(env: Record<string, string | undefined>) {
   if (
