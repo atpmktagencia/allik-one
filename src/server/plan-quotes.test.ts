@@ -244,6 +244,50 @@ async function fixture() {
     desk,
   };
 }
+describe("Saved proposal export", () => {
+  it("exports only an authorized saved immutable revision with private security headers", async () => {
+    const f = await fixture(),
+      d = f.quoteDraft();
+    expect((await f.quotePost(d)).status).toBe(201);
+    const proposal = (role = "finance", quoteId = d.id) =>
+      planQuotesResponse(
+        new Request(
+          `${origin}/api/v1/inventory/plan-quotes?planId=${f.clinical.id}&quoteId=${quoteId}&revision=1&format=proposal`,
+          { headers: { cookie: f.users[role]!.cookie } },
+        ),
+      );
+    const response = await proposal();
+    expect(response.status).toBe(200);
+    expect(response.headers.get("Content-Type")).toContain("text/html");
+    expect(response.headers.get("Cache-Control")).toContain("no-store");
+    expect(response.headers.get("Referrer-Policy")).toBe("no-referrer");
+    expect(response.headers.get("Content-Security-Policy")).toContain("default-src 'none'");
+    const html = await response.text();
+    expect(html).toContain("R$ 700,00");
+    expect(html).toContain("Preço v1");
+    expect(html).not.toContain("CLINICAL_SECRET");
+    expect(
+      (
+        await f.enginePost({
+          ...f.priceInput,
+          version: 1,
+          operationId: randomUUID(),
+          amount: "200.00",
+        })
+      ).status,
+    ).toBe(200);
+    expect(await (await proposal()).text()).toContain("R$ 700,00");
+    expect((await proposal("outside")).status).toBe(404);
+    expect((await proposal("finance", randomUUID())).status).toBe(404);
+    const missing = await planQuotesResponse(
+      new Request(
+        `${origin}/api/v1/inventory/plan-quotes?planId=${f.clinical.id}&format=proposal`,
+        { headers: { cookie: f.users["finance"]!.cookie } },
+      ),
+    );
+    expect(missing.status).toBe(400);
+  });
+});
 describe("Plan probable quote boundary", () => {
   it("saves a commercial-only estimate without creating stock, appointments, payment or clinical mutations", async () => {
     const f = await fixture(),

@@ -1,3 +1,4 @@
+import { composerPlanOptionsResponse } from "@/server/composer-plan-options";
 import { planQuotesResponse } from "@/server/plan-quotes";
 import { patientTreatmentPlansResponse } from "@/server/patient-treatment-plans";
 import { engineCatalogResponse } from "@/server/engine-catalog";
@@ -58,6 +59,11 @@ export const Route = createFileRoute("/api/v1/inventory/$")({
   server: {
     handlers: {
       GET: ({ request }) => {
+        if (
+          new URL(request.url).pathname.replace(/\/$/, "") ===
+          "/api/v1/inventory/composer-plan-options"
+        )
+          return composerPlanOptionsResponse(request);
         if (new URL(request.url).pathname.replace(/\/$/, "") === "/api/v1/inventory/plan-quotes")
           return planQuotesResponse(request);
         if (
@@ -171,6 +177,11 @@ export const Route = createFileRoute("/api/v1/inventory/$")({
           : inventoryResponse(request);
       },
       POST: ({ request }) => {
+        if (
+          new URL(request.url).pathname.replace(/\/$/, "") ===
+          "/api/v1/inventory/composer-plan-options"
+        )
+          return composerPlanOptionsResponse(request);
         if (new URL(request.url).pathname.replace(/\/$/, "") === "/api/v1/inventory/plan-quotes")
           return planQuotesResponse(request);
         if (

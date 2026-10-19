@@ -491,3 +491,9 @@ O detalhe do plano salvo possui a aba “Orçamento”, e a área `/orcamentos-p
 Ajustes comerciais de quantidade/unidade e exclusão de itens opcionais preservam o plano clínico. Descontos são exclusivos do SUPER_ADMIN nesta política inicial. O salvamento confere se preços e vínculos ainda correspondem à prévia exibida; mudanças exigem novo cálculo. Revisões anteriores permanecem imutáveis, e alternar abas preserva os ajustes.
 
 Tudo permanece “Orçamento estimado — não aprovado”: não gera venda, pagamento, reserva, agendamento ou consumo de estoque. Projeções comerciais omitem doses, fórmulas, instruções, custos e margens. Consulte [desenho, políticas e validação do M21E](docs/m21e-probable-quotes.md). Ativação aditiva exclusivamente no Preview pela migration `0068_plan_quote_estimates`.
+
+### M21F — Receita e orçamento no compositor (Preview)
+
+O compositor oferece as abas Receita e Orçamento na coluna direita, mantendo a biblioteca à esquerda e a edição clínica no centro, preservando a composição e os ajustes comerciais ao alternar. O orçamento exige escolher um plano clínico salvo do mesmo paciente e unidade; nomes livres de ativos não são convertidos em produtos ou preços. Planos sem vínculo explícito com uma instância desta receita são apresentados como estimativas independentes.
+
+Uma revisão salva pode gerar proposta imprimível, marcada como estimativa não aprovada, sem fórmulas, doses, custos internos ou margens. O documento usa os valores históricos da revisão, com pendências explícitas. Não aprova nem cria venda, pagamento, reserva, agendamento ou consumo. Consulte [desenho e validação do M21F](docs/m21f-composer-quote-workspace.md). Sem nova migração; publicação exclusivamente no Preview.

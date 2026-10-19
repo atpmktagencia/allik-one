@@ -98,7 +98,7 @@ function QuoteValues({ snapshot, dirty = false }: { snapshot: Snapshot; dirty?: 
 }
 function LineValue({ line }: { line: PlanQuoteLine }) {
   return (
-    <div className="space-y-1 text-sm">
+    <div className="space-y-1 break-words text-sm">
       <h4 className="font-medium">{line.label}</h4>
       {line.status === "INCLUDED" ? (
         <p>Incluído no grupo {line.chargeGroup}; sem cobrança separada.</p>
@@ -155,6 +155,7 @@ function QuoteSnapshot({
     revision: number;
     canSave: boolean;
     canDiscount: boolean;
+    canExport?: boolean;
   }>(
     `plan-quotes?planId=${encodeURIComponent(planId)}&quoteId=${encodeURIComponent(quoteId)}${patientId ? `&patientId=${encodeURIComponent(patientId)}` : ""}${revision ? `&revision=${revision}` : ""}`,
   );
@@ -204,6 +205,19 @@ function QuoteSnapshot({
           </div>
         ))}
       </div>
+      {data.canExport === true && (
+        <Button asChild type="button" variant="outline">
+          <a
+            target="_blank"
+            rel="noopener noreferrer"
+            href={withSelectedUnit(
+              `/api/v1/inventory/plan-quotes?planId=${encodeURIComponent(planId)}&quoteId=${encodeURIComponent(quoteId)}&revision=${currentRevision}&format=proposal${patientId ? `&patientId=${encodeURIComponent(patientId)}` : ""}`,
+            )}
+          >
+            Exportar proposta estimada
+          </a>
+        </Button>
+      )}
       {canRevise && (
         <Button
           type="button"
@@ -400,6 +414,174 @@ export function PlanQuotePanel({
   const data = query.data!;
   const versionChanged =
     expectedPlanVersion !== undefined && expectedPlanVersion !== data.planVersion;
+  const libraryPanel = (
+    <section className="space-y-2" aria-label="Histórico de estimativas">
+      <h4 className="font-medium">Histórico de estimativas</h4>
+      <div className="flex flex-wrap gap-2">
+        {data.estimates.map((entry) => (
+          <Button
+            key={`${entry.id}:${entry.version}`}
+            type="button"
+            variant="outline"
+            disabled={pending}
+            aria-pressed={quoteId === entry.id}
+            onClick={() => {
+              setQuoteId(entry.id);
+              setSnapshot(null);
+              setError("");
+            }}
+          >
+            Estimativa {new Date(entry.createdAt).toLocaleString("pt-BR")} · v{entry.version}
+          </Button>
+        ))}
+      </div>
+      {!data.estimates.length && (
+        <p className="text-sm text-muted-foreground">
+          Nenhuma estimativa armazenada para este plano.
+        </p>
+      )}
+    </section>
+  );
+  const storedPanel = quoteId && (
+    <QuoteSnapshot
+      key={quoteId}
+      {...(patientId ? { patientId } : {})}
+      planId={planId}
+      quoteId={quoteId}
+      onRevise={(record, stored) => {
+        setRevisionTarget({ id: record.id, version: record.version });
+        setSnapshot(stored);
+        setOverrides(structuredClone(stored.overrides ?? []));
+        setDiscount(
+          `${Math.floor(stored.discountBps / 100)}.${String(stored.discountBps % 100).padStart(2, "0")}`,
+        );
+        setDirty(true);
+        setQuoteId(null);
+        setError("");
+        setMessage("Revisão comercial aberta. Recalcule antes de salvar uma nova versão.");
+        operation.current = null;
+      }}
+      onNew={() => {
+        setRevisionTarget(null);
+        setSnapshot(null);
+        setOverrides([]);
+        setDiscount("0");
+        setDirty(false);
+        setQuoteId(null);
+        setMessage("Nova estimativa sem desconto; registros anteriores preservados.");
+        operation.current = null;
+      }}
+    />
+  );
+  const editorPanel = data.canPreview === true && (
+    <fieldset disabled={pending} className="min-w-0 space-y-3 rounded-xl border p-3">
+      <legend className="px-1 font-medium">
+        {revisionTarget
+          ? `Revisão da estimativa v${revisionTarget.version}`
+          : "Nova estimativa independente"}
+      </legend>
+      {data.canDiscount === true && (
+        <label className="block max-w-xs text-sm">
+          Desconto percentual
+          <Input
+            inputMode="decimal"
+            value={discount}
+            onChange={(event) => {
+              setDiscount(event.target.value);
+              setDirty(true);
+            }}
+          />
+          <span className="text-xs text-muted-foreground">
+            0 a 100%, somente conforme autorização concedida pelo servidor.
+          </span>
+        </label>
+      )}
+      {(!validDiscount || bps > 10000) && (
+        <p role="alert">Informe um desconto válido com até duas casas decimais.</p>
+      )}
+      {!validOverrides && (
+        <p role="alert">
+          Informe quantidade e unidade comerciais juntas, ou apague ambas para usar os dados de
+          origem.
+        </p>
+      )}
+      {snapshot && (
+        <>
+          <p className="text-xs text-muted-foreground">
+            {dirty
+              ? "Há ajustes ainda não calculados. Recalcule para atualizar valores e salvar."
+              : "Prévia calculada. Ajustes comerciais não alteram o plano clínico."}
+          </p>
+          <QuoteValues snapshot={snapshot} dirty={dirty} />
+          {snapshot.lines.map((line, index) => {
+            const override = overrides.find((value) => value.candidateKey === line.candidateKey);
+            return (
+              <fieldset key={line.candidateKey} className="min-w-0 space-y-3 rounded-lg border p-3">
+                <legend>Item comercial {index + 1}</legend>
+                <LineValue line={line} />
+                {line.canExclude === true && (
+                  <label className="flex gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={override?.selected ?? line.selected}
+                      onChange={(event) => update(line, { selected: event.target.checked })}
+                    />
+                    Incluir item opcional nesta estimativa
+                  </label>
+                )}
+                {line.billingMode === "SEPARATE" && (
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <label className="text-sm">
+                      Quantidade comercial (ajuste explícito)
+                      <Input
+                        inputMode="decimal"
+                        value={override?.quantity ?? ""}
+                        onChange={(event) => update(line, { quantity: event.target.value || null })}
+                      />
+                    </label>
+                    <label className="text-sm">
+                      Unidade comercial (ajuste explícito)
+                      <Input
+                        maxLength={80}
+                        value={override?.unit ?? ""}
+                        onChange={(event) => update(line, { unit: event.target.value || null })}
+                      />
+                    </label>
+                  </div>
+                )}
+                <p className="text-xs text-muted-foreground">
+                  Sem ajuste, utiliza somente a quantidade explícita compatível com a unidade de
+                  venda. Nenhuma conversão automática de dose, embalagem ou unidade.
+                </p>
+              </fieldset>
+            );
+          })}
+        </>
+      )}
+      <div className="flex flex-wrap gap-2">
+        <Button
+          type="button"
+          disabled={versionChanged || !validOverrides || !validDiscount || bps > 10000}
+          onClick={() => void submit("PREVIEW")}
+        >
+          Calcular estimativa
+        </Button>
+        {data.canSave === true && (
+          <Button
+            type="button"
+            variant="outline"
+            disabled={
+              !snapshot?.previewHash || dirty || versionChanged || !validOverrides || !validDiscount
+            }
+            onClick={() => void submit("SAVE_ESTIMATE")}
+          >
+            Salvar estimativa
+          </Button>
+        )}
+      </div>
+      {pending && <p role="status">Processando estimativa…</p>}
+    </fieldset>
+  );
   return (
     <section
       aria-label="Orçamento estimado — não aprovado"
@@ -423,180 +605,9 @@ export function PlanQuotePanel({
       {versionChanged && (
         <p role="alert">O plano foi alterado; atualize a visualização clínica antes de calcular.</p>
       )}
-      <section className="space-y-2" aria-label="Histórico de estimativas">
-        <h4 className="font-medium">Histórico de estimativas</h4>
-        <div className="flex flex-wrap gap-2">
-          {data.estimates.map((entry) => (
-            <Button
-              key={`${entry.id}:${entry.version}`}
-              type="button"
-              variant="outline"
-              disabled={pending}
-              aria-pressed={quoteId === entry.id}
-              onClick={() => {
-                setQuoteId(entry.id);
-                setSnapshot(null);
-                setError("");
-              }}
-            >
-              Estimativa {new Date(entry.createdAt).toLocaleString("pt-BR")} · v{entry.version}
-            </Button>
-          ))}
-        </div>
-        {!data.estimates.length && (
-          <p className="text-sm text-muted-foreground">
-            Nenhuma estimativa armazenada para este plano.
-          </p>
-        )}
-      </section>
-      {quoteId && (
-        <QuoteSnapshot
-          key={quoteId}
-          {...(patientId ? { patientId } : {})}
-          planId={planId}
-          quoteId={quoteId}
-          onRevise={(record, stored) => {
-            setRevisionTarget({ id: record.id, version: record.version });
-            setSnapshot(stored);
-            setOverrides(structuredClone(stored.overrides ?? []));
-            setDiscount(
-              `${Math.floor(stored.discountBps / 100)}.${String(stored.discountBps % 100).padStart(2, "0")}`,
-            );
-            setDirty(true);
-            setQuoteId(null);
-            setError("");
-            setMessage("Revisão comercial aberta. Recalcule antes de salvar uma nova versão.");
-            operation.current = null;
-          }}
-          onNew={() => {
-            setRevisionTarget(null);
-            setSnapshot(null);
-            setOverrides([]);
-            setDiscount("0");
-            setDirty(false);
-            setQuoteId(null);
-            setMessage("Nova estimativa sem desconto; registros anteriores preservados.");
-            operation.current = null;
-          }}
-        />
-      )}
-      {data.canPreview === true && (
-        <fieldset disabled={pending} className="space-y-3 rounded-xl border p-3">
-          <legend className="px-1 font-medium">
-            {revisionTarget
-              ? `Revisão da estimativa v${revisionTarget.version}`
-              : "Nova estimativa independente"}
-          </legend>
-          {data.canDiscount === true && (
-            <label className="block max-w-xs text-sm">
-              Desconto percentual
-              <Input
-                inputMode="decimal"
-                value={discount}
-                onChange={(event) => {
-                  setDiscount(event.target.value);
-                  setDirty(true);
-                }}
-              />
-              <span className="text-xs text-muted-foreground">
-                0 a 100%, somente conforme autorização concedida pelo servidor.
-              </span>
-            </label>
-          )}
-          {(!validDiscount || bps > 10000) && (
-            <p role="alert">Informe um desconto válido com até duas casas decimais.</p>
-          )}
-          {!validOverrides && (
-            <p role="alert">
-              Informe quantidade e unidade comerciais juntas, ou apague ambas para usar os dados de
-              origem.
-            </p>
-          )}
-          {snapshot && (
-            <>
-              <p className="text-xs text-muted-foreground">
-                {dirty
-                  ? "Há ajustes ainda não calculados. Recalcule para atualizar valores e salvar."
-                  : "Prévia calculada. Ajustes comerciais não alteram o plano clínico."}
-              </p>
-              <QuoteValues snapshot={snapshot} dirty={dirty} />
-              {snapshot.lines.map((line, index) => {
-                const override = overrides.find(
-                  (value) => value.candidateKey === line.candidateKey,
-                );
-                return (
-                  <fieldset key={line.candidateKey} className="space-y-3 rounded-lg border p-3">
-                    <legend>Item comercial {index + 1}</legend>
-                    <LineValue line={line} />
-                    {line.canExclude === true && (
-                      <label className="flex gap-2 text-sm">
-                        <input
-                          type="checkbox"
-                          checked={override?.selected ?? line.selected}
-                          onChange={(event) => update(line, { selected: event.target.checked })}
-                        />
-                        Incluir item opcional nesta estimativa
-                      </label>
-                    )}
-                    {line.billingMode === "SEPARATE" && (
-                      <div className="grid gap-3 sm:grid-cols-2">
-                        <label className="text-sm">
-                          Quantidade comercial (ajuste explícito)
-                          <Input
-                            inputMode="decimal"
-                            value={override?.quantity ?? ""}
-                            onChange={(event) =>
-                              update(line, { quantity: event.target.value || null })
-                            }
-                          />
-                        </label>
-                        <label className="text-sm">
-                          Unidade comercial (ajuste explícito)
-                          <Input
-                            maxLength={80}
-                            value={override?.unit ?? ""}
-                            onChange={(event) => update(line, { unit: event.target.value || null })}
-                          />
-                        </label>
-                      </div>
-                    )}
-                    <p className="text-xs text-muted-foreground">
-                      Sem ajuste, utiliza somente a quantidade explícita compatível com a unidade de
-                      venda. Nenhuma conversão automática de dose, embalagem ou unidade.
-                    </p>
-                  </fieldset>
-                );
-              })}
-            </>
-          )}
-          <div className="flex flex-wrap gap-2">
-            <Button
-              type="button"
-              disabled={versionChanged || !validOverrides || !validDiscount || bps > 10000}
-              onClick={() => void submit("PREVIEW")}
-            >
-              Calcular estimativa
-            </Button>
-            {data.canSave === true && (
-              <Button
-                type="button"
-                variant="outline"
-                disabled={
-                  !snapshot?.previewHash ||
-                  dirty ||
-                  versionChanged ||
-                  !validOverrides ||
-                  !validDiscount
-                }
-                onClick={() => void submit("SAVE_ESTIMATE")}
-              >
-                Salvar estimativa
-              </Button>
-            )}
-          </div>
-          {pending && <p role="status">Processando estimativa…</p>}
-        </fieldset>
-      )}
+      {libraryPanel}
+      {storedPanel}
+      {editorPanel}
     </section>
   );
 }

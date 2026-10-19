@@ -4,6 +4,7 @@ import { z } from "zod";
 import { authenticate, can, canAccessAllUnits } from "./auth";
 import { getPool } from "./db";
 import { recordClinicalAccess, recordClinicalListAccess } from "./clinical-access-audit";
+import { renderPlanQuoteProposal } from "../data/plan-quote-proposal";
 import { treatmentPlanSchema } from "../data/treatment-plan";
 import { computePlanQuote, planQuoteOverrideSchema } from "../data/plan-quote";
 const headers = { "Cache-Control": "private, no-store", Vary: "Cookie, Authorization" };
@@ -145,6 +146,7 @@ export async function planQuotesResponse(request: Request, attempt = 0): Promise
       planId: uuid.optional(),
       quoteId: uuid.optional(),
       revision: z.coerce.number().int().positive().optional(),
+      format: z.literal("proposal").optional(),
       unitId: uuid.optional(),
     })
     .strict()
@@ -183,7 +185,8 @@ export async function planQuotesResponse(request: Request, attempt = 0): Promise
           can(auth, "patients.private.read") && can(auth, "patients.clinical.manage"),
       };
     if (!d && !filter.planId) {
-      if (filter.quoteId || filter.revision) return fail("Informe o plano da estimativa.", 400);
+      if (filter.quoteId || filter.revision || filter.format)
+        return fail("Informe o plano da estimativa.", 400);
       const rows = (
         await client.query(
           `SELECT ${columns},p.full_name AS "patientName",u.name AS "unitName",v.snapshot->'estimate'->>'total' AS total,(v.snapshot->'estimate'->>'complete')::boolean AS complete FROM inventory_plan_quotes q JOIN inventory_clinical_plans cp ON cp.id=q.plan_id AND cp.organization_id=q.organization_id JOIN inventory_patients p ON p.id=q.patient_id AND p.organization_id=q.organization_id JOIN inventory_units u ON u.id=q.unit_id JOIN inventory_plan_quote_versions v ON v.quote_id=q.id AND v.version=q.version WHERE q.organization_id=$1 AND ($2::boolean OR (q.unit_id=ANY($3::uuid[]) AND cp.unit_id=ANY($3::uuid[]) AND p.primary_unit_id=ANY($3::uuid[]))) AND ($4::uuid IS NULL OR q.patient_id=$4) AND ($5::uuid IS NULL OR q.unit_id=$5) ORDER BY q.updated_at DESC,q.id LIMIT 25`,
@@ -200,7 +203,7 @@ export async function planQuotesResponse(request: Request, attempt = 0): Promise
     const planId = d?.planId ?? filter.planId!;
     const source = (
       await client.query(
-        `SELECT cp.*,p.primary_unit_id,p.active AS patient_active,u.name AS unit_name,u.active AS unit_active,cu.active AS current_unit_active FROM inventory_clinical_plans cp JOIN inventory_patients p ON p.id=cp.patient_id AND p.organization_id=cp.organization_id JOIN inventory_units u ON u.id=cp.unit_id AND u.organization_id=cp.organization_id JOIN inventory_units cu ON cu.id=p.primary_unit_id AND cu.organization_id=cp.organization_id WHERE cp.id=$1 AND cp.organization_id=$2 FOR SHARE OF cp,p,u,cu`,
+        `SELECT cp.*,p.primary_unit_id,p.active AS patient_active,p.full_name AS patient_name,u.name AS unit_name,u.active AS unit_active,cu.active AS current_unit_active FROM inventory_clinical_plans cp JOIN inventory_patients p ON p.id=cp.patient_id AND p.organization_id=cp.organization_id JOIN inventory_units u ON u.id=cp.unit_id AND u.organization_id=cp.organization_id JOIN inventory_units cu ON cu.id=p.primary_unit_id AND cu.organization_id=cp.organization_id WHERE cp.id=$1 AND cp.organization_id=$2 FOR SHARE OF cp,p,u,cu`,
         [planId, auth.organizationId],
       )
     ).rows[0];
@@ -245,13 +248,38 @@ export async function planQuotesResponse(request: Request, attempt = 0): Promise
           resourceIds: [record.id],
         });
         await client.query("COMMIT");
+        if (filter.format === "proposal")
+          return new Response(
+            renderPlanQuoteProposal(planQuoteSnapshotDto(stored.snapshot), {
+              quoteId: record.id,
+              revision,
+              patientName: source.patient_name,
+            }),
+            {
+              headers: {
+                ...headers,
+                "Content-Type": "text/html; charset=utf-8",
+                "Referrer-Policy": "no-referrer",
+                "X-Content-Type-Options": "nosniff",
+                "Content-Security-Policy":
+                  "default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
+              },
+            },
+          );
         return Response.json(
           {
-            data: { record, snapshot: planQuoteSnapshotDto(stored.snapshot), revision, ...context },
+            data: {
+              canExport: true,
+              record,
+              snapshot: planQuoteSnapshotDto(stored.snapshot),
+              revision,
+              ...context,
+            },
           },
           { headers },
         );
       }
+      if (filter.format) return fail("Selecione uma estimativa salva para gerar a proposta.", 400);
       const estimates = (
         await client.query(
           `SELECT ${columns} FROM inventory_plan_quotes q WHERE q.organization_id=$1 AND q.plan_id=$2 AND q.patient_id=$3 ORDER BY q.updated_at DESC,q.id LIMIT 25`,

@@ -96,6 +96,7 @@ export function useInventory<T>(resource: string, options?: { enabled?: boolean 
     resource.startsWith("care-tasks") ||
     resource.startsWith("preconsultation") ||
     resource.startsWith("prescription-composer") ||
+    resource.startsWith("composer-plan-options") ||
     resource.startsWith("engine-catalog") ||
     resource.startsWith("plan-quotes") ||
     resource.startsWith("care-encounter") ||

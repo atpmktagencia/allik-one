@@ -14,6 +14,7 @@ import { prescriptionReferenceIngredients } from "@/data/prescription-reference"
 import { PrescriptionChoiceField } from "./prescription-choice-field";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { PrescriptionModelForm, type ModelFields } from "./prescription-model-form";
+import { ComposerQuotePanel } from "./composer-quote-panel";
 import { InventoryState } from "./inventory-state";
 
 const emptyIngredient = () => ({
@@ -59,6 +60,9 @@ export function PrescriptionComposer({
   const unitListId = useId();
   const dispenseListId = useId();
   const [formula, setFormula] = useState<PrescriptionFormula>(emptyFormula);
+  const [activeTab, setActiveTab] = useState<"prescription" | "quote">("prescription");
+  const [quoteOpened, setQuoteOpened] = useState(false);
+  const composerTabsId = useId();
   const [title, setTitle] = useState("");
   const [protocol, setProtocol] = useState<PrescriptionProtocol | null>(null);
   const [editingSource, setEditingSource] = useState(false);
@@ -72,6 +76,8 @@ export function PrescriptionComposer({
     function reset() {
       scopeRevision.current += 1;
       setFormula(emptyFormula());
+      setActiveTab("prescription");
+      setQuoteOpened(false);
       setProtocol(null);
       setEditingSource(false);
       setModelOpen(false);
@@ -571,7 +577,12 @@ export function PrescriptionComposer({
                 const next = {
                   ...emptyFormula(),
                   phases: [
-                    { doseUnits: NaN, frequencyPerDay: NaN, durationDays: NaN, maintenance: false },
+                    {
+                      doseUnits: NaN,
+                      frequencyPerDay: NaN,
+                      durationDays: NaN,
+                      maintenance: false,
+                    },
                   ],
                   ingredients: prescriptionReferenceIngredients.map((medicationName) => ({
                     ...emptyIngredient(),
@@ -614,9 +625,11 @@ export function PrescriptionComposer({
                     }{" "}
                     ·{" "}
                     {
-                      { DRAFT: "Rascunho", PENDING: "Aguardando aprovação", APPROVED: "Aprovado" }[
-                        item.status ?? "DRAFT"
-                      ]
+                      {
+                        DRAFT: "Rascunho",
+                        PENDING: "Aguardando aprovação",
+                        APPROVED: "Aprovado",
+                      }[item.status ?? "DRAFT"]
                     }{" "}
                     · v{item.version} · {item.authorName ?? "Autor não informado"}
                   </span>
@@ -669,7 +682,10 @@ export function PrescriptionComposer({
                       event.preventDefault();
                       if (suppressionTimer.current) clearTimeout(suppressionTimer.current);
                       pointerClick.current = true;
-                      drag.current = { pointerId: event.pointerId, selected: excluded.has(index) };
+                      drag.current = {
+                        pointerId: event.pointerId,
+                        selected: excluded.has(index),
+                      };
                       selectIngredient(index, excluded.has(index));
                     }}
                     onClick={(event) => {
@@ -987,7 +1003,14 @@ export function PrescriptionComposer({
               onChange={(e) => change({ ...formula, instructions: e.target.value })}
             />
           </label>
-          <Button type="button" disabled={!validComposition} onClick={() => void submit("PREVIEW")}>
+          <Button
+            type="button"
+            disabled={!validComposition}
+            onClick={() => {
+              setActiveTab("prescription");
+              void submit("PREVIEW");
+            }}
+          >
             Calcular e revisar composição
           </Button>
         </fieldset>
@@ -995,96 +1018,166 @@ export function PrescriptionComposer({
           className="min-w-0 space-y-4 rounded-2xl border bg-teal-50/40 p-4 xl:max-h-[76dvh] xl:overflow-y-auto"
           aria-label="Prévia do documento"
         >
-          <h3 className="border-b border-teal-200 pb-2 font-semibold text-teal-950">
-            Prescrição · prévia não finalizada
-          </h3>
-          <fieldset
-            disabled={pending}
-            className="grid min-w-0 grid-cols-2 gap-2 rounded-lg border border-teal-200 bg-teal-50 p-3"
+          <div
+            role="tablist"
+            aria-label="Receita e orçamento"
+            className="sticky top-0 z-20 flex gap-2 border-b border-teal-100 bg-white pb-3"
+            onKeyDown={(event) => {
+              if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
+              event.preventDefault();
+              const next =
+                event.key === "Home"
+                  ? "prescription"
+                  : event.key === "End"
+                    ? "quote"
+                    : activeTab === "prescription"
+                      ? "quote"
+                      : "prescription";
+              if (next === "quote") setQuoteOpened(true);
+              setActiveTab(next);
+              document.getElementById(`${composerTabsId}-${next}-tab`)?.focus();
+            }}
           >
-            <label className="min-w-0 text-xs">
-              Quantidade a dispensar
-              <Input
-                className="mt-1 min-w-0 bg-white"
-                inputMode="decimal"
-                maxLength={20}
-                value={formula.dispenseQuantity ?? ""}
-                onChange={(event) => change({ ...formula, dispenseQuantity: event.target.value })}
-              />
-            </label>
-            <label className="min-w-0 text-xs">
-              Unidade de dispensação
-              <Input
-                className="mt-1 min-w-0 bg-white"
-                maxLength={60}
-                list={dispenseListId}
-                value={formula.dispenseUnit ?? ""}
-                onChange={(event) => change({ ...formula, dispenseUnit: event.target.value })}
-              />
-            </label>
-            <p className="col-span-2 text-xs text-teal-900">
-              Preenchimento manual opcional. Não converte doses nem substitui a conferência da
-              quantidade calculada.
-            </p>
-          </fieldset>
-          <p className="text-xs text-muted-foreground">
-            Atualização local ilustrativa. Calcule e revise no servidor antes de inserir no
-            rascunho.
-          </p>
-          {livePreview ? (
-            <>
-              <pre className="whitespace-pre-wrap break-words min-h-72 whitespace-pre-wrap rounded-none border border-slate-200 bg-white p-5 font-sans text-sm shadow-sm">
-                {livePreview.text}
-              </pre>
-              {livePreview.warnings.map((warning) => (
-                <p key={warning} className="text-xs text-amber-900">
-                  {warning}
-                </p>
-              ))}
-            </>
-          ) : (
-            <p className="rounded-xl bg-white p-4 text-muted-foreground">
-              Selecione ao menos um componente e preencha a composição para visualizar o documento.
-            </p>
-          )}
-          {pending && <p role="status">Processando…</p>}
-          {error && (
-            <p role="alert" className="text-red-700">
-              {error}
-            </p>
-          )}
-          {message && <p role="status">{message}</p>}
-          {preview && (
-            <section className="space-y-3 rounded-xl border p-3" aria-label="Revisão da composição">
-              <h3 className="font-medium">Quantidade: {preview.quantityLabel}</h3>
-              {preview.warnings.map((warning) => (
-                <p key={warning} className="text-amber-900">
-                  {warning}
-                </p>
-              ))}
-              <pre className="whitespace-pre-wrap break-words font-sans">{preview.text}</pre>
-              <label className="flex gap-2">
-                <input
-                  type="checkbox"
-                  checked={reviewed}
-                  disabled={pending}
-                  onChange={(e) => setReviewed(e.target.checked)}
+            <Button
+              type="button"
+              id={`${composerTabsId}-prescription-tab`}
+              role="tab"
+              aria-selected={activeTab === "prescription"}
+              aria-controls={`${composerTabsId}-prescription-panel`}
+              tabIndex={activeTab === "prescription" ? 0 : -1}
+              variant={activeTab === "prescription" ? "default" : "outline"}
+              onClick={() => setActiveTab("prescription")}
+            >
+              Receita
+            </Button>
+            <Button
+              type="button"
+              id={`${composerTabsId}-quote-tab`}
+              role="tab"
+              aria-selected={activeTab === "quote"}
+              aria-controls={`${composerTabsId}-quote-panel`}
+              tabIndex={activeTab === "quote" ? 0 : -1}
+              variant={activeTab === "quote" ? "default" : "outline"}
+              onClick={() => {
+                setQuoteOpened(true);
+                setActiveTab("quote");
+              }}
+            >
+              Orçamento
+            </Button>
+          </div>
+          <div
+            role="tabpanel"
+            id={`${composerTabsId}-prescription-panel`}
+            aria-labelledby={`${composerTabsId}-prescription-tab`}
+            hidden={activeTab !== "prescription"}
+            className="space-y-4"
+          >
+            <h3 className="border-b border-teal-200 pb-2 font-semibold text-teal-950">
+              Prescrição · prévia não finalizada
+            </h3>
+            <fieldset
+              disabled={pending}
+              className="grid min-w-0 grid-cols-2 gap-2 rounded-lg border border-teal-200 bg-teal-50 p-3"
+            >
+              <label className="min-w-0 text-xs">
+                Quantidade a dispensar
+                <Input
+                  className="mt-1 min-w-0 bg-white"
+                  inputMode="decimal"
+                  maxLength={20}
+                  value={formula.dispenseQuantity ?? ""}
+                  onChange={(event) => change({ ...formula, dispenseQuantity: event.target.value })}
                 />
-                Conferi composição, posologia, quantidade e adequação para este paciente.
               </label>
-              <Button
-                type="button"
-                disabled={pending || !reviewed}
-                onClick={() => void insertReviewed()}
-              >
-                Inserir no rascunho da receita
-              </Button>
-              <p className="text-xs text-muted-foreground">
-                O texto será acrescentado ao rascunho selecionado. Salvar, finalizar e imprimir
-                continuam sendo ações separadas.
+              <label className="min-w-0 text-xs">
+                Unidade de dispensação
+                <Input
+                  className="mt-1 min-w-0 bg-white"
+                  maxLength={60}
+                  list={dispenseListId}
+                  value={formula.dispenseUnit ?? ""}
+                  onChange={(event) => change({ ...formula, dispenseUnit: event.target.value })}
+                />
+              </label>
+              <p className="col-span-2 text-xs text-teal-900">
+                Preenchimento manual opcional. Não converte doses nem substitui a conferência da
+                quantidade calculada.
               </p>
-            </section>
-          )}
+            </fieldset>
+            <p className="text-xs text-muted-foreground">
+              Atualização local ilustrativa. Calcule e revise no servidor antes de inserir no
+              rascunho.
+            </p>
+            {livePreview ? (
+              <>
+                <pre className="whitespace-pre-wrap break-words min-h-72 whitespace-pre-wrap rounded-none border border-slate-200 bg-white p-5 font-sans text-sm shadow-sm">
+                  {livePreview.text}
+                </pre>
+                {livePreview.warnings.map((warning) => (
+                  <p key={warning} className="text-xs text-amber-900">
+                    {warning}
+                  </p>
+                ))}
+              </>
+            ) : (
+              <p className="rounded-xl bg-white p-4 text-muted-foreground">
+                Selecione ao menos um componente e preencha a composição para visualizar o
+                documento.
+              </p>
+            )}
+            {pending && <p role="status">Processando…</p>}
+            {error && (
+              <p role="alert" className="text-red-700">
+                {error}
+              </p>
+            )}
+            {message && <p role="status">{message}</p>}
+            {preview && (
+              <section
+                className="space-y-3 rounded-xl border p-3"
+                aria-label="Revisão da composição"
+              >
+                <h3 className="font-medium">Quantidade: {preview.quantityLabel}</h3>
+                {preview.warnings.map((warning) => (
+                  <p key={warning} className="text-amber-900">
+                    {warning}
+                  </p>
+                ))}
+                <pre className="whitespace-pre-wrap break-words font-sans">{preview.text}</pre>
+                <label className="flex gap-2">
+                  <input
+                    type="checkbox"
+                    checked={reviewed}
+                    disabled={pending}
+                    onChange={(e) => setReviewed(e.target.checked)}
+                  />
+                  Conferi composição, posologia, quantidade e adequação para este paciente.
+                </label>
+                <Button
+                  type="button"
+                  disabled={pending || !reviewed}
+                  onClick={() => void insertReviewed()}
+                >
+                  Inserir no rascunho da receita
+                </Button>
+                <p className="text-xs text-muted-foreground">
+                  O texto será acrescentado ao rascunho selecionado. Salvar, finalizar e imprimir
+                  continuam sendo ações separadas.
+                </p>
+              </section>
+            )}
+          </div>
+          <div
+            role="tabpanel"
+            id={`${composerTabsId}-quote-panel`}
+            aria-labelledby={`${composerTabsId}-quote-tab`}
+            hidden={activeTab !== "quote"}
+          >
+            {quoteOpened && (
+              <ComposerQuotePanel appointmentId={appointmentId} documentId={documentId} />
+            )}
+          </div>
         </aside>
       </div>
     </div>

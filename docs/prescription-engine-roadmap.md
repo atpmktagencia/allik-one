@@ -94,3 +94,7 @@ The general clinical-plan aggregate is independent of existing product-specific 
 ## M21E implementation
 
 The general probable-quote engine uses typed commercial mappings and the clinical plan's unit price book. Snapshots preserve plan/price revisions and explicit commercial selections; same-origin charge groups prevent included-insumable duplication. Missing prices/quantities remain unresolved, discounts use an explicit initial SUPER_ADMIN-only policy, and commercial responses omit clinical content and internal costs. Preview digests protect against price changes before saving. See [M21E design and validation](m21e-probable-quotes.md). The saved-plan quote tab and commercial desk are implemented; integrating the complete prescription RECEITA/ORÇAMENTO pane and proposal output remains M21F. No sale/payment or operational stock coupling is introduced.
+
+## M21F implementation
+
+The structured composer adds Receita/Orçamento workspaces with retained clinical and commercial edits. An authenticated context bridge offers explicit saved-plan selection for the same patient and appointment unit, distinguishing independent plans from plans with a linked prescription instance. Free-text ingredients never imply commercial identity or prices. Saved immutable estimate revisions provide escaped, commercial-only printable proposals, visibly unapproved and without operational effects. See [M21F design and verification](m21f-composer-quote-workspace.md). No schema migration is required; event integration contracts remain M21G.

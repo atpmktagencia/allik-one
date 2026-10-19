@@ -7,6 +7,7 @@ test("individual clinician composes a prescription and explicitly saves a draft"
   context,
   baseURL,
 }) => {
+  test.setTimeout(60_000);
   const url = process.env["DATABASE_URL"];
   if (!url || !new URL(url).pathname.endsWith("_test"))
     throw Error("Disposable test database required");
@@ -63,6 +64,66 @@ test("individual clinician composes a prescription and explicitly saves a draft"
     const dialog = page.getByRole("dialog", {
       name: "Composição estruturada e protocolos pessoais",
     });
+    const assertMobileGeometry = async () => {
+      const initialGeometry = await dialog.evaluate((node) => {
+        const rect = node.getBoundingClientRect(),
+          style = getComputedStyle(node),
+          child = node.firstElementChild?.getBoundingClientRect();
+        return {
+          left: rect.left,
+          right: rect.right,
+          width: rect.width,
+          viewport: window.innerWidth,
+          computed: {
+            width: style.width,
+            minWidth: style.minWidth,
+            maxWidth: style.maxWidth,
+            gridTemplateColumns: style.gridTemplateColumns,
+          },
+          className: node.getAttribute("class"),
+          inlineStyle: node.getAttribute("style"),
+          child: child ? { left: child.left, right: child.right, width: child.width } : null,
+        };
+      });
+      await expect
+        .poll(
+          async () =>
+            dialog.evaluate((node) => {
+              const rect = node.getBoundingClientRect();
+              return rect.left >= 0 && rect.right <= window.innerWidth;
+            }),
+          { message: JSON.stringify(initialGeometry) },
+        )
+        .toBe(true);
+      const geometry = await dialog.evaluate((node) => {
+        const bounds = node.getBoundingClientRect();
+        const columns = Array.from(node.querySelectorAll("div.grid.items-start > *"))
+          .map((element) => element.getBoundingClientRect())
+          .filter((rect) => rect.width > 0)
+          .map((rect) => ({ left: rect.left, right: rect.right, width: rect.width }));
+        const controls = Array.from(
+          node.querySelectorAll('[role="tablist"],select,[aria-label="Prévia do orçamento"]'),
+        )
+          .map((element) => element.getBoundingClientRect())
+          .filter((rect) => rect.width > 0)
+          .map((rect) => ({ left: rect.left, right: rect.right, width: rect.width }));
+        return {
+          controls,
+          left: bounds.left,
+          right: bounds.right,
+          width: bounds.width,
+          viewport: window.innerWidth,
+          columns,
+        };
+      });
+      expect(geometry.left, JSON.stringify(geometry)).toBeGreaterThanOrEqual(0);
+      expect(geometry.right, JSON.stringify(geometry)).toBeLessThanOrEqual(geometry.viewport);
+      expect(geometry.columns.length).toBeGreaterThanOrEqual(3);
+      for (const column of [...geometry.columns, ...geometry.controls]) {
+        expect(column.left, JSON.stringify(geometry)).toBeGreaterThanOrEqual(geometry.left);
+        expect(column.right, JSON.stringify(geometry)).toBeLessThanOrEqual(geometry.right + 1);
+      }
+    };
     const component = (n: number) =>
       dialog.getByRole("group", { name: `Componente ${n}`, exact: true });
     await component(1)
@@ -114,6 +175,7 @@ test("individual clinician composes a prescription and explicitly saves a draft"
       await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
     ).toBe(true);
     expect(await dialog.evaluate((node) => node.scrollWidth <= node.clientWidth + 1)).toBe(true);
+    await assertMobileGeometry();
     // A tall desktop viewport keeps all three selectors visible for a genuine continuous pointer drag.
     await page.setViewportSize({ width: 1500, height: 1600 });
     await dialog.locator('[data-composer-selector="0"]').scrollIntoViewIfNeeded();
@@ -252,6 +314,183 @@ test("individual clinician composes a prescription and explicitly saves a draft"
       [appointment],
     );
     expect(unchanged.rows[0].content).toBe(stored.rows[0].content);
+    // A saved clinical plan is selected explicitly; the unsaved photo composition never supplies commercial links.
+    const commercialCatalog = randomUUID(),
+      commercialPrice = randomUUID(),
+      clinicalPlan = randomUUID();
+    await pool.query(
+      "INSERT INTO inventory_engine_catalog_items(id,organization_id,kind,name) VALUES($1,$2,'SERVICE','Serviço comercial explícito do plano')",
+      [commercialCatalog, org],
+    );
+    await pool.query(
+      "INSERT INTO inventory_engine_unit_sale_prices(id,organization_id,unit_id,catalog_item_id,amount,selling_unit,source,valid_from,availability) VALUES($1,$2,$3,$4,12.50,'SESSION','Tabela sintética explícita','2020-01-01','AVAILABLE')",
+      [commercialPrice, org, unit, commercialCatalog],
+    );
+    await pool.query(
+      "INSERT INTO inventory_engine_unit_sale_price_versions(organization_id,unit_id,price_id,version,snapshot) SELECT organization_id,unit_id,id,version,to_jsonb(p) FROM inventory_engine_unit_sale_prices p WHERE id=$1",
+      [commercialPrice],
+    );
+    const savedPlan = await context.request.post(
+      `${baseURL}/api/v1/inventory/patient-treatment-plans`,
+      {
+        headers: { Origin: baseURL! },
+        data: {
+          action: "SAVE_PLAN",
+          id: clinicalPlan,
+          operationId: randomUUID(),
+          version: null,
+          patientId: patient,
+          title: "Plano comercial escolhido explicitamente",
+          status: "DRAFT",
+          plan: {
+            startDate: "2026-10-19",
+            previewDays: 7,
+            items: [
+              {
+                id: randomUUID(),
+                kind: "SERVICE",
+                title: "PRIVATE_PLAN_TITLE_M21F",
+                productId: null,
+                catalogItemId: commercialCatalog,
+                administrationUnit: "SESSION",
+                optional: false,
+                patientInstructions: "PRIVATE_PLAN_INSTRUCTIONS_M21F",
+                stages: [
+                  {
+                    doseUnits: "1",
+                    frequencyPerDay: 1,
+                    everyDays: 1,
+                    durationDays: 2,
+                    weekdays: null,
+                    times: null,
+                  },
+                ],
+                dispense: null,
+                package: null,
+              },
+            ],
+          },
+        },
+      },
+    );
+    expect(savedPlan.status()).toBe(201);
+    const operationalBefore = (
+      await pool.query(
+        "SELECT (SELECT count(*) FROM inventory_movements)::int movements,(SELECT count(*) FROM inventory_encounter_quotes WHERE organization_id=$1)::int legacy_quotes",
+        [org],
+      )
+    ).rows[0];
+    await page.setViewportSize({ width: 1500, height: 1000 });
+    await dialog.getByRole("tab", { name: "Receita", exact: true }).click();
+    await page.screenshot({ path: "/workspace/work/m21f-receita-desktop.png" });
+    await dialog.getByRole("tab", { name: "Orçamento", exact: true }).click();
+    await expect(component(1).getByLabel("Nome do componente", { exact: true })).toBeVisible();
+    await expect(
+      dialog.getByRole("heading", { name: "Protocolos pessoais / padrão", exact: true }),
+    ).toBeVisible();
+
+    const desktopColumns = await dialog
+      .locator("div.grid.items-start")
+      .first()
+      .evaluate((node) =>
+        Array.from(node.children).map((child) => {
+          const box = child.getBoundingClientRect();
+          return { left: box.left, right: box.right, width: box.width };
+        }),
+      );
+    expect(desktopColumns).toHaveLength(3);
+    expect(desktopColumns[0]!.right).toBeLessThanOrEqual(desktopColumns[1]!.left);
+    expect(desktopColumns[1]!.right).toBeLessThanOrEqual(desktopColumns[2]!.left);
+    const planSelect = dialog.getByRole("combobox", {
+      name: "Plano clínico salvo para estimativa",
+      exact: true,
+    });
+    await expect(planSelect).toHaveValue("");
+    await expect(
+      dialog.getByRole("button", { name: "Calcular estimativa", exact: true }),
+    ).toHaveCount(0);
+    await planSelect.selectOption(clinicalPlan);
+    await dialog.getByRole("button", { name: "Calcular estimativa", exact: true }).click();
+    await expect(
+      dialog.getByText("Serviço comercial explícito do plano", { exact: true }).first(),
+    ).toBeVisible();
+    await expect(dialog).toContainText("25,00");
+    const quoteTab = dialog.getByRole("tab", { name: "Orçamento", exact: true });
+    await expect(quoteTab).toBeVisible();
+    const tabBounds = await quoteTab.boundingBox();
+    const rightBounds = await livePreview.boundingBox();
+    expect(tabBounds).not.toBeNull();
+    expect(rightBounds).not.toBeNull();
+    expect(tabBounds!.x).toBeGreaterThanOrEqual(rightBounds!.x);
+    expect(tabBounds!.y).toBeGreaterThanOrEqual(rightBounds!.y);
+    expect(tabBounds!.y + tabBounds!.height).toBeLessThanOrEqual(
+      Math.min(rightBounds!.y + rightBounds!.height, 1000),
+    );
+
+    await expect(dialog).not.toContainText("PRIVATE_PLAN_TITLE_M21F");
+    await expect(dialog).not.toContainText("PRIVATE_PLAN_INSTRUCTIONS_M21F");
+    await page.screenshot({ path: "/workspace/work/m21f-orcamento-desktop.png" });
+    await page.setViewportSize({ width: 390, height: 844 });
+    expect(
+      await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
+    ).toBe(true);
+    expect(await dialog.evaluate((node) => node.scrollWidth <= node.clientWidth + 1)).toBe(true);
+    await assertMobileGeometry();
+    await dialog
+      .getByRole("tablist", { name: "Receita e orçamento", exact: true })
+      .scrollIntoViewIfNeeded();
+    await page.screenshot({ path: "/workspace/work/m21f-orcamento-mobile.png" });
+    await page.setViewportSize({ width: 1500, height: 1000 });
+    await dialog.getByRole("tab", { name: "Receita", exact: true }).click();
+    await expect(component(1).getByLabel("Nome do componente", { exact: true })).toHaveValue(
+      "Glycyrrhiza glabra",
+    );
+    await expect(component(1).getByLabel("Quantidade por unidade", { exact: true })).toHaveValue(
+      "10",
+    );
+    await expect(livePreview).toContainText("Glycyrrhiza glabra: 10 mg");
+    await dialog.getByRole("tab", { name: "Orçamento", exact: true }).click();
+    await expect(component(1).getByLabel("Nome do componente", { exact: true })).toBeVisible();
+    await expect(
+      dialog.getByRole("heading", { name: "Protocolos pessoais / padrão", exact: true }),
+    ).toBeVisible();
+
+    await expect(planSelect).toHaveValue(clinicalPlan);
+    await expect(dialog).toContainText("25,00");
+    await dialog.getByRole("button", { name: "Salvar estimativa", exact: true }).click();
+    const proposalLink = dialog.getByRole("link", {
+      name: "Exportar proposta estimada",
+      exact: true,
+    });
+    await expect(proposalLink).toBeVisible();
+    const proposalPagePromise = context.waitForEvent("page");
+    await proposalLink.click();
+    const proposalPage = await proposalPagePromise;
+    await proposalPage.waitForLoadState();
+    await expect(proposalPage.locator("body")).toContainText(
+      "Serviço comercial explícito do plano",
+    );
+    await expect(proposalPage.locator("body")).toContainText("25,00");
+    await expect(proposalPage.locator("body")).not.toContainText("PRIVATE_PLAN_TITLE_M21F");
+    await expect(proposalPage.locator("body")).not.toContainText("Glycyrrhiza");
+    await proposalPage.setViewportSize({ width: 1500, height: 1000 });
+    await proposalPage.screenshot({ path: "/workspace/work/m21f-proposta-desktop.png" });
+    await proposalPage.close();
+    expect(
+      (
+        await pool.query(
+          "SELECT (SELECT count(*) FROM inventory_movements)::int movements,(SELECT count(*) FROM inventory_encounter_quotes WHERE organization_id=$1)::int legacy_quotes",
+          [org],
+        )
+      ).rows[0],
+    ).toEqual(operationalBefore);
+    const preservedRecipe = (
+      await pool.query(
+        "SELECT content FROM inventory_encounter_documents WHERE appointment_id=$1",
+        [appointment],
+      )
+    ).rows[0];
+    expect(preservedRecipe.content).toBe(stored.rows[0].content);
   } finally {
     await pool.end();
   }
