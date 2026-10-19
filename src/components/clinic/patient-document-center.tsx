@@ -1,3 +1,4 @@
+import { LaboratoryHistory } from "./laboratory-history";
 import { PrivateDocumentPreview } from "./private-document-preview";
 import { LaboratoryReview } from "./laboratory-review";
 import { useEffect, useId, useRef, useState, type FormEvent } from "react";
@@ -92,6 +93,7 @@ export function PatientDocumentCenter({
   patientId: string;
   examsOnly?: boolean;
 }) {
+  const [examPane, setExamPane] = useState<"files" | "history">("files");
   const [filters, setFilters] = useState(initialFilters);
   const [search, setSearch] = useState("");
   const [offset, setOffset] = useState(0);
@@ -123,6 +125,7 @@ export function PatientDocumentCenter({
       invalidate();
       setUnitId(selectedUnitId());
       setSelected(null);
+      setExamPane("files");
       setFilters(initialFilters);
       setSearch("");
       setOffset(0);
@@ -147,6 +150,7 @@ export function PatientDocumentCenter({
     setSearch("");
     setMessage("");
     setError("");
+    setExamPane("files");
   }, [examsOnly]);
   useEffect(() => {
     if (selected && window.innerWidth < 1280)
@@ -242,6 +246,7 @@ export function PatientDocumentCenter({
     return (
       <InventoryState pending={query.isPending} error={query.error} retry={() => query.refetch()} />
     );
+  const showHistory = examsOnly && data.canUpload === true && examPane === "history";
   const categories = new Map(data.categories.map((category) => [category.id, category.name]));
   return (
     <section
@@ -253,411 +258,440 @@ export function PatientDocumentCenter({
           <h2 className="text-xl font-semibold">{examsOnly ? "Exames" : "Documentos"}</h2>
           <p className="mt-1 text-sm text-muted-foreground">
             {examsOnly
-              ? "Solicitações, arquivos e conferência de resultados. A comparação longitudinal será a próxima etapa."
+              ? "Solicitações, arquivos, conferência e histórico comparativo dos resultados confirmados."
               : "Registros e arquivos deste paciente, preservados em suas fontes de origem."}
           </p>
         </div>
         {data.canUpload === true && (
-          <Button type="button" disabled={pending} onClick={() => setUploadOpen((value) => !value)}>
+          <Button
+            type="button"
+            disabled={pending}
+            onClick={() => {
+              setExamPane("files");
+              setUploadOpen((value) => !value);
+            }}
+          >
             <Upload className="mr-2 size-4" />
             Anexar arquivo
           </Button>
         )}
       </div>
-      {message && (
-        <p role="status" className="mb-3 text-sm text-teal-800">
-          {message}
-        </p>
+      {examsOnly && data.canUpload === true && (
+        <nav aria-label="Visualizações de exames" className="mb-4 flex flex-wrap gap-2">
+          <Button
+            variant={examPane === "files" ? "secondary" : "ghost"}
+            aria-pressed={examPane === "files"}
+            onClick={() => setExamPane("files")}
+          >
+            Pedidos e arquivos
+          </Button>
+          <Button
+            variant={examPane === "history" ? "secondary" : "ghost"}
+            aria-pressed={examPane === "history"}
+            onClick={() => setExamPane("history")}
+          >
+            Histórico de resultados
+          </Button>
+        </nav>
       )}
-      {error && (
-        <p role="alert" className="mb-3 text-sm text-red-700">
-          {error}
-        </p>
-      )}
-      {uploadOpen && data.canUpload === true && (
-        <form
-          onSubmit={(event) => void upload(event)}
-          className="mb-5 space-y-4 rounded-lg border bg-slate-50 p-4"
-          aria-label="Anexar documento do paciente"
-        >
-          <fieldset disabled={pending} className="space-y-4">
-            <legend className="font-semibold">Preservar arquivo original</legend>
-            <div className="grid gap-3 sm:grid-cols-2">
-              <label className="space-y-1 text-sm">
-                Nome do documento
-                <Input name="title" required minLength={2} maxLength={200} />
-              </label>
-              <label className="space-y-1 text-sm">
-                Data do documento
-                <Input name="issuedOn" type="date" />
-              </label>
-            </div>
-            <fieldset>
-              <legend className="mb-2 text-sm font-medium">Categorias do arquivo (até 8)</legend>
-              <div className="flex max-h-40 flex-wrap gap-3 overflow-y-auto">
-                {data.categories.map((category) => (
-                  <label key={category.id} className="flex items-center gap-2 text-sm">
-                    <input type="checkbox" name="category" value={category.id} />
-                    {category.name}
-                  </label>
-                ))}
-              </div>
-            </fieldset>
-            <div className="space-y-1 text-sm">
-              <label htmlFor={`${id}-file`}>Arquivo original</label>
-              <Input
-                id={`${id}-file`}
-                name="file"
-                type="file"
-                accept="application/pdf,image/jpeg,image/png"
-                required
-                aria-describedby={`${id}-file-help`}
-              />
-              <p id={`${id}-file-help`} className="text-xs text-muted-foreground">
-                PDF, JPEG ou PNG de até 4 MB. Não substitui avaliação profissional.
-              </p>
-            </div>
-            <div className="flex gap-2">
-              <Button type="submit">{pending ? "Enviando…" : "Guardar arquivo original"}</Button>
-              <Button type="button" variant="outline" onClick={() => setUploadOpen(false)}>
-                Cancelar anexo
-              </Button>
-            </div>
-          </fieldset>
-        </form>
-      )}
-      <div className="grid min-w-0 items-start gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(280px,350px)]">
-        <div className="min-w-0 space-y-4">
-          <div className="space-y-3" aria-label="Filtros de documentos">
-            <label className="block space-y-1 text-sm">
-              Buscar documentos
-              <Input
-                value={search}
-                onChange={(event) => setSearch(event.target.value)}
-                placeholder="Nome do documento"
-              />
-            </label>
-            <div className="grid gap-3 sm:grid-cols-2">
-              <div>
-                <label htmlFor={`${id}-category`} className="mb-1 block text-sm">
-                  Categoria
-                </label>
-                <select
-                  id={`${id}-category`}
-                  value={filters.category}
-                  onChange={(event) => filter("category", event.target.value)}
-                  className="min-h-10 w-full min-w-0 rounded-md border bg-white p-2 text-sm"
-                >
-                  <option value="">Todas as categorias</option>
-                  {data.categories.map((category) => (
-                    <option key={category.id} value={category.id}>
-                      {category.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label htmlFor={`${id}-professional`} className="mb-1 block text-sm">
-                  Profissional
-                </label>
-                <select
-                  id={`${id}-professional`}
-                  value={filters.professionalId}
-                  onChange={(event) => filter("professionalId", event.target.value)}
-                  className="min-h-10 w-full min-w-0 rounded-md border bg-white p-2 text-sm"
-                >
-                  <option value="">Todos os profissionais</option>
-                  {data.professionals.map((person) => (
-                    <option key={person.id} value={person.id}>
-                      {person.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <label className="space-y-1 text-sm">
-                De
-                <Input
-                  type="date"
-                  value={filters.dateFrom}
-                  onChange={(event) => filter("dateFrom", event.target.value)}
-                />
-              </label>
-              <label className="space-y-1 text-sm">
-                Até
-                <Input
-                  type="date"
-                  value={filters.dateTo}
-                  onChange={(event) => filter("dateTo", event.target.value)}
-                />
-              </label>
-            </div>
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div>
-                <label htmlFor={`${id}-sort`} className="mr-2 text-sm">
-                  Ordenar por
-                </label>
-                <select
-                  id={`${id}-sort`}
-                  value={filters.sort}
-                  onChange={(event) => filter("sort", event.target.value)}
-                  className="min-h-10 rounded-md border bg-white p-2 text-sm"
-                >
-                  <option value="date">Data mais recente</option>
-                  <option value="relevance">Relevância da busca</option>
-                </select>
-              </div>
-              <div className="flex gap-1" role="group" aria-label="Visualização dos documentos">
-                <Button
-                  type="button"
-                  variant={mode === "list" ? "secondary" : "ghost"}
-                  aria-pressed={mode === "list"}
-                  onClick={() => setMode("list")}
-                >
-                  Lista
-                </Button>
-                <Button
-                  type="button"
-                  variant={mode === "table" ? "secondary" : "ghost"}
-                  aria-pressed={mode === "table"}
-                  onClick={() => setMode("table")}
-                >
-                  Tabela
-                </Button>
-              </div>
-            </div>
-          </div>
-          {query.error && <InventoryState error={query.error} retry={() => query.refetch()} />}
-          <p className="text-xs text-muted-foreground">
-            {data.total} documento(s) ·{" "}
-            {data.documents.length
-              ? `${offset + 1}–${offset + data.documents.length}`
-              : "nenhum resultado"}
+      {showHistory && <LaboratoryHistory key={patientId} patientId={patientId} />}
+      <div hidden={showHistory}>
+        {message && (
+          <p role="status" className="mb-3 text-sm text-teal-800">
+            {message}
           </p>
-          {!data.documents.length && (
-            <div className="border-y py-8 text-center text-sm text-muted-foreground">
-              <Files className="mx-auto mb-2 size-5" />
-              Nenhum documento encontrado para estes filtros.
-            </div>
-          )}
-          {mode === "list" ? (
-            <ul className="divide-y border-y">
-              {data.documents.map((document) => (
-                <li key={document.id}>
-                  <button
-                    type="button"
-                    onClick={() => setSelected(document)}
-                    aria-pressed={selected?.id === document.id}
-                    className={`w-full space-y-1 p-3 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-600 ${selected?.id === document.id ? "bg-teal-50" : "hover:bg-slate-50"}`}
-                  >
-                    <span className="block font-medium">{document.title}</span>
-                    <span className="block text-xs text-muted-foreground">
-                      {dateLabel(document.occurredAt)} ·{" "}
-                      {document.professionalName || "Profissional não informado"}
-                    </span>
-                    <span className="block text-xs text-slate-600">
-                      {document.categories
-                        .map((category) => categories.get(category) ?? "Categoria")
-                        .join(" · ")}{" "}
-                      ·{" "}
-                      {statusNames[document.laboratoryStatus ?? document.status] ?? document.status}
-                    </span>
-                  </button>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-sm">
-                <caption className="sr-only">Documentos do paciente</caption>
-                <thead>
-                  <tr className="border-b">
-                    <th scope="col" className="p-2">
-                      Documento
-                    </th>
-                    <th scope="col" className="p-2">
-                      Data
-                    </th>
-                    <th scope="col" className="p-2">
-                      Profissional
-                    </th>
-                    <th scope="col" className="p-2">
-                      Categoria
-                    </th>
-                    <th scope="col" className="p-2">
-                      Situação
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {data.documents.map((document) => (
-                    <tr
-                      key={document.id}
-                      className={selected?.id === document.id ? "bg-teal-50" : "border-b"}
-                    >
-                      <th scope="row" className="p-2 font-medium">
-                        <button
-                          type="button"
-                          className="text-left underline decoration-teal-300 underline-offset-4"
-                          onClick={() => setSelected(document)}
-                        >
-                          {document.title}
-                        </button>
-                      </th>
-                      <td className="whitespace-nowrap p-2">{dateLabel(document.occurredAt)}</td>
-                      <td className="p-2">{document.professionalName || "Não informado"}</td>
-                      <td className="p-2">
-                        {document.categories
-                          .map((category) => categories.get(category) ?? "Categoria")
-                          .join(" · ")}
-                      </td>
-                      <td className="p-2">
-                        {statusNames[document.laboratoryStatus ?? document.status] ??
-                          document.status}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-          <div className="flex gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              disabled={offset === 0 || query.isPending}
-              onClick={() => setOffset((value) => Math.max(0, value - 25))}
-            >
-              Anterior
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              disabled={!data.hasMore || query.isPending}
-              onClick={() => setOffset((value) => value + 25)}
-            >
-              Próxima
-            </Button>
-          </div>
-          {data.canManageCategories === true && (
-            <form
-              className="space-y-2 border-t pt-4"
-              onSubmit={(event) => {
-                event.preventDefault();
-                if (categoryName.trim())
-                  void mutate({ action: "CREATE_CATEGORY", name: categoryName.trim() }, () => {
-                    setCategoryName("");
-                    setMessage("Categoria criada para a organização.");
-                  });
-              }}
-            >
-              <label className="block space-y-1 text-sm">
-                Nova categoria
-                <Input
-                  value={categoryName}
-                  onChange={(event) => setCategoryName(event.target.value)}
-                  maxLength={100}
-                  minLength={2}
-                  required
-                />
-              </label>
-              <Button type="submit" variant="outline" disabled={pending}>
-                Criar categoria
-              </Button>
-            </form>
-          )}
-        </div>
-        <aside
-          ref={detailRef}
-          aria-label="Prévia privada do documento"
-          className="min-w-0 space-y-4 border-t border-slate-200 pt-4 xl:sticky xl:top-4 xl:border-l xl:border-t-0 xl:pl-4 xl:pt-0"
-          key={`${patientId}:${unitId}`}
-        >
-          {selected ? (
-            <>
-              <div className="space-y-2">
-                <h3 className="break-words font-semibold">{selected.title}</h3>
-                <p className="text-xs text-muted-foreground">
-                  {sourceNames[selected.sourceKind] ?? "Registro do paciente"} ·{" "}
-                  {statusNames[
-                    data.documents.find((d) => d.id === selected.id)?.laboratoryStatus ??
-                      selected.status
-                  ] ?? selected.status}
-                  {selected.revision !== null ? ` · versão ${selected.revision}` : ""}
-                </p>
-                <p className="text-sm">
-                  {dateLabel(selected.occurredAt)} ·{" "}
-                  {selected.professionalName || "Profissional não informado"}
-                  <br />
-                  {selected.unitName}
-                </p>
-                <div className="flex flex-wrap gap-1">
-                  {selected.categories.map((category) => (
-                    <span key={category} className="rounded bg-slate-100 px-2 py-1 text-xs">
-                      {categories.get(category) ?? "Categoria"}
-                    </span>
+        )}
+        {error && (
+          <p role="alert" className="mb-3 text-sm text-red-700">
+            {error}
+          </p>
+        )}
+        {uploadOpen && data.canUpload === true && (
+          <form
+            onSubmit={(event) => void upload(event)}
+            className="mb-5 space-y-4 rounded-lg border bg-slate-50 p-4"
+            aria-label="Anexar documento do paciente"
+          >
+            <fieldset disabled={pending} className="space-y-4">
+              <legend className="font-semibold">Preservar arquivo original</legend>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <label className="space-y-1 text-sm">
+                  Nome do documento
+                  <Input name="title" required minLength={2} maxLength={200} />
+                </label>
+                <label className="space-y-1 text-sm">
+                  Data do documento
+                  <Input name="issuedOn" type="date" />
+                </label>
+              </div>
+              <fieldset>
+                <legend className="mb-2 text-sm font-medium">Categorias do arquivo (até 8)</legend>
+                <div className="flex max-h-40 flex-wrap gap-3 overflow-y-auto">
+                  {data.categories.map((category) => (
+                    <label key={category.id} className="flex items-center gap-2 text-sm">
+                      <input type="checkbox" name="category" value={category.id} />
+                      {category.name}
+                    </label>
                   ))}
                 </div>
-                {selected.sizeBytes !== null && (
-                  <p className="text-xs text-muted-foreground">
-                    Original · {Math.ceil(selected.sizeBytes / 1024)} KB
-                  </p>
-                )}
+              </fieldset>
+              <div className="space-y-1 text-sm">
+                <label htmlFor={`${id}-file`}>Arquivo original</label>
+                <Input
+                  id={`${id}-file`}
+                  name="file"
+                  type="file"
+                  accept="application/pdf,image/jpeg,image/png"
+                  required
+                  aria-describedby={`${id}-file-help`}
+                />
+                <p id={`${id}-file-help`} className="text-xs text-muted-foreground">
+                  PDF, JPEG ou PNG de até 4 MB. Não substitui avaliação profissional.
+                </p>
               </div>
-              <PrivateDocumentPreview key={selected.id} document={selected} />
-              {data.canUpload &&
-                selected.sourceKind === "GENERAL_DOCUMENT" &&
-                selected.contentType === "application/pdf" && (
-                  <LaboratoryReview
-                    key={patientId + selected.id}
-                    patientId={patientId}
-                    documentId={selected.sourceId}
-                    onChanged={() => {
-                      void query.refetch();
-                    }}
+              <div className="flex gap-2">
+                <Button type="submit">{pending ? "Enviando…" : "Guardar arquivo original"}</Button>
+                <Button type="button" variant="outline" onClick={() => setUploadOpen(false)}>
+                  Cancelar anexo
+                </Button>
+              </div>
+            </fieldset>
+          </form>
+        )}
+        <div className="grid min-w-0 items-start gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(280px,350px)]">
+          <div className="min-w-0 space-y-4">
+            <div className="space-y-3" aria-label="Filtros de documentos">
+              <label className="block space-y-1 text-sm">
+                Buscar documentos
+                <Input
+                  value={search}
+                  onChange={(event) => setSearch(event.target.value)}
+                  placeholder="Nome do documento"
+                />
+              </label>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div>
+                  <label htmlFor={`${id}-category`} className="mb-1 block text-sm">
+                    Categoria
+                  </label>
+                  <select
+                    id={`${id}-category`}
+                    value={filters.category}
+                    onChange={(event) => filter("category", event.target.value)}
+                    className="min-h-10 w-full min-w-0 rounded-md border bg-white p-2 text-sm"
+                  >
+                    <option value="">Todas as categorias</option>
+                    {data.categories.map((category) => (
+                      <option key={category.id} value={category.id}>
+                        {category.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label htmlFor={`${id}-professional`} className="mb-1 block text-sm">
+                    Profissional
+                  </label>
+                  <select
+                    id={`${id}-professional`}
+                    value={filters.professionalId}
+                    onChange={(event) => filter("professionalId", event.target.value)}
+                    className="min-h-10 w-full min-w-0 rounded-md border bg-white p-2 text-sm"
+                  >
+                    <option value="">Todos os profissionais</option>
+                    {data.professionals.map((person) => (
+                      <option key={person.id} value={person.id}>
+                        {person.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <label className="space-y-1 text-sm">
+                  De
+                  <Input
+                    type="date"
+                    value={filters.dateFrom}
+                    onChange={(event) => filter("dateFrom", event.target.value)}
                   />
-                )}
-              {safeUrl(selected.previewUrl) &&
-                !["application/pdf", "image/jpeg", "image/png"].includes(
-                  selected.contentType ?? "",
-                ) && (
-                  <Button asChild type="button" variant="outline">
-                    <a
-                      href={safeUrl(selected.previewUrl)!}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
-                      Abrir prévia em nova aba
-                    </a>
-                  </Button>
-                )}
-              <div className="flex flex-wrap gap-2">
-                {safeUrl(selected.downloadUrl) && (
-                  <Button asChild type="button" variant="outline">
-                    <a
-                      href={safeUrl(selected.downloadUrl)!}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
-                      Baixar original
-                    </a>
-                  </Button>
-                )}
-                {selected.originUrl?.startsWith("/") && !selected.originUrl.startsWith("//") && (
-                  <Button asChild type="button" variant="outline">
-                    <a href={selected.originUrl}>Abrir registro de origem</a>
-                  </Button>
-                )}
+                </label>
+                <label className="space-y-1 text-sm">
+                  Até
+                  <Input
+                    type="date"
+                    value={filters.dateTo}
+                    onChange={(event) => filter("dateTo", event.target.value)}
+                  />
+                </label>
               </div>
-              <p className="text-xs text-muted-foreground">
-                Acesso privado. O documento original permanece na fonte de origem.
-              </p>
-            </>
-          ) : (
-            <div className="py-8 text-sm text-muted-foreground">
-              Selecione um documento para consultar a prévia, os detalhes e as ações disponíveis.
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <label htmlFor={`${id}-sort`} className="mr-2 text-sm">
+                    Ordenar por
+                  </label>
+                  <select
+                    id={`${id}-sort`}
+                    value={filters.sort}
+                    onChange={(event) => filter("sort", event.target.value)}
+                    className="min-h-10 rounded-md border bg-white p-2 text-sm"
+                  >
+                    <option value="date">Data mais recente</option>
+                    <option value="relevance">Relevância da busca</option>
+                  </select>
+                </div>
+                <div className="flex gap-1" role="group" aria-label="Visualização dos documentos">
+                  <Button
+                    type="button"
+                    variant={mode === "list" ? "secondary" : "ghost"}
+                    aria-pressed={mode === "list"}
+                    onClick={() => setMode("list")}
+                  >
+                    Lista
+                  </Button>
+                  <Button
+                    type="button"
+                    variant={mode === "table" ? "secondary" : "ghost"}
+                    aria-pressed={mode === "table"}
+                    onClick={() => setMode("table")}
+                  >
+                    Tabela
+                  </Button>
+                </div>
+              </div>
             </div>
-          )}
-        </aside>
+            {query.error && <InventoryState error={query.error} retry={() => query.refetch()} />}
+            <p className="text-xs text-muted-foreground">
+              {data.total} documento(s) ·{" "}
+              {data.documents.length
+                ? `${offset + 1}–${offset + data.documents.length}`
+                : "nenhum resultado"}
+            </p>
+            {!data.documents.length && (
+              <div className="border-y py-8 text-center text-sm text-muted-foreground">
+                <Files className="mx-auto mb-2 size-5" />
+                Nenhum documento encontrado para estes filtros.
+              </div>
+            )}
+            {mode === "list" ? (
+              <ul className="divide-y border-y">
+                {data.documents.map((document) => (
+                  <li key={document.id}>
+                    <button
+                      type="button"
+                      onClick={() => setSelected(document)}
+                      aria-pressed={selected?.id === document.id}
+                      className={`w-full space-y-1 p-3 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-600 ${selected?.id === document.id ? "bg-teal-50" : "hover:bg-slate-50"}`}
+                    >
+                      <span className="block font-medium">{document.title}</span>
+                      <span className="block text-xs text-muted-foreground">
+                        {dateLabel(document.occurredAt)} ·{" "}
+                        {document.professionalName || "Profissional não informado"}
+                      </span>
+                      <span className="block text-xs text-slate-600">
+                        {document.categories
+                          .map((category) => categories.get(category) ?? "Categoria")
+                          .join(" · ")}{" "}
+                        ·{" "}
+                        {statusNames[document.laboratoryStatus ?? document.status] ??
+                          document.status}
+                      </span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-sm">
+                  <caption className="sr-only">Documentos do paciente</caption>
+                  <thead>
+                    <tr className="border-b">
+                      <th scope="col" className="p-2">
+                        Documento
+                      </th>
+                      <th scope="col" className="p-2">
+                        Data
+                      </th>
+                      <th scope="col" className="p-2">
+                        Profissional
+                      </th>
+                      <th scope="col" className="p-2">
+                        Categoria
+                      </th>
+                      <th scope="col" className="p-2">
+                        Situação
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {data.documents.map((document) => (
+                      <tr
+                        key={document.id}
+                        className={selected?.id === document.id ? "bg-teal-50" : "border-b"}
+                      >
+                        <th scope="row" className="p-2 font-medium">
+                          <button
+                            type="button"
+                            className="text-left underline decoration-teal-300 underline-offset-4"
+                            onClick={() => setSelected(document)}
+                          >
+                            {document.title}
+                          </button>
+                        </th>
+                        <td className="whitespace-nowrap p-2">{dateLabel(document.occurredAt)}</td>
+                        <td className="p-2">{document.professionalName || "Não informado"}</td>
+                        <td className="p-2">
+                          {document.categories
+                            .map((category) => categories.get(category) ?? "Categoria")
+                            .join(" · ")}
+                        </td>
+                        <td className="p-2">
+                          {statusNames[document.laboratoryStatus ?? document.status] ??
+                            document.status}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+            <div className="flex gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                disabled={offset === 0 || query.isPending}
+                onClick={() => setOffset((value) => Math.max(0, value - 25))}
+              >
+                Anterior
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                disabled={!data.hasMore || query.isPending}
+                onClick={() => setOffset((value) => value + 25)}
+              >
+                Próxima
+              </Button>
+            </div>
+            {data.canManageCategories === true && (
+              <form
+                className="space-y-2 border-t pt-4"
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  if (categoryName.trim())
+                    void mutate({ action: "CREATE_CATEGORY", name: categoryName.trim() }, () => {
+                      setCategoryName("");
+                      setMessage("Categoria criada para a organização.");
+                    });
+                }}
+              >
+                <label className="block space-y-1 text-sm">
+                  Nova categoria
+                  <Input
+                    value={categoryName}
+                    onChange={(event) => setCategoryName(event.target.value)}
+                    maxLength={100}
+                    minLength={2}
+                    required
+                  />
+                </label>
+                <Button type="submit" variant="outline" disabled={pending}>
+                  Criar categoria
+                </Button>
+              </form>
+            )}
+          </div>
+          <aside
+            ref={detailRef}
+            aria-label="Prévia privada do documento"
+            className="min-w-0 space-y-4 border-t border-slate-200 pt-4 xl:sticky xl:top-4 xl:border-l xl:border-t-0 xl:pl-4 xl:pt-0"
+            key={`${patientId}:${unitId}`}
+          >
+            {selected ? (
+              <>
+                <div className="space-y-2">
+                  <h3 className="break-words font-semibold">{selected.title}</h3>
+                  <p className="text-xs text-muted-foreground">
+                    {sourceNames[selected.sourceKind] ?? "Registro do paciente"} ·{" "}
+                    {statusNames[
+                      data.documents.find((d) => d.id === selected.id)?.laboratoryStatus ??
+                        selected.status
+                    ] ?? selected.status}
+                    {selected.revision !== null ? ` · versão ${selected.revision}` : ""}
+                  </p>
+                  <p className="text-sm">
+                    {dateLabel(selected.occurredAt)} ·{" "}
+                    {selected.professionalName || "Profissional não informado"}
+                    <br />
+                    {selected.unitName}
+                  </p>
+                  <div className="flex flex-wrap gap-1">
+                    {selected.categories.map((category) => (
+                      <span key={category} className="rounded bg-slate-100 px-2 py-1 text-xs">
+                        {categories.get(category) ?? "Categoria"}
+                      </span>
+                    ))}
+                  </div>
+                  {selected.sizeBytes !== null && (
+                    <p className="text-xs text-muted-foreground">
+                      Original · {Math.ceil(selected.sizeBytes / 1024)} KB
+                    </p>
+                  )}
+                </div>
+                <PrivateDocumentPreview key={selected.id} document={selected} />
+                {data.canUpload &&
+                  selected.sourceKind === "GENERAL_DOCUMENT" &&
+                  selected.contentType === "application/pdf" && (
+                    <LaboratoryReview
+                      key={patientId + selected.id}
+                      patientId={patientId}
+                      documentId={selected.sourceId}
+                      onChanged={() => {
+                        void query.refetch();
+                      }}
+                    />
+                  )}
+                {safeUrl(selected.previewUrl) &&
+                  !["application/pdf", "image/jpeg", "image/png"].includes(
+                    selected.contentType ?? "",
+                  ) && (
+                    <Button asChild type="button" variant="outline">
+                      <a
+                        href={safeUrl(selected.previewUrl)!}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        Abrir prévia em nova aba
+                      </a>
+                    </Button>
+                  )}
+                <div className="flex flex-wrap gap-2">
+                  {safeUrl(selected.downloadUrl) && (
+                    <Button asChild type="button" variant="outline">
+                      <a
+                        href={safeUrl(selected.downloadUrl)!}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        Baixar original
+                      </a>
+                    </Button>
+                  )}
+                  {selected.originUrl?.startsWith("/") && !selected.originUrl.startsWith("//") && (
+                    <Button asChild type="button" variant="outline">
+                      <a href={selected.originUrl}>Abrir registro de origem</a>
+                    </Button>
+                  )}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Acesso privado. O documento original permanece na fonte de origem.
+                </p>
+              </>
+            ) : (
+              <div className="py-8 text-sm text-muted-foreground">
+                Selecione um documento para consultar a prévia, os detalhes e as ações disponíveis.
+              </div>
+            )}
+          </aside>
+        </div>
       </div>
     </section>
   );

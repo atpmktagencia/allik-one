@@ -65,6 +65,11 @@ export const Route = createFileRoute("/api/v1/inventory/$")({
       GET: ({ request }) => {
         if (
           new URL(request.url).pathname.replace(/\/$/, "") ===
+          "/api/v1/inventory/laboratory-history"
+        )
+          return laboratoryHistoryResponse(request);
+        if (
+          new URL(request.url).pathname.replace(/\/$/, "") ===
           "/api/v1/inventory/laboratory-results"
         )
           return laboratoryResultsResponse(request);
@@ -335,3 +340,5 @@ export const Route = createFileRoute("/api/v1/inventory/$")({
   },
 });
 import { laboratoryResultsResponse } from "@/server/laboratory-results";
+
+import { laboratoryHistoryResponse } from "@/server/laboratory-history";

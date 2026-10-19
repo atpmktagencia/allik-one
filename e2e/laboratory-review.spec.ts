@@ -108,6 +108,16 @@ test("clinician reviews laboratory values beside the original and explicitly sea
     await dialog.getByLabel("Resultado da linha 1", { exact: true }).fill("<0,1");
     await dialog.getByLabel("Unidade da linha 1", { exact: true }).fill("µUI/mL");
     await dialog.getByLabel("Referência da linha 1", { exact: true }).fill("0,27 – 4,2");
+    await dialog.locator("summary").filter({ hasText: "Datas, método" }).first().click();
+    await dialog.getByLabel("Coleta da linha 1", { exact: true }).fill("2026-09-01");
+    await dialog.getByRole("button", { name: "Adicionar resultado" }).click();
+    await dialog.getByLabel("Exame da linha 2", { exact: true }).fill("TSH");
+    await dialog.getByLabel("Resultado da linha 2", { exact: true }).fill("1,2");
+    await dialog.getByLabel("Unidade da linha 2", { exact: true }).fill("µUI/mL");
+    await dialog.getByLabel("Referência da linha 2", { exact: true }).fill("0,27 – 4,2");
+    await dialog.locator("summary").filter({ hasText: "Datas, método" }).nth(1).click();
+    await dialog.getByLabel("Coleta da linha 2", { exact: true }).fill("2026-10-01");
+    await dialog.getByLabel("Conferir linha 2", { exact: true }).check();
     await dialog.getByLabel("Confirmei que o PDF corresponde ao paciente selecionado.").check();
     await dialog.getByLabel("Conferir linha 1", { exact: true }).check();
     await page.screenshot({
@@ -122,8 +132,8 @@ test("clinician reviews laboratory values beside the original and explicitly sea
         patient,
       ])
     ).rows;
-    expect(result).toHaveLength(1);
-    expect(result[0].payload.result).toBe("<0,1");
+    expect(result).toHaveLength(2);
+    expect(result.map((row) => row.payload.result)).toContain("<0,1");
     await dialog.getByRole("button", { name: "Corrigir resultados" }).click();
     await expect(
       dialog.getByLabel("Confirmei que o PDF corresponde ao paciente selecionado."),
@@ -142,6 +152,32 @@ test("clinician reviews laboratory values beside the original and explicitly sea
     );
     await page.screenshot({
       path: testInfo.outputPath("laboratory-review-mobile.png"),
+      fullPage: false,
+    });
+    await dialog.getByRole("button", { name: "Close", exact: true }).click();
+    await page.getByRole("button", { name: "Histórico de resultados", exact: true }).click();
+    const history = page.getByRole("region", { name: "Histórico longitudinal de exames" });
+    await expect(
+      history.getByRole("table", { name: "Tabela longitudinal de exames" }),
+    ).toBeVisible();
+    await expect(
+      history.getByRole("columnheader", { name: "01/09/2026", exact: true }),
+    ).toBeVisible();
+    await expect(history.getByText("<0,1", { exact: true })).toBeVisible();
+    await history.getByRole("button", { name: "TSH", exact: true }).click();
+    const graph = history.getByRole("img", { name: /Evolução de TSH/ });
+    await expect(graph).toBeVisible();
+    await expect(graph.locator("circle")).toHaveCount(1);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(
+      true,
+    );
+    await page.screenshot({
+      path: testInfo.outputPath("laboratory-history-mobile.png"),
+      fullPage: false,
+    });
+    await page.setViewportSize({ width: 1500, height: 1000 });
+    await page.screenshot({
+      path: testInfo.outputPath("laboratory-history-desktop.png"),
       fullPage: false,
     });
   } finally {

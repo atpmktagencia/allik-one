@@ -93,6 +93,7 @@ export async function fetchInventory<T>(resource: string): Promise<T> {
 export function useInventory<T>(resource: string, options?: { enabled?: boolean }) {
   const patientResource =
     resource.startsWith("patient-") ||
+    resource.startsWith("laboratory-history") ||
     resource.startsWith("care-tasks") ||
     resource.startsWith("preconsultation") ||
     resource.startsWith("prescription-composer") ||
