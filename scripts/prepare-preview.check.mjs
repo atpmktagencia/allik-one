@@ -15,6 +15,7 @@ function run(overrides) {
     "INVENTORY_PREPARE_PILOT",
     "PILOT_RESET_INVITE",
     "IMPORT_FORTALEZA_STIN_ORDER_098059",
+    "INVENTORY_PREVIEW_OPERATOR_FULL_ACCESS",
   ])
     delete env[key];
   return spawnSync(process.execPath, ["scripts/prepare-preview.mjs"], {
@@ -26,6 +27,27 @@ function run(overrides) {
 test("ordinary local and production builds do not access a database", () => {
   assert.equal(run({}).status, 0);
   assert.equal(run({ VERCEL_ENV: "production" }).status, 0);
+});
+test("production cannot build with full shared Preview access enabled", () => {
+  const result = run({
+    INVENTORY_PREVIEW_OPERATOR_FULL_ACCESS: "true",
+    VERCEL_ENV: "production",
+    INVENTORY_ENVIRONMENT: "preview",
+    INVENTORY_PREVIEW_DATA_CLASSIFICATION: "synthetic",
+    VERCEL_GIT_COMMIT_REF: "feature/allik-patients",
+  });
+  assert.equal(result.status, 1);
+  assert.match(result.stderr, /forbidden/);
+  assert.equal(
+    run({
+      INVENTORY_PREVIEW_OPERATOR_FULL_ACCESS: "true",
+      VERCEL_ENV: "preview",
+      INVENTORY_ENVIRONMENT: "preview",
+      INVENTORY_PREVIEW_DATA_CLASSIFICATION: "synthetic",
+      VERCEL_GIT_COMMIT_REF: "feature/allik-patients",
+    }).status,
+    0,
+  );
 });
 test("an explicit production opt-in is denied before migration", () => {
   const result = run({

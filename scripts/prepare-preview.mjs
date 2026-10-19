@@ -1,5 +1,18 @@
 import { spawnSync } from "node:child_process";
 
+if (
+  process.env.INVENTORY_PREVIEW_OPERATOR_FULL_ACCESS === "true" &&
+  (process.env.VERCEL_ENV !== "preview" ||
+    process.env.INVENTORY_ENVIRONMENT !== "preview" ||
+    process.env.INVENTORY_PREVIEW_DATA_CLASSIFICATION !== "synthetic" ||
+    process.env.VERCEL_GIT_COMMIT_REF !== "feature/allik-patients")
+) {
+  console.error(
+    "Full Preview operator access is forbidden outside the authorized synthetic Preview branch.",
+  );
+  process.exit(1);
+}
+
 // An explicit branch-scoped opt-in; local builds and production never initialize data.
 if (process.env.INVENTORY_PREPARE_PREVIEW === "true") {
   if (

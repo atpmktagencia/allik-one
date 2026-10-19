@@ -93,6 +93,7 @@ const pageTitles: Record<string, string> = {
 };
 
 type Identity = {
+  sharedPreviewOperator?: boolean;
   user: { name: string };
   role: string;
   capabilities?: { canReadPricingCosts?: boolean; canManagePricing?: boolean };
@@ -432,6 +433,15 @@ export function AppShell({ children }: { children: ReactNode }) {
             </div>
           </div>
         </header>
+        {identity?.sharedPreviewOperator && (
+          <div
+            role="status"
+            className="border-b border-teal-200 bg-teal-50 px-4 py-2 text-sm text-teal-950"
+          >
+            Preview de teste · Dados fictícios · Operador compartilhado com acesso completo.
+            Documentos sem validade clínica.
+          </div>
+        )}
         <main
           className={cn(
             "mx-auto w-full",

@@ -8,6 +8,10 @@ import {
 } from "node:crypto";
 import { getPool } from "./db";
 import { consumeAuthRateLimit, releaseAuthRateLimit } from "./auth-rate-limit";
+import {
+  fullPreviewOperatorEnabled,
+  previewOperatorIdentity,
+} from "../lib/preview-operator-policy";
 
 const cookieName = "allik_inventory_session";
 const previewOptOutCookieName = "allik_inventory_preview_opt_out";
@@ -73,6 +77,7 @@ export type AuthContext = {
   role: Role;
   unitIds: string[];
   preview: boolean;
+  sharedPreviewOperator?: boolean;
   integration: { id: string; name: string; permissions: Permission[] } | null;
 };
 
@@ -383,7 +388,39 @@ export async function authenticate(request: Request): Promise<AuthContext | null
     }
   }
   const previewAutoLoginAllowed = namedCookie(request, previewOptOutCookieName) !== "1";
-  if ((isPreviewLoginDisabled() && previewAutoLoginAllowed) || hasPreviewSession(request))
+  if ((isPreviewLoginDisabled() && previewAutoLoginAllowed) || hasPreviewSession(request)) {
+    if (fullPreviewOperatorEnabled(process.env)) {
+      const demo = previewOperatorIdentity;
+      const result = await getPool().query(
+        `SELECT u.id,m.id AS membership_id,
+          inventory_professional_registration_state(u.id,m.organization_id) AS registry_state
+         FROM inventory_users u JOIN inventory_memberships m ON m.user_id=u.id
+         WHERE u.id=$1 AND m.id=$2 AND m.organization_id=$3 AND u.email=$4 AND u.name=$5
+          AND u.active AND m.active AND m.role='SUPER_ADMIN'
+          AND u.password_hash IS NULL AND u.professional_council='CRM'
+          AND u.council_number=$6 AND u.council_region='CE'`,
+        [
+          demo.id,
+          demo.membershipId,
+          demo.organizationId,
+          demo.email,
+          demo.name,
+          demo.councilNumber,
+        ],
+      );
+      if (result.rows[0]?.registry_state !== "OK") return null;
+      return {
+        user: { id: demo.id, name: demo.name, email: demo.email, professionalRegistryState: "OK" },
+        membershipId: demo.membershipId,
+        organizationId: demo.organizationId,
+        role: "SUPER_ADMIN",
+        unitIds: [],
+        // Legacy `preview` denotes the restricted anonymous actor (without an audit FK).
+        preview: false,
+        sharedPreviewOperator: true,
+        integration: null,
+      };
+    }
     return {
       user: { id: null, name: "Operador do Preview", email: null },
       membershipId: null,
@@ -393,6 +430,7 @@ export async function authenticate(request: Request): Promise<AuthContext | null
       preview: true,
       integration: null,
     };
+  }
   return null;
 }
 

@@ -508,6 +508,8 @@ Receitas criadas diretamente como finais preservam sua revisão histórica `0`; 
 
 ### Patient Workspace — Fase 1: central de documentos (Preview)
 
+**Exceção temporária de teste:** o operador compartilhado pode receber acesso completo apenas no Preview sintético da branch `feature/allik-patients`, mediante opt-in explícito. Usa identidade fictícia própria, com indicação de documento de teste, sem assumir a conta ou o registro do titular. Produção mantém autenticação individual. Consulte [ativação, limites e revogação](docs/shared-preview-operator.md).
+
 O paciente passa a ter navegação contextual por Visão geral, Consultas, Documentos, Exames e Tratamentos. A central reúne oito fontes existentes sem duplicar seus registros, com busca, categorias múltiplas, filtros, paginação e prévia privada. Novos anexos PDF/JPEG/PNG preservam o original e recebem hash calculado no servidor, com validação de acesso por organização, paciente e unidades.
 
 Os fluxos atuais de consulta e tratamento permanecem disponíveis. Nesta fase, Exames reúne pedidos e arquivos; extração por IA, validação de resultados, comparação longitudinal e evolução dos questionários seguem nas próximas fases, nessa ordem. Consulte [desenho, segurança e validação da Fase 1](docs/patient-workspace-phase1.md). Migração aditiva `0070_patient_documents`, com publicação restrita ao Preview.
