@@ -747,7 +747,7 @@ export function LaboratoryReview({
           </div>
           {!validated && (
             <div className="flex flex-wrap items-center justify-end gap-2 border-t pt-3">
-              <span className="min-w-0 flex-1 text-xs text-muted-foreground">
+              <span className="min-w-0 basis-full text-xs text-muted-foreground sm:flex-1 sm:basis-0">
                 {problem ?? "Conferência completa. Confirme para incorporar os resultados."}
               </span>
               <Button

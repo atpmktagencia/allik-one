@@ -33,3 +33,5 @@ Acceptance: model output stays unconfirmed; only server-derived independent evid
 ## Verification record
 
 389 unit tests and 357 disposable PostgreSQL integration tests passed, plus runtime provisioning 3/3. The four review UI scenarios also passed after the final pending-filter correction. Typecheck and production bundle build passed; lint has no errors and the six existing Fast Refresh warnings. A separate read-only agent review found no new concrete authorization, history or batch-selection issue. These results do not claim accuracy on a representative laboratory corpus or replace clinical review.
+
+The full restricted-role browser suite passed 17/17. The disposable production-bundle beta scenario passed migration preservation, individual authentication/scopes, immutable documents, session revocation and synthetic backup/restore. Mobile visual inspection found footer text squeezed between actions; its responsive layout was corrected and the dedicated desktop/mobile browser scenario passed again. Production/provider recovery is not certified by these disposable tests.
