@@ -17,6 +17,35 @@ afterEach(() => {
   window.history.replaceState(null, "", "/");
 });
 describe("Password security UI", () => {
+  it.each([500, 200])(
+    "handles an HTML login response (%s) without a JSON parser error",
+    async (status) => {
+      vi.stubGlobal(
+        "fetch",
+        vi.fn(async (_input: unknown, init?: RequestInit) =>
+          init?.method === "POST"
+            ? new Response("<!doctype html><title>Unavailable</title>", {
+                status,
+                headers: { "Content-Type": "text/html" },
+              })
+            : Response.json({ data: { recoveryAvailable: false } }),
+        ),
+      );
+      render(<InventoryAccess />);
+      const submit = await screen.findByRole("button", { name: "Acessar estoque" });
+      await waitFor(() => expect(submit).toBeEnabled());
+      fireEvent.change(screen.getByLabelText("E-mail"), {
+        target: { value: "owner@example.test" },
+      });
+      fireEvent.change(screen.getByLabelText("Senha"), { target: { value: "test-password" } });
+      fireEvent.click(submit);
+      expect(await screen.findByRole("alert")).toHaveTextContent(
+        status === 500 ? "temporariamente indisponível" : "resposta inválida",
+      );
+      expect(screen.getByRole("alert")).not.toHaveTextContent("Unexpected token");
+      expect(submit).toBeEnabled();
+    },
+  );
   it("does not offer a password form for the shared Preview identity", async () => {
     vi.stubGlobal(
       "fetch",

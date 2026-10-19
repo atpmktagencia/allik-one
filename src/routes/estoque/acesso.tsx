@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { supportWhatsAppUrl } from "@/config/support";
 import { Input } from "@/components/ui/input";
+import { readInventoryResponse } from "@/data/inventory-api";
 export const Route = createFileRoute("/estoque/acesso")({ component: InventoryAccess });
 export function InventoryAccess() {
   const [ready, setReady] = useState(false);
@@ -181,8 +182,7 @@ export function InventoryAccess() {
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ email, password }),
               });
-              const body = (await response.json()) as { error?: string };
-              if (!response.ok) throw new Error(body.error ?? "Não foi possível entrar.");
+              await readInventoryResponse(response, "Não foi possível entrar.");
               setPassword("");
               await queryClient.invalidateQueries({ queryKey: ["inventory"] });
               await navigate({ to: "/estoque" });
