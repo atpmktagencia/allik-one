@@ -6,7 +6,7 @@ test("individual clinician composes a prescription and explicitly saves a draft"
   page,
   context,
   baseURL,
-}) => {
+}, testInfo) => {
   test.setTimeout(60_000);
   const url = process.env["DATABASE_URL"];
   if (!url || !new URL(url).pathname.endsWith("_test"))
@@ -169,7 +169,10 @@ test("individual clinician composes a prescription and explicitly saves a draft"
       exact: true,
     });
     await expect(livePreview).toContainText("Ingrediente excluído B");
-    await page.screenshot({ path: "/workspace/work/m20b-composer-desktop.png", fullPage: false });
+    await page.screenshot({
+      path: testInfo.outputPath("m20b-composer-desktop.png"),
+      fullPage: false,
+    });
     await page.setViewportSize({ width: 390, height: 844 });
     expect(
       await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
@@ -382,7 +385,7 @@ test("individual clinician composes a prescription and explicitly saves a draft"
     ).rows[0];
     await page.setViewportSize({ width: 1500, height: 1000 });
     await dialog.getByRole("tab", { name: "Receita", exact: true }).click();
-    await page.screenshot({ path: "/workspace/work/m21f-receita-desktop.png" });
+    await page.screenshot({ path: testInfo.outputPath("m21f-receita-desktop.png") });
     await dialog.getByRole("tab", { name: "Orçamento", exact: true }).click();
     await expect(component(1).getByLabel("Nome do componente", { exact: true })).toBeVisible();
     await expect(
@@ -429,7 +432,7 @@ test("individual clinician composes a prescription and explicitly saves a draft"
 
     await expect(dialog).not.toContainText("PRIVATE_PLAN_TITLE_M21F");
     await expect(dialog).not.toContainText("PRIVATE_PLAN_INSTRUCTIONS_M21F");
-    await page.screenshot({ path: "/workspace/work/m21f-orcamento-desktop.png" });
+    await page.screenshot({ path: testInfo.outputPath("m21f-orcamento-desktop.png") });
     await page.setViewportSize({ width: 390, height: 844 });
     expect(
       await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
@@ -439,7 +442,7 @@ test("individual clinician composes a prescription and explicitly saves a draft"
     await dialog
       .getByRole("tablist", { name: "Receita e orçamento", exact: true })
       .scrollIntoViewIfNeeded();
-    await page.screenshot({ path: "/workspace/work/m21f-orcamento-mobile.png" });
+    await page.screenshot({ path: testInfo.outputPath("m21f-orcamento-mobile.png") });
     await page.setViewportSize({ width: 1500, height: 1000 });
     await dialog.getByRole("tab", { name: "Receita", exact: true }).click();
     await expect(component(1).getByLabel("Nome do componente", { exact: true })).toHaveValue(
@@ -474,7 +477,7 @@ test("individual clinician composes a prescription and explicitly saves a draft"
     await expect(proposalPage.locator("body")).not.toContainText("PRIVATE_PLAN_TITLE_M21F");
     await expect(proposalPage.locator("body")).not.toContainText("Glycyrrhiza");
     await proposalPage.setViewportSize({ width: 1500, height: 1000 });
-    await proposalPage.screenshot({ path: "/workspace/work/m21f-proposta-desktop.png" });
+    await proposalPage.screenshot({ path: testInfo.outputPath("m21f-proposta-desktop.png") });
     await proposalPage.close();
     expect(
       (

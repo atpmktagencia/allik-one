@@ -6,7 +6,7 @@ test("patient workspace keeps existing flows and privately previews an indexed c
   page,
   context,
   baseURL,
-}) => {
+}, testInfo) => {
   const databaseUrl = process.env["DATABASE_URL"];
   if (!databaseUrl || !new URL(databaseUrl).pathname.endsWith("_test"))
     throw Error("Disposable test database required");
@@ -78,7 +78,10 @@ test("patient workspace keeps existing flows and privately previews an indexed c
         .frameLocator('iframe[title="Prévia privada: Solicitação sintética privada"]')
         .getByText("Conteúdo clínico sintético para revisão", { exact: true }),
     ).toBeVisible();
-    await page.screenshot({ path: "/workspace/work/patient-phase1-desktop.png", fullPage: true });
+    await page.screenshot({
+      path: testInfo.outputPath("patient-phase1-desktop.png"),
+      fullPage: true,
+    });
     const opened = page.waitForEvent("popup");
     await preview.getByRole("link", { name: "Abrir prévia em nova aba", exact: true }).click();
     const nativePreview = await opened;
@@ -120,7 +123,10 @@ test("patient workspace keeps existing flows and privately previews an indexed c
         return !!box && box.x >= -1 && box.x + box.width <= 391;
       })
       .toBe(true);
-    await page.screenshot({ path: "/workspace/work/patient-phase1-mobile.png", fullPage: true });
+    await page.screenshot({
+      path: testInfo.outputPath("patient-phase1-mobile.png"),
+      fullPage: true,
+    });
     await expect
       .poll(() =>
         page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1),
