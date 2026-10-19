@@ -11,6 +11,23 @@ afterEach(() => {
 });
 
 describe("server error response boundary", () => {
+  it("normalizes an HTML failure produced by the framework for an API request", async () => {
+    handler.mockResolvedValue(
+      new Response("<!doctype html><title>Unavailable</title>", {
+        status: 500,
+        headers: { "Content-Type": "text/html" },
+      }),
+    );
+    const response = await server.fetch(
+      new Request("https://preview.example.test/api/inventory-session"),
+      {},
+      {},
+    );
+    expect(response.headers.get("Content-Type")).toContain("application/json");
+    expect(await response.json()).toEqual({
+      error: "O serviço está temporariamente indisponível. Tente novamente em instantes.",
+    });
+  });
   it.each(["throw", "swallowed"])(
     "returns safe JSON for a catastrophic API error: %s",
     async (kind) => {
