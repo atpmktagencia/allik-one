@@ -43,10 +43,13 @@ function fill() {
     ["Unidade da quantidade (ex.: mg)", "mg"],
     ["Apresentação (unidade de administração)", "cápsula"],
     ["Via de administração", "oral"],
+    ["Unidades por administração", "1"],
+    ["Administrações por dia", "1"],
+    ["Duração em dias", "1"],
   ])
     fireEvent.change(screen.getByLabelText(label!), { target: { value } });
 }
-function setup() {
+function setup(onDraftStateChange = vi.fn()) {
   vi.stubGlobal(
     "confirm",
     vi.fn(() => true),
@@ -77,6 +80,7 @@ function setup() {
       appointmentId="synthetic-appointment"
       documentId="synthetic-document"
       onInsert={insert}
+      onDraftStateChange={onDraftStateChange}
     />,
   );
   fill();
@@ -615,4 +619,64 @@ describe("Structured prescription review", () => {
     });
     expect(requests.find((request) => request["action"] === "SAVE")).not.toHaveProperty("id");
   });
+});
+
+it("reports local composition changes to the encounter and vetoes reload and unit changes", async () => {
+  const state = vi.fn();
+  setup(state);
+  await waitFor(() => expect(state).toHaveBeenLastCalledWith({ dirty: true, pending: false }));
+  const unload = new Event("beforeunload", { cancelable: true });
+  window.dispatchEvent(unload);
+  expect(unload.defaultPrevented).toBe(true);
+  const unit = new Event("allik:before-unit-change", { cancelable: true });
+  window.dispatchEvent(unit);
+  expect(unit.defaultPrevented).toBe(true);
+  fireEvent.click(screen.getByRole("button", { name: "Calcular e revisar composição" }));
+  await screen.findByRole("button", { name: "Inserir no rascunho da receita" });
+  await waitFor(() => expect(state).toHaveBeenLastCalledWith({ dirty: true, pending: false }));
+  fireEvent.click(screen.getByLabelText(/^Conferi composição/));
+  fireEvent.click(screen.getByRole("button", { name: "Inserir no rascunho da receita" }));
+  await waitFor(() => expect(state).toHaveBeenLastCalledWith({ dirty: false, pending: false }));
+});
+
+it("never provides an implicit initial dose schedule", () => {
+  render(
+    <PrescriptionComposer
+      appointmentId="synthetic-blank"
+      documentId="synthetic-blank-doc"
+      onInsert={vi.fn()}
+    />,
+  );
+  for (const label of ["Unidades por administração", "Administrações por dia", "Duração em dias"])
+    expect(screen.getByLabelText(label)).toHaveValue(null);
+  expect(screen.getByRole("button", { name: "Calcular e revisar composição" })).toBeDisabled();
+});
+
+it("keeps a locally edited formula when the user declines replacing it", () => {
+  setup();
+  vi.mocked(window.confirm).mockReturnValue(false);
+  fireEvent.click(screen.getByRole("button", { name: "Nova composição" }));
+  expect(window.confirm).toHaveBeenCalledWith(
+    "Substituir a composição local ainda não inserida na receita?",
+  );
+  expect(screen.getByLabelText("Nome do componente")).toHaveValue("Componente sintético");
+  expect(screen.getByLabelText("Quantidade por unidade")).toHaveValue("5");
+  fireEvent.click(screen.getByRole("button", { name: "Modelo da foto · conferir" }));
+  expect(screen.getByLabelText("Nome do componente")).toHaveValue("Componente sintético");
+});
+
+it("keeps the composition dirty if the parent cannot insert the confirmed instance", async () => {
+  const state = vi.fn();
+  const { insert } = setup(state);
+  insert.mockReturnValue(false);
+  fireEvent.click(screen.getByRole("button", { name: "Calcular e revisar composição" }));
+  await screen.findByRole("button", { name: "Inserir no rascunho da receita" });
+  await waitFor(() => expect(state).toHaveBeenLastCalledWith({ dirty: true, pending: false }));
+  fireEvent.click(screen.getByLabelText(/^Conferi composição/));
+  fireEvent.click(screen.getByRole("button", { name: "Inserir no rascunho da receita" }));
+  await waitFor(() => expect(insert).toHaveBeenCalled());
+  await waitFor(() => expect(state).toHaveBeenLastCalledWith({ dirty: true, pending: false }));
+  const unload = new Event("beforeunload", { cancelable: true });
+  window.dispatchEvent(unload);
+  expect(unload.defaultPrevented).toBe(true);
 });

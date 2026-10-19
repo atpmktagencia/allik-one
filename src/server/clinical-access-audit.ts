@@ -10,14 +10,17 @@ export async function recordClinicalAccess(
     patientId: string;
     appointmentId?: string;
     documentId?: string;
-    action: "READ" | "PRINT" | "PDF_SOURCE" | "SIGNED_DOWNLOAD";
+    sourceKind?: "GENERAL_DOCUMENT" | "UPLOADED_PRESCRIPTION";
+    sourceId?: string;
+    action:
+      "READ" | "PRINT" | "PDF_SOURCE" | "SIGNED_DOWNLOAD" | "DOCUMENT_OPEN" | "DOCUMENT_DOWNLOAD";
     resourceIds?: string[];
   },
 ) {
   await getPool().query(
     `INSERT INTO inventory_clinical_access_events
-      (organization_id,unit_id,patient_id,appointment_id,document_id,actor_user_id,preview_actor,action,resource_ids)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
+      (organization_id,unit_id,patient_id,appointment_id,document_id,actor_user_id,preview_actor,action,resource_ids,source_kind,source_id)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`,
     [
       auth.organizationId,
       access.unitId,
@@ -32,6 +35,8 @@ export async function recordClinicalAccess(
           : null,
       access.action,
       JSON.stringify(access.resourceIds ?? []),
+      access.sourceKind ?? null,
+      access.sourceId ?? null,
     ],
   );
 }

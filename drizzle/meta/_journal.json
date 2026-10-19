@@ -505,6 +505,34 @@
       "when": 1794272400028,
       "tag": "0071_laboratory_review",
       "breakpoints": true
+    },
+    {
+      "idx": 72,
+      "version": "7",
+      "when": 1794272400029,
+      "tag": "0072_clinical_document_artifacts",
+      "breakpoints": true
+    },
+    {
+      "idx": 73,
+      "version": "7",
+      "when": 1794272400030,
+      "tag": "0073_preconsultation_events",
+      "breakpoints": true
+    },
+    {
+      "idx": 74,
+      "version": "7",
+      "when": 1794272400031,
+      "tag": "0074_laboratory_document_audit",
+      "breakpoints": true
+    },
+    {
+      "idx": 75,
+      "version": "7",
+      "when": 1794272400032,
+      "tag": "0075_clinical_request_lifecycle",
+      "breakpoints": true
     }
   ]
 }

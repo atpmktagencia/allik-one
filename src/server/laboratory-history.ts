@@ -10,7 +10,10 @@ const fail = (error: string, status: number) => Response.json({ error }, { statu
 const filters = z
   .object({
     patientId: z.string().uuid(),
-    unitId: z.string().uuid().optional(),
+    unitId: z.preprocess(
+      (value) => (value === "" ? undefined : value),
+      z.string().uuid().optional(),
+    ),
     dateFrom: laboratoryDate.optional(),
     dateTo: laboratoryDate.optional(),
     offset: z.coerce.number().int().min(0).max(10000).default(0),
@@ -60,7 +63,7 @@ export async function laboratoryHistoryResponse(request: Request) {
     const units = auth.role === "SUPER_ADMIN" ? null : auth.unitIds;
     const found = (
       await getPool().query(
-        `SELECT r.id,r.review_id,d.id AS document_id,d.title AS document_title,r.payload
+        `SELECT r.id,r.review_id,r.unit_id,d.id AS document_id,d.title AS document_title,r.payload
        FROM inventory_laboratory_results r
        JOIN inventory_laboratory_imports i ON i.id=r.import_id AND i.organization_id=r.organization_id
          AND i.patient_id=r.patient_id AND i.unit_id=r.unit_id AND i.latest_review_id=r.review_id
@@ -71,12 +74,21 @@ export async function laboratoryHistoryResponse(request: Request) {
        JOIN inventory_patients p ON p.id=r.patient_id AND p.organization_id=r.organization_id
        WHERE r.patient_id=$1 AND r.organization_id=$2
          AND ($3::uuid[] IS NULL OR (r.unit_id=ANY($3) AND p.primary_unit_id=ANY($3)))
+         AND ($7::uuid IS NULL OR r.unit_id=$7)
          AND ($4::text IS NULL OR COALESCE(r.payload->>'collectedOn',r.payload->>'reportedOn') >= $4)
          AND ($5::text IS NULL OR COALESCE(r.payload->>'collectedOn',r.payload->>'reportedOn') <= $5)
        ORDER BY COALESCE(r.payload->>'collectedOn',r.payload->>'reportedOn') DESC NULLS LAST,
          v.created_at DESC,r.review_id,r.ordinal
        LIMIT 501 OFFSET $6`,
-        [patientId, auth.organizationId, units, dateFrom ?? null, dateTo ?? null, offset],
+        [
+          patientId,
+          auth.organizationId,
+          units,
+          dateFrom ?? null,
+          dateTo ?? null,
+          offset,
+          unitId ?? null,
+        ],
       )
     ).rows;
     const rows = found.slice(0, 500).map((r) => ({
@@ -88,12 +100,14 @@ export async function laboratoryHistoryResponse(request: Request) {
         "/api/v1/inventory/patient-document-file?patientId=" +
         patientId +
         "&sourceKind=GENERAL_DOCUMENT&sourceId=" +
-        r.document_id,
+        r.document_id +
+        "&unitId=" +
+        r.unit_id,
       payload: laboratoryRow.parse(r.payload),
     }));
     await recordClinicalAccess(auth, {
       patientId,
-      unitId: patient.primary_unit_id,
+      unitId: unitId ?? patient.primary_unit_id,
       action: "READ",
       resourceIds: rows.map((r) => r.id),
     });

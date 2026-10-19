@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { migrate } from "drizzle-orm/node-postgres/migrator";
 import { getDb, getPool } from "./db";
-import { hashToken } from "./auth";
+import { hashToken, previewLogin } from "./auth";
 import { integrationCredentialResponse } from "./integration-credentials";
 import { prescriptionComposerResponse } from "./prescription-composer";
 const origin = "https://shared-models.example.test";
@@ -375,17 +375,26 @@ describe("Shared clinical template privacy and revisions", () => {
         )
       ).status,
     ).toBe(403);
-    vi.stubEnv("INVENTORY_ENVIRONMENT", "preview");
-    vi.stubEnv("VERCEL_ENV", "preview");
-    vi.stubEnv("INVENTORY_DISABLE_PREVIEW_LOGIN", "true");
+    vi.stubEnv("INVENTORY_ENVIRONMENT", "test");
+    vi.stubEnv("INVENTORY_PREVIEW_PASSWORD", "synthetic-test-password");
+    vi.stubEnv("INVENTORY_SESSION_SECRET", "synthetic-test-secret".repeat(3));
     vi.stubEnv("INVENTORY_PREVIEW_DATA_CLASSIFICATION", "synthetic");
     try {
+      const login = await previewLogin(
+        new Request(`${origin}/api/inventory-session`, {
+          method: "POST",
+          headers: { origin },
+          body: JSON.stringify({ password: "synthetic-test-password" }),
+        }),
+      );
+      expect(login.status).toBe(200);
+      const cookie = login.headers.get("set-cookie")!.split(";")[0]!;
       expect(
         (
           await prescriptionComposerResponse(
             new Request(`${origin}/api/v1/inventory/prescription-composer`, {
               method: "POST",
-              headers: { origin, "Content-Type": "application/json" },
+              headers: { origin, cookie, "Content-Type": "application/json" },
               body: JSON.stringify({
                 action: "SAVE",
                 appointmentId: f.users["owner"]!.appointment,

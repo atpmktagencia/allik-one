@@ -80,6 +80,7 @@ export function CareTasksPanel({
     offset: String(offset),
   });
   if (patientId) params.set("patientId", patientId);
+  if (unitId) params.set("unitId", unitId);
   if (appointmentId) params.set("appointmentId", appointmentId);
   const query = useInventory<Payload>(`care-tasks?${params}`);
   const [operationId, setOperationId] = useState("");

@@ -19,6 +19,7 @@ type Target = "exams" | "documents" | "questionnaires";
 export type EncounterContextProps = {
   patientId: string;
   unitId?: string | undefined;
+  active?: boolean;
   onNavigate?: (target: Target) => void;
   onQuickNote?: () => void;
   quickNotes?: ReactNode;
@@ -49,15 +50,18 @@ function DocumentCategory({
   category,
   label,
   onOpen,
+  active,
 }: {
   patientId: string;
   unitId?: string | undefined;
   category: string;
   label: string;
   onOpen?: (() => void) | undefined;
+  active: boolean;
 }) {
   const query = useInventory<{ total: number }>(
     `${resource("patient-documents", patientId, unitId)}&limit=1&category=${category}`,
+    { enabled: active },
   );
   return (
     <button
@@ -84,10 +88,12 @@ export function EncounterContextPanel({
   onQuickNote,
   quickNotes,
   onCollapseChange,
+  active = true,
 }: EncounterContextProps) {
   const [collapsed, setCollapsed] = useState(false);
   const labs = useInventory<{ rows: LaboratoryHistoryEntry[]; hasMore: boolean }>(
     resource("laboratory-history", patientId, unitId),
+    { enabled: active && !collapsed },
   );
   const questionnaires = useInventory<{
     invitations: {
@@ -97,7 +103,7 @@ export function EncounterContextPanel({
       revokedAt: string | null;
       expiresAt: string;
     }[];
-  }>(resource("preconsultation", patientId, unitId));
+  }>(resource("preconsultation", patientId, unitId), { enabled: active && !collapsed });
   const recent = useMemo(
     () =>
       [...(labs.data?.rows ?? [])]
@@ -128,7 +134,7 @@ export function EncounterContextPanel({
         <Button
           variant="ghost"
           size="icon"
-          className="h-7 w-7 text-slate-500"
+          className="h-7 w-7 text-muted-foreground"
           aria-label={collapsed ? "Expandir painel contextual" : "Recolher painel contextual"}
           aria-expanded={!collapsed}
           onClick={toggle}
@@ -176,9 +182,9 @@ export function EncounterContextPanel({
                       <span className="min-w-0 flex-1 text-slate-800">{entry.payload.name}</span>
                       <span className="max-w-24 text-right text-slate-700">
                         {entry.payload.result}{" "}
-                        <span className="text-slate-500">{entry.payload.unit}</span>
+                        <span className="text-muted-foreground">{entry.payload.unit}</span>
                       </span>
-                      <span className="shrink-0 text-[10px] text-slate-500">
+                      <span className="shrink-0 text-[10px] text-muted-foreground">
                         {date(laboratoryHistoryDate(entry))}
                       </span>
                     </li>
@@ -187,7 +193,9 @@ export function EncounterContextPanel({
               </ul>
             )}
             {labs.data?.hasMore && (
-              <p className="mt-1 text-[10px] text-slate-500">Há mais resultados no histórico.</p>
+              <p className="mt-1 text-[10px] text-muted-foreground">
+                Há mais resultados no histórico.
+              </p>
             )}
             {onNavigate && (
               <Button
@@ -201,6 +209,7 @@ export function EncounterContextPanel({
           </ContextSection>
           <ContextSection title="Documentos do paciente">
             <DocumentCategory
+              active={active}
               patientId={patientId}
               unitId={unitId}
               category="LAB_RESULT"
@@ -208,6 +217,7 @@ export function EncounterContextPanel({
               onOpen={onNavigate ? () => onNavigate("documents") : undefined}
             />
             <DocumentCategory
+              active={active}
               patientId={patientId}
               unitId={unitId}
               category="PRESCRIPTION"
@@ -215,6 +225,7 @@ export function EncounterContextPanel({
               onOpen={onNavigate ? () => onNavigate("documents") : undefined}
             />
             <DocumentCategory
+              active={active}
               patientId={patientId}
               unitId={unitId}
               category="MEDICAL_REPORT"
@@ -222,6 +233,7 @@ export function EncounterContextPanel({
               onOpen={onNavigate ? () => onNavigate("documents") : undefined}
             />
             <DocumentCategory
+              active={active}
               patientId={patientId}
               unitId={unitId}
               category="OTHER"
@@ -285,7 +297,7 @@ export function EncounterContextPanel({
           <ContextSection title="Anotações rápidas">
             {quickNotes ?? (
               <>
-                <p className="text-xs leading-relaxed text-slate-500">
+                <p className="text-xs leading-relaxed text-muted-foreground">
                   Registre as anotações na evolução para mantê-las vinculadas ao atendimento.
                 </p>
                 {onQuickNote && (

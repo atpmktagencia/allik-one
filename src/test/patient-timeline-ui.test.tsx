@@ -29,6 +29,45 @@ const patient = {
   unitName: "Fortaleza",
 };
 describe("Patient timeline", () => {
+  it("embeds readonly history in the encounter unit without exposing authoring or navigation", async () => {
+    localStorage.setItem("allik.inventory.unit", "another-unit");
+    const fetchMock = vi.fn(async (..._args: [string]) =>
+      Response.json({
+        data: {
+          patient,
+          canCreateEncounter: true,
+          events: [
+            {
+              id: "note",
+              kind: "CLINICAL_NOTE",
+              title: "Historical note",
+              occurredAt: "2026-10-12T12:00:00Z",
+              unitName: "Fortaleza",
+              status: "FINAL",
+              summary: "Saved conduct",
+              content: "Historical immutable content",
+              appointmentId: "older-appointment",
+            },
+          ],
+          nextCursor: null,
+        },
+      }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    render(
+      <QueryClientProvider
+        client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
+      >
+        <PatientTimelinePage patientId="patient-a" unitId="encounter-unit" embedded />
+      </QueryClientProvider>,
+    );
+    expect(await screen.findByText("Historical note")).toBeInTheDocument();
+    expect(screen.getByText(/Seu rascunho permanece aberto/)).toBeInTheDocument();
+    expect(fetchMock.mock.calls[0]?.[0]).toContain("unitId=encounter-unit");
+    expect(screen.queryByRole("link", { name: "Abrir atendimento" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Novo atendimento/ })).not.toBeInTheDocument();
+  });
+
   it("reloads in the new unit context instead of retaining the previous scope", async () => {
     const fetchMock = vi.fn(async (..._args: [string]) =>
       Response.json({ data: { patient, events: [], nextCursor: null } }),

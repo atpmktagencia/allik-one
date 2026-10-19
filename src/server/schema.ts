@@ -876,6 +876,7 @@ export const encounterDocuments = pgTable(
     richContent: jsonb("rich_content"),
     twoCopies: boolean("two_copies").notNull().default(false),
     prescriptionPrintData: jsonb("prescription_print_data"),
+    prescriptionSource: jsonb("prescription_source"),
     status: text("status").notNull().default("DRAFT"),
     version: integer("version").notNull().default(0),
     finalSnapshot: jsonb("final_snapshot"),
@@ -884,6 +885,10 @@ export const encounterDocuments = pgTable(
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
+    check(
+      "encounter_document_prescription_source_object",
+      sql`${t.prescriptionSource} IS NULL OR (${t.type}='PRESCRIPTION' AND jsonb_typeof(${t.prescriptionSource})='object')`,
+    ),
     check(
       "encounter_document_identifier_valid",
       sql`
@@ -954,6 +959,23 @@ export const clinicalDocumentSeals = pgTable(
   },
   (t) => [check("clinical_document_seal_hash_valid", sql`${t.contentSha256} ~ '^[a-f0-9]{64}$'`)],
 );
+const clinicalArtifactBytes = customType<{ data: Buffer; driverData: Buffer }>({
+  dataType: () => "bytea",
+});
+export const clinicalDocumentArtifacts = pgTable("inventory_clinical_document_artifacts", {
+  documentId: uuid("document_id")
+    .primaryKey()
+    .references(() => encounterDocuments.id),
+  organizationId: uuid("organization_id")
+    .notNull()
+    .references(() => organizations.id),
+  rendererVersion: text("renderer_version").notNull(),
+  pdf: clinicalArtifactBytes("pdf").notNull(),
+  pdfSha256: text("pdf_sha256").notNull(),
+  html: text("html").notNull(),
+  htmlSha256: text("html_sha256").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
 export const clinicalDocumentAmendments = pgTable(
   "inventory_clinical_document_amendments",
   {
@@ -1498,6 +1520,7 @@ export const patientPrescriptions = pgTable(
     originalFilename: text("original_filename").notNull(),
     contentType: text("content_type").notNull(),
     sizeBytes: integer("size_bytes").notNull(),
+    sha256: text("sha256"),
     prescriberName: text("prescriber_name"),
     councilNumber: text("council_number"),
     councilRegion: text("council_region"),
@@ -1510,6 +1533,10 @@ export const patientPrescriptions = pgTable(
     uploadedAt: timestamp("uploaded_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
+    check(
+      "patient_prescription_sha256_valid",
+      sql`${t.sha256} IS NULL OR ${t.sha256} ~ '^[0-9a-f]{64}$'`,
+    ),
     index("inventory_patient_prescription_patient").on(t.patientId, t.uploadedAt),
     index("inventory_patient_prescription_treatment").on(t.treatmentId),
     index("inventory_patient_prescription_organization").on(t.organizationId, t.uploadedAt),
@@ -2298,6 +2325,8 @@ export const clinicalAccessEvents = pgTable(
     actorUserId: uuid("actor_user_id").references(() => users.id),
     previewActor: text("preview_actor"),
     action: text("action").notNull(),
+    sourceKind: text("source_kind"),
+    sourceId: uuid("source_id"),
     resourceIds: jsonb("resource_ids").notNull().default([]),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
@@ -2305,11 +2334,15 @@ export const clinicalAccessEvents = pgTable(
     index("clinical_access_patient_time").on(t.organizationId, t.patientId, t.createdAt),
     check(
       "clinical_access_action_valid",
-      sql`${t.action} IN ('READ','PRINT','PDF_SOURCE','SIGNED_DOWNLOAD')`,
+      sql`${t.action} IN ('READ','PRINT','PDF_SOURCE','SIGNED_DOWNLOAD','DOCUMENT_OPEN','DOCUMENT_DOWNLOAD')`,
     ),
     check(
       "clinical_access_actor_valid",
       sql`(${t.actorUserId} IS NOT NULL AND ${t.previewActor} IS NULL) OR (${t.actorUserId} IS NULL AND ${t.previewActor} IS NOT NULL)`,
+    ),
+    check(
+      "clinical_access_source_valid",
+      sql`(${t.sourceKind} IS NULL AND ${t.sourceId} IS NULL) OR (${t.sourceKind} IS NOT NULL AND ${t.sourceKind} IN ('GENERAL_DOCUMENT','UPLOADED_PRESCRIPTION') AND ${t.sourceId} IS NOT NULL AND ${t.documentId} IS NULL)`,
     ),
     check("clinical_access_resources_valid", sql`jsonb_typeof(${t.resourceIds})='array'`),
   ],
@@ -2553,6 +2586,39 @@ export const preconsultationResponses = pgTable(
   (t) => [uniqueIndex("preconsultation_response_unique").on(t.invitationId)],
 );
 
+export const preconsultationEvents = pgTable(
+  "inventory_preconsultation_events",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    invitationId: uuid("invitation_id").references(() => preconsultationInvitations.id),
+    organizationId: uuid("organization_id").references(() => organizations.id),
+    unitId: uuid("unit_id").references(() => units.id),
+    patientId: uuid("patient_id").references(() => patients.id),
+    actorUserId: uuid("actor_user_id").references(() => users.id),
+    action: text("action").notNull(),
+    outcome: text("outcome").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("preconsultation_event_invitation_time").on(t.invitationId, t.createdAt),
+    check(
+      "preconsultation_event_action",
+      sql`${t.action} IN ('READ','SUBMIT','STATUS','INVITE','REISSUE','REVOKE')`,
+    ),
+    check(
+      "preconsultation_event_outcome",
+      sql`${t.outcome} IN ('SUCCESS','UNAVAILABLE','INVALID','CONFLICT')`,
+    ),
+    check(
+      "preconsultation_event_actor",
+      sql`(${t.action} IN ('READ','SUBMIT','STATUS') AND ${t.actorUserId} IS NULL) OR (${t.action} IN ('INVITE','REISSUE','REVOKE') AND ${t.actorUserId} IS NOT NULL AND ${t.invitationId} IS NOT NULL)`,
+    ),
+    check(
+      "preconsultation_event_scope",
+      sql`(${t.invitationId} IS NOT NULL AND ${t.organizationId} IS NOT NULL AND ${t.unitId} IS NOT NULL AND ${t.patientId} IS NOT NULL) OR (${t.invitationId} IS NULL AND ${t.organizationId} IS NULL AND ${t.unitId} IS NULL AND ${t.patientId} IS NULL AND ${t.action} IN ('READ','SUBMIT','STATUS') AND ${t.outcome} IN ('UNAVAILABLE','INVALID'))`,
+    ),
+  ],
+);
 export const prescriptionProtocols = pgTable("inventory_prescription_protocols", {
   id: uuid("id").primaryKey().defaultRandom(),
   organizationId: uuid("organization_id")
@@ -2803,6 +2869,7 @@ export const clinicalPlans = pgTable(
     authorUserId: uuid("author_user_id")
       .notNull()
       .references(() => users.id),
+    appointmentId: uuid("appointment_id").references(() => careAppointments.id),
     title: text("title").notNull(),
     status: text("status").notNull().default("DRAFT"),
     startDate: date("start_date").notNull(),
@@ -3080,7 +3147,10 @@ export const patientDocuments = pgTable(
       .references(() => users.id),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
-  (t) => [index("patient_documents_patient_date").on(t.organizationId, t.patientId, t.createdAt)],
+  (t) => [
+    index("patient_documents_patient_date").on(t.organizationId, t.patientId, t.createdAt),
+    index("patient_document_content_identity").on(t.organizationId, t.patientId, t.sha256),
+  ],
 );
 export const patientDocumentEvents = pgTable(
   "inventory_patient_document_events",
@@ -3099,9 +3169,13 @@ export const patientDocumentEvents = pgTable(
       .notNull()
       .references(() => users.id),
     action: text("action").notNull(),
+    metadata: jsonb("metadata").notNull().default({}),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
-  (t) => [index("patient_document_event_history").on(t.documentId, t.createdAt)],
+  (t) => [
+    index("patient_document_event_history").on(t.documentId, t.createdAt),
+    check("patient_document_event_metadata_object", sql`jsonb_typeof(${t.metadata})='object'`),
+  ],
 );
 
 export const laboratoryImports = pgTable(
@@ -3223,4 +3297,45 @@ export const laboratoryImportEvents = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [index("laboratory_event_import").on(t.importId, t.createdAt)],
+);
+
+export const clinicalRequestEvents = pgTable(
+  "inventory_clinical_request_events",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id),
+    unitId: uuid("unit_id")
+      .notNull()
+      .references(() => units.id),
+    patientId: uuid("patient_id")
+      .notNull()
+      .references(() => patients.id),
+    appointmentId: uuid("appointment_id")
+      .notNull()
+      .references(() => careAppointments.id),
+    sourceKind: text("source_kind").notNull(),
+    sourceId: uuid("source_id").notNull(),
+    sourceVersion: integer("source_version").notNull(),
+    version: integer("version").notNull(),
+    status: text("status").notNull(),
+    actorUserId: uuid("actor_user_id")
+      .notNull()
+      .references(() => users.id),
+    operationId: uuid("operation_id").notNull(),
+    requestHash: text("request_hash").notNull(),
+    note: text("note").notNull().default(""),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("clinical_request_operation_unique").on(t.organizationId, t.operationId),
+    uniqueIndex("clinical_request_version_unique").on(
+      t.organizationId,
+      t.sourceKind,
+      t.sourceId,
+      t.version,
+    ),
+    index("clinical_request_encounter").on(t.organizationId, t.appointmentId, t.createdAt),
+  ],
 );

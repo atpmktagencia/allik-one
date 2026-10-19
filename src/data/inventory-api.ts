@@ -101,7 +101,9 @@ export function useInventory<T>(resource: string, options?: { enabled?: boolean 
     resource.startsWith("engine-catalog") ||
     resource.startsWith("plan-quotes") ||
     resource.startsWith("care-encounter") ||
-    resource.startsWith("encounter-documents");
+    resource.startsWith("encounter-documents") ||
+    resource.startsWith("encounter-prescriptions") ||
+    resource.startsWith("clinical-requests");
   const requestPath = withSelectedUnit(`/api/v1/inventory/${resource}`);
   return useQuery<T>({
     enabled: options?.enabled ?? true,

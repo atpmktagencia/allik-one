@@ -81,7 +81,7 @@ describe("Paciente360º overview", () => {
       />,
     );
     expect(screen.getByText("Sinais vitais não informados")).toBeVisible();
-    expect(screen.getByText(/Última evolução: 12\/10\/2026/)).toBeVisible();
+    expect(screen.getByText(/Registro finalizado .*12\/10\/2026/)).toBeVisible();
   });
   it("preserves zero-valued vital signs instead of treating them as absent", () => {
     render(
@@ -137,7 +137,7 @@ describe("Paciente360º overview", () => {
     expect(within(exams).getByText("Reagente")).toBeVisible();
     fireEvent.click(within(exams).getByRole("button", { name: /Glicemia/ }));
     expect(current.onExams).toHaveBeenCalledOnce();
-    expect(useInventory).toHaveBeenCalledWith("laboratory-history?patientId=patient-a");
+    expect(useInventory).toHaveBeenCalledWith("laboratory-history?patientId=patient-a&unitId=");
   });
   it("opens existing contexts for real pending items and excludes inactive treatments", () => {
     useInventory.mockReturnValue({ data: { rows: [] } });

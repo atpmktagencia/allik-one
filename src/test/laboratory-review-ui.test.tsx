@@ -203,3 +203,36 @@ it("editing an independently matched result clears its confirmation and bulk eli
   fireEvent.click(screen.getByLabelText("Conferir linha 1"));
   expect(screen.queryByLabelText("Resultado da linha 1")).not.toBeInTheDocument();
 });
+
+it("retains an edited laboratory review when outer document close or unit change is attempted", async () => {
+  await openExtractedReview();
+  fireEvent.change(screen.getByLabelText("Resultado da linha 1"), { target: { value: "17" } });
+  const close = new CustomEvent("allik:before-clinical-file-close", {
+    cancelable: true,
+    detail: { patientId: "patient" },
+  });
+  expect(window.dispatchEvent(close)).toBe(false);
+  const changeUnit = new CustomEvent("allik:before-unit-change", { cancelable: true });
+  expect(window.dispatchEvent(changeUnit)).toBe(false);
+  expect(screen.getByLabelText("Resultado da linha 1")).toHaveValue("17");
+  await waitFor(() =>
+    expect(screen.getByRole("alert")).toHaveTextContent("Salve ou descarte explicitamente"),
+  );
+});
+
+it("publishes keyed clinical review draft state and clears its navigation guard on unmount", async () => {
+  const states: { editorId: string; patientId: string; dirty: boolean; pending: boolean }[] = [];
+  const listener = (event: Event) => states.push((event as CustomEvent).detail);
+  window.addEventListener("allik:clinical-file-draft-state", listener);
+  try {
+    await openExtractedReview();
+    fireEvent.change(screen.getByLabelText("Resultado da linha 1"), { target: { value: "19" } });
+    expect(states.at(-1)).toMatchObject({ patientId: "patient", dirty: true, pending: false });
+    const editorId = states.at(-1)!.editorId;
+    expect(editorId).toBeTruthy();
+    cleanup();
+    expect(states.at(-1)).toEqual({ editorId, patientId: "patient", dirty: false, pending: false });
+  } finally {
+    window.removeEventListener("allik:clinical-file-draft-state", listener);
+  }
+});

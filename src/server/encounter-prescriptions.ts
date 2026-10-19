@@ -1,3 +1,4 @@
+import { administrationCountCheck } from "../data/encounter-prescription";
 import { recordClinicalAccess } from "./clinical-access-audit";
 import {
   professionalRegistryConflictResponse,
@@ -27,6 +28,7 @@ const prescriptionItem = z
     durationUnit: z.enum(["DAY", "WEEK", "MONTH"]).nullable(),
     continuousUse: z.boolean(),
     plannedAdministrations: z.number().int().positive().max(1000).nullable(),
+    plannedAdministrationsReason: z.string().trim().max(1000).default(""),
     instructions: z.string().trim().max(2000).default(""),
   })
   .refine((item) => item.doseUnit !== "OTHER" || item.doseUnitOther.length >= 1, {
@@ -41,6 +43,14 @@ const prescriptionItem = z
     {
       message: "Informe a duração ou marque uso contínuo.",
       path: ["durationAmount"],
+    },
+  )
+  .refine(
+    (item) =>
+      !administrationCountCheck(item).needsReason || item.plannedAdministrationsReason.length >= 10,
+    {
+      message: "Justifique a divergência ou a contagem indeterminada de aplicações.",
+      path: ["plannedAdministrationsReason"],
     },
   );
 
@@ -124,7 +134,7 @@ export async function encounterPrescriptionsResponse(request: Request) {
     canWriteClinicalDocument(String(appointment["professionalCouncil"]), "PRESCRIPTION") &&
     can(auth, "patients.clinical.manage", String(appointment["unitId"])) &&
     prescription.rows[0]?.status !== "FINAL" &&
-    !["NO_SHOW", "CANCELED"].includes(String(appointment["status"]));
+    !["NO_SHOW", "CANCELED", "COMPLETED"].includes(String(appointment["status"]));
 
   await recordClinicalAccess(auth, {
     unitId: String(appointment["unitId"]),
@@ -157,7 +167,13 @@ async function savePrescription(
   const parsed = prescriptionInput.safeParse(body);
   if (!parsed.success)
     return Response.json(
-      { error: "Confira todos os itens da prescrição." },
+      {
+        error: parsed.error.issues.some((issue) =>
+          issue.path.includes("plannedAdministrationsReason"),
+        )
+          ? "Justifique a divergência ou a contagem indeterminada de aplicações."
+          : "Confira todos os itens da prescrição.",
+      },
       { status: 400, headers },
     );
   if (parsed.data.action === "FINALIZE" && parsed.data.items.length === 0)
@@ -192,7 +208,8 @@ async function savePrescription(
       !canWriteClinicalDocument(appointment.professional_council, "PRESCRIPTION")
     )
       throw new Error("PROFESSIONAL_SCOPE");
-    if (["NO_SHOW", "CANCELED"].includes(appointment.status)) throw new Error("TERMINAL");
+    if (["NO_SHOW", "CANCELED", "COMPLETED"].includes(appointment.status))
+      throw new Error("TERMINAL");
 
     const currentResult = await client.query(
       `SELECT * FROM inventory_encounter_prescriptions WHERE appointment_id=$1 FOR UPDATE`,

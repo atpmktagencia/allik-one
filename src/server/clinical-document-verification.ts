@@ -16,18 +16,22 @@ export async function verifyClinicalDocumentResponse(request: Request) {
   );
   if (!documentId) return fail("Código de verificação inválido.", 400);
   const result = await getPool().query(
-    `SELECT d.id,d.unit_id,d.patient_id,d.appointment_id,d.final_snapshot,
+    `SELECT p.primary_unit_id AS patient_current_unit_id,d.id,d.unit_id,d.patient_id,d.appointment_id,d.final_snapshot,
       s.content_sha256,s.sealed_at,
       s.content_sha256=encode(sha256(convert_to(d.final_snapshot::text,'UTF8')),'hex') AS verified,
       (SELECT jsonb_agg(jsonb_build_object('kind',a.kind,'documentId',a.document_id) ORDER BY child.finalized_at,a.document_id)
         FROM inventory_clinical_document_amendments a JOIN inventory_encounter_documents child ON child.id=a.document_id
         WHERE a.parent_document_id=d.id AND child.status='FINAL' AND child.organization_id=d.organization_id AND child.unit_id=d.unit_id) AS amendments
-     FROM inventory_encounter_documents d LEFT JOIN inventory_clinical_document_seals s ON s.document_id=d.id
+     FROM inventory_encounter_documents d JOIN inventory_patients p ON p.id=d.patient_id AND p.organization_id=d.organization_id LEFT JOIN inventory_clinical_document_seals s ON s.document_id=d.id
      WHERE d.id=$1 AND d.organization_id=$2 AND d.status='FINAL'`,
     [documentId, auth.organizationId],
   );
   const document = result.rows[0];
-  if (!document || !can(auth, "patients.private.read", document.unit_id))
+  if (
+    !document ||
+    !can(auth, "patients.private.read", document.unit_id) ||
+    !can(auth, "patients.private.read", document.patient_current_unit_id)
+  )
     return fail("Documento não encontrado.", 404);
   // Legacy records have no newly printed code. Do not invent retrospective identifiers.
   const snapshot = document.final_snapshot;

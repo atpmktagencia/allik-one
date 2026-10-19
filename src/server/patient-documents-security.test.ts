@@ -70,18 +70,22 @@ async function fixture(role = "CLINICIAN") {
         { headers },
       ),
     );
-  const insert = async (patientId = patient, at = new Date().toISOString()) => {
+  const insert = async (
+    patientId = patient,
+    at = new Date().toISOString(),
+    documentUnit = unit,
+  ) => {
     const id = randomUUID();
     const client = await pool.connect();
     try {
       await client.query("BEGIN");
       await client.query(
         "INSERT INTO inventory_patient_documents(id,organization_id,unit_id,patient_id,title,categories,blob_pathname,original_filename,content_type,size_bytes,sha256,uploaded_by_user_id,created_at) VALUES($1::uuid,$2::uuid,$3::uuid,$4::uuid,'Private imported document',ARRAY['OTHER'],'patient-documents/'||$2::uuid::text||'/'||$4::uuid::text||'/'||$1::uuid::text||'.pdf','synthetic.pdf','application/pdf',20,$5,$6::uuid,$7::timestamptz)",
-        [id, org, unit, patientId, "a".repeat(64), user, at],
+        [id, org, documentUnit, patientId, "a".repeat(64), user, at],
       );
       await client.query(
         "INSERT INTO inventory_patient_document_events(organization_id,unit_id,document_id,actor_user_id,action) VALUES($1,$2,$3,$4,'UPLOADED')",
-        [org, unit, id, user],
+        [org, documentUnit, id, user],
       );
       await client.query("COMMIT");
     } catch (error) {
@@ -428,4 +432,187 @@ describe("Patient document center independent security", () => {
     expect(response.status).toBe(400);
     expect(storage.put).not.toHaveBeenCalled();
   });
+});
+
+function uploadForm(
+  patientId: string,
+  bytes = "%PDF-1.4 synthetic unique original",
+  overrides: Record<string, string> = {},
+) {
+  const form = new FormData();
+  for (const [key, value] of Object.entries({
+    id: randomUUID(),
+    patientId,
+    title: "Exame sintético",
+    categories: JSON.stringify(["LAB_RESULT"]),
+    ...overrides,
+  }))
+    form.set(key, value);
+  form.set("file", new File([bytes], "synthetic.pdf", { type: "application/pdf" }));
+  return form;
+}
+function postUpload(f: Awaited<ReturnType<typeof fixture>>, form: FormData) {
+  return patientDocumentsResponse(
+    new Request(origin + "/api/v1/inventory/patient-documents", {
+      method: "POST",
+      headers: f.headers,
+      body: form,
+    }),
+  );
+}
+describe("Laboratory document remediation", () => {
+  it("requires an exam-compatible category for the explicit exam import intent", async () => {
+    const f = await fixture();
+    storage.put.mockImplementation(async (pathname: string) => ({ pathname }));
+    const incompatible = uploadForm(f.patient, undefined, {
+      intent: "EXAM",
+      categories: JSON.stringify(["OTHER"]),
+    });
+    expect((await postUpload(f, incompatible)).status).toBe(400);
+    const compatible = uploadForm(f.patient, undefined, { intent: "EXAM" });
+    expect((await postUpload(f, compatible)).status).toBe(201);
+  });
+  it("serializes identical bytes across UUIDs and requires an audited intentional repetition", async () => {
+    const f = await fixture();
+    storage.put.mockImplementation(async (pathname: string) => ({ pathname }));
+    const forms = [uploadForm(f.patient), uploadForm(f.patient)];
+    const results = await Promise.all(forms.map((form) => postUpload(f, form)));
+    expect(results.map((r) => r.status).sort()).toEqual([201, 409]);
+    const duplicate = await results.find((r) => r.status === 409)!.json();
+    expect(duplicate.code).toBe("DUPLICATE_DOCUMENT");
+    expect(typeof duplicate.duplicateId).toBe("string");
+    const explicit = uploadForm(f.patient, undefined, {
+      duplicateOf: duplicate.duplicateId,
+      duplicateReason: "Repetição intencional para comparação de fluxo",
+    });
+    expect((await postUpload(f, explicit)).status).toBe(201);
+    expect((await postUpload(f, explicit)).status).toBe(200);
+    const event = (
+      await getPool().query(
+        "SELECT metadata FROM inventory_patient_document_events WHERE document_id=$1",
+        [explicit.get("id")],
+      )
+    ).rows[0];
+    expect(event.metadata).toEqual({
+      duplicateOf: duplicate.duplicateId,
+      duplicateReason: "Repetição intencional para comparação de fluxo",
+    });
+    explicit.set("duplicateReason", "Outra justificativa não deve substituir o registro");
+    expect((await postUpload(f, explicit)).status).toBe(409);
+    expect(
+      (
+        await getPool().query(
+          "SELECT count(*)::int count FROM inventory_patient_documents WHERE patient_id=$1",
+          [f.patient],
+        )
+      ).rows[0].count,
+    ).toBe(2);
+  });
+  it("fails closed on altered or oversized originals, then identifies open and download separately", async () => {
+    const f = await fixture();
+    storage.put.mockImplementation(async (pathname: string) => ({ pathname }));
+    const bytes = "%PDF-1.4 synthetic integrity test";
+    const form = uploadForm(f.patient, bytes);
+    expect((await postUpload(f, form)).status).toBe(201);
+    const id = String(form.get("id"));
+    const stored = (content: Uint8Array) => ({
+      statusCode: 200,
+      stream: new ReadableStream({
+        start(c) {
+          c.enqueue(content);
+          c.close();
+        },
+      }),
+    });
+    storage.get.mockResolvedValueOnce(
+      stored(new TextEncoder().encode(bytes.replace("test", "xxxx"))),
+    );
+    expect((await f.file(id)).status).toBe(503);
+    storage.get.mockResolvedValueOnce(stored(new Uint8Array(4 * 1024 * 1024 + 1)));
+    expect((await f.file(id)).status).toBe(503);
+    expect(
+      (
+        await getPool().query(
+          "SELECT count(*)::int n FROM inventory_clinical_access_events WHERE source_id=$1",
+          [id],
+        )
+      ).rows[0].n,
+    ).toBe(0);
+    storage.get.mockImplementation(async () => stored(new TextEncoder().encode(bytes)));
+    expect(await (await f.file(id)).text()).toBe(bytes);
+    const download = await patientDocumentFileResponse(
+      new Request(
+        `${origin}/api/v1/inventory/patient-document-file?patientId=${f.patient}&sourceKind=GENERAL_DOCUMENT&sourceId=${id}&download=true`,
+        { headers: f.headers },
+      ),
+    );
+    expect(download.status).toBe(200);
+    expect(download.headers.get("Content-Disposition")).toContain("attachment");
+    const audit = await getPool().query(
+      "SELECT action,source_kind,source_id,document_id FROM inventory_clinical_access_events WHERE source_id=$1 ORDER BY created_at",
+      [id],
+    );
+    expect(audit.rows).toEqual([
+      {
+        action: "DOCUMENT_OPEN",
+        source_kind: "GENERAL_DOCUMENT",
+        source_id: id,
+        document_id: null,
+      },
+      {
+        action: "DOCUMENT_DOWNLOAD",
+        source_kind: "GENERAL_DOCUMENT",
+        source_id: id,
+        document_id: null,
+      },
+    ]);
+  });
+  it("filters authorized historic/current documents by the explicitly requested unit", async () => {
+    const f = await fixture("SUPER_ADMIN");
+    const historical = await f.insert();
+    await getPool().query("UPDATE inventory_patients SET primary_unit_id=$2 WHERE id=$1", [
+      f.patient,
+      f.otherUnit,
+    ]);
+    const current = await f.insert(f.patient, undefined, f.otherUnit);
+    const ids = async (unit: string) =>
+      (await (await f.read("&unitId=" + unit)).json()).data.documents.map(
+        (d: { sourceId: string }) => d.sourceId,
+      );
+    expect(await ids(f.unit)).toEqual([historical]);
+    expect(await ids(f.otherUnit)).toEqual([current]);
+    expect(
+      (
+        await patientDocumentFileResponse(
+          new Request(
+            `${origin}/api/v1/inventory/patient-document-file?patientId=${f.patient}&sourceKind=GENERAL_DOCUMENT&sourceId=${historical}&unitId=${f.otherUnit}`,
+            { headers: f.headers },
+          ),
+        )
+      ).status,
+    ).toBe(404);
+  });
+});
+
+it("keeps uploaded-prescription hashes immutable and leaves legacy identity explicitly unverified", async () => {
+  const f = await fixture();
+  for (const sha of [null, "a".repeat(64)]) {
+    const id = randomUUID();
+    await getPool().query(
+      "INSERT INTO inventory_patient_prescriptions(id,organization_id,patient_id,blob_pathname,original_filename,content_type,size_bytes,sha256,uploaded_by_user_id) VALUES($1,$2,$3,$4,'synthetic.pdf','application/pdf',20,$5,$6)",
+      [id, f.org, f.patient, "synthetic-prescription/" + id, sha, f.user],
+    );
+    await expect(
+      getPool().query("UPDATE inventory_patient_prescriptions SET sha256=$2 WHERE id=$1", [
+        id,
+        "b".repeat(64),
+      ]),
+    ).rejects.toThrow(/hash is immutable/);
+    await expect(
+      getPool().query(
+        "UPDATE inventory_patient_prescriptions SET document_status='REVOKED' WHERE id=$1",
+        [id],
+      ),
+    ).resolves.toMatchObject({ rowCount: 1 });
+  }
 });

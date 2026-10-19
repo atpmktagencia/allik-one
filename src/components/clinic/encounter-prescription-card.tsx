@@ -4,7 +4,11 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { readInventoryResponse, useInventory } from "@/data/inventory-api";
+import { InventoryError, readInventoryResponse, useInventory } from "@/data/inventory-api";
+import {
+  administrationCountCheck,
+  type TherapeuticPrescriptionSource,
+} from "@/data/encounter-prescription";
 import { InventoryState } from "./inventory-state";
 
 type PrescriptionItem = {
@@ -24,6 +28,16 @@ type PrescriptionItem = {
   duration?: string;
   plannedAdministrations: number | null;
   instructions: string;
+  plannedAdministrationsReason?: string;
+};
+type DraftPrescriptionItem = Omit<
+  PrescriptionItem,
+  "doseQuantity" | "doseUnit" | "frequencyEvery" | "frequencyUnit"
+> & {
+  doseQuantity: number | null;
+  doseUnit: PrescriptionItem["doseUnit"] | "";
+  frequencyEvery: number | null;
+  frequencyUnit: PrescriptionItem["frequencyUnit"] | "";
 };
 
 type Payload = {
@@ -44,22 +58,51 @@ type Payload = {
   canAuthor: boolean;
 };
 
-const emptyItem = (): PrescriptionItem => ({
+const emptyItem = (): DraftPrescriptionItem => ({
   id: crypto.randomUUID(),
   productId: null,
   medicationName: "",
-  doseQuantity: 1,
-  doseUnit: "MG",
+  doseQuantity: null,
+  doseUnit: "",
   doseUnitOther: "",
   route: "",
-  frequencyEvery: 1,
-  frequencyUnit: "WEEK",
-  durationAmount: 4,
-  durationUnit: "WEEK",
+  frequencyEvery: null,
+  frequencyUnit: "",
+  durationAmount: null,
+  durationUnit: null,
   continuousUse: false,
   plannedAdministrations: null,
   instructions: "",
 });
+
+function prescriptionFingerprint(items: DraftPrescriptionItem[], generalInstructions: string) {
+  const keys = [
+    "id",
+    "productId",
+    "medicationName",
+    "doseQuantity",
+    "doseUnit",
+    "doseUnitOther",
+    "route",
+    "frequencyEvery",
+    "frequencyUnit",
+    "durationAmount",
+    "durationUnit",
+    "continuousUse",
+    "plannedAdministrations",
+    "instructions",
+    "plannedAdministrationsReason",
+  ] as const;
+  return JSON.stringify({
+    items: items.map((item) =>
+      keys.map((key) => {
+        const value = key === "plannedAdministrationsReason" ? (item[key] ?? "") : item[key];
+        return typeof value === "string" ? value.trim() : value;
+      }),
+    ),
+    generalInstructions: generalInstructions.trim(),
+  });
+}
 
 export function EncounterPrescriptionCard({
   appointmentId,
@@ -70,15 +113,22 @@ export function EncounterPrescriptionCard({
 }: {
   appointmentId: string;
   onDraftStateChange?: (state: { dirty: boolean; pending: boolean }) => void;
-  onInsertIntoDocument?: (text: string) => void;
+  onInsertIntoDocument?: (text: string, source: TherapeuticPrescriptionSource) => void;
   canInsertIntoDocument?: boolean;
   searchQuery?: string;
 }) {
   const query = useInventory<Payload>(`encounter-prescriptions?appointmentId=${appointmentId}`);
-  const [items, setItems] = useState<PrescriptionItem[]>([]);
+  const [items, setItems] = useState<DraftPrescriptionItem[]>([]);
   const [generalInstructions, setGeneralInstructions] = useState("");
   const [loadedId, setLoadedId] = useState<string | null | undefined>(undefined);
   const [pending, setPending] = useState(false);
+  const [baseVersion, setBaseVersion] = useState<number | null>(null);
+  const [uncertainSave, setUncertainSave] = useState<null | {
+    version: number;
+    originalVersion: number | null;
+    status: "DRAFT" | "FINAL";
+    fingerprint: string;
+  }>(null);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
@@ -88,6 +138,8 @@ export function EncounterPrescriptionCard({
   }, [dirty, pending, onDraftStateChange]);
   useEffect(() => {
     setLoadedId(undefined);
+    setBaseVersion(null);
+    setUncertainSave(null);
     setItems([]);
     setGeneralInstructions("");
     setEditingItemId(null);
@@ -96,23 +148,16 @@ export function EncounterPrescriptionCard({
   const loaded = query.data?.prescription;
 
   useEffect(() => {
-    if (!query.data || loadedId === (loaded?.id ?? null)) return;
-    setLoadedId(loaded?.id ?? null);
-    setItems(
-      (loaded?.items ?? []).map((item) => ({
-        ...item,
-        frequencyEvery: item.frequencyEvery ?? 1,
-        frequencyUnit: item.frequencyUnit ?? "WEEK",
-        durationAmount: item.durationAmount ?? 4,
-        durationUnit: item.durationUnit ?? "WEEK",
-        continuousUse: item.continuousUse ?? false,
-      })),
-    );
+    const revision = loaded ? `${loaded.id}:${loaded.version}` : null;
+    if (!query.data || dirty || pending || loadedId === revision) return;
+    setLoadedId(revision);
+    setBaseVersion(loaded?.version ?? null);
+    setItems(loaded?.items ?? []);
     setGeneralInstructions(loaded?.generalInstructions ?? "");
     setDirty(false);
-  }, [loaded, loadedId, query.data]);
+  }, [loaded, loadedId, query.data, dirty, pending]);
 
-  if (query.isPending || query.error)
+  if (!query.data && (query.isPending || query.error))
     return (
       <InventoryState pending={query.isPending} error={query.error} retry={() => query.refetch()} />
     );
@@ -120,12 +165,29 @@ export function EncounterPrescriptionCard({
   const data = query.data!;
   const disabled = !data.canAuthor || data.prescription?.status === "FINAL";
 
-  function updateItem(id: string, values: Partial<PrescriptionItem>) {
+  function updateItem(id: string, values: Partial<DraftPrescriptionItem>) {
     setDirty(true);
-    setItems((current) => current.map((item) => (item.id === id ? { ...item, ...values } : item)));
+    const recount = [
+      "frequencyEvery",
+      "frequencyUnit",
+      "durationAmount",
+      "durationUnit",
+      "continuousUse",
+      "plannedAdministrations",
+    ].some((key) => Object.hasOwn(values, key));
+    setItems((current) =>
+      current.map((item) =>
+        item.id === id
+          ? { ...item, ...values, ...(recount ? { plannedAdministrationsReason: "" } : {}) }
+          : item,
+      ),
+    );
   }
 
-  async function save(action: "SAVE_DRAFT" | "FINALIZE") {
+  async function save(action: "SAVE_DRAFT" | "FINALIZE", clearDraft = false) {
+    if (pending || uncertainSave) return;
+    const savingItems = clearDraft ? [] : items;
+    const savingInstructions = clearDraft ? "" : generalInstructions;
     if (
       action === "FINALIZE" &&
       !window.confirm(
@@ -133,9 +195,27 @@ export function EncounterPrescriptionCard({
       )
     )
       return;
+    if (
+      savingItems.some(
+        (item) =>
+          administrationCountCheck(item).needsReason &&
+          (item.plannedAdministrationsReason?.trim().length ?? 0) < 10,
+      )
+    ) {
+      setError(
+        "Confira o número de aplicações e justifique a divergência ou contagem indeterminada em cada item.",
+      );
+      return;
+    }
     setPending(true);
     setMessage("");
     setError("");
+    const attempt = {
+      version: baseVersion === null ? 0 : baseVersion + 1,
+      originalVersion: baseVersion,
+      status: action === "FINALIZE" ? ("FINAL" as const) : ("DRAFT" as const),
+      fingerprint: prescriptionFingerprint(savingItems, savingInstructions),
+    };
     try {
       const response = await fetch("/api/v1/inventory/encounter-prescriptions", {
         method: "POST",
@@ -144,17 +224,78 @@ export function EncounterPrescriptionCard({
         body: JSON.stringify({
           action,
           appointmentId,
-          items,
-          generalInstructions,
-          version: data.prescription?.version ?? null,
+          items: savingItems,
+          generalInstructions: savingInstructions,
+          version: baseVersion,
         }),
       });
       await readInventoryResponse(response, "Não foi possível salvar a prescrição.");
-      await query.refetch();
+      const refreshed = await query.refetch();
+      if (refreshed.error || !refreshed.data)
+        throw new Error(
+          "O servidor recebeu a gravação, mas a releitura não foi confirmada. O texto local foi preservado; confira o registro antes de tentar novamente.",
+        );
+      const saved = refreshed.data.prescription;
+      if (
+        !saved ||
+        saved.version !== attempt.version ||
+        saved.status !== attempt.status ||
+        prescriptionFingerprint(saved.items, saved.generalInstructions) !== attempt.fingerprint
+      )
+        throw new Error(
+          "A gravação e a releitura não coincidem. Seus campos locais foram preservados; confira o salvamento sem reenviar.",
+        );
+      setBaseVersion(saved.version);
+      setLoadedId(`${saved.id}:${saved.version}`);
+      setUncertainSave(null);
+      setItems(refreshed.data.prescription?.items ?? []);
+      setGeneralInstructions(refreshed.data.prescription?.generalInstructions ?? "");
       setDirty(false);
       setMessage(action === "FINALIZE" ? "Prescrição finalizada." : "Rascunho salvo.");
     } catch (cause) {
+      if (!(cause instanceof InventoryError) || cause.status >= 500) setUncertainSave(attempt);
       setError(cause instanceof Error ? cause.message : "Falha de conexão.");
+    } finally {
+      setPending(false);
+    }
+  }
+
+  async function reconcileSave() {
+    if (!uncertainSave || pending) return;
+    setPending(true);
+    try {
+      const refreshed = await query.refetch();
+      if (refreshed.error || !refreshed.data)
+        throw new Error(
+          "Não foi possível conferir o salvamento. Seus campos locais foram preservados.",
+        );
+      const saved = refreshed.data.prescription;
+      if (
+        saved?.version === uncertainSave.version &&
+        saved.status === uncertainSave.status &&
+        prescriptionFingerprint(saved.items, saved.generalInstructions) ===
+          uncertainSave.fingerprint
+      ) {
+        setBaseVersion(saved.version);
+        setLoadedId(`${saved.id}:${saved.version}`);
+        setDirty(prescriptionFingerprint(items, generalInstructions) !== uncertainSave.fingerprint);
+        setUncertainSave(null);
+        setError("");
+        setMessage(
+          "Salvamento anterior confirmado sem reenviar. Alterações locais posteriores continuam pendentes.",
+        );
+      } else if ((saved?.version ?? null) === uncertainSave.originalVersion) {
+        setUncertainSave(null);
+        setError(
+          "A releitura não encontrou a gravação anterior. Seus campos continuam locais; confira e salve novamente.",
+        );
+      } else {
+        setError(
+          "O servidor possui uma versão diferente. Seus campos locais foram preservados; resolva a divergência antes de reenviar.",
+        );
+      }
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Não foi possível conferir o salvamento.");
     } finally {
       setPending(false);
     }
@@ -209,6 +350,9 @@ export function EncounterPrescriptionCard({
           item.plannedAdministrations
             ? `Número de aplicações: ${item.plannedAdministrations}.`
             : "",
+          item.plannedAdministrationsReason
+            ? `Conferência das aplicações: ${item.plannedAdministrationsReason}`
+            : "",
           item.instructions,
         ]
           .filter(Boolean)
@@ -222,6 +366,7 @@ export function EncounterPrescriptionCard({
       ]
         .filter(Boolean)
         .join("\n\n"),
+      { prescriptionId: loaded.id, version: loaded.version, updatedAt: loaded.updatedAt },
     );
   }
   const normalizedSearch = searchQuery.trim().toLocaleLowerCase("pt-BR");
@@ -255,6 +400,16 @@ export function EncounterPrescriptionCard({
           {error || message}
         </div>
       )}
+      {uncertainSave && (
+        <Button
+          type="button"
+          variant="outline"
+          disabled={pending}
+          onClick={() => void reconcileSave()}
+        >
+          Conferir salvamento sem reenviar
+        </Button>
+      )}
       {items.length ? (
         <div className="space-y-3">
           <div className="overflow-x-auto rounded-lg border border-slate-200">
@@ -287,7 +442,7 @@ export function EncounterPrescriptionCard({
                           A cada {item.frequencyEvery}{" "}
                           {
                             { HOUR: "hora(s)", DAY: "dia(s)", WEEK: "semana(s)", MONTH: "mês(es)" }[
-                              item.frequencyUnit
+                              item.frequencyUnit as PrescriptionItem["frequencyUnit"]
                             ]
                           }
                         </span>
@@ -402,9 +557,11 @@ export function EncounterPrescriptionCard({
                     min="0.000001"
                     step="any"
                     required
-                    value={item.doseQuantity}
+                    value={item.doseQuantity ?? ""}
                     onChange={(event) =>
-                      updateItem(item.id, { doseQuantity: Number(event.target.value) })
+                      updateItem(item.id, {
+                        doseQuantity: event.target.value ? Number(event.target.value) : null,
+                      })
                     }
                   />
                 </label>
@@ -419,6 +576,7 @@ export function EncounterPrescriptionCard({
                       })
                     }
                   >
+                    <option value="">Selecione a unidade</option>
                     {["MG", "MCG", "G", "ML", "UI", "UNIT", "OTHER"].map((unit) => (
                       <option key={unit} value={unit}>
                         {unit === "UNIT" ? "Unidade" : unit === "OTHER" ? "Outra" : unit}
@@ -480,9 +638,11 @@ export function EncounterPrescriptionCard({
                         max="365"
                         step="1"
                         required
-                        value={item.frequencyEvery}
+                        value={item.frequencyEvery ?? ""}
                         onChange={(event) =>
-                          updateItem(item.id, { frequencyEvery: Number(event.target.value) })
+                          updateItem(item.id, {
+                            frequencyEvery: event.target.value ? Number(event.target.value) : null,
+                          })
                         }
                       />
                     </label>
@@ -498,6 +658,7 @@ export function EncounterPrescriptionCard({
                           })
                         }
                       >
+                        <option value="">Selecione o intervalo</option>
                         <option value="HOUR">hora(s)</option>
                         <option value="DAY">dia(s)</option>
                         <option value="WEEK">semana(s)</option>
@@ -520,8 +681,8 @@ export function EncounterPrescriptionCard({
                       onChange={(event) =>
                         updateItem(item.id, {
                           continuousUse: event.target.checked,
-                          durationAmount: event.target.checked ? null : 4,
-                          durationUnit: event.target.checked ? null : "WEEK",
+                          durationAmount: null,
+                          durationUnit: null,
                         })
                       }
                     />
@@ -562,6 +723,7 @@ export function EncounterPrescriptionCard({
                             })
                           }
                         >
+                          <option value="">Selecione a duração</option>
                           <option value="DAY">dia(s)</option>
                           <option value="WEEK">semana(s)</option>
                           <option value="MONTH">mês(es)</option>
@@ -576,6 +738,33 @@ export function EncounterPrescriptionCard({
                   ) : null}
                 </fieldset>
               </div>
+              {item.plannedAdministrations !== null && (
+                <div className="space-y-2 rounded-md border p-3 text-sm">
+                  <p>
+                    {administrationCountCheck(item).expected === null
+                      ? "Contagem indeterminada: uso contínuo, calendário mensal misto ou posologia incompleta. Não convertemos meses em dias."
+                      : `Conferência aritmética: ${administrationCountCheck(item).expected} administração(ões), considerando a primeira no início e os intervalos informados. Não calcula unidades por dose.`}
+                  </p>
+                  {administrationCountCheck(item).needsReason && (
+                    <label className="block space-y-1 font-medium">
+                      Justificativa para o número de aplicações
+                      <Textarea
+                        aria-label="Justificativa para o número de aplicações"
+                        value={item.plannedAdministrationsReason ?? ""}
+                        minLength={10}
+                        maxLength={1000}
+                        onChange={(event) =>
+                          updateItem(item.id, { plannedAdministrationsReason: event.target.value })
+                        }
+                      />
+                      <span className="text-xs font-normal text-muted-foreground">
+                        Confira a posologia. Uma exceção exige justificativa explícita do
+                        prescritor, registrada no histórico.
+                      </span>
+                    </label>
+                  )}
+                </div>
+              )}
               <label className="block space-y-1 text-sm font-medium">
                 Orientações adicionais
                 <Textarea
@@ -646,10 +835,34 @@ export function EncounterPrescriptionCard({
       )}
       {!disabled ? (
         <div className="flex flex-wrap gap-2">
-          <Button variant="outline" disabled={pending} onClick={() => save("SAVE_DRAFT")}>
+          {data.prescription && (items.length > 0 || generalInstructions.trim()) && (
+            <Button
+              type="button"
+              variant="ghost"
+              disabled={pending || Boolean(uncertainSave)}
+              onClick={() => {
+                if (
+                  window.confirm(
+                    "Limpar o rascunho do registro terapêutico? O histórico será preservado e nenhuma receita será finalizada.",
+                  )
+                )
+                  void save("SAVE_DRAFT", true);
+              }}
+            >
+              Limpar rascunho
+            </Button>
+          )}
+          <Button
+            variant="outline"
+            disabled={pending || Boolean(uncertainSave)}
+            onClick={() => save("SAVE_DRAFT")}
+          >
             {pending ? "Salvando…" : "Salvar rascunho"}
           </Button>
-          <Button disabled={pending || items.length === 0} onClick={() => save("FINALIZE")}>
+          <Button
+            disabled={pending || Boolean(uncertainSave) || items.length === 0}
+            onClick={() => save("FINALIZE")}
+          >
             {pending ? "Finalizando…" : "Finalizar prescrição"}
           </Button>
         </div>

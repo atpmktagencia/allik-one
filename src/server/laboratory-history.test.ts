@@ -275,6 +275,8 @@ describe("published laboratory history", () => {
       f.otherUnit,
     ]);
     expect((await data(await history(f))).rows).toHaveLength(1);
+    expect((await data(await history(f, f.patient, "&unitId=" + f.unit))).rows).toHaveLength(1);
+    expect((await data(await history(f, f.patient, "&unitId=" + f.otherUnit))).rows).toEqual([]);
     await f.db.query("DELETE FROM inventory_unit_access WHERE membership_id=$1 AND unit_id=$2", [
       f.membership,
       f.unit,

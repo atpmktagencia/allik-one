@@ -1,3 +1,4 @@
+import { documentDraftHasContent } from "../lib/clinical-closure-policy";
 import "@tanstack/react-start/server-only";
 import type { PoolClient } from "pg";
 import { actor, authenticate, can, canAccessAllUnits } from "./auth";
@@ -350,6 +351,28 @@ export async function careAppointmentsResponse(request: Request) {
         (await hasFinalClinicalRecords(client, input.id!))
       )
         throw new Error("FINAL_RECORDS");
+      // The appointment lock is shared with every clinical writer. Check persisted state
+      // after acquiring it so a concurrent draft cannot slip past clinical closure.
+      if (input.status === "COMPLETED") {
+        const closure = await client.query(
+          `SELECT
+            EXISTS(SELECT 1 FROM inventory_clinical_notes WHERE appointment_id=$1 AND organization_id=$2 AND status='FINAL') AS "hasFinalNote",
+            (EXISTS(SELECT 1 FROM inventory_clinical_notes WHERE appointment_id=$1 AND organization_id=$2 AND status='DRAFT')
+              OR EXISTS(SELECT 1 FROM inventory_encounter_prescriptions WHERE appointment_id=$1 AND organization_id=$2 AND status='DRAFT' AND (jsonb_array_length(items)>0 OR length(trim(general_instructions))>0))
+              OR EXISTS(SELECT 1 FROM inventory_clinical_plans WHERE appointment_id=$1 AND organization_id=$2 AND status='DRAFT')) AS "hasDrafts"`,
+          [input.id, auth.organizationId],
+        );
+        if (!closure.rows[0]?.hasFinalNote) throw new Error("FINAL_NOTE_REQUIRED");
+        const draftDocuments = await client.query(
+          `SELECT content,rich_content AS "richContent" FROM inventory_encounter_documents WHERE appointment_id=$1 AND organization_id=$2 AND status='DRAFT'`,
+          [input.id, auth.organizationId],
+        );
+        if (
+          closure.rows[0]?.hasDrafts ||
+          draftDocuments.rows.some((row) => documentDraftHasContent(row.content, row.richContent))
+        )
+          throw new Error("CLINICAL_DRAFTS_PENDING");
+      }
       result = await client.query(
         "UPDATE inventory_care_appointments SET status=$2,updated_by_user_id=$3,version=version+1,updated_at=now() WHERE id=$1 RETURNING *",
         [input.id, input.status, auth.user.id],
@@ -378,31 +401,41 @@ export async function careAppointmentsResponse(request: Request) {
     await client.query("ROLLBACK").catch(() => {});
     const message = error instanceof Error ? error.message : "";
     const response =
-      message === "CONFLICT"
-        ? ["Profissional ou sala/poltrona já possui atendimento neste horário.", 409]
-        : message === "CLINICAL_LOCKED"
+      message === "FINAL_NOTE_REQUIRED"
+        ? ["Finalize a evolução clínica antes de concluir o atendimento.", 409]
+        : message === "CLINICAL_DRAFTS_PENDING"
           ? [
-              "Este atendimento possui registros clínicos. Paciente e profissional não podem ser alterados.",
+              "Há conteúdo clínico ou planos vinculados em rascunho. Finalize os registros, limpe os contêineres sem uso ou arquive os planos antes de concluir.",
               409,
             ]
-          : message === "FINAL_RECORDS"
-            ? [
-                "Este atendimento possui registros clínicos finalizados e não pode ser cancelado nem marcado como falta.",
-                409,
-              ]
-            : message === "STALE"
-              ? ["O agendamento mudou. Recarregue e tente novamente.", 409]
-              : message === "NOT_FOUND"
-                ? ["Agendamento não encontrado.", 404]
-                : message === "INVALID_STATUS"
-                  ? ["Esta mudança de situação não é permitida.", 409]
-                  : message === "TERMINAL_STATUS"
-                    ? ["Atendimentos encerrados não podem ser alterados.", 409]
-                    : message === "TOO_EARLY"
-                      ? ["A falta só pode ser registrada após o término previsto.", 409]
-                      : ["INVALID_SCOPE", "INVALID_TYPE", "INVALID_ROOM"].includes(message)
-                        ? ["Paciente, profissional, tipo ou sala inválido para esta unidade.", 400]
-                        : ["Não foi possível salvar o agendamento.", 503];
+          : message === "CONFLICT"
+            ? ["Profissional ou sala/poltrona já possui atendimento neste horário.", 409]
+            : message === "CLINICAL_LOCKED"
+              ? [
+                  "Este atendimento possui registros clínicos. Paciente e profissional não podem ser alterados.",
+                  409,
+                ]
+              : message === "FINAL_RECORDS"
+                ? [
+                    "Este atendimento possui registros clínicos finalizados e não pode ser cancelado nem marcado como falta.",
+                    409,
+                  ]
+                : message === "STALE"
+                  ? ["O agendamento mudou. Recarregue e tente novamente.", 409]
+                  : message === "NOT_FOUND"
+                    ? ["Agendamento não encontrado.", 404]
+                    : message === "INVALID_STATUS"
+                      ? ["Esta mudança de situação não é permitida.", 409]
+                      : message === "TERMINAL_STATUS"
+                        ? ["Atendimentos encerrados não podem ser alterados.", 409]
+                        : message === "TOO_EARLY"
+                          ? ["A falta só pode ser registrada após o término previsto.", 409]
+                          : ["INVALID_SCOPE", "INVALID_TYPE", "INVALID_ROOM"].includes(message)
+                            ? [
+                                "Paciente, profissional, tipo ou sala inválido para esta unidade.",
+                                400,
+                              ]
+                            : ["Não foi possível salvar o agendamento.", 503];
     return Response.json({ error: response[0] }, { status: response[1] as number, headers });
   } finally {
     client.release();

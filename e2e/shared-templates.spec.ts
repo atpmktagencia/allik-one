@@ -113,6 +113,17 @@ test("clinician copies an organization template into a private model and indepen
       .getByRole("combobox", { name: "Protocolo pessoal", exact: true })
       .selectOption(source.id);
     await expect(dialog.getByLabel("Quantidade por unidade", { exact: true })).toHaveValue("1");
+    // These are the saved author's choices, never implicit values for a new composition.
+    const savedStage = dialog.getByRole("group", { name: "Etapa 1", exact: true });
+    await expect(savedStage.getByLabel("Unidades por administração", { exact: true })).toHaveValue(
+      String(formula.phases[0]!.doseUnits),
+    );
+    await expect(savedStage.getByLabel("Administrações por dia", { exact: true })).toHaveValue(
+      String(formula.phases[0]!.frequencyPerDay),
+    );
+    await expect(savedStage.getByLabel("Duração em dias", { exact: true })).toHaveValue(
+      String(formula.phases[0]!.durationDays),
+    );
     await dialog.getByLabel("Quantidade por unidade", { exact: true }).fill("5");
     await dialog.getByRole("button", { name: "Transformar em modelo", exact: true }).click();
     await page.getByLabel("Nome do modelo", { exact: true }).fill("Minha cópia privada sintética");

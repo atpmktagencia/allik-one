@@ -47,6 +47,7 @@ import { InventoryState } from "./inventory-state";
 import { ClinicalDocumentEditor } from "./clinical-document-editor";
 import { DocumentSignatureActions } from "./document-signature-actions";
 
+import type { TherapeuticPrescriptionSource } from "@/data/encounter-prescription";
 import type { PrescriptionPrintData } from "@/lib/prescription-print-data";
 const emptyPrintData: PrescriptionPrintData = {
   kind: "SIMPLE",
@@ -80,6 +81,18 @@ type ClinicalDocument = {
   contentSha256?: string | null;
   integrityRecordedAt?: string | null;
   integrityVerified?: boolean | null;
+  artifactPreserved?: boolean;
+  prescriptionSource?: TherapeuticPrescriptionSource | null;
+  finalPreview?: {
+    patientName: string;
+    unitName: string;
+    title: string;
+    content: string;
+    authorName: string;
+    professionalCouncil: string;
+    councilNumber: string;
+    councilRegion: string;
+  } | null;
   amendment?: {
     parentDocumentId: string;
     kind: "ADDENDUM" | "RECTIFICATION";
@@ -114,6 +127,7 @@ type Buffer = {
   twoCopies: boolean;
   prescriptionPrintData: PrescriptionPrintData | null;
   dirty: boolean;
+  prescriptionSource: TherapeuticPrescriptionSource | null;
   version: number;
 };
 const labels: Record<DocumentType, string> = {
@@ -136,7 +150,11 @@ const tabLabels: Record<DocumentType, string> = {
 };
 type PrescriptionCategory =
   "medications" | "manipulated" | "injectables" | "supplements" | "instructions" | "models";
-type MedicationControls = { onInsert: (text: string) => void; canInsert: boolean; search: string };
+type MedicationControls = {
+  onInsert: (text: string, source?: TherapeuticPrescriptionSource) => void;
+  canInsert: boolean;
+  search: string;
+};
 type RequestCategory = "EXAM_REQUEST" | "REFERRAL" | "PROCEDURE" | "DOCUMENTS";
 function matchesRequestCategory(type: DocumentType, category: RequestCategory) {
   return category === "DOCUMENTS"
@@ -150,8 +168,19 @@ function initialBuffer(document: ClinicalDocument): Buffer {
     twoCopies: document.twoCopies ?? false,
     prescriptionPrintData: document.prescriptionPrintData ?? null,
     dirty: false,
+    prescriptionSource: document.prescriptionSource ?? null,
     version: document.version,
   };
+}
+function samePersistedValue(left: unknown, right: unknown) {
+  const canonical = (value: unknown) =>
+    JSON.stringify(value, (_key, item: unknown) => {
+      if (!item || typeof item !== "object" || Array.isArray(item)) return item;
+      return Object.fromEntries(
+        Object.entries(item as Record<string, unknown>).sort(([a], [b]) => a.localeCompare(b)),
+      );
+    });
+  return canonical(left) === canonical(right);
 }
 function ageFromDate(value: string | null | undefined) {
   if (!value) return null;
@@ -201,6 +230,7 @@ export function EncounterDocumentsCard({
   const [deliveryOpen, setDeliveryOpen] = useState(false);
   const [expanded, setExpanded] = useState(false);
   const [composerOpen, setComposerOpen] = useState(false);
+  const [composerState, setComposerState] = useState({ dirty: false, pending: false });
   const [documentSearch, setDocumentSearch] = useState("");
   const [prescriptionCategory, setPrescriptionCategory] =
     useState<PrescriptionCategory>("medications");
@@ -224,6 +254,7 @@ export function EncounterDocumentsCard({
     };
   }, [expanded]);
   const submitting = useRef(false);
+  const pendingCreations = useRef<Partial<Record<DocumentType, string>>>({});
   const editorRef = useRef<Editor | null>(null);
   const onEditorReady = useCallback((editor: Editor | null) => {
     editorRef.current = editor;
@@ -233,7 +264,7 @@ export function EncounterDocumentsCard({
     mode === "prescription"
       ? type === (prescriptionCategory === "instructions" ? "INSTRUCTIONS" : "PRESCRIPTION")
       : mode === "requests"
-        ? type !== "PRESCRIPTION"
+        ? matchesRequestCategory(type, requestType)
         : true,
   );
   const isInMode = (type: DocumentType) =>
@@ -262,7 +293,9 @@ export function EncounterDocumentsCard({
       })
     : null;
   const readonly =
-    !query.data?.canAuthor || selected?.status === "FINAL" || selected?.canEdit === false;
+    (!query.data?.canAuthor && selected?.canEdit !== true) ||
+    selected?.status === "FINAL" ||
+    selected?.canEdit === false;
   useEffect(() => {
     setSelectedId(null);
     setBuffers({});
@@ -275,6 +308,9 @@ export function EncounterDocumentsCard({
     setShowRequestEditor(false);
     setRequestType("EXAM_REQUEST");
     lastSelection.current = {};
+    pendingCreations.current = {};
+    setComposerOpen(false);
+    setComposerState({ dirty: false, pending: false });
   }, [appointmentId]);
   useEffect(() => {
     const documents = query.data?.documents.filter((item) =>
@@ -297,10 +333,11 @@ export function EncounterDocumentsCard({
       documents[0];
     setSelectedId(next!.id);
   }, [mode, prescriptionCategory, requestType, query.data, selectedId]);
-  const hasUnsavedDocuments = Object.values(buffers).some((item) => item.dirty);
+  const hasUnsavedDocuments =
+    Object.values(buffers).some((item) => item.dirty) || composerState.dirty;
   useEffect(() => {
-    onDraftStateChange?.({ dirty: hasUnsavedDocuments, pending });
-  }, [hasUnsavedDocuments, pending, onDraftStateChange]);
+    onDraftStateChange?.({ dirty: hasUnsavedDocuments, pending: pending || composerState.pending });
+  }, [hasUnsavedDocuments, pending, composerState.pending, onDraftStateChange]);
   useEffect(() => {
     if (!hasUnsavedDocuments) return;
     const prevent = (event: BeforeUnloadEvent) => {
@@ -342,15 +379,25 @@ export function EncounterDocumentsCard({
     );
   }
   async function create(type: DocumentType) {
-    if (submitting.current || !query.data?.canAuthor || !allowedTypes.includes(type)) return;
+    if (
+      submitting.current ||
+      composerState.dirty ||
+      composerState.pending ||
+      !query.data?.canAuthor ||
+      !allowedTypes.includes(type)
+    )
+      return;
     submitting.current = true;
     setPending(true);
     setError("");
     setMessage("");
     try {
+      const creationId = pendingCreations.current[type] ?? crypto.randomUUID();
+      pendingCreations.current[type] = creationId;
       const result = await request({
         action: "SAVE_DRAFT",
         documentId: null,
+        creationId,
         type,
         title: documentTitles[type],
         content: "",
@@ -372,6 +419,7 @@ export function EncounterDocumentsCard({
         setRequestType(type === "EXAM_REQUEST" || type === "REFERRAL" ? type : "DOCUMENTS");
       lastSelection.current[mode] = result.data.id;
       setFocusId(result.data.id);
+      delete pendingCreations.current[type];
       setMessage("Rascunho criado.");
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Não foi possível criar o documento.");
@@ -383,6 +431,8 @@ export function EncounterDocumentsCard({
   async function createAmendment() {
     if (
       submitting.current ||
+      composerState.dirty ||
+      composerState.pending ||
       !selected?.canAmend ||
       !amendmentKind ||
       amendmentReason.trim().length < 5
@@ -428,7 +478,15 @@ export function EncounterDocumentsCard({
     }
   }
   async function save(action: "SAVE_DRAFT" | "FINALIZE" | "SAVE_TEMPLATE"): Promise<boolean> {
-    if (submitting.current || readonly || !selected || !buffer) return false;
+    if (
+      submitting.current ||
+      composerState.dirty ||
+      composerState.pending ||
+      readonly ||
+      !selected ||
+      !buffer
+    )
+      return false;
     if (action !== "SAVE_DRAFT" && !buffer.content.trim()) {
       setError("Preencha o conteúdo do documento.");
       return false;
@@ -468,6 +526,7 @@ export function EncounterDocumentsCard({
         richContent: buffer.richContent,
         twoCopies: buffer.twoCopies,
         prescriptionPrintData: action === "SAVE_TEMPLATE" ? null : buffer.prescriptionPrintData,
+        prescriptionSource: action === "SAVE_TEMPLATE" ? null : buffer.prescriptionSource,
         version: buffer.version,
       });
       if (!result.data) throw new Error("Não foi possível confirmar o salvamento.");
@@ -490,8 +549,38 @@ export function EncounterDocumentsCard({
       );
       return true;
     } catch (cause) {
+      // A lost acknowledgement must not strand the author on an obsolete version.
+      // Reconcile only an exact persisted match; never overwrite another session's text.
+      if (action !== "SAVE_TEMPLATE") {
+        try {
+          const refreshed = await query.refetch();
+          const persisted = refreshed.data?.documents.find((item) => item.id === selected.id);
+          if (
+            persisted &&
+            persisted.version > buffer.version &&
+            persisted.content === buffer.content &&
+            samePersistedValue(persisted.richContent ?? null, buffer.richContent) &&
+            Boolean(persisted.twoCopies) === buffer.twoCopies &&
+            samePersistedValue(
+              persisted.prescriptionPrintData ?? null,
+              buffer.prescriptionPrintData,
+            ) &&
+            persisted.status === (action === "FINALIZE" ? "FINAL" : "DRAFT")
+          ) {
+            setBuffers((previous) => ({ ...previous, [selected.id]: initialBuffer(persisted) }));
+            setMessage(
+              "Salvamento confirmado após reconferir o servidor. O conteúdo foi preservado.",
+            );
+            return true;
+          }
+        } catch {
+          /* Keep the unsaved buffer and block navigation when reconciliation is unavailable. */
+        }
+      }
       setError(
-        cause instanceof Error ? cause.message : "Não foi possível salvar. Tente novamente.",
+        cause instanceof Error
+          ? cause.message
+          : "Não foi possível confirmar o salvamento. Seu texto continua preservado; confira a conexão antes de tentar novamente.",
       );
       return false;
     } finally {
@@ -550,7 +639,7 @@ export function EncounterDocumentsCard({
       setShowRecipeEditor(true);
     }
   }
-  function insertMedicationText(text: string) {
+  function insertMedicationText(text: string, source?: TherapeuticPrescriptionSource) {
     if (
       !selected ||
       selected.type !== "PRESCRIPTION" ||
@@ -575,6 +664,7 @@ export function EncounterDocumentsCard({
         plainTextRichContent(text).content ?? [],
       )
       .run();
+    if (source) update({ prescriptionSource: source });
     setMessage(
       "Itens acrescentados à receita. Revise o documento e salve o rascunho; a finalização permanece separada.",
     );
@@ -634,7 +724,9 @@ export function EncounterDocumentsCard({
           </p>
           <div className="flex flex-wrap gap-x-5 gap-y-1">
             <span>
-              {data.context.patientName}
+              {selected?.status === "FINAL"
+                ? selected.finalPreview?.patientName || "Identificação legada: consulte a impressão"
+                : data.context.patientName}
               {age !== null ? ` · ${age} anos` : ""}
             </span>
             {data.context.allergySummary?.status === "REPORTED" &&
@@ -1082,8 +1174,13 @@ export function EncounterDocumentsCard({
               )}
             </div>
           )}
-          {mode === "requests" && requestType === "PROCEDURE" && procedures && (
-            <div className="min-h-0 flex-1 overflow-auto p-4">{procedures}</div>
+          {procedures && (
+            <div
+              hidden={mode !== "requests" || requestType !== "PROCEDURE"}
+              className="min-h-0 flex-1 overflow-auto p-4"
+            >
+              {procedures}
+            </div>
           )}
           <div
             className={
@@ -1473,15 +1570,23 @@ export function EncounterDocumentsCard({
                 )}
                 <div className="encounter-document-paper">
                   <h4 className="text-center text-sm font-semibold uppercase">
-                    {selected?.title || "Receita médica"}
+                    {selected?.status === "FINAL"
+                      ? selected.finalPreview?.title || selected.title
+                      : selected?.title || "Receita médica"}
                   </h4>
                   {data.context && (
                     <p className="mt-2 text-center text-[10px] text-muted-foreground">
-                      {data.context.patientName}
+                      {selected?.status === "FINAL"
+                        ? selected.finalPreview?.patientName ||
+                          "Identificação legada: consulte a impressão"
+                        : data.context.patientName}
                     </p>
                   )}
                   <div className="my-5 min-h-48 whitespace-pre-wrap break-words text-xs leading-6">
-                    {buffer?.content || "O conteúdo da receita aparecerá aqui durante a edição."}
+                    {(selected?.status === "FINAL"
+                      ? (selected.finalPreview?.content ?? selected.content)
+                      : buffer?.content) ||
+                      "O conteúdo da receita aparecerá aqui durante a edição."}
                   </div>
                   {selected && (
                     <div className="mt-8 border-t pt-3 text-center text-[10px] text-muted-foreground">
@@ -1495,9 +1600,17 @@ export function EncounterDocumentsCard({
                     </div>
                   )}
                 </div>
+                {buffer?.prescriptionSource && (
+                  <p className="mt-3 text-[11px] leading-5 text-muted-foreground">
+                    Origem: registro terapêutico, versão {buffer.prescriptionSource.version}. A
+                    receita é um documento independente e exige revisão do prescritor.
+                  </p>
+                )}
                 <p className="mt-3 text-[11px] leading-5 text-muted-foreground">
                   {selected?.status === "FINAL"
-                    ? "Documento finalizado. Use Visualizar impressão para abrir o original."
+                    ? selected.artifactPreserved
+                      ? "Documento finalizado com apresentação arquivada. Use Visualizar impressão para abrir o original."
+                      : "Documento legado: conteúdo preservado no registro; a impressão é regenerada pelo renderizador atual."
                     : "Prévia de rascunho. Revise o conteúdo e os dados de impressão antes de finalizar."}
                 </p>
               </>
@@ -1542,7 +1655,20 @@ export function EncounterDocumentsCard({
           </aside>
         )}
       </div>
-      <Dialog open={composerOpen} onOpenChange={setComposerOpen}>
+      <Dialog
+        open={composerOpen}
+        onOpenChange={(open) => {
+          if (
+            !open &&
+            (composerState.pending ||
+              (composerState.dirty &&
+                !window.confirm("Descartar a composição ainda não inserida na receita?")))
+          )
+            return;
+          setComposerOpen(open);
+          if (!open) setComposerState({ dirty: false, pending: false });
+        }}
+      >
         <DialogContent
           className="max-h-[94dvh] min-w-0 grid-cols-[minmax(0,1fr)] overflow-y-auto rounded-2xl"
           style={{ width: "min(96vw, 1600px)", maxWidth: "96vw", minWidth: 0 }}
@@ -1554,13 +1680,14 @@ export function EncounterDocumentsCard({
               clínica permanece com o prescritor.
             </DialogDescription>
           </DialogHeader>
-          {composerOpen && selected?.type === "PRESCRIPTION" && !readonly && !pending && (
+          {composerOpen && selected?.type === "PRESCRIPTION" && !readonly && (
             <PrescriptionComposer
               key={`${appointmentId}:${selected.id}`}
               appointmentId={appointmentId}
               documentId={selected.id}
+              onDraftStateChange={setComposerState}
               onInsert={(text) => {
-                if (!editorRef.current || readonly || pending) return;
+                if (!editorRef.current || readonly || pending) return false;
                 editorRef.current
                   .chain()
                   .focus()
@@ -1570,11 +1697,13 @@ export function EncounterDocumentsCard({
                   )
                   .run();
                 setComposerOpen(false);
+                setComposerState({ dirty: false, pending: false });
                 if (mode === "prescription") {
                   setPrescriptionCategory("medications");
                   setShowRecipeEditor(true);
                 }
                 setMessage("Composição inserida. Revise o texto e salve o rascunho.");
+                return true;
               }}
             />
           )}

@@ -2,7 +2,7 @@ import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { randomUUID } from "node:crypto";
 import { migrate } from "drizzle-orm/node-postgres/migrator";
 import { getDb, getPool } from "./db";
-import { hashToken } from "./auth";
+import { hashToken, previewLogin } from "./auth";
 import { prescriptionComposerResponse } from "./prescription-composer";
 const origin = "https://tasks.example.test";
 beforeAll(async () => {
@@ -284,16 +284,31 @@ describe("Private prescription composer protocols", () => {
   });
   it("never allows the shared Preview operator to compose or read private templates", async () => {
     const f = await fixture();
-    vi.stubEnv("INVENTORY_ENVIRONMENT", "preview");
-    vi.stubEnv("VERCEL_ENV", "preview");
-    vi.stubEnv("INVENTORY_DISABLE_PREVIEW_LOGIN", "true");
+    vi.stubEnv("INVENTORY_ENVIRONMENT", "test");
+    vi.stubEnv("NODE_ENV", "test");
+    vi.stubEnv("VERCEL_ENV", undefined);
+    vi.stubEnv("VERCEL", undefined);
+    vi.stubEnv("INVENTORY_DISABLE_PREVIEW_LOGIN", undefined);
     vi.stubEnv("INVENTORY_PREVIEW_DATA_CLASSIFICATION", "synthetic");
+    vi.stubEnv("INVENTORY_PREVIEW_PASSWORD", "synthetic-test-password");
+    vi.stubEnv("INVENTORY_SESSION_SECRET", "synthetic-test-secret".repeat(3));
     try {
+      const login = await previewLogin(
+        new Request(`${origin}/api/inventory-session`, {
+          method: "POST",
+          headers: { origin, "Content-Type": "application/json" },
+          body: JSON.stringify({ password: "synthetic-test-password" }),
+        }),
+      );
+      expect(login.status).toBe(200);
+      const sharedCookie = login.headers.get("set-cookie")!.split(";")[0]!;
+
       expect(
         (
           await prescriptionComposerResponse(
             new Request(
               `${origin}/api/v1/inventory/prescription-composer?appointmentId=${f.appointment}`,
+              { headers: { cookie: sharedCookie } },
             ),
           )
         ).status,
@@ -303,7 +318,7 @@ describe("Private prescription composer protocols", () => {
           await prescriptionComposerResponse(
             new Request(`${origin}/api/v1/inventory/prescription-composer`, {
               method: "POST",
-              headers: { origin, "Content-Type": "application/json" },
+              headers: { origin, "Content-Type": "application/json", cookie: sharedCookie },
               body: JSON.stringify({
                 action: "PREVIEW",
                 appointmentId: f.appointment,
@@ -331,4 +346,25 @@ describe("Private prescription composer protocols", () => {
     ]);
     expect((await f.preview()).status).toBe(403);
   });
+});
+
+it("does not create or instantiate clinical composition after the encounter is completed", async () => {
+  const f = await fixture();
+  await getPool().query("UPDATE inventory_care_appointments SET status='COMPLETED' WHERE id=$1", [
+    f.appointment,
+  ]);
+  expect((await f.list()).status).toBe(403);
+  expect((await f.preview()).status).toBe(403);
+  expect((await f.save()).status).toBe(403);
+  expect(
+    (
+      await f.post({
+        action: "INSTANTIATE",
+        appointmentId: f.appointment,
+        documentId: randomUUID(),
+        id: randomUUID(),
+        formula: f.formula(),
+      })
+    ).status,
+  ).toBe(403);
 });

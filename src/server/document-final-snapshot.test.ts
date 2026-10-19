@@ -6,6 +6,7 @@ import { hashToken } from "./auth";
 import { getDb, getPool } from "./db";
 import { documentVerificationCode } from "../lib/clinical-document-identity";
 import { encounterDocumentsResponse } from "./encounter-documents";
+import { documentSignaturesResponse } from "./document-signatures";
 
 const origin = "http://localhost:4317";
 beforeAll(async () => {
@@ -89,7 +90,17 @@ async function fixture() {
         headers: { cookie: `allik_inventory_session=${token}` },
       }),
     );
-  return { organizationId, unitId, patientId, userId, appointmentId, membershipId, post, get };
+  return {
+    organizationId,
+    unitId,
+    patientId,
+    userId,
+    appointmentId,
+    membershipId,
+    token,
+    post,
+    get,
+  };
 }
 
 describe("final document snapshots", () => {
@@ -921,4 +932,221 @@ it("freezes manuscript signing instructions only on new documents in manual mode
   } finally {
     vi.unstubAllEnvs();
   }
+});
+
+describe("document audit remediation", () => {
+  it("allows only an explicit sealed amendment after completion and keeps the original immutable", async () => {
+    const f = await fixture();
+    const source = (await (await f.post({ action: "FINALIZE" })).json()).data;
+    const before = (
+      await getPool().query("SELECT * FROM inventory_encounter_documents WHERE id=$1", [source.id])
+    ).rows[0];
+    await getPool().query("UPDATE inventory_care_appointments SET status='COMPLETED' WHERE id=$1", [
+      f.appointmentId,
+    ]);
+    expect((await f.post()).status).toBe(409);
+    const request = await f.post({
+      action: "CREATE_AMENDMENT",
+      documentId: source.id,
+      version: source.version,
+      amendmentKind: "ADDENDUM",
+      amendmentReason: "Informação complementar após encerramento",
+    });
+    expect(request.status).toBe(201);
+    const amendment = (await request.json()).data;
+    const list = (await (await f.get()).json()).data;
+    expect(list.canAuthor).toBe(false);
+    expect(list.documents.find((d: { id: string }) => d.id === amendment.id).canEdit).toBe(true);
+    expect(
+      (
+        await f.post({
+          action: "FINALIZE",
+          documentId: amendment.id,
+          version: amendment.version,
+          content: "Complemento explicitamente vinculado ao original",
+        })
+      ).status,
+    ).toBe(200);
+    expect(
+      (
+        await getPool().query("SELECT * FROM inventory_encounter_documents WHERE id=$1", [
+          source.id,
+        ])
+      ).rows[0],
+    ).toEqual(before);
+  });
+
+  it("reconciles draft creation retries by stable identifier without creating a second document", async () => {
+    const f = await fixture();
+    const creationId = randomUUID();
+    const first = (await (await f.post({ creationId })).json()).data;
+    const second = await f.post({ creationId });
+    expect(second.status).toBe(200);
+    expect((await second.json()).data.id).toBe(first.id);
+    expect(first.id).toBe(creationId);
+    const documents = (await (await f.get()).json()).data.documents;
+    expect(documents).toHaveLength(1);
+    const foreign = await fixture();
+    expect((await foreign.post({ creationId })).status).toBe(404);
+  });
+  it("rejects clinical document writes after encounter completion without hiding historical reads", async () => {
+    const f = await fixture();
+    const draft = (await (await f.post()).json()).data;
+    await getPool().query("UPDATE inventory_care_appointments SET status='COMPLETED' WHERE id=$1", [
+      f.appointmentId,
+    ]);
+    expect((await f.post()).status).toBe(409);
+    expect(
+      (await f.post({ action: "FINALIZE", documentId: draft.id, version: draft.version })).status,
+    ).toBe(409);
+    const read = await f.get();
+    expect(read.status).toBe(200);
+    expect((await read.json()).data.canAuthor).toBe(false);
+  });
+
+  it("applies current and historical unit scope equally to list, write and print", async () => {
+    const f = await fixture();
+    const draft = (await (await f.post()).json()).data;
+    const otherUnit = randomUUID();
+    await getPool().query(
+      "INSERT INTO inventory_units(id,organization_id,name) VALUES($1,$2,'Transferred synthetic unit')",
+      [otherUnit, f.organizationId],
+    );
+    await getPool().query("UPDATE inventory_patients SET primary_unit_id=$1 WHERE id=$2", [
+      otherUnit,
+      f.patientId,
+    ]);
+    expect((await f.get()).status).toBe(404);
+    expect((await f.post({ documentId: draft.id, version: draft.version })).status).toBe(404);
+    expect((await f.get(`documentId=${draft.id}&print=true&preview=true`)).status).toBe(404);
+    await getPool().query(
+      "INSERT INTO inventory_unit_access(membership_id,unit_id) VALUES($1,$2)",
+      [f.membershipId, otherUnit],
+    );
+    expect((await f.get()).status).toBe(200);
+  });
+  it("serializes concurrent rectification creation and refuses parallel corrections", async () => {
+    const f = await fixture();
+    const original = (await (await f.post({ action: "FINALIZE" })).json()).data;
+    const request = () =>
+      f.post({
+        action: "CREATE_AMENDMENT",
+        documentId: original.id,
+        version: original.version,
+        amendmentKind: "RECTIFICATION",
+        amendmentReason: "Correção sintética concorrente",
+      });
+    const results = await Promise.all([request(), request()]);
+    expect(results.map((r) => r.status).sort()).toEqual([201, 409]);
+    const child = (await results.find((r) => r.status === 201)!.json()).data;
+    expect(
+      (
+        await f.post({
+          action: "FINALIZE",
+          documentId: child.id,
+          version: child.version,
+          content: "Correção única validada",
+        })
+      ).status,
+    ).toBe(200);
+    expect((await request()).status).toBe(409);
+  });
+  it("persists immutable render bytes and uses frozen identities in final preview", async () => {
+    const f = await fixture();
+    const finalized = (await (await f.post({ action: "FINALIZE" })).json()).data;
+    const artifact = (
+      await getPool().query(
+        "SELECT * FROM inventory_clinical_document_artifacts WHERE document_id=$1",
+        [finalized.id],
+      )
+    ).rows[0];
+    expect(artifact.pdf.subarray(0, 4).toString()).toBe("%PDF");
+    expect(artifact.renderer_version).toBe("allik-clinical-v1");
+    const source = await documentSignaturesResponse(
+      new Request(
+        `${origin}/api/v1/inventory/document-signatures?documentId=${finalized.id}&source=true`,
+        { headers: { cookie: `allik_inventory_session=${f.token}` } },
+      ),
+    );
+    expect(source.status).toBe(200);
+    expect(Buffer.from(await source.arrayBuffer())).toEqual(artifact.pdf);
+    await getPool().query(
+      "UPDATE inventory_patients SET full_name='Different current identity' WHERE id=$1",
+      [f.patientId],
+    );
+    const list = (await (await f.get()).json()).data;
+    expect(list.context.patientName).toBe("Different current identity");
+    expect(list.documents[0].finalPreview.patientName).toBe("Snapshot patient original");
+    const first = await f.get(`documentId=${finalized.id}&print=true`);
+    expect(first.headers.get("X-Allik-Artifact")).toBe("preserved");
+    expect(await first.text()).toBe(artifact.html);
+    const second = await f.get(`documentId=${finalized.id}&print=true`);
+    expect(await second.text()).toBe(artifact.html);
+    await expect(
+      getPool().query(
+        "UPDATE inventory_clinical_document_artifacts SET renderer_version='changed' WHERE document_id=$1",
+        [finalized.id],
+      ),
+    ).rejects.toThrow();
+    await expect(
+      getPool().query("DELETE FROM inventory_clinical_document_artifacts WHERE document_id=$1", [
+        finalized.id,
+      ]),
+    ).rejects.toThrow();
+  });
+  it("verifies therapeutic provenance, preserves historical snapshots and rejects forged or foreign pointers", async () => {
+    const f = await fixture();
+    const id = randomUUID();
+    const result = await getPool().query(
+      `INSERT INTO inventory_encounter_prescriptions(id,organization_id,unit_id,appointment_id,patient_id,author_user_id,author_name,professional_council,council_number,council_region,items,general_instructions) VALUES($1,$2,$3,$4,$5,$6,'Synthetic author','CRM','12345','CE','[]','Source instructions') RETURNING version,updated_at`,
+      [id, f.organizationId, f.unitId, f.appointmentId, f.patientId, f.userId],
+    );
+    const pointer = {
+      prescriptionId: id,
+      version: result.rows[0].version,
+      updatedAt: result.rows[0].updated_at.toISOString(),
+    };
+    expect(
+      (await f.post({ prescriptionSource: { ...pointer, version: pointer.version + 1 } })).status,
+    ).toBe(409);
+    const response = await f.post({ prescriptionSource: pointer });
+    expect(response.status).toBe(201);
+    const draft = (await response.json()).data;
+    const stored = (
+      await getPool().query(
+        "SELECT prescription_source FROM inventory_encounter_documents WHERE id=$1",
+        [draft.id],
+      )
+    ).rows[0].prescription_source;
+    expect(stored).toMatchObject({
+      ...pointer,
+      snapshot: { generalInstructions: "Source instructions" },
+      relationship: "INDEPENDENT_DOCUMENT_REVIEW_REQUIRED",
+    });
+    await getPool().query(
+      "UPDATE inventory_encounter_prescriptions SET version=version+1,general_instructions='Changed therapy after document insertion',updated_at=now() WHERE id=$1",
+      [id],
+    );
+    const foreign = await fixture();
+    expect((await foreign.post({ prescriptionSource: pointer })).status).toBe(409);
+    expect((await f.post({ prescriptionSource: pointer })).status).toBe(409);
+    expect(
+      (
+        await f.post({
+          action: "FINALIZE",
+          documentId: draft.id,
+          version: draft.version,
+          prescriptionSource: pointer,
+        })
+      ).status,
+    ).toBe(200);
+    const final = (
+      await getPool().query(
+        "SELECT final_snapshot FROM inventory_encounter_documents WHERE id=$1",
+        [draft.id],
+      )
+    ).rows[0].final_snapshot;
+    expect(final.prescriptionSource.snapshot.generalInstructions).toBe("Source instructions");
+    expect(final.prescriptionSource.version).toBe(pointer.version);
+  });
 });

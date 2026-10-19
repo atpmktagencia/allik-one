@@ -171,6 +171,8 @@ export async function careEncounterResponse(request: Request) {
     hasClinicalPermission &&
     isAssignedProfessional &&
     hasCompleteCouncil &&
+    !["COMPLETED", "NO_SHOW", "CANCELED"].includes(String(appointment["status"])) &&
+    clinicalNote.rows[0]?.status !== "FINAL" &&
     (!clinicalNote.rows[0] || clinicalNote.rows[0].authorUserId === auth.user.id);
   const clinicalRecords = await pool.query(
     `SELECT EXISTS(SELECT 1 FROM inventory_clinical_notes WHERE appointment_id=$1) OR EXISTS(SELECT 1 FROM inventory_encounter_prescriptions WHERE appointment_id=$1) OR EXISTS(SELECT 1 FROM inventory_encounter_documents WHERE appointment_id=$1) AS present`,
@@ -183,7 +185,7 @@ export async function careEncounterResponse(request: Request) {
     hasClinicalPermission &&
     !isAssignedProfessional &&
     !clinicalRecords.rows[0].present &&
-    !["NO_SHOW", "CANCELED"].includes(String(appointment["status"]));
+    !["COMPLETED", "NO_SHOW", "CANCELED"].includes(String(appointment["status"]));
 
   await recordClinicalAccess(auth, {
     unitId,
@@ -213,15 +215,17 @@ export async function careEncounterResponse(request: Request) {
             ? "Seu registro profissional precisa de correção administrativa (conselho, número e UF). A autoria clínica está bloqueada; os documentos anteriores foram preservados."
             : !hasClinicalPermission
               ? "Seu perfil não possui permissão clínica nesta unidade."
-              : clinicalNote.rows[0]?.status === "FINAL"
-                ? "Esta evolução já foi finalizada e é imutável."
-                : ["NO_SHOW", "CANCELED"].includes(String(appointment["status"]))
-                  ? "Atendimentos cancelados ou com falta não aceitam evolução clínica."
-                  : !isAssignedProfessional
-                    ? `Este atendimento está atribuído a ${String(appointment["professionalName"])}.`
-                    : !hasCompleteCouncil
-                      ? "Complete seu conselho profissional antes de registrar a evolução."
-                      : "Este atendimento não permite uma nova evolução.",
+              : appointment["status"] === "COMPLETED"
+                ? "Atendimento concluído: a evolução clínica é somente leitura."
+                : clinicalNote.rows[0]?.status === "FINAL"
+                  ? "Esta evolução já foi finalizada e é imutável."
+                  : ["COMPLETED", "NO_SHOW", "CANCELED"].includes(String(appointment["status"]))
+                    ? "Atendimentos encerrados não aceitam evolução clínica."
+                    : !isAssignedProfessional
+                      ? `Este atendimento está atribuído a ${String(appointment["professionalName"])}.`
+                      : !hasCompleteCouncil
+                        ? "Complete seu conselho profissional antes de registrar a evolução."
+                        : "Este atendimento não permite uma nova evolução.",
       },
     },
     { headers },
@@ -292,7 +296,7 @@ async function saveClinicalNote(
         { status: 403, headers },
       );
     }
-    if (["CANCELED", "NO_SHOW"].includes(appointment.status)) {
+    if (["COMPLETED", "CANCELED", "NO_SHOW"].includes(appointment.status)) {
       await client.query("ROLLBACK");
       return Response.json(
         { error: "Este atendimento não aceita evolução clínica." },
@@ -504,7 +508,8 @@ async function claimAppointment(
       throw new Error("NOT_FOUND");
     if (Number(appointment.version) !== input.version) throw new Error("STALE");
     if (appointment.professional_user_id === auth.user.id) throw new Error("ALREADY_ASSIGNED");
-    if (["NO_SHOW", "CANCELED"].includes(appointment.status)) throw new Error("TERMINAL");
+    if (["COMPLETED", "NO_SHOW", "CANCELED"].includes(appointment.status))
+      throw new Error("TERMINAL");
     await client.query("SELECT pg_advisory_xact_lock(hashtextextended($1,0))", [
       `care-professional:${auth.organizationId}:${auth.user.id}`,
     ]);

@@ -49,6 +49,11 @@ const newQuestion = (): PreconsultationQuestion => ({
   type: "TEXT",
 });
 const date = (value: string) => new Date(value).toLocaleString("pt-BR");
+const newNonce = () =>
+  btoa(String.fromCharCode(...crypto.getRandomValues(new Uint8Array(32))))
+    .replaceAll("+", "-")
+    .replaceAll("/", "_")
+    .replaceAll("=", "");
 
 export function PreconsultationPanel({
   patientId,
@@ -61,6 +66,7 @@ export function PreconsultationPanel({
 }) {
   const client = useQueryClient();
   const params = new URLSearchParams();
+  if (unitId) params.set("unitId", unitId);
   if (patientId) params.set("patientId", patientId);
   if (appointmentId) params.set("appointmentId", appointmentId);
   const query = useInventory<Payload>(`preconsultation?${params}`);
@@ -71,7 +77,12 @@ export function PreconsultationPanel({
   const [invitePatient, setInvitePatient] = useState(patientId ?? "");
   const [formId, setFormId] = useState("");
   const [days, setDays] = useState("7");
-  const inviteOperation = useRef<{ key: string; id: string } | null>(null);
+  const inviteOperation = useRef<{ key: string; id: string; requestNonce: string } | null>(null);
+  const replacementOperation = useRef<{
+    id: string;
+    replacementId: string;
+    requestNonce: string;
+  } | null>(null);
   const [pending, setPending] = useState(false),
     [error, setError] = useState(""),
     [message, setMessage] = useState("");
@@ -91,7 +102,22 @@ export function PreconsultationPanel({
       );
       if (result.data?.link) setLink(result.data.link);
       setMessage("Operação registrada.");
-      await client.invalidateQueries({ queryKey: ["inventory"] });
+      await client.invalidateQueries({
+        predicate: ({ queryKey }) => {
+          if (queryKey[0] !== "inventory" || typeof queryKey[1] !== "string") return false;
+          const url = new URL(queryKey[1], "https://inventory.invalid");
+          if (url.pathname !== "/api/v1/inventory/preconsultation") return false;
+          const scopedPatient = url.searchParams.get("patientId");
+          const action = body && typeof body === "object" && "action" in body ? body.action : "";
+          return (
+            action === "SAVE_FORM" ||
+            action === "PUBLISH_FORM" ||
+            !scopedPatient ||
+            !patientId ||
+            scopedPatient === patientId
+          );
+        },
+      });
       return true;
     } catch (e) {
       setError(e instanceof Error ? e.message : "Não foi possível salvar.");
@@ -471,10 +497,11 @@ export function PreconsultationPanel({
             setLink("");
             const key = JSON.stringify([invitePatient, appointmentId ?? null, formId, days]);
             if (inviteOperation.current?.key !== key)
-              inviteOperation.current = { key, id: crypto.randomUUID() };
+              inviteOperation.current = { key, id: crypto.randomUUID(), requestNonce: newNonce() };
             void mutate({
               action: "INVITE",
               id: inviteOperation.current.id,
+              requestNonce: inviteOperation.current.requestNonce,
               patientId: invitePatient,
               appointmentId: appointmentId ?? null,
               formId,
@@ -559,6 +586,10 @@ export function PreconsultationPanel({
           <p className="text-sm font-medium">
             Copie agora: o link não ficará disponível ao recarregar.
           </p>
+          <p className="text-xs text-muted-foreground">
+            Se perder o link, use “Substituir link” no convite pendente. Um novo link será gerado e
+            o anterior deixará de funcionar; respostas já enviadas permanecem preservadas.
+          </p>
           <label className="block text-sm">
             Link de pré-consulta
             <Input readOnly value={link} onFocus={(e) => e.target.select()} />
@@ -597,10 +628,10 @@ export function PreconsultationPanel({
               <h4 className="font-medium">{invitation.title}</h4>
               <p className="text-sm">{invitation.patientName}</p>
               <p className="text-sm text-muted-foreground">
-                {invitation.revokedAt
-                  ? "Revogado"
-                  : invitation.submittedAt
-                    ? `Respondido em ${date(invitation.submittedAt)}`
+                {invitation.submittedAt
+                  ? `Respondido em ${date(invitation.submittedAt)}${invitation.revokedAt ? " · Link encerrado" : ""}`
+                  : invitation.revokedAt
+                    ? "Revogado"
                     : new Date(invitation.expiresAt) <= new Date()
                       ? "Expirado sem envio"
                       : "Aguardando resposta"}{" "}
@@ -634,14 +665,44 @@ export function PreconsultationPanel({
               </details>
             )}
             {data.canManage && !invitation.submittedAt && !invitation.revokedAt && (
-              <Button
-                size="sm"
-                variant="outline"
-                disabled={pending}
-                onClick={() => void mutate({ action: "REVOKE", id: invitation.id })}
-              >
-                Revogar link
-              </Button>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={pending}
+                  onClick={() => void mutate({ action: "REVOKE", id: invitation.id })}
+                >
+                  Revogar link
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={pending}
+                  onClick={() => {
+                    if (
+                      !window.confirm(
+                        "Substituir este link? O anterior deixará de funcionar. As perguntas da versão enviada serão preservadas.",
+                      )
+                    )
+                      return;
+                    if (replacementOperation.current?.id !== invitation.id)
+                      replacementOperation.current = {
+                        id: invitation.id,
+                        replacementId: crypto.randomUUID(),
+                        requestNonce: newNonce(),
+                      };
+                    void mutate({
+                      action: "REISSUE",
+                      ...replacementOperation.current,
+                      expiresInDays: Number(days),
+                    }).then((success) => {
+                      if (success) replacementOperation.current = null;
+                    });
+                  }}
+                >
+                  Substituir link
+                </Button>
+              </div>
             )}
           </article>
         ))}

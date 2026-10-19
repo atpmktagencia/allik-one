@@ -1,6 +1,7 @@
 import "@tanstack/react-start/server-only";
-import { createHash, randomBytes } from "node:crypto";
+import { createHash, createHmac, randomBytes } from "node:crypto";
 import { z } from "zod";
+import type { PoolClient } from "pg";
 import { authenticate, can, canAccessAllUnits } from "./auth";
 import { getPool } from "./db";
 import { consumeAuthRateLimit } from "./auth-rate-limit";
@@ -35,9 +36,61 @@ const input = z.discriminatedUnion("action", [
     appointmentId: z.string().uuid().nullable().default(null),
     formId: z.string().uuid(),
     expiresInDays: z.number().int().min(1).max(14).default(7),
+    requestNonce: z
+      .string()
+      .regex(/^[A-Za-z0-9_-]{43}$/)
+      .optional(),
+  }),
+  z.object({
+    action: z.literal("REISSUE"),
+    id: z.string().uuid(),
+    replacementId: z.string().uuid(),
+    requestNonce: z
+      .string()
+      .regex(/^[A-Za-z0-9_-]{43}$/)
+      .optional(),
+    expiresInDays: z.number().int().min(1).max(14).default(7),
   }),
   z.object({ action: z.literal("REVOKE"), id: z.string().uuid() }),
 ]);
+/** Minimal append-only trail: no bearer, hashes, IP, questions or answers. */
+async function audit(
+  client: PoolClient,
+  action: "READ" | "SUBMIT" | "STATUS" | "INVITE" | "REISSUE" | "REVOKE",
+  outcome: "SUCCESS" | "UNAVAILABLE" | "INVALID" | "CONFLICT",
+  invitation?: { id: string; organization_id: string; unit_id: string; patient_id: string },
+  actorId: string | null = null,
+) {
+  await client.query(
+    `INSERT INTO inventory_preconsultation_events
+      (invitation_id,organization_id,unit_id,patient_id,actor_user_id,action,outcome)
+     VALUES($1,$2,$3,$4,$5,$6,$7)`,
+    [
+      invitation?.id ?? null,
+      invitation?.organization_id ?? null,
+      invitation?.unit_id ?? null,
+      invitation?.patient_id ?? null,
+      actorId,
+      action,
+      outcome,
+    ],
+  );
+}
+function operationToken(
+  nonce: string,
+  organizationId: string,
+  actorId: string,
+  operationId: string,
+) {
+  const secret = process.env["INVENTORY_SESSION_SECRET"];
+  if (!secret || secret.length < 32) throw new Error("Reconciliable invitation unavailable");
+  return createHmac("sha256", secret)
+    .update(JSON.stringify(["preconsultation-v1", organizationId, actorId, operationId, nonce]))
+    .digest("base64url");
+}
+const credentialHash = (token: string) => createHash("sha256").update(token).digest("hex");
+const invitationLink = (request: Request, token: string) =>
+  `${new URL(request.url).origin}/preconsulta#token=${token}`;
 async function body(request: Request) {
   const reader = request.body?.getReader();
   if (!reader) return null;
@@ -207,6 +260,51 @@ export async function preconsultationResponse(request: Request) {
         ],
       );
     } else if (d.action === "INVITE") {
+      // The caller keeps a nonce only in memory. Server HMAC derives a bearer for
+      // retrying a lost response without storing/recovering plaintext in the database.
+      await client.query("SELECT pg_advisory_xact_lock(hashtextextended($1,0))", [d.id]);
+      const existing = await client.query(
+        `SELECT i.*,v.form_id FROM inventory_preconsultation_invitations i
+         JOIN inventory_preconsultation_versions v ON v.id=i.version_id WHERE i.id=$1 FOR UPDATE OF i`,
+        [d.id],
+      );
+      const previous = existing.rows[0];
+      const replayToken = d.requestNonce
+        ? operationToken(d.requestNonce, auth.organizationId, auth.user.id, d.id)
+        : null;
+      if (previous) {
+        if (
+          previous.organization_id !== auth.organizationId ||
+          !can(auth, "patients.manage", previous.unit_id) ||
+          previous.patient_id !== d.patientId ||
+          previous.appointment_id !== d.appointmentId ||
+          previous.form_id !== d.formId ||
+          !replayToken ||
+          previous.token_hash !== credentialHash(replayToken) ||
+          previous.revoked_at ||
+          previous.submitted_at ||
+          new Date(previous.expires_at) <= new Date()
+        )
+          return await rollback(
+            "Convite já registrado. Atualize a lista e substitua o link pendente, se necessário.",
+            409,
+          );
+        const currentPatient = await client.query(
+          "SELECT primary_unit_id FROM inventory_patients WHERE id=$1 AND organization_id=$2 AND active FOR SHARE",
+          [d.patientId, auth.organizationId],
+        );
+        if (
+          currentPatient.rows[0]?.primary_unit_id !== previous.unit_id ||
+          !can(auth, "patients.manage", currentPatient.rows[0]?.primary_unit_id)
+        )
+          return await rollback("Paciente não encontrado.", 404);
+        await audit(client, "INVITE", "SUCCESS", previous, auth.user.id);
+        await client.query("COMMIT");
+        return Response.json(
+          { data: { id: d.id, link: invitationLink(request, replayToken!), replayed: true } },
+          { headers },
+        );
+      }
       const p = await client.query(
         "SELECT primary_unit_id FROM inventory_patients WHERE id=$1 AND organization_id=$2 AND active FOR SHARE",
         [d.patientId, auth.organizationId],
@@ -226,8 +324,8 @@ export async function preconsultationResponse(request: Request) {
         [d.formId, auth.organizationId, unit],
       );
       if (!v.rowCount) return await rollback("Publique um formulário da unidade do paciente.", 409);
-      const token = randomBytes(32).toString("base64url"),
-        hash = createHash("sha256").update(token).digest("hex");
+      const token = replayToken ?? randomBytes(32).toString("base64url"),
+        hash = credentialHash(token);
       await client.query(
         "INSERT INTO inventory_preconsultation_invitations(id,organization_id,unit_id,patient_id,appointment_id,version_id,token_hash,created_by_user_id,expires_at) VALUES($1,$2,$3,$4,$5,$6,$7,$8,now()+make_interval(days=>$9))",
         [
@@ -242,9 +340,16 @@ export async function preconsultationResponse(request: Request) {
           d.expiresInDays,
         ],
       );
+      await audit(
+        client,
+        "INVITE",
+        "SUCCESS",
+        { id: d.id, organization_id: auth.organizationId, unit_id: unit, patient_id: d.patientId },
+        auth.user.id,
+      );
       await client.query("COMMIT");
       return Response.json(
-        { data: { id: d.id, link: `${new URL(request.url).origin}/preconsulta#token=${token}` } },
+        { data: { id: d.id, link: invitationLink(request, token) } },
         { status: 201, headers },
       );
     } else {
@@ -259,10 +364,92 @@ export async function preconsultationResponse(request: Request) {
         !can(auth, "patients.manage", i.primary_unit_id)
       )
         return await rollback("Convite não encontrado.", 404);
+      if (i.submitted_at) {
+        await audit(client, d.action, "CONFLICT", i, auth.user.id);
+        await client.query("COMMIT");
+        return fail("Este convite já foi respondido. As respostas permanecem preservadas.", 409);
+      }
+      if (d.action === "REISSUE") {
+        if (d.replacementId === d.id)
+          return await rollback("Use uma nova identificação para substituir o link.", 400);
+        await client.query("SELECT pg_advisory_xact_lock(hashtextextended($1,0))", [
+          d.replacementId,
+        ]);
+        const replacement = await client.query(
+          "SELECT * FROM inventory_preconsultation_invitations WHERE id=$1 FOR UPDATE",
+          [d.replacementId],
+        );
+        const existing = replacement.rows[0];
+        const replayToken = d.requestNonce
+          ? operationToken(d.requestNonce, auth.organizationId, auth.user.id, d.replacementId)
+          : null;
+        if (existing) {
+          if (
+            !replayToken ||
+            existing.token_hash !== credentialHash(replayToken) ||
+            existing.organization_id !== i.organization_id ||
+            existing.unit_id !== i.unit_id ||
+            existing.patient_id !== i.patient_id ||
+            existing.version_id !== i.version_id ||
+            existing.appointment_id !== i.appointment_id ||
+            existing.revoked_at ||
+            existing.submitted_at ||
+            new Date(existing.expires_at) <= new Date()
+          )
+            return await rollback("A substituição já foi registrada. Atualize a lista.", 409);
+          await audit(client, "REISSUE", "SUCCESS", i, auth.user.id);
+          await client.query("COMMIT");
+          return Response.json(
+            {
+              data: {
+                id: d.replacementId,
+                link: invitationLink(request, replayToken!),
+                replayed: true,
+              },
+            },
+            { headers },
+          );
+        }
+        if (i.revoked_at)
+          return await rollback("Este link já foi revogado. Gere um novo convite.", 409);
+        if (i.primary_unit_id !== i.unit_id)
+          return await rollback(
+            "A unidade do paciente mudou. Gere um convite na unidade atual.",
+            409,
+          );
+        const token = replayToken ?? randomBytes(32).toString("base64url");
+        await client.query(
+          "UPDATE inventory_preconsultation_invitations SET revoked_at=now() WHERE id=$1",
+          [i.id],
+        );
+        await client.query(
+          `INSERT INTO inventory_preconsultation_invitations(id,organization_id,unit_id,patient_id,appointment_id,version_id,token_hash,created_by_user_id,expires_at)
+           VALUES($1,$2,$3,$4,$5,$6,$7,$8,now()+make_interval(days=>$9))`,
+          [
+            d.replacementId,
+            i.organization_id,
+            i.unit_id,
+            i.patient_id,
+            i.appointment_id,
+            i.version_id,
+            credentialHash(token),
+            auth.user.id,
+            d.expiresInDays,
+          ],
+        );
+        await audit(client, "REISSUE", "SUCCESS", i, auth.user.id);
+        await audit(client, "INVITE", "SUCCESS", { ...i, id: d.replacementId }, auth.user.id);
+        await client.query("COMMIT");
+        return Response.json(
+          { data: { id: d.replacementId, link: invitationLink(request, token) } },
+          { status: 201, headers },
+        );
+      }
       await client.query(
         "UPDATE inventory_preconsultation_invitations SET revoked_at=COALESCE(revoked_at,now()) WHERE id=$1",
         [d.id],
       );
+      await audit(client, "REVOKE", "SUCCESS", i, auth.user.id);
     }
     await client.query("COMMIT");
     return Response.json({ data: { id: d.id } }, { headers });
@@ -285,14 +472,14 @@ export async function preconsultationPublicResponse(request: Request) {
     return fail("Origem não autorizada.", 403);
   const parsed = z
     .object({
-      action: z.enum(["READ", "SUBMIT"]),
+      action: z.enum(["READ", "SUBMIT", "STATUS"]),
       token: z.string().regex(/^[A-Za-z0-9_-]{43}$/),
       answers: z.record(z.string().max(64), z.string().max(4000)).optional(),
     })
     .safeParse(await body(request));
   if (!parsed.success) return fail("Link inválido ou indisponível.", 400);
   const d = parsed.data,
-    hash = createHash("sha256").update(d.token).digest("hex");
+    hash = credentialHash(d.token);
   let client;
   try {
     const ip =
@@ -307,20 +494,32 @@ export async function preconsultationPublicResponse(request: Request) {
     client = await getPool().connect();
     await client.query("BEGIN");
     const result = await client.query(
-      `SELECT i.*,v.title,v.description,v.questions FROM inventory_preconsultation_invitations i JOIN inventory_preconsultation_versions v ON v.id=i.version_id JOIN inventory_patients p ON p.id=i.patient_id AND p.organization_id=i.organization_id JOIN inventory_units u ON u.id=i.unit_id JOIN inventory_organizations o ON o.id=i.organization_id WHERE token_hash=$1 AND revoked_at IS NULL AND submitted_at IS NULL AND expires_at>now() AND p.active AND p.primary_unit_id=i.unit_id AND u.active AND o.active FOR UPDATE OF i FOR SHARE OF p,u,o`,
+      `SELECT i.*,v.title,v.description,v.questions,
+        (i.revoked_at IS NULL AND i.expires_at>now() AND p.active AND p.primary_unit_id=i.unit_id AND u.active AND o.active) AS available
+       FROM inventory_preconsultation_invitations i JOIN inventory_preconsultation_versions v ON v.id=i.version_id JOIN inventory_patients p ON p.id=i.patient_id AND p.organization_id=i.organization_id JOIN inventory_units u ON u.id=i.unit_id JOIN inventory_organizations o ON o.id=i.organization_id WHERE token_hash=$1 FOR UPDATE OF i FOR SHARE OF p,u,o`,
       [hash],
     );
     const i = result.rows[0];
-    if (!i) {
-      await client.query("ROLLBACK");
+    if (!i?.available || (d.action !== "STATUS" && i.submitted_at)) {
+      await audit(client, d.action, "UNAVAILABLE", i);
+      await client.query("COMMIT");
       return fail("Link inválido ou indisponível.", 404);
+    }
+    // Only a minimal receipt is available after consumption, within the original
+    // lifetime. No questions, answers or personal identifiers are re-exposed.
+    if (d.action === "STATUS") {
+      await audit(client, "STATUS", "SUCCESS", i);
+      await client.query("COMMIT");
+      return Response.json({ data: { submitted: !!i.submitted_at } }, { headers });
     }
     const questionnaire = questions.safeParse(i.questions);
     if (!questionnaire.success) {
-      await client.query("ROLLBACK");
+      await audit(client, d.action, "INVALID", i);
+      await client.query("COMMIT");
       return fail("Formulário indisponível. Solicite um novo link à clínica.", 409);
     }
     if (d.action === "READ") {
+      await audit(client, "READ", "SUCCESS", i);
       await client.query("COMMIT");
       return Response.json(
         {
@@ -338,7 +537,8 @@ export async function preconsultationPublicResponse(request: Request) {
     try {
       answers = sanitizePreconsultationAnswers(questionnaire.data, d.answers ?? {});
     } catch {
-      await client.query("ROLLBACK");
+      await audit(client, "SUBMIT", "INVALID", i);
+      await client.query("COMMIT");
       return fail("Confira as respostas.", 400);
     }
     await client.query(
@@ -349,6 +549,7 @@ export async function preconsultationPublicResponse(request: Request) {
       "UPDATE inventory_preconsultation_invitations SET submitted_at=now() WHERE id=$1",
       [i.id],
     );
+    await audit(client, "SUBMIT", "SUCCESS", i);
     await client.query("COMMIT");
     return Response.json({ data: { submitted: true } }, { headers });
   } catch {

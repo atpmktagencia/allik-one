@@ -27,7 +27,7 @@ export async function patientEncounterHistory(auth: AuthContext, patientId: stri
      LEFT JOIN inventory_users usr ON usr.id=a.professional_user_id
      LEFT JOIN inventory_care_types ct ON ct.organization_id=a.organization_id AND ct.code=a.care_type
      WHERE a.patient_id=$1 AND a.organization_id=$2 AND ($3::boolean OR a.unit_id=ANY($4::uuid[]))
-     ORDER BY a.starts_at DESC,a.id DESC LIMIT 50`,
+     ORDER BY a.starts_at DESC,a.id DESC LIMIT 51`,
     [patientId, auth.organizationId, canAccessAllUnits(auth), auth.unitIds, auth.user.id],
   );
 }

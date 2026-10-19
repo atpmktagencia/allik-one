@@ -2,7 +2,7 @@ import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { randomUUID } from "node:crypto";
 import { migrate } from "drizzle-orm/node-postgres/migrator";
 import { getDb, getPool } from "./db";
-import { hashToken } from "./auth";
+import { hashToken, previewLogin } from "./auth";
 import { preconsultationResponse, preconsultationPublicResponse } from "./preconsultation";
 import * as accessAudit from "./clinical-access-audit";
 const origin = "https://tasks.example.test";
@@ -75,12 +75,16 @@ async function fixture() {
         headers: { cookie: `allik_inventory_session=${token}` },
       }),
     );
-  const publicPost = (token: string, answers?: Record<string, string>) =>
+  const publicPost = (
+    token: string,
+    answers?: Record<string, string>,
+    action = answers ? "SUBMIT" : "READ",
+  ) =>
     preconsultationPublicResponse(
       new Request(origin + "/api/v1/preconsultation", {
         method: "POST",
         headers: { origin, "Content-Type": "application/json" },
-        body: JSON.stringify({ action: answers ? "SUBMIT" : "READ", token, answers }),
+        body: JSON.stringify({ action, token, answers }),
       }),
     );
   const formId = randomUUID();
@@ -144,6 +148,255 @@ async function fixture() {
   };
 }
 describe("Preconsultation security and clinical integrity", () => {
+  it("fails closed before issuing a reconciliable invitation when the server secret is unavailable", async () => {
+    vi.stubEnv("INVENTORY_SESSION_SECRET", "");
+    try {
+      const f = await fixture();
+      await f.ready();
+      expect((await f.invite({ requestNonce: "a".repeat(43) })).status).toBe(503);
+      expect(
+        (
+          await getPool().query(
+            "SELECT count(*)::int n FROM inventory_preconsultation_invitations WHERE patient_id=$1",
+            [f.patient],
+          )
+        ).rows[0].n,
+      ).toBe(0);
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
+  it("reconciles an issued invitation by stable operation and nonce without plaintext persistence or duplicate invitations", async () => {
+    vi.stubEnv("INVENTORY_SESSION_SECRET", "synthetic-request-reconciliation-secret-32+");
+    try {
+      const f = await fixture();
+      await f.ready();
+      const id = randomUUID(),
+        requestNonce = "n".repeat(43);
+      const first = await f.invite({ id, requestNonce });
+      expect(first.status).toBe(201);
+      const original = (await first.json()).data;
+      const retry = await f.invite({ id, requestNonce });
+      expect(retry.status).toBe(200);
+      expect((await retry.json()).data).toMatchObject({ id, link: original.link, replayed: true });
+      expect((await f.invite({ id, requestNonce: "x".repeat(43) })).status).toBe(409);
+      const records = await getPool().query(
+        "SELECT * FROM inventory_preconsultation_invitations WHERE id=$1",
+        [id],
+      );
+      expect(records.rowCount).toBe(1);
+      const bearer = new URLSearchParams(new URL(original.link).hash.slice(1)).get("token")!;
+      expect(bearer).not.toBe(requestNonce);
+      expect(records.rows[0].token_hash).toBe(hashToken(bearer));
+      expect(JSON.stringify(records.rows)).not.toContain(bearer);
+      expect(JSON.stringify(records.rows)).not.toContain(requestNonce);
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
+  it("replaces a lost pending link atomically and retries the replacement without reviving the previous bearer", async () => {
+    vi.stubEnv("INVENTORY_SESSION_SECRET", "synthetic-request-reconciliation-secret-32+");
+    try {
+      const f = await fixture();
+      await f.ready();
+      const original = await f.issued();
+      const replacementId = randomUUID(),
+        requestNonce = "r".repeat(43);
+      const command = { action: "REISSUE", id: original.id, replacementId, requestNonce };
+      const result = await f.post(command);
+      expect(result.status).toBe(201);
+      const replacement = (await result.json()).data;
+      const retry = await f.post(command);
+      expect(retry.status).toBe(200);
+      expect((await retry.json()).data.link).toBe(replacement.link);
+      expect((await f.publicPost(original.token)).status).toBe(404);
+      const replacementToken = new URLSearchParams(new URL(replacement.link).hash.slice(1)).get(
+        "token",
+      )!;
+      expect((await f.publicPost(replacementToken)).status).toBe(200);
+      expect(
+        (
+          await getPool().query(
+            "SELECT count(*)::int n FROM inventory_preconsultation_invitations WHERE patient_id=$1",
+            [f.patient],
+          )
+        ).rows[0].n,
+      ).toBe(2);
+      const another = await fixture();
+      expect(
+        (await another.post({ action: "REISSUE", id: replacementId, replacementId: randomUUID() }))
+          .status,
+      ).toBe(404);
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
+  it("returns only a minimal receipt after submission, keeps replay closed and denies revocation after submission", async () => {
+    const f = await fixture();
+    await f.ready();
+    const invitation = await f.issued();
+    expect(
+      (await f.publicPost(invitation.token, { concern: "Synthetic confidential answer" })).status,
+    ).toBe(200);
+    const status = await f.publicPost(invitation.token, undefined, "STATUS");
+    expect(status.status).toBe(200);
+    expect(await status.json()).toEqual({ data: { submitted: true } });
+    expect((await f.publicPost(invitation.token)).status).toBe(404);
+    expect((await f.publicPost(invitation.token, {})).status).toBe(404);
+    expect((await f.post({ action: "REVOKE", id: invitation.id })).status).toBe(409);
+    expect(
+      (await f.post({ action: "REISSUE", id: invitation.id, replacementId: randomUUID() })).status,
+    ).toBe(409);
+    const persisted = (
+      await getPool().query(
+        "SELECT revoked_at,submitted_at FROM inventory_preconsultation_invitations WHERE id=$1",
+        [invitation.id],
+      )
+    ).rows[0];
+    expect(persisted.revoked_at).toBeNull();
+    expect(persisted.submitted_at).not.toBeNull();
+  });
+  it("does not expose a public receipt for expired, revoked or unknown bearers", async () => {
+    const f = await fixture();
+    await f.ready();
+    const original = await f.issued();
+    expect((await f.post({ action: "REVOKE", id: original.id })).status).toBe(200);
+    expect((await f.publicPost(original.token, undefined, "STATUS")).status).toBe(404);
+    expect((await f.publicPost("z".repeat(43), undefined, "STATUS")).status).toBe(404);
+    const version = (
+      await getPool().query("SELECT id FROM inventory_preconsultation_versions WHERE form_id=$1", [
+        f.formId,
+      ])
+    ).rows[0].id;
+    const expiredToken = "e".repeat(43);
+    await getPool().query(
+      "INSERT INTO inventory_preconsultation_invitations(id,organization_id,unit_id,patient_id,version_id,token_hash,created_by_user_id,expires_at) VALUES($1,$2,$3,$4,$5,$6,$7,now()-interval '1 second')",
+      [randomUUID(), f.org, f.unit, f.patient, version, hashToken(expiredToken), f.user],
+    );
+    const response = await f.publicPost(expiredToken, undefined, "STATUS");
+    expect(response.status).toBe(404);
+    expect(await response.json()).toEqual({ error: "Link inválido ou indisponível." });
+  });
+  it("keeps a minimal immutable audit trail for public use, invalid attempts and authenticated revocation", async () => {
+    const f = await fixture();
+    await f.ready();
+    const invitation = await f.issued();
+    await f.publicPost(invitation.token);
+    await f.publicPost(invitation.token, { medicine: "Invalid choice" });
+    await f.post({ action: "REVOKE", id: invitation.id });
+    await f.publicPost(invitation.token);
+    await f.publicPost("u".repeat(43));
+    const events = (
+      await getPool().query(
+        "SELECT * FROM inventory_preconsultation_events WHERE invitation_id=$1 ORDER BY created_at",
+        [invitation.id],
+      )
+    ).rows;
+    expect(events).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ action: "INVITE", outcome: "SUCCESS", actor_user_id: f.user }),
+        expect.objectContaining({ action: "READ", outcome: "SUCCESS", actor_user_id: null }),
+        expect.objectContaining({ action: "SUBMIT", outcome: "INVALID", actor_user_id: null }),
+        expect.objectContaining({ action: "REVOKE", outcome: "SUCCESS", actor_user_id: f.user }),
+        expect.objectContaining({ action: "READ", outcome: "UNAVAILABLE", actor_user_id: null }),
+      ]),
+    );
+    expect(JSON.stringify(events)).not.toContain(invitation.token);
+    expect(JSON.stringify(events)).not.toContain("Invalid choice");
+    expect(events[0]).not.toHaveProperty("token_hash");
+    expect(events[0]).not.toHaveProperty("answers");
+    await expect(
+      getPool().query(
+        "UPDATE inventory_preconsultation_events SET outcome='INVALID' WHERE invitation_id=$1",
+        [invitation.id],
+      ),
+    ).rejects.toThrow();
+    await expect(
+      getPool().query("DELETE FROM inventory_preconsultation_events WHERE invitation_id=$1", [
+        invitation.id,
+      ]),
+    ).rejects.toThrow();
+  });
+  it("rolls back a public submission when its audit event cannot be persisted", async () => {
+    const f = await fixture();
+    await f.ready();
+    const invitation = await f.issued();
+    // Both the table and this synthetic UUID belong exclusively to the disposable database.
+    await getPool().query(
+      `ALTER TABLE inventory_preconsultation_events ADD CONSTRAINT test_preconsultation_audit_outage CHECK (invitation_id<>'${invitation.id}'::uuid OR action<>'SUBMIT') NOT VALID`,
+    );
+    try {
+      expect((await f.publicPost(invitation.token, { concern: "Must roll back" })).status).toBe(
+        503,
+      );
+      expect(
+        (
+          await getPool().query(
+            "SELECT count(*)::int n FROM inventory_preconsultation_responses WHERE invitation_id=$1",
+            [invitation.id],
+          )
+        ).rows[0].n,
+      ).toBe(0);
+      expect(
+        (
+          await getPool().query(
+            "SELECT submitted_at FROM inventory_preconsultation_invitations WHERE id=$1",
+            [invitation.id],
+          )
+        ).rows[0].submitted_at,
+      ).toBeNull();
+    } finally {
+      await getPool().query(
+        "ALTER TABLE inventory_preconsultation_events DROP CONSTRAINT test_preconsultation_audit_outage",
+      );
+    }
+    expect((await f.publicPost(invitation.token, { concern: "Audited response" })).status).toBe(
+      200,
+    );
+  });
+  it("serializes replacing a link against a concurrent response without losing or reopening submitted answers", async () => {
+    const f = await fixture();
+    await f.ready();
+    const invitation = await f.issued();
+    const replacementId = randomUUID();
+    const [submission, replacement] = await Promise.all([
+      f.publicPost(invitation.token, { concern: "Concurrent response" }),
+      f.post({ action: "REISSUE", id: invitation.id, replacementId }),
+    ]);
+    expect([
+      [200, 409],
+      [404, 201],
+    ]).toContainEqual([submission.status, replacement.status]);
+    const original = (
+      await getPool().query(
+        "SELECT submitted_at,revoked_at FROM inventory_preconsultation_invitations WHERE id=$1",
+        [invitation.id],
+      )
+    ).rows[0];
+    if (submission.status === 200) {
+      expect(original.submitted_at).not.toBeNull();
+      expect(original.revoked_at).toBeNull();
+      expect(
+        (
+          await getPool().query(
+            "SELECT count(*)::int n FROM inventory_preconsultation_responses WHERE invitation_id=$1",
+            [invitation.id],
+          )
+        ).rows[0].n,
+      ).toBe(1);
+    } else {
+      expect(original.submitted_at).toBeNull();
+      expect(original.revoked_at).not.toBeNull();
+      expect(
+        (
+          await getPool().query(
+            "SELECT count(*)::int n FROM inventory_preconsultation_responses WHERE invitation_id=$1",
+            [invitation.id],
+          )
+        ).rows[0].n,
+      ).toBe(0);
+    }
+  });
   it("stores only visible conditional answers and leaves rejected submissions reusable", async () => {
     const f = await fixture();
     const questions = [
@@ -503,15 +756,24 @@ describe("Preconsultation security and clinical integrity", () => {
   });
   it("prevents the shared synthetic Preview actor from managing forms or invitations", async () => {
     const f = await fixture();
-    vi.stubEnv("INVENTORY_ENVIRONMENT", "preview");
-    vi.stubEnv("VERCEL_ENV", "preview");
-    vi.stubEnv("INVENTORY_DISABLE_PREVIEW_LOGIN", "true");
+    vi.stubEnv("INVENTORY_ENVIRONMENT", "test");
+    vi.stubEnv("INVENTORY_PREVIEW_PASSWORD", "synthetic-test-password");
+    vi.stubEnv("INVENTORY_SESSION_SECRET", "synthetic-test-secret".repeat(3));
     vi.stubEnv("INVENTORY_PREVIEW_DATA_CLASSIFICATION", "synthetic");
     try {
+      const login = await previewLogin(
+        new Request(origin + "/api/inventory-session", {
+          method: "POST",
+          headers: { origin },
+          body: JSON.stringify({ password: "synthetic-test-password" }),
+        }),
+      );
+      expect(login.status).toBe(200);
+      const cookie = login.headers.get("set-cookie")!.split(";")[0]!;
       const response = await preconsultationResponse(
         new Request(origin + "/api/v1/inventory/preconsultation", {
           method: "POST",
-          headers: { origin, "Content-Type": "application/json" },
+          headers: { origin, cookie, "Content-Type": "application/json" },
           body: JSON.stringify({
             action: "SAVE_FORM",
             id: f.formId,
@@ -524,7 +786,9 @@ describe("Preconsultation security and clinical integrity", () => {
       expect(response.status).toBe(403);
       const data = (
         await (
-          await preconsultationResponse(new Request(origin + "/api/v1/inventory/preconsultation"))
+          await preconsultationResponse(
+            new Request(origin + "/api/v1/inventory/preconsultation", { headers: { cookie } }),
+          )
         ).json()
       ).data;
       expect(data.canManage).toBe(false);

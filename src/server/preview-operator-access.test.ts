@@ -11,6 +11,7 @@ vi.mock("../lib/preview-operator-policy", async (original) => ({
   ...(await original<typeof import("../lib/preview-operator-policy")>()),
   // The real deployment/branch/database predicate is covered independently in unit tests.
   fullPreviewOperatorEnabled: () => gate.enabled,
+  sharedPreviewBoundaryEnabled: () => true,
 }));
 const storage = vi.hoisted(() => ({ put: vi.fn(), get: vi.fn(), del: vi.fn() }));
 vi.mock("@vercel/blob", () => storage);

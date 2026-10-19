@@ -1,4 +1,5 @@
 import { useEffect, useId, useMemo, useRef, useState, type ReactNode } from "react";
+import { useBlocker } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { readInventoryResponse, useInventory } from "@/data/inventory-api";
@@ -24,6 +25,7 @@ type PlanForm = Omit<TreatmentPlanInput, "items"> & { items: FormItem[] };
 type Head = {
   id: string;
   patientId: string;
+  appointmentId?: string | null;
   unitId: string;
   authorUserId: string;
   title: string;
@@ -79,9 +81,10 @@ const blankStage = (): TreatmentPlanStage => ({
   weekdays: null,
   times: null,
 });
-const blankItem = (): FormItem => ({
+const blankItem = (appointmentId?: string): FormItem => ({
   id: crypto.randomUUID(),
-  kind: "PRESCRIPTION",
+  kind: appointmentId ? "PROCEDURE" : "PRESCRIPTION",
+  appointmentId: appointmentId ?? null,
   title: "",
   productId: null,
   catalogItemId: null,
@@ -164,26 +167,44 @@ function UnitSelect({
     </div>
   );
 }
-export function PatientClinicalPlans({ patientId }: { patientId: string }) {
-  const [open, setOpen] = useState(false);
+export function PatientClinicalPlans({
+  patientId,
+  appointmentId,
+  onDraftStateChange,
+}: {
+  patientId: string;
+  appointmentId?: string | undefined;
+  onDraftStateChange?: ((state: { dirty: boolean; pending: boolean }) => void) | undefined;
+}) {
+  const [open, setOpen] = useState(Boolean(appointmentId));
+  const heading = appointmentId ? "Procedimentos do atendimento" : "Plano clínico estruturado";
   return (
     <section
       className="space-y-3 rounded-xl border border-teal-200 bg-white p-5"
-      aria-label="Plano clínico estruturado"
+      aria-label={heading}
     >
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 className="font-semibold text-teal-950">Plano clínico estruturado</h2>
+        <h2 className="font-semibold text-teal-950">{heading}</h2>
         {!open && (
           <Button variant="outline" onClick={() => setOpen(true)}>
-            Abrir plano clínico
+            {appointmentId ? "Abrir procedimentos" : "Abrir plano clínico"}
           </Button>
         )}
       </div>
       <p className="text-sm text-muted-foreground">
-        Planejamento clínico independente, com etapas, calendário e quantidades informadas. Não
-        emite receita, cobra, reserva ou movimenta estoque.
+        {appointmentId
+          ? "Procedimentos vinculados exclusivamente a este atendimento, com etapas e quantidades informadas."
+          : "Planejamento clínico independente, com etapas, calendário e quantidades informadas."}{" "}
+        Não emite receita, cobra, reserva ou movimenta estoque.
       </p>
-      {open && <Plans key={patientId} patientId={patientId} />}
+      {open && (
+        <Plans
+          key={`${patientId}:${appointmentId ?? "independent"}`}
+          patientId={patientId}
+          appointmentId={appointmentId}
+          onDraftStateChange={onDraftStateChange}
+        />
+      )}
     </section>
   );
 }
@@ -242,9 +263,17 @@ function Preview({ plan, preview }: { plan: TreatmentPlanInput; preview: Compute
     </section>
   );
 }
-function Plans({ patientId }: { patientId: string }) {
+function Plans({
+  patientId,
+  appointmentId,
+  onDraftStateChange,
+}: {
+  patientId: string;
+  appointmentId?: string | undefined;
+  onDraftStateChange?: ((state: { dirty: boolean; pending: boolean }) => void) | undefined;
+}) {
   const query = useInventory<Payload>(
-    `patient-treatment-plans?patientId=${encodeURIComponent(patientId)}`,
+    `patient-treatment-plans?patientId=${encodeURIComponent(patientId)}${appointmentId ? `&appointmentId=${encodeURIComponent(appointmentId)}` : ""}`,
   );
   const [selected, setSelected] = useState<Head | null>(null);
   const [editor, setEditor] = useState<Editor | null>(null);
@@ -254,6 +283,49 @@ function Plans({ patientId }: { patientId: string }) {
   const operation = useRef<{ key: string; id: string } | null>(null);
   const lock = useRef(false);
   const scope = useRef(crypto.randomUUID());
+  const baseline = useRef<string | null>(null);
+  const draftCallback = useRef(onDraftStateChange);
+  draftCallback.current = onDraftStateChange;
+  const dirty = Boolean(editor && JSON.stringify(editor) !== baseline.current);
+  useEffect(() => {
+    draftCallback.current?.({ dirty, pending });
+  }, [dirty, pending]);
+  useEffect(
+    () => () => {
+      draftCallback.current?.({ dirty: false, pending: false });
+    },
+    [],
+  );
+  // The encounter owns its route prompt; standalone plans guard their own route.
+  useBlocker({
+    disabled: Boolean(appointmentId) || (!dirty && !pending),
+    enableBeforeUnload: dirty || pending,
+    shouldBlockFn: ({ current, next }) =>
+      current.pathname !== next.pathname &&
+      !window.confirm("Há alterações não salvas no plano clínico. Deseja sair e descartá-las?"),
+  });
+  useEffect(() => {
+    const protectUnit = (event: Event) => {
+      if (dirty || pending) event.preventDefault();
+    };
+    const protectUnload = (event: BeforeUnloadEvent) => {
+      if (dirty || pending) {
+        event.preventDefault();
+        event.returnValue = "";
+      }
+    };
+    window.addEventListener("allik:before-unit-change", protectUnit);
+    window.addEventListener("beforeunload", protectUnload);
+    return () => {
+      window.removeEventListener("allik:before-unit-change", protectUnit);
+      window.removeEventListener("beforeunload", protectUnload);
+    };
+  }, [dirty, pending]);
+  const beginEditor = (next: Editor) => {
+    baseline.current = JSON.stringify(next);
+    setEditor(next);
+  };
+
   useEffect(() => {
     function reset() {
       scope.current = crypto.randomUUID();
@@ -290,9 +362,13 @@ function Plans({ patientId }: { patientId: string }) {
       id: editor.id,
       version: editor.version,
       patientId,
+      ...(appointmentId ? { appointmentId } : {}),
       title: editor.title,
       status: editor.status,
-      plan: parsed.data,
+      plan: {
+        ...parsed.data,
+        items: parsed.data.items.map((item) => (appointmentId ? { ...item, appointmentId } : item)),
+      },
     };
     const key = JSON.stringify(body);
     if (operation.current?.key !== key) operation.current = { key, id: crypto.randomUUID() };
@@ -367,17 +443,22 @@ function Plans({ patientId }: { patientId: string }) {
             setSelected(null);
             setError("");
             setMessage("");
-            setEditor({
+            beginEditor({
               id: crypto.randomUUID(),
               version: null,
               title: "",
               status: "DRAFT",
-              plan: { startDate: "", previewDays: 30, items: [blankItem()] },
+              plan: { startDate: "", previewDays: 30, items: [blankItem(appointmentId)] },
             });
           }}
         >
-          Novo plano clínico
+          {appointmentId ? "Novo plano de procedimentos" : "Novo plano clínico"}
         </Button>
+      )}
+      {appointmentId && (
+        <p className="text-xs text-teal-800">
+          Vínculo fixo com este atendimento. Todos os itens pertencem a esta consulta.
+        </p>
       )}
       <ul className="flex flex-wrap gap-2" aria-label="Planos clínicos do paciente">
         {data.plans.map((entry) => (
@@ -398,12 +479,13 @@ function Plans({ patientId }: { patientId: string }) {
       )}
       {selected && !editor && (
         <PlanDetail
+          appointmentId={appointmentId}
           key={`${selected.id}:${selected.version}`}
           patientId={patientId}
           head={selected}
           canManage={data.canManage === true}
           onEdit={(plan, record) => {
-            setEditor({ ...(record ?? selected), plan: structuredClone(plan) });
+            beginEditor({ ...(record ?? selected), plan: structuredClone(plan) });
             setError("");
             setMessage("");
           }}
@@ -559,11 +641,25 @@ function Plans({ patientId }: { patientId: string }) {
                     ).map(([key, label, targets]) => (
                       <Select
                         key={key}
-                        label={label}
-                        value={item[key] ?? ""}
+                        disabled={Boolean(appointmentId && key === "appointmentId")}
+                        label={
+                          key === "appointmentId" && appointmentId
+                            ? "Atendimento vinculado (fixo)"
+                            : label
+                        }
+                        value={
+                          key === "appointmentId" && appointmentId
+                            ? appointmentId
+                            : (item[key] ?? "")
+                        }
                         onChange={(value) => updateItem(index, { [key]: value || null })}
                       >
                         <option value="">Sem vínculo</option>
+                        {key === "appointmentId" &&
+                          appointmentId &&
+                          !targets.some((target) => target.id === appointmentId) && (
+                            <option value={appointmentId}>Este atendimento</option>
+                          )}
                         {targets.map((target) => (
                           <option key={target.id} value={target.id}>
                             {target.label}
@@ -831,7 +927,9 @@ function Plans({ patientId }: { patientId: string }) {
               type="button"
               variant="outline"
               disabled={editor.plan.items.length >= 50}
-              onClick={() => updatePlan({ items: [...editor.plan.items, blankItem()] })}
+              onClick={() =>
+                updatePlan({ items: [...editor.plan.items, blankItem(appointmentId)] })
+              }
             >
               Adicionar item clínico
             </Button>
@@ -848,7 +946,7 @@ function Plans({ patientId }: { patientId: string }) {
             {parsed?.success && preview && <Preview plan={parsed.data} preview={preview} />}
             <div className="flex flex-wrap gap-2">
               <Button type="submit" disabled={!parsed?.success || !preview || !editor.title.trim()}>
-                Salvar plano clínico
+                {appointmentId ? "Salvar procedimentos" : "Salvar plano clínico"}
               </Button>
               <Button type="button" variant="outline" onClick={() => setEditor(null)}>
                 Cancelar plano clínico
@@ -866,11 +964,13 @@ function Plans({ patientId }: { patientId: string }) {
 }
 function PlanDetail({
   patientId,
+  appointmentId,
   head,
   canManage,
   onEdit,
 }: {
   patientId: string;
+  appointmentId?: string | undefined;
   head: Head;
   canManage: boolean;
   onEdit: (plan: TreatmentPlanInput, record?: Head) => void;
@@ -883,7 +983,7 @@ function PlanDetail({
     canEdit: boolean;
     record?: Head;
   }>(
-    `patient-treatment-plans?patientId=${encodeURIComponent(patientId)}&planId=${encodeURIComponent(head.id)}`,
+    `patient-treatment-plans?patientId=${encodeURIComponent(patientId)}&planId=${encodeURIComponent(head.id)}${appointmentId ? `&appointmentId=${encodeURIComponent(appointmentId)}` : ""}`,
   );
   if (query.isPending || query.error)
     return (

@@ -44,6 +44,84 @@ function mount() {
   return requests;
 }
 describe("Public preconsultation bearer credential", () => {
+  it("reconciles a lost submission acknowledgement using only the minimal receipt and clears all answers", async () => {
+    window.history.replaceState({}, "", `/preconsulta#token=${token}`);
+    const actions: string[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (_url: unknown, init: RequestInit) => {
+        const request = JSON.parse(String(init.body));
+        actions.push(request.action);
+        if (request.action === "SUBMIT") throw new TypeError("Connection lost after commit");
+        return Response.json({
+          data:
+            request.action === "STATUS"
+              ? { submitted: true }
+              : {
+                  title: "Conferência",
+                  description: "",
+                  expiresAt: "2030-01-01",
+                  questions: [{ id: "goal", label: "Seu relato", type: "TEXT" }],
+                },
+        });
+      }),
+    );
+    render(<PreconsultationPublic />);
+    await screen.findByRole("heading", { name: "Conferência" });
+    fireEvent.change(screen.getByLabelText(/Seu relato/), {
+      target: { value: "Relato confidencial" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Enviar respostas" }));
+    await screen.findByRole("heading", { name: "Respostas enviadas" });
+    expect(actions).toEqual(["READ", "SUBMIT", "STATUS"]);
+    expect(screen.queryByText("Relato confidencial")).not.toBeInTheDocument();
+    expect(window.localStorage.length).toBe(0);
+    expect(window.sessionStorage.length).toBe(0);
+  });
+  it("recognizes an already submitted unexpired link without reopening questions or answers", async () => {
+    window.history.replaceState({}, "", `/preconsulta#token=${token}`);
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (_url: unknown, init: RequestInit) => {
+        const request = JSON.parse(String(init.body));
+        return request.action === "READ"
+          ? Response.json({ error: "Link indisponível" }, { status: 404 })
+          : Response.json({ data: { submitted: true } });
+      }),
+    );
+    render(<PreconsultationPublic />);
+    await screen.findByRole("heading", { name: "Respostas enviadas" });
+    expect(screen.queryByRole("form")).not.toBeInTheDocument();
+  });
+  it("describes an uncertain submission honestly when receipt reconciliation is unavailable", async () => {
+    window.history.replaceState({}, "", `/preconsulta#token=${token}`);
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (_url: unknown, init: RequestInit) => {
+        const request = JSON.parse(String(init.body));
+        if (request.action === "SUBMIT") throw new TypeError("Lost response");
+        if (request.action === "STATUS")
+          return Response.json({ error: "Link indisponível" }, { status: 404 });
+        return Response.json({
+          data: {
+            title: "Relato opcional",
+            description: "",
+            expiresAt: "2030-01-01",
+            questions: [{ id: "goal", label: "Seu relato", type: "TEXT" }],
+          },
+        });
+      }),
+    );
+    render(<PreconsultationPublic />);
+    await screen.findByRole("heading", { name: "Relato opcional" });
+    fireEvent.click(screen.getByRole("button", { name: "Enviar respostas" }));
+    await waitFor(() =>
+      expect(screen.getByRole("alert")).toHaveTextContent(
+        "Suas respostas podem já ter sido recebidas",
+      ),
+    );
+    expect(screen.queryByRole("heading", { name: "Respostas enviadas" })).not.toBeInTheDocument();
+  });
   it("clears URL before requesting and submits voluntary answers without requiring application identity", async () => {
     window.history.replaceState(
       {},

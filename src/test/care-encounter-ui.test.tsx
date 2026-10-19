@@ -14,13 +14,23 @@ vi.mock("@tanstack/react-router", () => ({
   ),
 }));
 
+// Sibling plans register a delegated, disabled blocker after the encounter's guard.
+function isActiveBlocker(options: unknown) {
+  return (
+    typeof options === "object" &&
+    options !== null &&
+    "disabled" in options &&
+    options.disabled === false
+  );
+}
+
 afterEach(() => {
   cleanup();
   vi.unstubAllGlobals();
 });
 
 describe("Care encounter UI", () => {
-  it("shows the operational context and completes an in-progress appointment", async () => {
+  it("shows operational context, blocks incomplete closure and preserves drafts across steps", async () => {
     const writes: Array<Record<string, unknown>> = [];
     vi.stubGlobal(
       "confirm",
@@ -29,6 +39,33 @@ describe("Care encounter UI", () => {
     vi.stubGlobal(
       "fetch",
       vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+        if (String(_input).includes("patient-timeline"))
+          return Response.json({
+            data: {
+              patient: {
+                id: "22222222-2222-4222-8222-222222222222",
+                name: "Paciente Operacional",
+                internalCode: "PAC-000001",
+                unitName: "Fortaleza",
+              },
+              events: [],
+              nextCursor: null,
+            },
+          });
+        if (String(_input).includes("patient-treatment-plans"))
+          return Response.json({
+            data: {
+              plans: [],
+              canManage: false,
+              targets: {
+                products: [],
+                catalogItems: [],
+                treatments: [],
+                appointments: [],
+                prescriptionInstances: [],
+              },
+            },
+          });
         if (String(_input).includes("laboratory-history"))
           return Response.json({ data: { rows: [], hasMore: false } });
         if (String(_input).includes("patient-documents"))
@@ -163,15 +200,47 @@ describe("Care encounter UI", () => {
       "aria-selected",
       "true",
     );
-    fireEvent.click(screen.getByRole("button", { name: "Concluir atendimento" }));
-    await waitFor(() =>
-      expect(writes).toContainEqual(
-        expect.objectContaining({ action: "UPDATE_STATUS", status: "COMPLETED", version: 2 }),
-      ),
+    fireEvent(
+      window,
+      new CustomEvent("allik:clinical-file-draft-state", {
+        detail: {
+          editorId: "lab-review",
+          patientId: "22222222-2222-4222-8222-222222222222",
+          dirty: true,
+          pending: false,
+        },
+      }),
     );
+    const laboratoryBlocker = [...vi.mocked(useBlocker).mock.calls]
+      .reverse()
+      .find(([options]) => isActiveBlocker(options))?.[0] as unknown as {
+      disabled: boolean;
+      enableBeforeUnload: boolean;
+    };
+    expect(laboratoryBlocker.disabled).toBe(false);
+    expect(laboratoryBlocker.enableBeforeUnload).toBe(true);
+    const laboratoryUnitChange = new Event("allik:before-unit-change", { cancelable: true });
+    window.dispatchEvent(laboratoryUnitChange);
+    expect(laboratoryUnitChange.defaultPrevented).toBe(true);
+    fireEvent(
+      window,
+      new CustomEvent("allik:clinical-file-draft-state", {
+        detail: {
+          editorId: "lab-review",
+          patientId: "22222222-2222-4222-8222-222222222222",
+          dirty: false,
+          pending: false,
+        },
+      }),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Concluir atendimento" }));
+    expect(screen.getByRole("button", { name: "Concluir atendimento" })).toBeDisabled();
+    expect(writes).toHaveLength(0);
     fireEvent.click(within(steps).getByRole("tab", { name: /^Prescrição$/ }));
     fireEvent.click(screen.getByRole("button", { name: "Adicionar item" }));
-    const therapeuticBlocker = vi.mocked(useBlocker).mock.calls.at(-1)![0] as unknown as {
+    const therapeuticBlocker = [...vi.mocked(useBlocker).mock.calls]
+      .reverse()
+      .find(([options]) => isActiveBlocker(options))?.[0] as unknown as {
       disabled: boolean;
       enableBeforeUnload: boolean;
     };
@@ -215,10 +284,10 @@ describe("Care encounter UI", () => {
     expect(
       await screen.findByRole("heading", { name: "Registro terapêutico" }),
     ).toBeInTheDocument();
-    expect(screen.getByLabelText("Intervalo da frequência do item 1")).toHaveValue(1);
-    expect(screen.getByLabelText("Unidade da frequência do item 1")).toHaveValue("WEEK");
-    expect(screen.getByLabelText("Quantidade da duração do item 1")).toHaveValue(4);
-    expect(screen.getByLabelText("Unidade da duração do item 1")).toHaveValue("WEEK");
+    expect(screen.getByLabelText("Intervalo da frequência do item 1")).toHaveValue(null);
+    expect(screen.getByLabelText("Unidade da frequência do item 1")).toHaveValue("");
+    expect(screen.getByLabelText("Quantidade da duração do item 1")).toHaveValue(null);
+    expect(screen.getByLabelText("Unidade da duração do item 1")).toHaveValue("");
     expect(screen.queryByRole("textbox", { name: "Frequência" })).not.toBeInTheDocument();
     fireEvent.click(within(steps).getByRole("tab", { name: /^Revisão$/ }));
     expect(screen.getByRole("heading", { name: "Resumo do atendimento" })).toBeInTheDocument();
@@ -232,6 +301,10 @@ describe("Care encounter UI", () => {
       "aria-selected",
       "true",
     );
+    await waitFor(() =>
+      expect(within(steps).getByRole("tab", { name: /^Prescrição$/ })).toHaveFocus(),
+    );
+    expect(screen.getByText("Etapa atual: Prescrição")).toBeInTheDocument();
     fireEvent.click(within(steps).getByRole("tab", { name: /^Exames$/ }));
     fireEvent.click(within(steps).getByRole("tab", { name: /^Anamnese$/ }));
     expect(screen.getByLabelText("Evolução")).toBe(evolution);
@@ -239,7 +312,9 @@ describe("Care encounter UI", () => {
     expect(screen.getByRole("textbox", { name: "Motivo da consulta" })).toHaveValue(
       "Motivo preservado",
     );
-    const blocker = vi.mocked(useBlocker).mock.calls.at(-1)![0] as unknown as {
+    const blocker = [...vi.mocked(useBlocker).mock.calls]
+      .reverse()
+      .find(([options]) => isActiveBlocker(options))?.[0] as unknown as {
       disabled: boolean;
       enableBeforeUnload: boolean;
     };
@@ -247,12 +322,35 @@ describe("Care encounter UI", () => {
     expect(blocker.enableBeforeUnload).toBe(true);
     expect(screen.getByRole("button", { name: "Concluir atendimento" })).toBeDisabled();
     expect(screen.getAllByText("Alterações não salvas")[0]).toBeVisible();
-  });
+    const beforeHistory = (evolution as HTMLTextAreaElement).value;
+    fireEvent.click(screen.getByRole("button", { name: "Histórico" }));
+    expect(
+      screen.getByRole("heading", { name: "Histórico longitudinal do paciente" }),
+    ).toBeInTheDocument();
+    fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Close" }));
+    expect(screen.getByRole("textbox", { name: "Evolução" })).toHaveValue(beforeHistory);
+
+    // This scenario traverses all five mounted clinical workspaces and several dialogs.
+  }, 15000);
 
   it("shows reassignment when another professional owns an existing draft", async () => {
     vi.stubGlobal(
       "fetch",
       vi.fn(async (input: RequestInfo | URL) => {
+        if (String(input).includes("patient-treatment-plans"))
+          return Response.json({
+            data: {
+              plans: [],
+              canManage: false,
+              targets: {
+                products: [],
+                catalogItems: [],
+                treatments: [],
+                appointments: [],
+                prescriptionInstances: [],
+              },
+            },
+          });
         if (String(input).includes("laboratory-history"))
           return Response.json({ data: { rows: [], hasMore: false } });
         if (String(input).includes("patient-documents"))
@@ -377,6 +475,20 @@ describe("Clinical draft concurrency", () => {
     vi.stubGlobal(
       "fetch",
       vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        if (String(input).includes("patient-treatment-plans"))
+          return Response.json({
+            data: {
+              plans: [],
+              canManage: false,
+              targets: {
+                products: [],
+                catalogItems: [],
+                treatments: [],
+                appointments: [],
+                prescriptionInstances: [],
+              },
+            },
+          });
         if (String(input).includes("laboratory-history"))
           return Response.json({ data: { rows: [], hasMore: false } });
         if (String(input).includes("patient-documents"))
@@ -489,7 +601,9 @@ describe("Clinical draft concurrency", () => {
       expect.objectContaining({ version: 4, evolution: "Meu texto não salvo" }),
     );
     expect(evolution).toHaveValue("Meu texto não salvo");
-    const options = vi.mocked(useBlocker).mock.calls.at(-1)![0] as unknown as {
+    const options = [...vi.mocked(useBlocker).mock.calls]
+      .reverse()
+      .find(([options]) => isActiveBlocker(options))?.[0] as unknown as {
       disabled: boolean;
       enableBeforeUnload: boolean;
       shouldBlockFn: (args: {
@@ -524,4 +638,132 @@ describe("Clinical draft concurrency", () => {
       expect.objectContaining({ version: 6, evolution: "Meu próximo texto" }),
     );
   });
+  it.each(["SAVE_DRAFT", "FINALIZE"] as const)(
+    "reconciles a committed %s whose response was lost without replaying the write",
+    async (action) => {
+      vi.stubGlobal(
+        "confirm",
+        vi.fn(() => true),
+      );
+      const writes: Array<Record<string, unknown>> = [];
+      let note: Record<string, unknown> = {
+        id: "reconciled-note",
+        version: 4,
+        status: "DRAFT",
+        evolution: "Initial synthetic text",
+        conduct: "",
+        authorName: "Synthetic clinician",
+        professionalCouncil: "CRM",
+        councilNumber: "123",
+        councilRegion: "CE",
+        updatedAt: "2026-10-19T10:00:00Z",
+      };
+      const appointment = {
+        id: "reconcile-appointment",
+        patientId: "reconcile-patient",
+        unitId: "reconcile-unit",
+        unitName: "Synthetic unit",
+        patientName: "Synthetic patient",
+        patientCode: "SYN-001",
+        professionalName: "Synthetic clinician",
+        professionalCouncil: "CRM",
+        councilNumber: "123",
+        councilRegion: "CE",
+        startsAt: "2026-10-19T10:00:00Z",
+        endsAt: "2026-10-19T11:00:00Z",
+        status: "IN_PROGRESS",
+        version: 0,
+        careTypeName: "Consulta",
+        room: "Synthetic room",
+      };
+      vi.stubGlobal(
+        "fetch",
+        vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+          if (init?.method === "POST") {
+            const submitted = JSON.parse(String(init.body)) as Record<string, unknown>;
+            writes.push(submitted);
+            note = {
+              ...note,
+              ...submitted,
+              version: Number(submitted["version"]) + 1,
+              status: submitted["action"] === "FINALIZE" ? "FINAL" : "DRAFT",
+            };
+            if (writes.length === 1) throw new TypeError("Connection lost after commit");
+            return Response.json({
+              data: { id: note["id"], version: note["version"], status: note["status"] },
+            });
+          }
+          return Response.json({
+            data: {
+              appointment,
+              clinicalNote: note,
+              canAuthorClinicalNote: note["status"] !== "FINAL",
+              canManage: false,
+              canClaimClinicalNote: false,
+              needsProfessionalRegistration: false,
+              clinicalAuthorBlockReason: null,
+              clinicalAlerts: [],
+              changes: [],
+              treatments: [],
+              schedule: [],
+              documents: [],
+              templates: [],
+              prescription: null,
+              products: [],
+              requests: [],
+              rows: [],
+              hasMore: false,
+              total: 0,
+              categories: [],
+              professionals: [],
+              canUpload: false,
+              canAuthor: false,
+              quote: null,
+              pricingOptions: [],
+              forms: [],
+              invitations: [],
+              units: [],
+              tasks: [],
+              assignees: [],
+              plans: [],
+            },
+          });
+        }),
+      );
+      render(
+        <QueryClientProvider
+          client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
+        >
+          <CareEncounterPage appointmentId="reconcile-appointment" />
+        </QueryClientProvider>,
+      );
+      const evolution = await screen.findByRole("textbox", { name: "Evolução" });
+      await waitFor(() => expect(evolution).toHaveValue("Initial synthetic text"));
+      fireEvent.change(evolution, {
+        target: { value: "Synthetic text committed before connection loss" },
+      });
+      fireEvent.click(
+        screen.getByRole("button", {
+          name: action === "FINALIZE" ? "Finalizar evolução" : "Salvar rascunho",
+        }),
+      );
+      await screen.findByText(
+        action === "FINALIZE"
+          ? "Finalização confirmada no servidor após falha de resposta."
+          : "Rascunho confirmado no servidor após falha de resposta.",
+      );
+      expect(writes).toHaveLength(1);
+      expect(evolution).toHaveValue("Synthetic text committed before connection loss");
+      const cleanUnitChange = new Event("allik:before-unit-change", { cancelable: true });
+      window.dispatchEvent(cleanUnitChange);
+      expect(cleanUnitChange.defaultPrevented).toBe(false);
+      if (action === "FINALIZE") expect(evolution).toBeDisabled();
+      else {
+        fireEvent.change(evolution, { target: { value: "Next synthetic revision" } });
+        fireEvent.click(screen.getByRole("button", { name: "Salvar rascunho" }));
+        await waitFor(() => expect(writes).toHaveLength(2));
+        expect(writes[1]?.["version"]).toBe(5);
+      }
+    },
+  );
 });

@@ -10,6 +10,7 @@ import { getPool } from "./db";
 import { consumeAuthRateLimit, releaseAuthRateLimit } from "./auth-rate-limit";
 import {
   fullPreviewOperatorEnabled,
+  sharedPreviewBoundaryEnabled,
   previewOperatorIdentity,
 } from "../lib/preview-operator-policy";
 
@@ -168,6 +169,7 @@ function previewConfig() {
   const password = process.env["INVENTORY_PREVIEW_PASSWORD"];
   const secret = process.env["INVENTORY_SESSION_SECRET"];
   if (
+    !sharedPreviewBoundaryEnabled(process.env) ||
     !["development", "preview", "test"].includes(environment ?? "") ||
     !password ||
     password.length < 12 ||
@@ -179,8 +181,8 @@ function previewConfig() {
 }
 export function isPreviewLoginDisabled() {
   return (
+    sharedPreviewBoundaryEnabled(process.env) &&
     process.env["INVENTORY_DISABLE_PREVIEW_LOGIN"] === "true" &&
-    process.env["INVENTORY_PREVIEW_DATA_CLASSIFICATION"] === "synthetic" &&
     process.env["INVENTORY_ENVIRONMENT"] === "preview" &&
     process.env["VERCEL_ENV"] === "preview"
   );

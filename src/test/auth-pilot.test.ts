@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   authenticate,
   can,
@@ -12,6 +12,18 @@ import {
 vi.mock("@tanstack/react-start/server-only", () => ({}));
 const query = vi.hoisted(() => vi.fn());
 vi.mock("@/server/db", () => ({ getPool: () => ({ query }) }));
+beforeEach(() => {
+  vi.stubEnv("VERCEL_GIT_COMMIT_REF", "feature/allik-patients");
+  vi.stubEnv("INVENTORY_RUNTIME_ROLE", "allik_runtime");
+  vi.stubEnv(
+    "DATABASE_URL",
+    "postgres://allik_runtime@ep-hidden-cloud-b6hskjjt.c-2.sa-east-1.aws.neon.tech/neondb",
+  );
+});
+afterEach(() => {
+  vi.unstubAllEnvs();
+  query.mockReset();
+});
 const context = (role: AuthContext["role"], unitIds = ["unit-fortaleza"]): AuthContext => ({
   user: { id: "user-1", name: "Pessoa", email: "pessoa@example.test" },
   membershipId: "membership-1",

@@ -50,7 +50,7 @@ export async function documentDeliveryResponse(request: Request) {
   if (!z.string().uuid().safeParse(documentId).success) return fail("Documento inválido.", 400);
   try {
     const result = await getPool().query(
-      `SELECT d.id,d.organization_id,d.unit_id,d.patient_id,d.appointment_id,d.author_user_id,p.email,p.phone,
+      `SELECT d.id,d.organization_id,d.unit_id,d.patient_id,d.appointment_id,d.author_user_id,p.email,p.phone,p.primary_unit_id AS patient_current_unit_id,
  EXISTS(SELECT 1 FROM inventory_clinical_document_amendments a JOIN inventory_encounter_documents child ON child.id=a.document_id WHERE a.parent_document_id=d.id AND child.status='FINAL') AS has_amendments,
  EXISTS(SELECT 1 FROM inventory_clinical_document_amendments ra JOIN inventory_encounter_documents rchild ON rchild.id=ra.document_id WHERE ra.parent_document_id=d.id AND ra.kind='RECTIFICATION' AND rchild.status='FINAL') AS rectified,p.consent_status,
  EXISTS(SELECT 1 FROM inventory_document_signature_attempts s WHERE s.document_id=d.id AND s.organization_id=d.organization_id AND s.status='SIGNED') AS signed
@@ -63,6 +63,7 @@ export async function documentDeliveryResponse(request: Request) {
       !doc ||
       doc.author_user_id !== auth.user.id ||
       !can(auth, "patients.private.read", doc.unit_id) ||
+      !can(auth, "patients.private.read", doc.patient_current_unit_id) ||
       !can(auth, "patients.clinical.manage", doc.unit_id)
     )
       return fail("Receita não encontrada ou envio não autorizado.", 404);

@@ -23,6 +23,9 @@ export function withSelectedUnit(path: string) {
   const unitId = selectedUnitId();
   if (!unitId) return path;
   const url = new URL(path, window.location.origin);
+  // An explicit unit (including an empty value for an authorized consolidated view)
+  // belongs to the resource context, not to the global unit selector.
+  if (url.searchParams.has("unitId")) return path;
   url.searchParams.set("unitId", unitId);
   return `${url.pathname}${url.search}`;
 }

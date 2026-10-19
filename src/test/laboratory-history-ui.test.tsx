@@ -203,3 +203,29 @@ it("graph labels distinguish result dates and use the primary CSS color directly
   expect(container.querySelector("circle")).toHaveAttribute("fill", "var(--primary)");
   expect(container.querySelector("circle title")).toHaveTextContent("Resultado 01/02/2026");
 });
+
+it("restores laboratory search, dates and expansion after closing and reopening its document view", () => {
+  setup();
+  const state = {
+    current: null as
+      import("@/components/clinic/laboratory-history").LaboratoryHistoryViewState | null,
+  };
+  const first = render(<LaboratoryHistory patientId="patient" viewState={state} />);
+  fireEvent.change(screen.getByLabelText("Buscar parâmetro laboratorial"), {
+    target: { value: "TSH" },
+  });
+  fireEvent.change(screen.getByLabelText("Data inicial dos exames"), {
+    target: { value: "2026-01-01" },
+  });
+  fireEvent.click(screen.getByRole("button", { name: "TSH" }));
+  fireEvent.scroll(screen.getByRole("table").parentElement!, {
+    target: { scrollTop: 32, scrollLeft: 120 },
+  });
+  first.unmount();
+  render(<LaboratoryHistory patientId="patient" viewState={state} />);
+  expect(screen.getByRole("table").parentElement!.scrollTop).toBe(32);
+  expect(screen.getByRole("table").parentElement!.scrollLeft).toBe(120);
+  expect(screen.getByLabelText("Buscar parâmetro laboratorial")).toHaveValue("TSH");
+  expect(screen.getByLabelText("Data inicial dos exames")).toHaveValue("2026-01-01");
+  expect(screen.getByRole("button", { name: "TSH" })).toHaveAttribute("aria-expanded", "true");
+});

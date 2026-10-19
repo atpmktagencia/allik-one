@@ -523,3 +523,23 @@ describe("Explicit consent for document delivery", () => {
     expect(events.rows[0].count).toBe(0);
   });
 });
+
+describe("delivery current patient scope after transfer", () => {
+  it("refuses metadata and transmission without access to the patient's current unit", async () => {
+    const f = await deliveryFixture();
+    const unit = randomUUID();
+    await getPool().query(
+      "INSERT INTO inventory_units(id,organization_id,name) VALUES($1,$2,'Transferred synthetic unit')",
+      [unit, f.organizationId],
+    );
+    await getPool().query("UPDATE inventory_patients SET primary_unit_id=$1 WHERE id=$2", [
+      unit,
+      f.patientId,
+    ]);
+    const provider = vi.fn();
+    vi.stubGlobal("fetch", provider);
+    expect((await f.context()).status).toBe(404);
+    expect((await f.send()).status).toBe(404);
+    expect(provider).not.toHaveBeenCalled();
+  });
+});

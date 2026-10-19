@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { readInventoryResponse } from "@/data/inventory-api";
@@ -17,6 +17,20 @@ type Questionnaire = {
 // Keep the fixed same-origin endpoint: platform protection cookies may be needed in Preview.
 // The public server handler authorizes only the bearer token, never an application session.
 const endpoint = "/api/v1/inventory/preconsultation-public";
+async function submittedStatus(token: string, signal: AbortSignal) {
+  const response = await readInventoryResponse<{ submitted: boolean }>(
+    await fetch(endpoint, {
+      method: "POST",
+      credentials: "same-origin",
+      cache: "no-store",
+      referrerPolicy: "no-referrer",
+      signal,
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "STATUS", token }),
+    }),
+  );
+  return response.data?.submitted === true;
+}
 
 export function PreconsultationPublic() {
   const token = useRef("");
@@ -30,6 +44,13 @@ export function PreconsultationPublic() {
   const [step, setStep] = useState(0);
   const [reviewing, setReviewing] = useState(false);
   const heading = useRef<HTMLHeadingElement | null>(null);
+  const finish = useCallback(() => {
+    token.current = "";
+    setAnswers({});
+    setQuestionnaire(null);
+    setError("");
+    setDone(true);
+  }, []);
   useEffect(() => {
     function load(reuseInMemoryToken = false) {
       const url = new URL(window.location.href);
@@ -72,7 +93,18 @@ export function PreconsultationPublic() {
           if (!r.data) throw new Error("Não foi possível abrir o questionário.");
           setQuestionnaire(r.data);
         })
-        .catch((e: unknown) => {
+        .catch(async (e: unknown) => {
+          if (generation.current !== current || controller.signal.aborted) return;
+          try {
+            const submitted = await submittedStatus(token.current, controller.signal);
+            if (generation.current !== current || controller.signal.aborted) return;
+            if (submitted) {
+              finish();
+              return;
+            }
+          } catch {
+            /* An unavailable bearer never reopens a consumed/expired form. */
+          }
           if (generation.current === current && !controller.signal.aborted)
             setError(e instanceof Error ? e.message : "Não foi possível abrir o questionário.");
         })
@@ -87,7 +119,7 @@ export function PreconsultationPublic() {
       window.removeEventListener("hashchange", changed);
       request.current?.abort();
     };
-  }, []);
+  }, [finish]);
   async function submit(event: FormEvent) {
     event.preventDefault();
     if (!token.current || !questionnaire || pending) return;
@@ -114,13 +146,23 @@ export function PreconsultationPublic() {
         }),
       );
       if (generation.current !== current || controller.signal.aborted) return;
-      token.current = "";
-      setAnswers({});
-      setQuestionnaire(null);
-      setDone(true);
+      finish();
     } catch (e) {
-      if (generation.current === current && !controller.signal.aborted)
-        setError(e instanceof Error ? e.message : "Não foi possível enviar. Tente novamente.");
+      if (generation.current !== current || controller.signal.aborted) return;
+      try {
+        const submitted = await submittedStatus(token.current, controller.signal);
+        if (generation.current !== current || controller.signal.aborted) return;
+        if (submitted) {
+          finish();
+          return;
+        }
+        setError(e instanceof Error ? e.message : "Envio ainda não confirmado. Tente novamente.");
+      } catch {
+        if (generation.current === current && !controller.signal.aborted)
+          setError(
+            "Não foi possível confirmar o envio. Suas respostas podem já ter sido recebidas. Tente novamente ou peça à clínica para verificar antes de solicitar outro link.",
+          );
+      }
     } finally {
       if (generation.current === current && !controller.signal.aborted) setPending(false);
     }

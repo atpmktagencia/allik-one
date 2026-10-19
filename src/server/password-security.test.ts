@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { migrate } from "drizzle-orm/node-postgres/migrator";
 import { getDb, getPool } from "./db";
-import { authenticate, hashPassword, hashToken, verifyPassword } from "./auth";
+import { authenticate, hashPassword, hashToken, previewLogin, verifyPassword } from "./auth";
 import { passwordSecurityResponse } from "./password-security";
 import { activationResponse, userAdminResponse } from "./user-admin";
 const origin = "https://password-test.example";
@@ -452,15 +452,24 @@ describe("individual password security", () => {
     ).toBe(200);
   });
   it("lets the Preview operator read but not change user accounts", async () => {
-    vi.stubEnv("INVENTORY_ENVIRONMENT", "preview");
-    vi.stubEnv("VERCEL_ENV", "preview");
-    vi.stubEnv("INVENTORY_DISABLE_PREVIEW_LOGIN", "true");
+    vi.stubEnv("INVENTORY_ENVIRONMENT", "test");
+    vi.stubEnv("INVENTORY_PREVIEW_PASSWORD", "synthetic-test-password");
+    vi.stubEnv("INVENTORY_SESSION_SECRET", "synthetic-test-secret".repeat(3));
     vi.stubEnv("INVENTORY_PREVIEW_DATA_CLASSIFICATION", "synthetic");
+    const login = await previewLogin(
+      new Request(`${origin}/api/inventory-session`, {
+        method: "POST",
+        headers: { origin },
+        body: JSON.stringify({ password: "synthetic-test-password" }),
+      }),
+    );
+    expect(login.status).toBe(200);
+    const cookie = login.headers.get("set-cookie")!.split(";")[0]!;
     const preview = (body?: Record<string, unknown>) =>
       userAdminResponse(
         new Request(`${origin}/api/v1/inventory/users`, {
           method: body ? "POST" : "GET",
-          headers: { origin, "Content-Type": "application/json" },
+          headers: { origin, cookie, "Content-Type": "application/json" },
           ...(body ? { body: JSON.stringify(body) } : {}),
         }),
       );

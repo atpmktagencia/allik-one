@@ -66,6 +66,7 @@ export function PatientOverviewVitals({
     weightKg: string | null;
     heightCm: string | null;
     finalizedAt: string;
+    unitName?: string;
   };
 }) {
   const values = [
@@ -90,8 +91,9 @@ export function PatientOverviewVitals({
         <p>Sinais vitais não informados</p>
       )}
       <p className="text-[10px] text-slate-400">
-        Última evolução:{" "}
+        Registro finalizado (não é o horário da medição):{" "}
         {new Date(note.finalizedAt).toLocaleDateString("pt-BR", { timeZone: "America/Fortaleza" })}
+        {note.unitName ? ` · ${note.unitName}` : ""}
       </p>
     </div>
   );
@@ -152,7 +154,7 @@ export function PatientOverview({
   onEncounters,
 }: PatientOverviewProps) {
   const laboratory = useInventory<{ rows: LaboratoryHistoryEntry[]; hasMore: boolean }>(
-    `laboratory-history?patientId=${encodeURIComponent(patientId)}`,
+    `laboratory-history?patientId=${encodeURIComponent(patientId)}&unitId=`,
   );
   const recentResults = (laboratory.data?.rows ?? []).slice(0, 5);
   const activeTreatments = treatments.filter((item) => item.status === "ACTIVE");

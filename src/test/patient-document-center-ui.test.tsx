@@ -1,4 +1,4 @@
-import type { ReactElement } from "react";
+import { createRef, type ReactElement } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   cleanup,
@@ -9,7 +9,10 @@ import {
   within,
 } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { PatientDocumentCenter } from "@/components/clinic/patient-document-center";
+import {
+  PatientDocumentCenter,
+  type PatientDocumentCenterViewState,
+} from "@/components/clinic/patient-document-center";
 function render(ui: ReactElement) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return renderView(ui, {
@@ -196,4 +199,46 @@ describe("Patient private document center", () => {
     expect(bodies[0]!.get("patientId")).toBe("patient");
     expect(bodies[0]!.get("file")).toBe(file);
   });
+});
+
+it("keeps document filters, selection and view mode across modal unmounts within the same patient/unit", async () => {
+  setup();
+  const viewState = createRef<PatientDocumentCenterViewState | null>();
+  const first = render(
+    <PatientDocumentCenter patientId="patient" unitId="unit-a" viewState={viewState} />,
+  );
+  fireEvent.change(screen.getByLabelText("Buscar documentos"), {
+    target: { value: "Solicitação" },
+  });
+  fireEvent.change(screen.getByLabelText("Profissional"), { target: { value: "professional" } });
+  fireEvent.click(screen.getByRole("button", { name: "Tabela" }));
+  fireEvent.click(screen.getByRole("button", { name: /Solicitação sintética/ }));
+  await waitFor(() => expect(viewState.current?.filters.search).toBe("Solicitação"));
+  first.unmount();
+  const restored = render(
+    <PatientDocumentCenter patientId="patient" unitId="unit-a" viewState={viewState} />,
+  );
+  expect(screen.getByLabelText("Buscar documentos")).toHaveValue("Solicitação");
+  expect(screen.getByLabelText("Profissional")).toHaveValue("professional");
+  expect(screen.getByRole("table", { name: "Documentos do paciente" })).toBeInTheDocument();
+  expect(screen.getByRole("link", { name: "Abrir registro de origem" })).toBeInTheDocument();
+  restored.unmount();
+  render(<PatientDocumentCenter patientId="patient" unitId="unit-b" viewState={viewState} />);
+  expect(screen.getByLabelText("Buscar documentos")).toHaveValue("");
+  expect(screen.queryByRole("link", { name: "Abrir registro de origem" })).not.toBeInTheDocument();
+});
+it("defaults exam imports to laboratory results and never offers unrelated categories", () => {
+  setup({
+    categories: [
+      { id: "LAB_RESULT", name: "Resultado laboratorial", builtin: true },
+      { id: "IMAGE_REPORT", name: "Laudo de imagem", builtin: true },
+      { id: "OTHER", name: "Outro", builtin: true },
+    ],
+  });
+  render(<PatientDocumentCenter patientId="patient" unitId="unit-a" examsOnly />);
+  fireEvent.click(screen.getByRole("button", { name: "Anexar arquivo" }));
+  expect(screen.getByRole("checkbox", { name: "Resultado laboratorial" })).toBeChecked();
+  expect(screen.getByRole("checkbox", { name: "Laudo de imagem" })).not.toBeChecked();
+  expect(screen.queryByRole("checkbox", { name: "Outro" })).not.toBeInTheDocument();
+  expect(state.resources.at(-1)).toContain("unitId=unit-a");
 });

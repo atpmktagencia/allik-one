@@ -269,8 +269,29 @@ test("Paciente360º preserves laboratory review, conditional preconsultation and
         publicPage.getByRole("heading", { name: "Respostas enviadas", exact: true }),
       ).toBeVisible();
       const replayPage = await publicContext.newPage();
+      const closedRead = replayPage.waitForResponse(
+        (response) =>
+          response.url().includes("/preconsultation-public") &&
+          response.request().postDataJSON()?.action === "READ",
+      );
+      const receipt = replayPage.waitForResponse(
+        (response) =>
+          response.url().includes("/preconsultation-public") &&
+          response.request().postDataJSON()?.action === "STATUS",
+      );
       await replayPage.goto(invitation.link);
-      await expect(replayPage.getByRole("alert")).toBeVisible();
+      expect((await closedRead).status()).toBe(404);
+      const receiptResponse = await receipt;
+      expect(receiptResponse.status()).toBe(200);
+      expect(await receiptResponse.json()).toEqual({ data: { submitted: true } });
+      await expect(
+        replayPage.getByRole("heading", { name: "Respostas enviadas", exact: true }),
+      ).toBeVisible();
+      expect(new URL(replayPage.url()).hash).toBe("");
+      await expect(replayPage.locator("form")).toHaveCount(0);
+      await expect(
+        replayPage.getByRole("button", { name: "Enviar respostas", exact: true }),
+      ).toHaveCount(0);
       await expect(
         replayPage.getByText("Medicamento sintético declarado pelo paciente", { exact: true }),
       ).toHaveCount(0);

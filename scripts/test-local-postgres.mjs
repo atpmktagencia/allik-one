@@ -114,6 +114,7 @@ try {
     ...process.env,
     DATABASE_URL: url,
     INVENTORY_ENVIRONMENT: "test",
+    INVENTORY_PREVIEW_DATA_CLASSIFICATION: "synthetic",
     INVENTORY_PREVIEW_PASSWORD: randomBytes(16).toString("hex"),
     INVENTORY_SESSION_SECRET: randomBytes(32).toString("hex"),
     INVENTORY_PREPARE_PREVIEW: "false",

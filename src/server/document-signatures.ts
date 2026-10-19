@@ -6,7 +6,7 @@ import type { PoolClient } from "pg";
 import { authenticate, can } from "./auth";
 import { getPool } from "./db";
 import { recordClinicalAccess } from "./clinical-access-audit";
-import { renderClinicalDocumentPdf } from "./clinical-document-pdf";
+import { authoritativeClinicalDocumentPdf } from "./clinical-document-artifacts";
 import {
   createLacunaSignatureSession,
   completeLacunaSignatureSession,
@@ -82,12 +82,16 @@ export async function documentSignaturesResponse(request: Request) {
     const pool = getPool();
     const document = (
       await pool.query(
-        `SELECT d.*,u.name AS current_author_name,u.active AS author_active,u.professional_council AS current_council,u.council_number AS current_council_number,u.council_region AS current_council_region
-      FROM inventory_encounter_documents d JOIN inventory_users u ON u.id=d.author_user_id WHERE d.id=$1 AND d.organization_id=$2`,
+        `SELECT d.*,p.primary_unit_id AS patient_current_unit_id,u.name AS current_author_name,u.active AS author_active,u.professional_council AS current_council,u.council_number AS current_council_number,u.council_region AS current_council_region
+      FROM inventory_encounter_documents d JOIN inventory_users u ON u.id=d.author_user_id JOIN inventory_patients p ON p.id=d.patient_id AND p.organization_id=d.organization_id WHERE d.id=$1 AND d.organization_id=$2`,
         [documentId, auth.organizationId],
       )
     ).rows[0];
-    if (!document || !can(auth, "patients.private.read", document.unit_id))
+    if (
+      !document ||
+      !can(auth, "patients.private.read", document.unit_id) ||
+      !can(auth, "patients.private.read", document.patient_current_unit_id)
+    )
       return fail("Documento não encontrado.", 404);
     if (document.status !== "FINAL" || !document.final_snapshot)
       return fail("A assinatura exige um documento finalizado com identificação preservada.", 409);
@@ -164,7 +168,7 @@ export async function documentSignaturesResponse(request: Request) {
         const bytes =
           latest && (active.includes(latest.status) || latest.status === "SIGNED")
             ? latest.source_pdf
-            : await renderClinicalDocumentPdf(document);
+            : await authoritativeClinicalDocumentPdf(document);
         if (
           latest &&
           (active.includes(latest.status) || latest.status === "SIGNED") &&
@@ -298,7 +302,7 @@ export async function documentSignaturesResponse(request: Request) {
       if (!identityReady)
         return fail("A administração precisa conferir o CPF do autor antes da assinatura.", 409);
       if (!data.operationId) return fail("Identificador de envio inválido.", 400);
-      const pdf = await renderClinicalDocumentPdf(document),
+      const pdf = await authoritativeClinicalDocumentPdf(document),
         id = randomUUID(),
         state = randomBytes(32).toString("base64url");
       const client = await pool.connect();

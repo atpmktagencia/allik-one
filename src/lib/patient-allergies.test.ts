@@ -20,6 +20,9 @@ describe("canonical allergy summaries", () => {
       { type: "ALLERGY", title: "Inativa", status: "INACTIVE" },
     ]);
     expect(summary.allergies).toEqual(["Dipirona", "Penicilina"]);
+    expect(allergyLabel(summary)).toBe(
+      "Alergias relatadas (não verificadas): Dipirona, Penicilina",
+    );
   });
   it("keeps reported allergies without details distinct from both unknown and denied", () => {
     expect(allergyLabel(resolveAllergies({}, [], "REPORTED"))).toBe(

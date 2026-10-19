@@ -2,6 +2,7 @@ import "@tanstack/react-start/server-only";
 import { Pool } from "pg";
 import { drizzle } from "drizzle-orm/node-postgres";
 import * as schema from "./schema";
+import { sharedPreviewBoundaryEnabled } from "../lib/preview-operator-policy";
 
 const ownerAliases = [
   "DATABASE_URL_UNPOOLED",
@@ -12,7 +13,7 @@ const ownerAliases = [
 ];
 
 /**
- * Production must run as the restricted runtime role created by
+ * Production and the authorized shared synthetic Preview run as the restricted role created by
  * scripts/provision-runtime-role.mjs. Refuse to serve with an owner or
  * maintenance identity, or while owner credentials remain in the environment.
  */
@@ -125,13 +126,23 @@ export function getPool(): Pool {
       idleTimeoutMillis: 20000,
       connectionTimeoutMillis: 5000,
     };
-    if (process.env["INVENTORY_ENVIRONMENT"] === "production" && !maintenanceIdentity) {
-      const problem = runtimeEnvironmentProblem();
+    if (
+      (process.env["INVENTORY_ENVIRONMENT"] === "production" ||
+        (process.env["VERCEL_ENV"] === "preview" && sharedPreviewBoundaryEnabled(process.env))) &&
+      !maintenanceIdentity
+    ) {
+      const expectedRole =
+        process.env["INVENTORY_RUNTIME_ROLE"]?.trim() ||
+        (process.env["VERCEL_ENV"] === "preview" ? "allik_runtime" : "");
+      const problem = runtimeEnvironmentProblem({
+        ...process.env,
+        INVENTORY_RUNTIME_ROLE: expectedRole,
+      });
       if (problem) {
         console.error("Runtime database configuration rejected");
         throw new Error("INVENTORY_RUNTIME_ROLE_REJECTED");
       }
-      pool = guardRuntimeIdentity(new Pool(config), process.env["INVENTORY_RUNTIME_ROLE"]!.trim());
+      pool = guardRuntimeIdentity(new Pool(config), expectedRole);
     } else pool = new Pool(config);
   }
   return pool;

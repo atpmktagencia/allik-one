@@ -1,3 +1,4 @@
+import { clinicalRequestsResponse } from "@/server/clinical-requests";
 import {
   patientDocumentsResponse,
   patientDocumentFileResponse,
@@ -126,6 +127,10 @@ export const Route = createFileRoute("/api/v1/inventory/$")({
         )
           return patientTimelineResponse(request);
         if (
+          new URL(request.url).pathname.replace(/\/$/, "") === "/api/v1/inventory/clinical-requests"
+        )
+          return clinicalRequestsResponse(request);
+        if (
           new URL(request.url).pathname.replace(/\/$/, "") ===
           "/api/v1/inventory/encounter-documents"
         )
@@ -253,6 +258,10 @@ export const Route = createFileRoute("/api/v1/inventory/$")({
           "/api/v1/inventory/document-signatures"
         )
           return documentSignaturesResponse(request);
+        if (
+          new URL(request.url).pathname.replace(/\/$/, "") === "/api/v1/inventory/clinical-requests"
+        )
+          return clinicalRequestsResponse(request);
         if (
           new URL(request.url).pathname.replace(/\/$/, "") ===
           "/api/v1/inventory/encounter-documents"

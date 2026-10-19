@@ -1,4 +1,4 @@
-import { Fragment, useMemo, useState } from "react";
+import { Fragment, memo, useEffect, useMemo, useRef, useState, type MutableRefObject } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useInventory } from "@/data/inventory-api";
@@ -17,8 +17,13 @@ import { InventoryState } from "./inventory-state";
 type Payload = { rows: LaboratoryHistoryEntry[]; hasMore: boolean; offset: number };
 const labelDate = (date: string) =>
   date === "undated" ? "Sem data de exame" : date.split("-").reverse().join("/");
-function ReferenceStatus({ entry }: { entry: LaboratoryHistoryEntry }) {
-  const status = laboratoryHistoryReference(entry);
+function ReferenceStatus({
+  entry,
+  status = laboratoryHistoryReference(entry),
+}: {
+  entry: LaboratoryHistoryEntry;
+  status?: ReturnType<typeof laboratoryHistoryReference> | undefined;
+}) {
   const labels = {
     low: "Abaixo da referência laboratorial",
     high: "Acima da referência laboratorial",
@@ -70,14 +75,18 @@ function Source({
     </a>
   );
 }
-function HistoryGraph({
+const HistoryGraph = memo(function HistoryGraph({
   group,
   onOpenOriginal,
 }: {
   group: LaboratoryHistoryGroup;
   onOpenOriginal?: ((entry: LaboratoryHistoryEntry) => void) | undefined;
 }) {
-  const { points, segments } = laboratoryHistorySeries(group);
+  const { points, segments } = useMemo(() => laboratoryHistorySeries(group), [group]);
+  const referenceStatuses = useMemo(
+    () => new Map(group.entries.map((entry) => [entry.id, laboratoryHistoryReference(entry)])),
+    [group],
+  );
   if (!points.length)
     return (
       <p className="p-3 text-sm text-muted-foreground">
@@ -152,44 +161,108 @@ function HistoryGraph({
             {p.entry.payload.collectedOn ? "Coleta" : "Resultado"} {labelDate(p.date)} ·{" "}
             {p.entry.payload.result} {group.unit ?? ""} ·{" "}
             <span>Ref.: {p.entry.payload.reference ?? "Não informada"}</span>
-            <ReferenceStatus entry={p.entry} />
+            <ReferenceStatus entry={p.entry} status={referenceStatuses.get(p.entry.id)} />
             <Source entry={p.entry} onOpenOriginal={onOpenOriginal} />
           </li>
         ))}
       </ul>
     </div>
   );
-}
+});
+export type LaboratoryHistoryViewState = {
+  dateFrom: string;
+  dateTo: string;
+  offset: number;
+  search: string;
+  groupLimit: number;
+  dateOffset: number;
+  expanded: string | null;
+  scrollTop: number;
+  scrollLeft: number;
+};
 export function LaboratoryHistory({
   patientId,
   unitId,
   compact = false,
   onOpenOriginal,
+  active = true,
+  viewState,
 }: {
   patientId: string;
+  active?: boolean;
+  viewState?: MutableRefObject<LaboratoryHistoryViewState | null>;
   unitId?: string | undefined;
   compact?: boolean;
   onOpenOriginal?: ((entry: LaboratoryHistoryEntry) => void) | undefined;
 }) {
-  const [dateFrom, setDateFrom] = useState("");
-  const [offset, setOffset] = useState(0);
-  const [dateTo, setDateTo] = useState("");
+  const remembered = viewState?.current;
+  const tableScroll = useRef<HTMLDivElement>(null);
+  const position = useRef({ top: remembered?.scrollTop ?? 0, left: remembered?.scrollLeft ?? 0 });
+  const [dateFrom, setDateFrom] = useState(remembered?.dateFrom ?? "");
+  const [offset, setOffset] = useState(remembered?.offset ?? 0);
+  const [dateTo, setDateTo] = useState(remembered?.dateTo ?? "");
   const invalidRange =
     (!!dateFrom && !laboratoryDate.safeParse(dateFrom).success) ||
     (!!dateTo && !laboratoryDate.safeParse(dateTo).success) ||
     (!!dateFrom && !!dateTo && dateFrom > dateTo);
   const resource =
     `laboratory-history?patientId=${encodeURIComponent(patientId)}` +
-    (unitId ? `&unitId=${encodeURIComponent(unitId)}` : "") +
+    (unitId !== undefined ? `&unitId=${encodeURIComponent(unitId)}` : "") +
     (dateFrom ? `&dateFrom=${dateFrom}` : "") +
     (dateTo ? `&dateTo=${dateTo}` : "") +
     (offset ? `&offset=${offset}` : "");
-  const query = useInventory<Payload>(resource, { enabled: !invalidRange });
-  const [search, setSearch] = useState("");
-  const [groupLimit, setGroupLimit] = useState(50);
-  const [dateOffset, setDateOffset] = useState(0);
-  const [expanded, setExpanded] = useState<string | null>(null);
+  const query = useInventory<Payload>(resource, { enabled: active && !invalidRange });
+  const [search, setSearch] = useState(remembered?.search ?? "");
+  const [groupLimit, setGroupLimit] = useState(remembered?.groupLimit ?? 50);
+  const [dateOffset, setDateOffset] = useState(remembered?.dateOffset ?? 0);
+  const [expanded, setExpanded] = useState<string | null>(remembered?.expanded ?? null);
+  useEffect(() => {
+    if (viewState)
+      viewState.current = {
+        dateFrom,
+        dateTo,
+        offset,
+        search,
+        groupLimit,
+        dateOffset,
+        expanded,
+        scrollTop: position.current.top,
+        scrollLeft: position.current.left,
+      };
+  }, [viewState, dateFrom, dateTo, offset, search, groupLimit, dateOffset, expanded]);
+  useEffect(() => {
+    if (tableScroll.current) {
+      tableScroll.current.scrollTop = position.current.top;
+      tableScroll.current.scrollLeft = position.current.left;
+    }
+  }, [query.data]);
   const history = useMemo(() => buildLaboratoryHistory(query.data?.rows ?? []), [query.data]);
+  const indexed = useMemo(
+    () =>
+      new Map(
+        history.groups.map((group) => {
+          const byDate = new Map<string, LaboratoryHistoryEntry[]>();
+          const referenceStatuses = new Map<
+            string,
+            ReturnType<typeof laboratoryHistoryReference>
+          >();
+          const references = new Set<string>();
+          for (const entry of group.entries) {
+            const date = laboratoryHistoryDate(entry) ?? "undated";
+            const bucket = byDate.get(date) ?? [];
+            bucket.push(entry);
+            byDate.set(date, bucket);
+            references.add(entry.payload.reference ?? "Não informada");
+            referenceStatuses.set(entry.id, laboratoryHistoryReference(entry));
+          }
+          return [
+            group.id,
+            { byDate, references: [...references].join(" · "), referenceStatuses },
+          ] as const;
+        }),
+      ),
+    [history.groups],
+  );
   const groups = useMemo(
     () =>
       history.groups.filter((g) =>
@@ -198,13 +271,9 @@ export function LaboratoryHistory({
     [history.groups, search],
   );
   const relevantDates = useMemo(() => {
-    const dates = new Set(
-      groups.flatMap((group) =>
-        group.entries.map((entry) => laboratoryHistoryDate(entry) ?? "undated"),
-      ),
-    );
+    const dates = new Set(groups.flatMap((group) => [...indexed.get(group.id)!.byDate.keys()]));
     return history.dates.filter((date) => dates.has(date));
-  }, [groups, history.dates]);
+  }, [groups, history.dates, indexed]);
   const endDate = Math.max(
     1,
     relevantDates.length - Math.min(dateOffset, Math.max(0, relevantDates.length - 1)),
@@ -366,7 +435,20 @@ export function LaboratoryHistory({
           ) : !groups.length ? (
             <p className="py-6 text-sm">Nenhum exame encontrado nesta busca.</p>
           ) : (
-            <div className="max-h-[70vh] overflow-auto rounded-xl border">
+            <div
+              ref={tableScroll}
+              onScroll={(event) => {
+                position.current = {
+                  top: event.currentTarget.scrollTop,
+                  left: event.currentTarget.scrollLeft,
+                };
+                if (viewState?.current) {
+                  viewState.current.scrollTop = position.current.top;
+                  viewState.current.scrollLeft = position.current.left;
+                }
+              }}
+              className="max-h-[70vh] overflow-auto rounded-xl border"
+            >
               <table
                 className={
                   compact
@@ -464,11 +546,7 @@ export function LaboratoryHistory({
                               : "md:sticky md:left-[21rem] z-10 w-48 min-w-48 max-w-48 bg-white p-3 text-xs"
                           }
                         >
-                          {[
-                            ...new Set(
-                              group.entries.map((e) => e.payload.reference ?? "Não informada"),
-                            ),
-                          ].join(" · ")}
+                          {indexed.get(group.id)!.references}
                           {!compact && (
                             <p className="mt-1 text-muted-foreground">
                               Confira a referência em cada resultado.
@@ -477,47 +555,55 @@ export function LaboratoryHistory({
                         </td>
                         {visibleDates.map((date) => (
                           <td key={date} className="p-3">
-                            {group.entries
-                              .filter((e) => (laboratoryHistoryDate(e) ?? "undated") === date)
-                              .map((entry) => (
-                                <div className="mb-3 space-y-1 last:mb-0" key={entry.id}>
-                                  {compact ? (
-                                    <div
-                                      className="flex items-center gap-1.5"
-                                      title={`${entry.payload.collectedOn ? "Coleta" : entry.payload.reportedOn ? "Resultado" : "Sem data"} · Ref.: ${entry.payload.reference ?? "Não informada"}`}
-                                    >
-                                      <span
-                                        className={`h-1.5 w-1.5 shrink-0 rounded-full ${laboratoryHistoryReference(entry) === "within" ? "bg-emerald-600" : laboratoryHistoryReference(entry) === "unknown" ? "bg-slate-300" : "bg-amber-500"}`}
-                                      />
-                                      <span className="font-medium">{entry.payload.result}</span>
-                                      <div className="sr-only">
-                                        <ReferenceStatus entry={entry} /> Ref.:{" "}
-                                        {entry.payload.reference ?? "Não informada"}
-                                      </div>
+                            {(indexed.get(group.id)!.byDate.get(date) ?? []).map((entry) => (
+                              <div className="mb-3 space-y-1 last:mb-0" key={entry.id}>
+                                {compact ? (
+                                  <div
+                                    className="flex items-center gap-1.5"
+                                    title={`${entry.payload.collectedOn ? "Coleta" : entry.payload.reportedOn ? "Resultado" : "Sem data"} · Ref.: ${entry.payload.reference ?? "Não informada"}`}
+                                  >
+                                    <span
+                                      className={`h-1.5 w-1.5 shrink-0 rounded-full ${indexed.get(group.id)!.referenceStatuses.get(entry.id) === "within" ? "bg-emerald-600" : indexed.get(group.id)!.referenceStatuses.get(entry.id) === "unknown" ? "bg-slate-300" : "bg-amber-500"}`}
+                                    />
+                                    <span className="font-medium">{entry.payload.result}</span>
+                                    <div className="sr-only">
+                                      <ReferenceStatus
+                                        entry={entry}
+                                        status={indexed
+                                          .get(group.id)!
+                                          .referenceStatuses.get(entry.id)}
+                                      />{" "}
+                                      Ref.: {entry.payload.reference ?? "Não informada"}
                                     </div>
-                                  ) : (
-                                    <>
-                                      <p className="font-medium">{entry.payload.result}</p>
-                                      <p className="text-xs text-muted-foreground">
-                                        {entry.payload.collectedOn
-                                          ? "Data de coleta"
-                                          : entry.payload.reportedOn
-                                            ? "Data do resultado"
-                                            : "Data não informada"}
-                                      </p>
-                                      <ReferenceStatus entry={entry} />
-                                      <p className="text-xs text-muted-foreground">
-                                        Ref.: {entry.payload.reference ?? "Não informada"}
-                                      </p>
-                                    </>
-                                  )}
-                                  <Source
-                                    entry={entry}
-                                    compact={compact}
-                                    onOpenOriginal={onOpenOriginal}
-                                  />
-                                </div>
-                              ))}
+                                  </div>
+                                ) : (
+                                  <>
+                                    <p className="font-medium">{entry.payload.result}</p>
+                                    <p className="text-xs text-muted-foreground">
+                                      {entry.payload.collectedOn
+                                        ? "Data de coleta"
+                                        : entry.payload.reportedOn
+                                          ? "Data do resultado"
+                                          : "Data não informada"}
+                                    </p>
+                                    <ReferenceStatus
+                                      entry={entry}
+                                      status={indexed
+                                        .get(group.id)!
+                                        .referenceStatuses.get(entry.id)}
+                                    />
+                                    <p className="text-xs text-muted-foreground">
+                                      Ref.: {entry.payload.reference ?? "Não informada"}
+                                    </p>
+                                  </>
+                                )}
+                                <Source
+                                  entry={entry}
+                                  compact={compact}
+                                  onOpenOriginal={onOpenOriginal}
+                                />
+                              </div>
+                            ))}
                           </td>
                         ))}
                       </tr>

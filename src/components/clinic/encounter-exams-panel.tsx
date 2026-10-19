@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Download,
   ExternalLink,
@@ -23,6 +23,7 @@ import {
   PatientDocumentCenter,
   type PatientDocument,
   type PatientDocumentsPayload,
+  type PatientDocumentCenterViewState,
 } from "./patient-document-center";
 import { InventoryState } from "./inventory-state";
 import { LaboratoryReview } from "./laboratory-review";
@@ -30,6 +31,7 @@ import { PrivateDocumentPreview } from "./private-document-preview";
 
 type Props = {
   patientId: string;
+  active?: boolean;
   unitId?: string | undefined;
   onNavigate?: (target: "exams" | "documents" | "questionnaires") => void;
 };
@@ -50,8 +52,11 @@ function originalUrl(value: string, download = false) {
   if (download) url.searchParams.set("download", "true");
   return withSelectedUnit(`${url.pathname}${url.search}`);
 }
-export function EncounterExamsPanel({ patientId, unitId }: Props) {
+export function EncounterExamsPanel({ patientId, unitId, active = true }: Props) {
   const [filesOpen, setFilesOpen] = useState(false);
+  const viewState = useRef<PatientDocumentCenterViewState | null>(null);
+  const filesScroll = useRef(0);
+  const filesDialog = useRef<HTMLDivElement>(null);
   const [collapsed, setCollapsed] = useState(false);
   const [selected, setSelected] = useState<{ scope: string; source: ExamSource } | null>(null);
   const scope = `${patientId}:${unitId ?? selectedUnitId()}`;
@@ -60,7 +65,8 @@ export function EncounterExamsPanel({ patientId, unitId }: Props) {
   const download = source?.previewUrl ? originalUrl(source.previewUrl, true) : null;
   const files = useInventory<PatientDocumentsPayload>(
     `patient-documents?patientId=${encodeURIComponent(patientId)}&categoryGroup=EXAMS&limit=5` +
-      (unitId ? `&unitId=${encodeURIComponent(unitId)}` : ""),
+      (unitId !== undefined ? `&unitId=${encodeURIComponent(unitId)}` : ""),
+    { enabled: active },
   );
   function openOriginal(entry: LaboratoryHistoryEntry) {
     setSelected({
@@ -83,6 +89,15 @@ export function EncounterExamsPanel({ patientId, unitId }: Props) {
     window.addEventListener("inventory-unit-change", reset);
     return () => window.removeEventListener("inventory-unit-change", reset);
   }, []);
+  useEffect(() => {
+    if (filesOpen) {
+      const frame = requestAnimationFrame(() => {
+        if (filesDialog.current) filesDialog.current.scrollTop = filesScroll.current;
+      });
+      return () => cancelAnimationFrame(frame);
+    }
+    return undefined;
+  }, [filesOpen]);
   return (
     <section aria-label="Exames do atendimento" className="min-w-0">
       <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
@@ -104,14 +119,18 @@ export function EncounterExamsPanel({ patientId, unitId }: Props) {
             variant="outline"
             size="sm"
             className="h-9 text-xs"
-            onClick={() => setFilesOpen(true)}
+            onClick={() => {
+              setFilesOpen(true);
+            }}
           >
             Conferir extrações
           </Button>
           <Button
             size="sm"
             className="h-9 bg-teal-700 text-xs hover:bg-teal-800"
-            onClick={() => setFilesOpen(true)}
+            onClick={() => {
+              setFilesOpen(true);
+            }}
           >
             <Upload className="mr-1.5 h-3.5 w-3.5" />
             Importar exame (PDF)
@@ -124,7 +143,13 @@ export function EncounterExamsPanel({ patientId, unitId }: Props) {
       >
         <div className="mb-2 flex items-center justify-between gap-3">
           <h3 className="text-sm font-semibold text-slate-800">Arquivos de exames</h3>
-          <Button variant="ghost" size="sm" onClick={() => setFilesOpen(true)}>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => {
+              setFilesOpen(true);
+            }}
+          >
             Ver todos os arquivos
           </Button>
         </div>
@@ -198,6 +223,7 @@ export function EncounterExamsPanel({ patientId, unitId }: Props) {
             patientId={patientId}
             unitId={unitId}
             compact
+            active={active}
             onOpenOriginal={openOriginal}
           />
         </div>
@@ -252,6 +278,7 @@ export function EncounterExamsPanel({ patientId, unitId }: Props) {
                       key={`${scope}:${source.documentId}:review`}
                       patientId={patientId}
                       documentId={source.documentId}
+                      unitId={unitId}
                     />
                   )}
                   <PrivateDocumentPreview key={`${scope}:${source.documentId}`} document={source} />
@@ -284,18 +311,41 @@ export function EncounterExamsPanel({ patientId, unitId }: Props) {
       <Dialog
         open={filesOpen}
         onOpenChange={(value) => {
+          if (
+            !value &&
+            !window.dispatchEvent(
+              new CustomEvent("allik:before-clinical-file-close", {
+                cancelable: true,
+                detail: { patientId },
+              }),
+            )
+          )
+            return;
           setFilesOpen(value);
           if (!value) void files.refetch();
         }}
       >
-        <DialogContent className="max-h-[92dvh] w-[calc(100%-1rem)] max-w-[1400px] overflow-y-auto">
+        <DialogContent
+          ref={filesDialog}
+          onScroll={(event) => {
+            filesScroll.current = event.currentTarget.scrollTop;
+          }}
+          className="max-h-[92dvh] w-[calc(100%-1rem)] max-w-[1400px] overflow-y-auto"
+        >
           <DialogHeader>
             <DialogTitle>Arquivos e conferência de exames</DialogTitle>
             <DialogDescription>
               Importe o original e confira os resultados antes de incluí-los no histórico clínico.
             </DialogDescription>
           </DialogHeader>
-          <PatientDocumentCenter key={scope} patientId={patientId} examsOnly />
+          <PatientDocumentCenter
+            key={scope}
+            patientId={patientId}
+            unitId={unitId}
+            active={filesOpen}
+            viewState={viewState}
+            examsOnly
+          />
         </DialogContent>
       </Dialog>
     </section>

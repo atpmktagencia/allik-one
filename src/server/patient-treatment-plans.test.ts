@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { migrate } from "drizzle-orm/node-postgres/migrator";
 import { getDb, getPool } from "./db";
-import { hashToken } from "./auth";
+import { hashToken, previewLogin } from "./auth";
 import { patientTreatmentPlansResponse } from "./patient-treatment-plans";
 import * as accessAudit from "./clinical-access-audit";
 const origin = "https://shared-models.example.test";
@@ -340,22 +340,202 @@ describe("General clinical plan aggregate", () => {
     expect((await f.post(d)).status).toBe(403);
     d.plan.items[0]!.kind = "SERVICE";
     expect((await f.post(d)).status).toBe(201);
-    vi.stubEnv("INVENTORY_ENVIRONMENT", "preview");
-    vi.stubEnv("VERCEL_ENV", "preview");
-    vi.stubEnv("INVENTORY_DISABLE_PREVIEW_LOGIN", "true");
+    vi.stubEnv("INVENTORY_ENVIRONMENT", "test");
     vi.stubEnv("INVENTORY_PREVIEW_DATA_CLASSIFICATION", "synthetic");
+    vi.stubEnv("INVENTORY_PREVIEW_PASSWORD", "synthetic-test-password");
+    vi.stubEnv("INVENTORY_SESSION_SECRET", "synthetic-test-secret".repeat(3));
     try {
+      const login = await previewLogin(
+        new Request(`${origin}/api/inventory-session`, {
+          method: "POST",
+          headers: { origin, "Content-Type": "application/json" },
+          body: JSON.stringify({ password: "synthetic-test-password" }),
+        }),
+      );
+      expect(login.status).toBe(200);
+      const cookie = login.headers.get("set-cookie")!.split(";")[0]!;
       expect(
         (
           await patientTreatmentPlansResponse(
             new Request(
               `${origin}/api/v1/inventory/patient-treatment-plans?patientId=${d.patientId}`,
+              { headers: { cookie } },
             ),
           )
         ).status,
       ).toBe(403);
     } finally {
       vi.unstubAllEnvs();
+    }
+  });
+  it("binds procedure plans to the exact encounter and excludes unrelated plans from its list", async () => {
+    const f = await fixture();
+    const standalone = f.draft();
+    expect((await f.post(standalone)).status).toBe(201);
+    const draft = f.draft();
+    const appointmentId = f.users["owner"]!.appointment;
+    const bound = {
+      ...draft,
+      appointmentId,
+      plan: {
+        ...draft.plan,
+        items: draft.plan.items.map((item) => ({ ...item, kind: "PROCEDURE", appointmentId })),
+      },
+    };
+    expect((await f.post(bound)).status).toBe(201);
+    const response = await patientTreatmentPlansResponse(
+      new Request(
+        `${origin}/api/v1/inventory/patient-treatment-plans?patientId=${bound.patientId}&appointmentId=${appointmentId}`,
+        { headers: { cookie: f.users["owner"]!.cookie } },
+      ),
+    );
+    const data = (await response.json()).data;
+    expect(data.plans).toEqual([
+      expect.objectContaining({ id: bound.id, appointmentId, unitId: f.unit }),
+    ]);
+    expect(data.targets.appointments.map((a: { id: string }) => a.id)).toEqual([appointmentId]);
+    const stored = (
+      await getPool().query(
+        "SELECT appointment_id,unit_id FROM inventory_clinical_plans WHERE id=$1",
+        [bound.id],
+      )
+    ).rows[0];
+    expect(stored).toEqual({ appointment_id: appointmentId, unit_id: f.unit });
+  });
+  it("rejects absent or different item encounter links and immutable head rebinding", async () => {
+    const f = await fixture();
+    const draft = f.draft();
+    const appointmentId = f.users["owner"]!.appointment;
+    expect((await f.post({ ...draft, appointmentId })).status).toBe(400);
+    const bound = {
+      ...draft,
+      appointmentId,
+      plan: {
+        ...draft.plan,
+        items: draft.plan.items.map((item) => ({
+          ...item,
+          appointmentId: f.users["colleague"]!.appointment,
+        })),
+      },
+    };
+    expect((await f.post(bound)).status).toBe(400);
+    bound.plan.items[0]!.appointmentId = appointmentId;
+    expect((await f.post(bound)).status).toBe(201);
+    expect(
+      (await f.post({ ...bound, appointmentId: null, version: 1, operationId: randomUUID() }))
+        .status,
+    ).toBe(409);
+    expect(
+      (
+        await f.post({
+          ...bound,
+          appointmentId: f.users["colleague"]!.appointment,
+          version: 1,
+          operationId: randomUUID(),
+        })
+      ).status,
+    ).toBe(409);
+  });
+  it("blocks terminal encounter mutation even when an older client omits the head binding", async () => {
+    for (const status of ["COMPLETED", "CANCELED", "NO_SHOW"]) {
+      const f = await fixture();
+      const draft = f.draft();
+      const appointmentId = f.users["owner"]!.appointment;
+      const bound = {
+        ...draft,
+        appointmentId,
+        plan: {
+          ...draft.plan,
+          items: draft.plan.items.map((item) => ({ ...item, appointmentId })),
+        },
+      };
+      expect((await f.post(bound)).status).toBe(201);
+      await getPool().query("UPDATE inventory_care_appointments SET status=$2 WHERE id=$1", [
+        appointmentId,
+        status,
+      ]);
+      const legacyBody: Record<string, unknown> = { ...bound };
+      delete legacyBody["appointmentId"];
+      expect((await f.post({ ...legacyBody, version: 1, operationId: randomUUID() })).status).toBe(
+        409,
+      );
+      const read = await patientTreatmentPlansResponse(
+        new Request(
+          `${origin}/api/v1/inventory/patient-treatment-plans?patientId=${bound.patientId}&appointmentId=${appointmentId}`,
+          { headers: { cookie: f.users["owner"]!.cookie } },
+        ),
+      );
+      const data = (await read.json()).data;
+      expect(data.canManage).toBe(false);
+      expect(data.plans[0].canEdit).toBe(false);
+    }
+  });
+  it("denies another professional and an encounter belonging to another patient", async () => {
+    const f = await fixture();
+    const draft = f.draft();
+    const appointmentId = f.users["owner"]!.appointment;
+    const bound = {
+      ...draft,
+      appointmentId,
+      plan: { ...draft.plan, items: draft.plan.items.map((item) => ({ ...item, appointmentId })) },
+    };
+    expect((await f.post(bound, "colleague")).status).toBe(403);
+    const otherAppointment = f.users["colleague"]!.appointment;
+    expect(
+      (
+        await f.post({
+          ...bound,
+          appointmentId: otherAppointment,
+          plan: {
+            ...draft.plan,
+            items: draft.plan.items.map((item) => ({ ...item, appointmentId: otherAppointment })),
+          },
+        })
+      ).status,
+    ).toBe(404);
+  });
+  it("waits for the encounter lock and refuses a save when completion wins the race", async () => {
+    const f = await fixture();
+    const draft = f.draft();
+    const appointmentId = f.users["owner"]!.appointment;
+    const bound = {
+      ...draft,
+      appointmentId,
+      plan: { ...draft.plan, items: draft.plan.items.map((item) => ({ ...item, appointmentId })) },
+    };
+    const closer = await getPool().connect();
+    let pending: Promise<Response> | undefined;
+    try {
+      await closer.query("BEGIN");
+      await closer.query("SELECT id FROM inventory_care_appointments WHERE id=$1 FOR UPDATE", [
+        appointmentId,
+      ]);
+      pending = f.post(bound);
+      let blocked = false;
+      for (let attempt = 0; attempt < 100; attempt++) {
+        const result = await getPool().query(
+          "SELECT EXISTS(SELECT 1 FROM pg_stat_activity WHERE wait_event_type='Lock' AND query LIKE 'SELECT id,unit_id,professional_user_id,status FROM inventory_care_appointments%') AS blocked",
+        );
+        if (result.rows[0].blocked) {
+          blocked = true;
+          break;
+        }
+        await new Promise((resolve) => setTimeout(resolve, 5));
+      }
+      expect(blocked).toBe(true);
+      await closer.query("UPDATE inventory_care_appointments SET status='COMPLETED' WHERE id=$1", [
+        appointmentId,
+      ]);
+      await closer.query("COMMIT");
+      expect((await pending).status).toBe(409);
+      expect(
+        (await getPool().query("SELECT id FROM inventory_clinical_plans WHERE id=$1", [bound.id]))
+          .rows,
+      ).toEqual([]);
+    } finally {
+      await closer.query("ROLLBACK").catch(() => {});
+      closer.release();
+      await pending;
     }
   });
 });

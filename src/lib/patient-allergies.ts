@@ -49,7 +49,7 @@ export function resolveAllergies(
 export function allergyLabel(summary: Pick<AllergySummary, "status" | "allergies">) {
   return summary.status === "REPORTED"
     ? summary.allergies.length
-      ? `Alergias: ${summary.allergies.join(", ")}`
+      ? `Alergias relatadas (não verificadas): ${summary.allergies.join(", ")}`
       : "Alergias relatadas · detalhes pendentes"
     : summary.status === "DENIED"
       ? "Paciente nega alergias"

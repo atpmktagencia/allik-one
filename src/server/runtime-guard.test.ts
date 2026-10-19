@@ -1,6 +1,11 @@
 import { afterAll, describe, expect, it, vi } from "vitest";
 import { randomBytes } from "node:crypto";
 import { Pool } from "pg";
+const previewBoundary = vi.hoisted(() => ({ enabled: false }));
+vi.mock("../lib/preview-operator-policy", async (original) => ({
+  ...(await original<typeof import("../lib/preview-operator-policy")>()),
+  sharedPreviewBoundaryEnabled: () => previewBoundary.enabled,
+}));
 
 afterAll(() => {
   vi.unstubAllEnvs();
@@ -38,55 +43,89 @@ describe("production database identity guard", () => {
       await pool.end();
     }
   });
-  it("preserves concurrent Promise and callback queries for a restricted login", async () => {
-    const ownerUrl = process.env["DATABASE_URL"]!;
-    const owner = new Pool({ connectionString: ownerUrl });
-    const role = `runtime_callbacks_${randomBytes(6).toString("hex")}`;
-    const password = randomBytes(32).toString("hex");
-    const runtimeUrl = new URL(ownerUrl);
-    runtimeUrl.username = role;
-    runtimeUrl.password = password;
-    let runtime: Pool | undefined;
+  it.each(["production", "preview"])(
+    "preserves concurrent Promise and callback queries for a restricted login in %s",
+    async (environment) => {
+      // Each case provisions from the original disposable owner connection,
+      // never the previous case's already dropped temporary login.
+      vi.unstubAllEnvs();
+      vi.stubEnv("DATABASE_ADMIN_URL", "");
+      const ownerUrl = process.env["DATABASE_URL"]!;
+      const owner = new Pool({ connectionString: ownerUrl });
+      const role = `runtime_callbacks_${randomBytes(6).toString("hex")}`;
+      const password = randomBytes(32).toString("hex");
+      const runtimeUrl = new URL(ownerUrl);
+      runtimeUrl.username = role;
+      runtimeUrl.password = password;
+      let runtime: Pool | undefined;
+      try {
+        await owner.query(`CREATE ROLE ${role} LOGIN NOINHERIT PASSWORD '${password}'`);
+        const db = runtimeUrl.pathname.slice(1).replaceAll('"', '""');
+        await owner.query(`REVOKE TEMPORARY ON DATABASE "${db}" FROM PUBLIC`);
+        await owner.query(`GRANT USAGE ON SCHEMA public TO ${role}`);
+        vi.stubEnv("DATABASE_URL", runtimeUrl.href);
+        vi.stubEnv("INVENTORY_ENVIRONMENT", environment);
+        vi.stubEnv("VERCEL_ENV", environment);
+        previewBoundary.enabled = environment === "preview";
+        vi.stubEnv("INVENTORY_RUNTIME_ROLE", role);
+        vi.resetModules();
+        runtime = (await import("./db")).getPool();
+        const activePool = runtime;
+        const identities = await Promise.all([
+          activePool.query("SELECT current_user AS actor").then((result) => result.rows[0].actor),
+          new Promise<string>((resolve, reject) => {
+            activePool.query("SELECT current_user AS actor", (error, result) => {
+              if (error) reject(error);
+              else resolve(result.rows[0].actor);
+            });
+          }),
+          new Promise<string>((resolve, reject) => {
+            activePool.connect((error, client, release) => {
+              if (error || !client) return reject(error ?? new Error("Missing client"));
+              client.query("SELECT current_user AS actor").then(
+                (result) => {
+                  release();
+                  resolve(result.rows[0].actor);
+                },
+                (queryError) => {
+                  release();
+                  reject(queryError);
+                },
+              );
+            });
+          }),
+        ]);
+        expect(identities).toEqual([role, role, role]);
+      } finally {
+        if (runtime) await runtime.end();
+        await owner.query(`DROP OWNED BY ${role}`).catch(() => {});
+        await owner.query(`DROP ROLE IF EXISTS ${role}`);
+        await owner.end();
+        previewBoundary.enabled = false;
+      }
+    },
+  );
+  it("applies the same actual-role rejection in a shared synthetic Preview, including callback and Promise connections", async () => {
+    vi.unstubAllEnvs();
+    const url = process.env["DATABASE_URL"]!;
+    if (!new URL(url).pathname.endsWith("_test")) throw new Error("Disposable database required");
+    vi.stubEnv("INVENTORY_ENVIRONMENT", "preview");
+    vi.stubEnv("VERCEL_ENV", "preview");
+    vi.stubEnv("INVENTORY_RUNTIME_ROLE", decodeURIComponent(new URL(url).username));
+    vi.stubEnv("DATABASE_ADMIN_URL", "");
+    previewBoundary.enabled = true;
+    vi.resetModules();
+    const pool = (await import("./db")).getPool();
     try {
-      await owner.query(`CREATE ROLE ${role} LOGIN NOINHERIT PASSWORD '${password}'`);
-      const db = runtimeUrl.pathname.slice(1).replaceAll('"', '""');
-      await owner.query(`REVOKE TEMPORARY ON DATABASE "${db}" FROM PUBLIC`);
-      await owner.query(`GRANT USAGE ON SCHEMA public TO ${role}`);
-      vi.stubEnv("DATABASE_URL", runtimeUrl.href);
-      vi.stubEnv("INVENTORY_RUNTIME_ROLE", role);
-      vi.resetModules();
-      runtime = (await import("./db")).getPool();
-      const activePool = runtime;
-      const identities = await Promise.all([
-        activePool.query("SELECT current_user AS actor").then((result) => result.rows[0].actor),
-        new Promise<string>((resolve, reject) => {
-          activePool.query("SELECT current_user AS actor", (error, result) => {
-            if (error) reject(error);
-            else resolve(result.rows[0].actor);
-          });
-        }),
-        new Promise<string>((resolve, reject) => {
-          activePool.connect((error, client, release) => {
-            if (error || !client) return reject(error ?? new Error("Missing client"));
-            client.query("SELECT current_user AS actor").then(
-              (result) => {
-                release();
-                resolve(result.rows[0].actor);
-              },
-              (queryError) => {
-                release();
-                reject(queryError);
-              },
-            );
-          });
-        }),
-      ]);
-      expect(identities).toEqual([role, role, role]);
+      await expect(pool.query("SELECT 1")).rejects.toThrow("INVENTORY_RUNTIME_ROLE_REJECTED");
+      await expect(pool.connect()).rejects.toThrow("INVENTORY_RUNTIME_ROLE_REJECTED");
+      const error = await new Promise<Error>((resolve) =>
+        pool.query("SELECT 1", (problem) => resolve(problem)),
+      );
+      expect(error.message).toBe("INVENTORY_RUNTIME_ROLE_REJECTED");
     } finally {
-      if (runtime) await runtime.end();
-      await owner.query(`DROP OWNED BY ${role}`).catch(() => {});
-      await owner.query(`DROP ROLE IF EXISTS ${role}`);
-      await owner.end();
+      await pool.end();
+      previewBoundary.enabled = false;
     }
   });
 });

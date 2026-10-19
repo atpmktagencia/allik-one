@@ -1,7 +1,7 @@
-import { LaboratoryHistory } from "./laboratory-history";
+import { LaboratoryHistory, type LaboratoryHistoryViewState } from "./laboratory-history";
 import { PrivateDocumentPreview } from "./private-document-preview";
 import { LaboratoryReview } from "./laboratory-review";
-import { useEffect, useId, useRef, useState, type FormEvent } from "react";
+import { useEffect, useId, useRef, useState, type FormEvent, type MutableRefObject } from "react";
 import { Files, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,6 +21,7 @@ export type PatientDocument = {
   occurredAt: string;
   professionalId: string | null;
   professionalName: string;
+  unitId?: string;
   unitName: string;
   status: string;
   laboratoryStatus?: string | null;
@@ -48,6 +49,16 @@ const initialFilters = {
   dateTo: "",
   professionalId: "",
   sort: "date",
+};
+export type PatientDocumentCenterViewState = {
+  scope: string;
+  filters: typeof initialFilters;
+  search: string;
+  offset: number;
+  mode: "list" | "table";
+  selected: PatientDocument | null;
+  examPane: "files" | "history";
+  laboratoryHistory: MutableRefObject<LaboratoryHistoryViewState | null>;
 };
 const sourceNames: Record<string, string> = {
   CLINICAL_DOCUMENT: "Documento do atendimento",
@@ -89,18 +100,30 @@ function safeUrl(value: string | null) {
 export function PatientDocumentCenter({
   patientId,
   examsOnly = false,
+  unitId: requestedUnitId,
+  active = true,
+  viewState,
 }: {
   patientId: string;
   examsOnly?: boolean;
+  unitId?: string | undefined;
+  active?: boolean;
+  viewState?: MutableRefObject<PatientDocumentCenterViewState | null>;
 }) {
-  const [examPane, setExamPane] = useState<"files" | "history">("files");
-  const [filters, setFilters] = useState(initialFilters);
-  const [search, setSearch] = useState("");
-  const [offset, setOffset] = useState(0);
-  const [mode, setMode] = useState<"list" | "table">("list");
-  const [selected, setSelected] = useState<PatientDocument | null>(null);
+  const scope = `${patientId}:${requestedUnitId ?? selectedUnitId()}:${examsOnly}`;
+  const remembered = viewState?.current?.scope === scope ? viewState.current : null;
+  const historyViewState = useRef<LaboratoryHistoryViewState | null>(
+    remembered?.laboratoryHistory.current ?? null,
+  );
+  const [examPane, setExamPane] = useState<"files" | "history">(remembered?.examPane ?? "files");
+  const [filters, setFilters] = useState(remembered?.filters ?? initialFilters);
+  const [search, setSearch] = useState(remembered?.search ?? "");
+  const [offset, setOffset] = useState(remembered?.offset ?? 0);
+  const [mode, setMode] = useState<"list" | "table">(remembered?.mode ?? "list");
+  const [selected, setSelected] = useState<PatientDocument | null>(remembered?.selected ?? null);
   const detailRef = useRef<HTMLElement>(null);
   const [uploadOpen, setUploadOpen] = useState(false);
+  const [duplicate, setDuplicate] = useState<string | null>(null);
   const [categoryName, setCategoryName] = useState("");
   const [pending, setPending] = useState(false);
   const [message, setMessage] = useState("");
@@ -110,13 +133,27 @@ export function PatientDocumentCenter({
   const lock = useRef(false);
   const uploadOperation = useRef<{ key: string; id: string } | null>(null);
   const id = useId();
+  const mountedScope = useRef(scope);
+  useEffect(() => {
+    if (viewState)
+      viewState.current = {
+        scope,
+        filters,
+        search,
+        offset,
+        mode,
+        selected,
+        examPane,
+        laboratoryHistory: historyViewState,
+      };
+  }, [viewState, scope, filters, search, offset, mode, selected, examPane]);
   useEffect(() => {
     const timer = window.setTimeout(() => {
-      setFilters((previous) => ({ ...previous, search }));
-      setOffset(0);
+      setFilters((previous) => (previous.search === search ? previous : { ...previous, search }));
+      if (filters.search !== search) setOffset(0);
     }, 250);
     return () => window.clearTimeout(timer);
-  }, [search]);
+  }, [search, filters.search]);
   useEffect(() => {
     const invalidate = () => {
       generation.current++;
@@ -135,15 +172,21 @@ export function PatientDocumentCenter({
       setPending(false);
       lock.current = false;
       uploadOperation.current = null;
+      setDuplicate(null);
+      historyViewState.current = null;
     };
-    reset();
+    if (mountedScope.current !== scope) reset();
+    mountedScope.current = scope;
     window.addEventListener("inventory-unit-change", reset);
     return () => {
       invalidate();
       window.removeEventListener("inventory-unit-change", reset);
     };
-  }, [patientId]);
+  }, [patientId, requestedUnitId, scope]);
+  const previousExamsOnly = useRef(examsOnly);
   useEffect(() => {
+    if (previousExamsOnly.current === examsOnly) return;
+    previousExamsOnly.current = examsOnly;
     setSelected(null);
     setOffset(0);
     setFilters(initialFilters);
@@ -164,7 +207,10 @@ export function PatientDocumentCenter({
   });
   for (const [key, value] of Object.entries(filters)) if (value) params.set(key, value);
   if (examsOnly) params.set("categoryGroup", "EXAMS");
-  const query = useInventory<PatientDocumentsPayload>(`patient-documents?${params}`);
+  if (requestedUnitId !== undefined) params.set("unitId", requestedUnitId);
+  const query = useInventory<PatientDocumentsPayload>(`patient-documents?${params}`, {
+    enabled: active,
+  });
   const data = query.data;
   function filter(key: keyof typeof filters, value: string) {
     setFilters((previous) => ({ ...previous, [key]: value }));
@@ -184,6 +230,25 @@ export function PatientDocumentCenter({
       setError("Selecione pelo menos uma categoria.");
       return;
     }
+    if (
+      examsOnly &&
+      !categories.some((category) =>
+        ["EXAM_REQUEST", "LAB_RESULT", "IMAGE_REPORT"].includes(category),
+      )
+    ) {
+      setError("Selecione uma categoria de exame laboratorial, imagem ou solicitação.");
+      return;
+    }
+    body.set("intent", examsOnly ? "EXAM" : "DOCUMENT");
+    if (duplicate && body.get("confirmDuplicate") === "on") {
+      const reason = String(body.get("duplicateReason") ?? "").trim();
+      if (reason.length < 10) {
+        setError("Justifique a repetição com pelo menos 10 caracteres.");
+        return;
+      }
+      body.set("duplicateOf", duplicate);
+    } else body.delete("duplicateReason");
+    body.delete("confirmDuplicate");
     body.delete("category");
     body.set("categories", JSON.stringify(categories));
     body.set("patientId", patientId);
@@ -201,6 +266,8 @@ export function PatientDocumentCenter({
       title: body.get("title"),
       issuedOn: body.get("issuedOn"),
       categories,
+      duplicateOf: body.get("duplicateOf"),
+      duplicateReason: body.get("duplicateReason"),
       file: { name: file.name, size: file.size, type: file.type, lastModified: file.lastModified },
     });
     if (uploadOperation.current?.key !== operationKey)
@@ -208,6 +275,7 @@ export function PatientDocumentCenter({
     body.set("id", uploadOperation.current.id);
     await mutate(body, () => {
       uploadOperation.current = null;
+      setDuplicate(null);
       form.reset();
       setUploadOpen(false);
       setMessage("Original armazenado de forma privada.");
@@ -221,13 +289,27 @@ export function PatientDocumentCenter({
     setError("");
     setMessage("");
     try {
-      const response = await fetch(withSelectedUnit("/api/v1/inventory/patient-documents"), {
-        method: "POST",
-        credentials: "same-origin",
-        ...(body instanceof FormData
-          ? { body }
-          : { headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }),
-      });
+      const response = await fetch(
+        withSelectedUnit(
+          "/api/v1/inventory/patient-documents" +
+            (requestedUnitId !== undefined ? "?unitId=" + encodeURIComponent(requestedUnitId) : ""),
+        ),
+        {
+          method: "POST",
+          credentials: "same-origin",
+          ...(body instanceof FormData
+            ? { body }
+            : { headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }),
+        },
+      );
+      if (response.status === 409) {
+        const problem = await response
+          .clone()
+          .json()
+          .catch(() => null);
+        if (problem?.code === "DUPLICATE_DOCUMENT" && current === generation.current)
+          setDuplicate(typeof problem.duplicateId === "string" ? problem.duplicateId : null);
+      }
       await readInventoryResponse(response, "Não foi possível salvar o documento.");
       if (current !== generation.current) return;
       done();
@@ -294,7 +376,15 @@ export function PatientDocumentCenter({
           </Button>
         </nav>
       )}
-      {showHistory && <LaboratoryHistory key={patientId} patientId={patientId} />}
+      {showHistory && (
+        <LaboratoryHistory
+          key={patientId}
+          patientId={patientId}
+          unitId={requestedUnitId}
+          active={active}
+          viewState={historyViewState}
+        />
+      )}
       <div hidden={showHistory}>
         {message && (
           <p role="status" className="mb-3 text-sm text-teal-800">
@@ -327,12 +417,23 @@ export function PatientDocumentCenter({
               <fieldset>
                 <legend className="mb-2 text-sm font-medium">Categorias do arquivo (até 8)</legend>
                 <div className="flex max-h-40 flex-wrap gap-3 overflow-y-auto">
-                  {data.categories.map((category) => (
-                    <label key={category.id} className="flex items-center gap-2 text-sm">
-                      <input type="checkbox" name="category" value={category.id} />
-                      {category.name}
-                    </label>
-                  ))}
+                  {data.categories
+                    .filter(
+                      (category) =>
+                        !examsOnly ||
+                        ["EXAM_REQUEST", "LAB_RESULT", "IMAGE_REPORT"].includes(category.id),
+                    )
+                    .map((category) => (
+                      <label key={category.id} className="flex items-center gap-2 text-sm">
+                        <input
+                          type="checkbox"
+                          name="category"
+                          value={category.id}
+                          defaultChecked={examsOnly && category.id === "LAB_RESULT"}
+                        />
+                        {category.name}
+                      </label>
+                    ))}
                 </div>
               </fieldset>
               <div className="space-y-1 text-sm">
@@ -349,6 +450,27 @@ export function PatientDocumentCenter({
                   PDF, JPEG ou PNG de até 4 MB. Não substitui avaliação profissional.
                 </p>
               </div>
+              {duplicate && (
+                <div className="space-y-2 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm">
+                  <p>
+                    Este arquivo já existe para este paciente. Uma repetição pode duplicar
+                    resultados no histórico.
+                  </p>
+                  <label className="flex items-center gap-2">
+                    <input type="checkbox" name="confirmDuplicate" /> Registrar repetição
+                    intencional
+                  </label>
+                  <label className="block">
+                    Justificativa da repetição
+                    <Input
+                      name="duplicateReason"
+                      minLength={10}
+                      maxLength={500}
+                      placeholder="Explique por que é necessário anexar novamente"
+                    />
+                  </label>
+                </div>
+              )}
               <div className="flex gap-2">
                 <Button type="submit">{pending ? "Enviando…" : "Guardar arquivo original"}</Button>
                 <Button type="button" variant="outline" onClick={() => setUploadOpen(false)}>
@@ -644,6 +766,7 @@ export function PatientDocumentCenter({
                       key={patientId + selected.id}
                       patientId={patientId}
                       documentId={selected.sourceId}
+                      unitId={selected.unitId ?? requestedUnitId}
                       onChanged={() => {
                         void query.refetch();
                       }}

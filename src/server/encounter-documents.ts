@@ -1,3 +1,8 @@
+import {
+  clinicalDocumentArtifact,
+  clinicalRendererVersion,
+  persistClinicalDocumentArtifact,
+} from "./clinical-document-artifacts";
 import { appendIntegrationEvent } from "./integration-events";
 import { hasPrescriberContact, prescriberPrintDefaults } from "../lib/prescriber-contact";
 import { randomUUID } from "node:crypto";
@@ -33,19 +38,28 @@ const input = z.object({
   amendmentReason: z.string().trim().max(2000).default(""),
   appointmentId: uuid,
   documentId: uuid.nullable().default(null),
+  creationId: uuid.nullable().default(null),
   type: z.enum(documentTypes),
   title: z.string().trim().min(2).max(200),
   content: z.string().trim().max(30000),
   richContent: richContentSchema.nullable().default(null),
   twoCopies: z.boolean().default(false),
   prescriptionPrintData: prescriptionPrintDataSchema.nullable().default(null),
+  prescriptionSource: z
+    .object({
+      prescriptionId: uuid,
+      version: z.number().int().nonnegative(),
+      updatedAt: z.string().datetime(),
+    })
+    .nullable()
+    .default(null),
   version: z.number().int().nonnegative().nullable().default(null),
 });
-const fields = `${integrityFields},CASE WHEN final_snapshot->>'documentId'=id::text THEN 'A1-'||upper(id::text) END AS "verificationCode",id,type,title,content,rich_content AS "richContent",two_copies AS "twoCopies",prescription_print_data AS "prescriptionPrintData",status,version,
+const fields = `EXISTS(SELECT 1 FROM inventory_clinical_document_artifacts WHERE document_id=inventory_encounter_documents.id) AS "artifactPreserved",CASE WHEN status='FINAL' THEN jsonb_build_object('patientName',final_snapshot->>'patientName','unitName',final_snapshot->>'unitName','title',final_snapshot->>'title','content',final_snapshot->>'content','authorName',final_snapshot->>'authorName','professionalCouncil',final_snapshot->>'professionalCouncil','councilNumber',final_snapshot->>'councilNumber','councilRegion',final_snapshot->>'councilRegion') END AS "finalPreview",${integrityFields},CASE WHEN final_snapshot->>'documentId'=id::text THEN 'A1-'||upper(id::text) END AS "verificationCode",id,type,title,content,rich_content AS "richContent",two_copies AS "twoCopies",prescription_print_data AS "prescriptionPrintData",status,version,
   CASE WHEN final_snapshot IS NOT NULL THEN final_snapshot->>'authorName' ELSE author_name END AS "authorName",
   CASE WHEN final_snapshot IS NOT NULL THEN final_snapshot->>'professionalCouncil' ELSE professional_council END AS "professionalCouncil",
   CASE WHEN final_snapshot IS NOT NULL THEN final_snapshot->>'councilNumber' ELSE council_number END AS "councilNumber",
-  CASE WHEN final_snapshot IS NOT NULL THEN final_snapshot->>'councilRegion' ELSE council_region END AS "councilRegion",finalized_at AS "finalizedAt",updated_at AS "updatedAt"`;
+  CASE WHEN final_snapshot IS NOT NULL THEN final_snapshot->>'councilRegion' ELSE council_region END AS "councilRegion",prescription_source AS "prescriptionSource",finalized_at AS "finalizedAt",updated_at AS "updatedAt"`;
 export async function encounterDocumentsResponse(request: Request) {
   if (request.method === "GET" && new URL(request.url).searchParams.has("verify"))
     return verifyClinicalDocumentResponse(request);
@@ -62,7 +76,7 @@ export async function encounterDocumentsResponse(request: Request) {
         `SELECT d.*,p.full_name,p.internal_code,p.primary_unit_id AS patient_current_unit_id,u.name AS unit_name,
         (SELECT jsonb_build_object('parentDocumentId',a.parent_document_id,'kind',a.kind,'reason',a.reason,'parentSha256',a.parent_sha256) FROM inventory_clinical_document_amendments a WHERE a.document_id=d.id) AS amendment,
         (SELECT 'A1-'||upper(rchild.id::text) FROM inventory_clinical_document_amendments ra JOIN inventory_encounter_documents rchild ON rchild.id=ra.document_id
-          WHERE ra.parent_document_id=d.id AND ra.kind='RECTIFICATION' AND rchild.status='FINAL' ORDER BY rchild.finalized_at,rchild.id LIMIT 1) AS rectified_by
+          WHERE ra.parent_document_id=d.id AND ra.kind='RECTIFICATION' AND rchild.status='FINAL' ORDER BY rchild.finalized_at DESC,rchild.id DESC LIMIT 1) AS rectified_by
         FROM inventory_encounter_documents d JOIN inventory_patients p ON p.id=d.patient_id AND p.organization_id=d.organization_id
         JOIN inventory_units u ON u.id=d.unit_id WHERE d.id=$1 AND d.organization_id=$2`,
         [documentId, auth.organizationId],
@@ -90,7 +104,27 @@ export async function encounterDocumentsResponse(request: Request) {
         !(await verifiedDocumentIntegrity(doc.id))
       )
         return fail("Não foi possível verificar a integridade deste documento.", 409);
-      const html = renderClinicalDocumentPrint(doc);
+      let artifact;
+      try {
+        artifact = doc.status === "FINAL" ? await clinicalDocumentArtifact(doc) : null;
+      } catch {
+        return fail("Não foi possível verificar a integridade do arquivo final.", 409);
+      }
+      // The immutable original is retained; a supersession warning is a live safety overlay.
+      let html = artifact ? artifact.html : renderClinicalDocumentPrint(doc);
+      if (doc.rectified_by && artifact) {
+        // Only this live administrative warning changes; the stored original stays byte-identical.
+        const notice = renderClinicalDocumentPrint(doc).match(
+          /<div class="warning superseded">[\s\S]*?<\/div>/,
+        )?.[0];
+        if (!notice) return fail("Não foi possível identificar a retificação vigente.", 409);
+        html = html.replace("<body>", `<body>${notice}`);
+      }
+      if (doc.status === "FINAL" && !artifact)
+        html = html.replace(
+          "</footer>",
+          '<p class="notice">Documento legado: snapshot preservado; esta apresentação foi regenerada pelo renderizador atual. Os bytes originais não foram arquivados na finalização.</p></footer>',
+        );
       await recordClinicalAccess(auth, {
         unitId: doc.unit_id,
         patientId: doc.patient_id,
@@ -102,6 +136,14 @@ export async function encounterDocumentsResponse(request: Request) {
         headers: {
           ...headers,
           "Content-Type": "text/html; charset=utf-8",
+          "X-Allik-Artifact":
+            doc.status !== "FINAL"
+              ? "draft-preview"
+              : artifact
+                ? doc.rectified_by
+                  ? "preserved-with-supersession-notice"
+                  : "preserved"
+                : "legacy-regenerated",
           "Content-Security-Policy":
             "default-src 'none'; style-src 'unsafe-inline'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'",
           "X-Content-Type-Options": "nosniff",
@@ -112,7 +154,7 @@ export async function encounterDocumentsResponse(request: Request) {
     const appointmentId = url.searchParams.get("appointmentId");
     if (!uuid.safeParse(appointmentId).success) return fail("Atendimento inválido.", 400);
     const result = await getPool().query(
-      `SELECT a.*,u.professional_council,u.council_number,u.council_region,u.prescribing_address,u.prescribing_city,u.prescribing_state,u.prescribing_phone,p.full_name,p.birth_date::text,p.document_number,p.additional_data, p.private_data,n.name AS unit_name
+      `SELECT a.*,u.professional_council,u.council_number,u.council_region,u.prescribing_address,u.prescribing_city,u.prescribing_state,u.prescribing_phone,p.full_name,p.birth_date::text,p.document_number,p.additional_data, p.private_data,p.primary_unit_id AS patient_current_unit_id,n.name AS unit_name
       FROM inventory_care_appointments a JOIN inventory_users u ON u.id=a.professional_user_id
       JOIN inventory_patients p ON p.id=a.patient_id AND p.organization_id=a.organization_id
       JOIN inventory_units n ON n.id=a.unit_id AND n.organization_id=a.organization_id
@@ -120,7 +162,11 @@ export async function encounterDocumentsResponse(request: Request) {
       [appointmentId, auth.organizationId],
     );
     const appointment = result.rows[0];
-    if (!appointment || !can(auth, "patients.private.read", appointment.unit_id))
+    if (
+      !appointment ||
+      !can(auth, "patients.private.read", appointment.unit_id) ||
+      !can(auth, "patients.private.read", appointment.patient_current_unit_id)
+    )
       return fail("Atendimento não encontrado.", 404);
     const [documents, templates] = await Promise.all([
       getPool().query(
@@ -137,7 +183,7 @@ export async function encounterDocumentsResponse(request: Request) {
       String(appointment.patient_id),
       String(appointment.unit_id),
     );
-    const canAuthor = Boolean(
+    const canOperate = Boolean(
       auth.user.id &&
       !auth.preview &&
       !auth.integration &&
@@ -146,6 +192,7 @@ export async function encounterDocumentsResponse(request: Request) {
       !["NO_SHOW", "CANCELED"].includes(appointment.status) &&
       can(auth, "patients.clinical.manage", appointment.unit_id),
     );
+    const canAuthor = canOperate && appointment.status !== "COMPLETED";
     await recordClinicalAccess(auth, {
       unitId: appointment.unit_id,
       patientId: appointment.patient_id,
@@ -156,7 +203,7 @@ export async function encounterDocumentsResponse(request: Request) {
     return Response.json(
       {
         data: {
-          allowedDocumentTypes: canAuthor
+          allowedDocumentTypes: canOperate
             ? documentTypes.filter((t) =>
                 canWriteClinicalDocument(appointment.professional_council, t),
               )
@@ -164,14 +211,14 @@ export async function encounterDocumentsResponse(request: Request) {
           documents: documents.rows.map(({ author_user_id, ...document }) => ({
             ...document,
             canShare: Boolean(
-              canAuthor &&
+              canOperate &&
               author_user_id === auth.user.id &&
               document.status === "FINAL" &&
               document.type === "PRESCRIPTION" &&
               document.integrityVerified,
             ),
             canAmend: Boolean(
-              canAuthor &&
+              canOperate &&
               author_user_id === auth.user.id &&
               document.status === "FINAL" &&
               document.integrityVerified &&
@@ -179,9 +226,10 @@ export async function encounterDocumentsResponse(request: Request) {
               canWriteClinicalDocument(appointment.professional_council, document.type),
             ),
             canEdit: Boolean(
-              canAuthor &&
+              canOperate &&
               author_user_id === auth.user.id &&
               document.status === "DRAFT" &&
+              (appointment.status !== "COMPLETED" || Boolean(document.amendment)) &&
               canWriteClinicalDocument(appointment.professional_council, document.type),
             ),
           })),
@@ -235,13 +283,18 @@ export async function encounterDocumentsResponse(request: Request) {
   try {
     await client.query("BEGIN");
     const result = await client.query(
-      `SELECT a.*,u.name AS author_name,u.professional_council,u.council_number,u.council_region,u.prescribing_address,u.prescribing_city,u.prescribing_state,u.prescribing_phone
+      `SELECT a.*,p.primary_unit_id AS patient_current_unit_id,u.name AS author_name,u.professional_council,u.council_number,u.council_region,u.prescribing_address,u.prescribing_city,u.prescribing_state,u.prescribing_phone
       FROM inventory_care_appointments a JOIN inventory_users u ON u.id=a.professional_user_id
+      JOIN inventory_patients p ON p.id=a.patient_id AND p.organization_id=a.organization_id
       WHERE a.id=$1 AND a.organization_id=$2 FOR UPDATE OF a`,
       [data.appointmentId, auth.organizationId],
     );
     const appointment = result.rows[0];
-    if (!appointment || !can(auth, "patients.clinical.manage", appointment.unit_id))
+    if (
+      !appointment ||
+      !can(auth, "patients.clinical.manage", appointment.unit_id) ||
+      !can(auth, "patients.private.read", appointment.patient_current_unit_id)
+    )
       throw new Error("NOT_FOUND");
     if (appointment.professional_user_id !== auth.user.id) throw new Error("NOT_AUTHOR");
     if (
@@ -256,6 +309,25 @@ export async function encounterDocumentsResponse(request: Request) {
     )
       throw new Error("PROFESSIONAL_SCOPE");
     if (["NO_SHOW", "CANCELED"].includes(appointment.status)) throw new Error("TERMINAL");
+    if (appointment.status === "COMPLETED" && data.action !== "CREATE_AMENDMENT") {
+      // A closed encounter accepts only an explicit, independently audited amendment.
+      // Ordinary drafts, new documents and template creation stay closed.
+      if (!data.documentId || !["SAVE_DRAFT", "FINALIZE"].includes(data.action))
+        throw new Error("TERMINAL");
+      const linked = await client.query(
+        `SELECT 1 FROM inventory_encounter_documents child
+         JOIN inventory_clinical_document_amendments a ON a.document_id=child.id
+         JOIN inventory_encounter_documents parent ON parent.id=a.parent_document_id
+         JOIN inventory_clinical_document_seals s ON s.document_id=parent.id
+         WHERE child.id=$1 AND child.appointment_id=$2 AND child.organization_id=$3 AND child.author_user_id=$4 AND child.status='DRAFT'
+           AND parent.status='FINAL' AND parent.organization_id=child.organization_id AND parent.appointment_id=child.appointment_id
+           AND parent.patient_id=child.patient_id AND parent.unit_id=child.unit_id AND parent.author_user_id=child.author_user_id
+           AND s.content_sha256=a.parent_sha256 AND s.content_sha256=encode(sha256(convert_to(parent.final_snapshot::text,'UTF8')),'hex')
+         FOR SHARE OF parent`,
+        [data.documentId, data.appointmentId, auth.organizationId, auth.user.id],
+      );
+      if (!linked.rowCount) throw new Error("TERMINAL");
+    }
     if (
       data.type === "PRESCRIPTION" &&
       data.action !== "SAVE_TEMPLATE" &&
@@ -288,6 +360,37 @@ export async function encounterDocumentsResponse(request: Request) {
       await client.query("COMMIT");
       return Response.json({ data: saved.rows[0] }, { status: 201, headers });
     }
+    if (data.creationId && !data.documentId && data.action === "SAVE_DRAFT") {
+      const retry = (
+        await client.query(
+          `SELECT id,organization_id,appointment_id,author_user_id,type,status,version,
+            (content=$2 AND rich_content IS NOT DISTINCT FROM $3::jsonb AND two_copies=$4 AND prescription_print_data IS NOT DISTINCT FROM $5::jsonb) AS same_creation
+           FROM inventory_encounter_documents WHERE id=$1 FOR UPDATE`,
+          [
+            data.creationId,
+            data.content,
+            data.richContent,
+            data.twoCopies,
+            data.prescriptionPrintData,
+          ],
+        )
+      ).rows[0];
+      if (retry) {
+        if (
+          retry.organization_id !== auth.organizationId ||
+          retry.appointment_id !== data.appointmentId ||
+          retry.author_user_id !== auth.user.id ||
+          retry.type !== data.type
+        )
+          throw new Error("NOT_FOUND");
+        if (!retry.same_creation) throw new Error("STALE");
+        await client.query("COMMIT");
+        return Response.json(
+          { data: { id: retry.id, status: retry.status, version: retry.version } },
+          { headers },
+        );
+      }
+    }
     let previous = data.documentId
       ? (
           await client.query(
@@ -314,6 +417,13 @@ export async function encounterDocumentsResponse(request: Request) {
         [previous.id, previous.final_snapshot],
       );
       if (!source.rowCount) throw new Error("AMENDMENT");
+      if (data.amendmentKind === "RECTIFICATION") {
+        const sibling = await client.query(
+          `SELECT 1 FROM inventory_clinical_document_amendments WHERE parent_document_id=$1 AND kind='RECTIFICATION' LIMIT 1`,
+          [previous.id],
+        );
+        if (sibling.rowCount) throw new Error("RECTIFICATION_EXISTS");
+      }
       amendmentSource = { id: previous.id, hash: source.rows[0].content_sha256 };
       previous = null;
       data.version = null;
@@ -323,7 +433,52 @@ export async function encounterDocumentsResponse(request: Request) {
     if (previous?.status === "FINAL") throw new Error("FINAL");
     if ((previous ? Number(previous.version) : null) !== data.version) throw new Error("STALE");
     if (previous && previous.type !== data.type) throw new Error("TYPE");
-    const documentId = previous?.id ?? randomUUID();
+    let prescriptionSource = null;
+    const priorSource = previous?.prescription_source;
+    if (
+      data.prescriptionSource &&
+      priorSource?.snapshot &&
+      priorSource.relationship === "INDEPENDENT_DOCUMENT_REVIEW_REQUIRED" &&
+      priorSource.prescriptionId === data.prescriptionSource.prescriptionId &&
+      priorSource.version === data.prescriptionSource.version &&
+      priorSource.updatedAt === data.prescriptionSource.updatedAt
+    ) {
+      // Preserve the independently reviewed historical origin; a later therapeutic revision
+      // cannot silently synchronize or invalidate this document's canonical source snapshot.
+      prescriptionSource = priorSource;
+    } else if (data.prescriptionSource) {
+      if (data.type !== "PRESCRIPTION") throw new Error("PRESCRIPTION_SOURCE");
+      const sourceResult = await client.query(
+        `SELECT id,items,general_instructions,status,version,updated_at,author_user_id FROM inventory_encounter_prescriptions WHERE id=$1 AND appointment_id=$2 AND organization_id=$3 AND patient_id=$4 FOR SHARE`,
+        [
+          data.prescriptionSource.prescriptionId,
+          data.appointmentId,
+          auth.organizationId,
+          appointment.patient_id,
+        ],
+      );
+      const source = sourceResult.rows[0];
+      if (
+        !source ||
+        source.author_user_id !== auth.user.id ||
+        source.version !== data.prescriptionSource.version ||
+        new Date(source.updated_at).toISOString() !== data.prescriptionSource.updatedAt
+      )
+        throw new Error("PRESCRIPTION_SOURCE");
+      prescriptionSource = {
+        ...data.prescriptionSource,
+        snapshot: {
+          items: source.items,
+          generalInstructions: source.general_instructions,
+          status: source.status,
+        },
+        relationship: "INDEPENDENT_DOCUMENT_REVIEW_REQUIRED",
+      };
+    }
+    const documentId =
+      previous?.id ??
+      (data.action === "SAVE_DRAFT" && !data.documentId ? data.creationId : null) ??
+      randomUUID();
     const final = data.action === "FINALIZE";
     let finalSnapshot = null;
     if (final) {
@@ -347,6 +502,17 @@ export async function encounterDocumentsResponse(request: Request) {
             )
           ).rows[0]?.metadata
         : undefined;
+      if (amendment?.kind === "RECTIFICATION") {
+        // All siblings serialize through their original even for legacy drafts.
+        await client.query("SELECT id FROM inventory_encounter_documents WHERE id=$1 FOR UPDATE", [
+          amendment.parentDocumentId,
+        ]);
+        const sibling = await client.query(
+          `SELECT 1 FROM inventory_clinical_document_amendments a JOIN inventory_encounter_documents d ON d.id=a.document_id WHERE a.parent_document_id=$1 AND a.kind='RECTIFICATION' AND d.id<>$2 AND d.status='FINAL' LIMIT 1`,
+          [amendment.parentDocumentId, previous!.id],
+        );
+        if (sibling.rowCount) throw new Error("RECTIFICATION_EXISTS");
+      }
       const canonicalPatient = patientPrintDefaults(identity, identity.finalized_at);
       if (data.type === "PRESCRIPTION") {
         if (!hasPrescriberContact(identity)) throw new Error("PRESCRIBER_CONTACT_REQUIRED");
@@ -388,6 +554,8 @@ export async function encounterDocumentsResponse(request: Request) {
         },
         ...(amendment ? { amendment } : {}),
         snapshotVersion: 1,
+        rendererVersion: clinicalRendererVersion,
+        ...(prescriptionSource ? { prescriptionSource } : {}),
         patientName: identity.full_name,
         patientCode: identity.internal_code,
         unitName: identity.unit_name,
@@ -405,11 +573,12 @@ export async function encounterDocumentsResponse(request: Request) {
       };
     }
     // Fail before making an unrenderable document immutable.
-    if (finalSnapshot)
-      await renderClinicalDocumentPdf({ status: "FINAL", final_snapshot: finalSnapshot });
+    const finalPdf = finalSnapshot
+      ? await renderClinicalDocumentPdf({ status: "FINAL", final_snapshot: finalSnapshot })
+      : null;
     const saved = previous
       ? await client.query(
-          `UPDATE inventory_encounter_documents SET title=$2,content=$3,status=$4,version=version+1,updated_at=now(),final_snapshot=$5,rich_content=$6,two_copies=$7,prescription_print_data=$8,finalized_at=CASE WHEN $4='FINAL' THEN now() ELSE NULL END WHERE id=$1 RETURNING *`,
+          `UPDATE inventory_encounter_documents SET title=$2,content=$3,status=$4,version=version+1,updated_at=now(),final_snapshot=$5,rich_content=$6,two_copies=$7,prescription_print_data=$8,prescription_source=$9,finalized_at=CASE WHEN $4='FINAL' THEN now() ELSE NULL END WHERE id=$1 RETURNING *`,
           [
             previous.id,
             data.title,
@@ -419,11 +588,12 @@ export async function encounterDocumentsResponse(request: Request) {
             data.richContent,
             data.twoCopies,
             data.prescriptionPrintData,
+            prescriptionSource,
           ],
         )
       : await client.query(
-          `INSERT INTO inventory_encounter_documents(organization_id,unit_id,appointment_id,patient_id,author_user_id,author_name,professional_council,council_number,council_region,type,title,content,status,finalized_at,final_snapshot,rich_content,two_copies,prescription_print_data,id)
-        VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,CASE WHEN $13='FINAL' THEN now() ELSE NULL END,$14,$15,$16,$17,$18) RETURNING *`,
+          `INSERT INTO inventory_encounter_documents(organization_id,unit_id,appointment_id,patient_id,author_user_id,author_name,professional_council,council_number,council_region,type,title,content,status,finalized_at,final_snapshot,rich_content,two_copies,prescription_print_data,id,prescription_source)
+        VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,CASE WHEN $13='FINAL' THEN now() ELSE NULL END,$14,$15,$16,$17,$18,$19) RETURNING *`,
           [
             auth.organizationId,
             appointment.unit_id,
@@ -443,9 +613,11 @@ export async function encounterDocumentsResponse(request: Request) {
             data.twoCopies,
             data.prescriptionPrintData,
             documentId,
+            prescriptionSource,
           ],
         );
     const document = saved.rows[0];
+    if (finalPdf) await persistClinicalDocumentArtifact(client, document, finalPdf);
     if (amendmentSource)
       await client.query(
         `INSERT INTO inventory_clinical_document_amendments(document_id,parent_document_id,kind,reason,parent_sha256) VALUES($1,$2,$3,$4,$5)`,
@@ -506,6 +678,14 @@ export async function encounterDocumentsResponse(request: Request) {
       ],
       PATIENT_IDENTITY_CHANGED: [
         "Os dados de impressão do paciente diferem do cadastro atual. Confira o cadastro, recarregue o atendimento e revise os dados da receita antes de finalizar.",
+        409,
+      ],
+      RECTIFICATION_EXISTS: [
+        "Este original já possui uma retificação. Abra a retificação existente; não crie correções paralelas.",
+        409,
+      ],
+      PRESCRIPTION_SOURCE: [
+        "O registro terapêutico de origem mudou ou não pertence a este atendimento. Confira e insira novamente os itens antes de salvar a receita.",
         409,
       ],
       AMENDMENT: [

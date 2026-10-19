@@ -1,5 +1,6 @@
 import "@tanstack/react-start/server-only";
 import { createHash, randomUUID } from "node:crypto";
+import { OriginalIntegrityError, verifiedOriginal } from "./private-original";
 import { PATIENT_DOCUMENT_MAX_BYTES } from "../data/patient-document-upload";
 import { z } from "zod";
 import { get, put, del } from "@vercel/blob";
@@ -60,7 +61,7 @@ const filters = z
     sort: z.enum(["date", "relevance"]).default("date"),
     offset: z.coerce.number().int().min(0).max(10000).default(0),
     limit: z.coerce.number().int().min(1).max(50).default(25),
-    unitId: uuid.optional(),
+    unitId: z.preprocess((value) => (value === "" ? undefined : value), uuid.optional()),
   })
   .strict()
   .refine((f) => !f.dateFrom || !f.dateTo || f.dateFrom <= f.dateTo);
@@ -75,6 +76,9 @@ const uploadInput = z
       .max(8)
       .refine((a) => new Set(a).size === a.length),
     issuedOn: date.nullable(),
+    intent: z.enum(["DOCUMENT", "EXAM"]).default("DOCUMENT"),
+    duplicateOf: uuid.optional(),
+    duplicateReason: z.string().trim().min(10).max(500).optional(),
   })
   .strict();
 async function context(auth: AuthContext, patientId: string) {
@@ -186,8 +190,8 @@ export async function patientDocumentsResponse(request: Request) {
       auth.user.id,
       c.clinical,
       c.commercial,
-      c.clinicalUnits,
-      c.commercialUnits,
+      f.unitId ? c.clinicalUnits.filter((id) => id === f.unitId) : c.clinicalUnits,
+      f.unitId ? c.commercialUnits.filter((id) => id === f.unitId) : c.commercialUnits,
       pattern,
       f.category ?? null,
       f.dateFrom ?? null,
@@ -209,7 +213,7 @@ export async function patientDocumentsResponse(request: Request) {
     ).rows;
     const records = rows.slice(0, f.limit),
       documents = records.map((r) => {
-        const fileUrl = `/api/v1/inventory/patient-document-file?patientId=${f.patientId}&sourceKind=${r.source_kind}&sourceId=${r.source_id}&revision=${r.revision}`;
+        const fileUrl = `/api/v1/inventory/patient-document-file?patientId=${f.patientId}&sourceKind=${r.source_kind}&sourceId=${r.source_id}&revision=${r.revision}&unitId=${r.unit_id}`;
         const preview = [
             "CLINICAL_DOCUMENT",
             "PLAN_QUOTE",
@@ -227,6 +231,7 @@ export async function patientDocumentsResponse(request: Request) {
           occurredAt: r.occurred_at,
           professionalId: r.professional_id,
           professionalName: r.professional_name,
+          unitId: r.unit_id,
           unitName: r.unit_name,
           status: r.status,
           laboratoryStatus: r.laboratory_status ?? null,
@@ -247,7 +252,7 @@ export async function patientDocumentsResponse(request: Request) {
     await audited(
       auth,
       f.patientId,
-      c.patient.primary_unit_id,
+      f.unitId ?? c.patient.primary_unit_id,
       records.map((r) => r.source_id),
     );
     const people = (
@@ -333,6 +338,9 @@ async function upload(request: Request, auth: AuthContext) {
       title: form.get("title"),
       categories: cats,
       issuedOn: form.get("issuedOn") || null,
+      intent: form.get("intent") || "DOCUMENT",
+      duplicateOf: form.get("duplicateOf") || undefined,
+      duplicateReason: form.get("duplicateReason") || undefined,
     }),
     file = form.get("file");
   if (!parsed.success || !(file instanceof File) || file.size < 1 || file.size > max)
@@ -340,6 +348,25 @@ async function upload(request: Request, auth: AuthContext) {
   const d = parsed.data,
     c = await context(auth, d.patientId);
   if (!c || !c.clinical) return fail("Paciente não autorizado para envio.", 403);
+  if (
+    d.intent === "EXAM" &&
+    !d.categories.some((id) => ["EXAM_REQUEST", "LAB_RESULT", "IMAGE_REPORT"].includes(id))
+  )
+    return fail(
+      "Importações de exames exigem categoria de exame laboratorial, imagem ou solicitação.",
+      400,
+    );
+  if (!!d.duplicateOf !== !!d.duplicateReason)
+    return fail(
+      "Confirme o arquivo repetido e informe uma justificativa de pelo menos 10 caracteres.",
+      400,
+    );
+  const requestedUnit = new URL(request.url).searchParams.get("unitId");
+  if (requestedUnit && requestedUnit !== c.patient.primary_unit_id)
+    return fail(
+      "O envio pertence à unidade atual do paciente. Selecione essa unidade para anexar.",
+      409,
+    );
   const known = await categories(auth);
   if (d.categories.some((id) => !known.some((k) => k.id === id)))
     return fail("Categoria não pertence a esta organização.", 400);
@@ -371,7 +398,7 @@ async function upload(request: Request, auth: AuthContext) {
     ]);
     const previous = (
       await client.query(
-        "SELECT *,issued_on::text AS issued_on FROM inventory_patient_documents WHERE id=$1 AND organization_id=$2",
+        "SELECT d.*,d.issued_on::text AS issued_on,(SELECT e.metadata FROM inventory_patient_document_events e WHERE e.document_id=d.id AND e.action='UPLOADED') AS upload_metadata FROM inventory_patient_documents d WHERE d.id=$1 AND d.organization_id=$2",
         [id, auth.organizationId],
       )
     ).rows[0];
@@ -386,7 +413,9 @@ async function upload(request: Request, auth: AuthContext) {
         previous.original_filename === file.name.slice(0, 180) &&
         previous.sha256 === sha256 &&
         previous.content_type === type &&
-        previous.size_bytes === bytes.length;
+        previous.size_bytes === bytes.length &&
+        (previous.upload_metadata?.duplicateOf ?? undefined) === d.duplicateOf &&
+        (previous.upload_metadata?.duplicateReason ?? undefined) === d.duplicateReason;
       if (!equal) {
         await client.query("ROLLBACK");
         return fail("Identificador reutilizado com outro arquivo ou dados.", 409);
@@ -394,6 +423,33 @@ async function upload(request: Request, auth: AuthContext) {
       commitAttempted = true;
       await client.query("COMMIT");
       return Response.json({ data: { id } }, { headers });
+    }
+    // Serialize content identity as well as operation identity: distinct UUIDs cannot race.
+    await client.query("SELECT pg_advisory_xact_lock(hashtextextended($1,0))", [
+      `${auth.organizationId}:patient-document-content:${d.patientId}:${sha256}`,
+    ]);
+    const duplicate = (
+      await client.query(
+        "SELECT id,unit_id FROM inventory_patient_documents WHERE organization_id=$1 AND patient_id=$2 AND sha256=$3 ORDER BY created_at,id LIMIT 1",
+        [auth.organizationId, d.patientId, sha256],
+      )
+    ).rows[0];
+    if (duplicate && (!d.duplicateOf || d.duplicateOf !== duplicate.id || !d.duplicateReason)) {
+      await client.query("ROLLBACK");
+      return Response.json(
+        {
+          error:
+            "Este arquivo já foi anexado a este paciente. Abra o original ou justifique uma repetição intencional.",
+          code: "DUPLICATE_DOCUMENT",
+          // Do not disclose an original from a historical unit outside this actor's scope.
+          duplicateId: c.clinicalUnits.includes(duplicate.unit_id) ? duplicate.id : null,
+        },
+        { status: 409, headers },
+      );
+    }
+    if (!duplicate && d.duplicateOf) {
+      await client.query("ROLLBACK");
+      return fail("O original indicado para repetição não corresponde ao arquivo.", 409);
     }
     const blob = await put(pathname, bytes, {
       access: "private",
@@ -429,8 +485,14 @@ async function upload(request: Request, auth: AuthContext) {
       ],
     );
     await client.query(
-      "INSERT INTO inventory_patient_document_events(organization_id,unit_id,document_id,actor_user_id,action) VALUES($1,$2,$3,$4,'UPLOADED')",
-      [auth.organizationId, c.patient.primary_unit_id, id, auth.user.id],
+      "INSERT INTO inventory_patient_document_events(organization_id,unit_id,document_id,actor_user_id,action,metadata) VALUES($1,$2,$3,$4,'UPLOADED',$5)",
+      [
+        auth.organizationId,
+        c.patient.primary_unit_id,
+        id,
+        auth.user.id,
+        duplicate ? { duplicateOf: duplicate.id, duplicateReason: d.duplicateReason } : {},
+      ],
     );
     commitAttempted = true;
     await client.query("COMMIT");
@@ -457,7 +519,7 @@ export async function patientDocumentFileResponse(request: Request) {
       sourceId: uuid,
       revision: z.coerce.number().int().nonnegative().optional(),
       download: z.literal("true").optional(),
-      unitId: uuid.optional(),
+      unitId: z.preprocess((value) => (value === "" ? undefined : value), uuid.optional()),
     })
     .strict()
     .safeParse(Object.fromEntries(new URL(request.url).searchParams));
@@ -477,8 +539,8 @@ export async function patientDocumentFileResponse(request: Request) {
           auth.user.id,
           c.clinical,
           c.commercial,
-          c.clinicalUnits,
-          c.commercialUnits,
+          f.unitId ? c.clinicalUnits.filter((id) => id === f.unitId) : c.clinicalUnits,
+          f.unitId ? c.commercialUnits.filter((id) => id === f.unitId) : c.commercialUnits,
           f.sourceKind,
           f.sourceId,
           f.revision ?? null,
@@ -491,7 +553,13 @@ export async function patientDocumentFileResponse(request: Request) {
       const q = (
         await getPool().query(
           "SELECT q.plan_id FROM inventory_plan_quotes q JOIN inventory_plan_quote_versions v ON v.quote_id=q.id AND v.organization_id=q.organization_id AND v.unit_id=q.unit_id WHERE q.id=$1 AND q.organization_id=$2 AND q.patient_id=$3 AND q.unit_id=ANY($4::uuid[]) AND ($5::int IS NULL OR v.version=$5)",
-          [f.sourceId, auth.organizationId, f.patientId, c.commercialUnits, f.revision ?? null],
+          [
+            f.sourceId,
+            auth.organizationId,
+            f.patientId,
+            f.unitId ? c.commercialUnits.filter((id) => id === f.unitId) : c.commercialUnits,
+            f.revision ?? null,
+          ],
         )
       ).rows[0];
       if (!c.commercial || !q) return fail("Documento não encontrado.", 404);
@@ -534,9 +602,17 @@ export async function patientDocumentFileResponse(request: Request) {
     if (!doc) return fail("Documento não encontrado.", 404);
     const blob = await get(doc.blob_pathname, { access: "private" });
     if (!blob || blob.statusCode !== 200) return fail("Arquivo indisponível.", 404);
-    await audited(auth, f.patientId, doc.unit_id, [doc.id]);
+    const bytes = await verifiedOriginal(blob.stream, doc.size_bytes, doc.sha256);
+    await recordClinicalAccess(auth, {
+      patientId: f.patientId,
+      unitId: doc.unit_id,
+      sourceKind: "GENERAL_DOCUMENT",
+      sourceId: doc.id,
+      action: f.download ? "DOCUMENT_DOWNLOAD" : "DOCUMENT_OPEN",
+      resourceIds: [doc.id],
+    });
     const name = String(doc.original_filename).replace(/["\\\r\n]/g, "_");
-    return new Response(blob.stream, {
+    return new Response(bytes, {
       headers: {
         ...headers,
         "Content-Type": doc.content_type,
@@ -546,7 +622,16 @@ export async function patientDocumentFileResponse(request: Request) {
         "Content-Security-Policy": "default-src 'none'; sandbox; frame-ancestors 'self'",
       },
     });
-  } catch {
+  } catch (error) {
+    if (error instanceof OriginalIntegrityError)
+      return Response.json(
+        {
+          error:
+            "A integridade do arquivo original não pôde ser confirmada. Nenhum conteúdo foi entregue.",
+          code: "SOURCE_INTEGRITY",
+        },
+        { status: 503, headers },
+      );
     return fail("Não foi possível acessar o documento.", 503);
   }
 }

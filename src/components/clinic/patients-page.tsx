@@ -1,4 +1,4 @@
-import { useDeferredValue, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import { useDeferredValue, useEffect, useRef, useState, type FormEvent } from "react";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { Pencil, Plus, Search, UserRound } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -31,6 +31,7 @@ type Patient = {
 };
 type Payload = {
   patients: Patient[];
+  pagination?: { page: number; pageSize: number; hasMore: boolean };
   units: Array<{ id: string; name: string }>;
   canManage: boolean;
   canReadPrivate?: boolean;
@@ -116,11 +117,13 @@ export function PatientsPage({
 }) {
   const [search, setSearch] = useState("");
   const deferredSearch = useDeferredValue(search);
+  const [page, setPage] = useState(1);
   const resource =
     deferredSearch.trim().length >= 2
       ? `patients?search=${encodeURIComponent(deferredSearch.trim())}`
       : "patients";
-  const query = useInventory<Payload>(resource);
+  const paginatedResource = `${resource}${resource.includes("?") ? "&" : "?"}page=${page}&pageSize=50`;
+  const query = useInventory<Payload>(paginatedResource);
   const canReadPrivate = query.data?.canReadPrivate !== false;
   const navigate = useNavigate();
   const autoCreateStarted = useRef(false);
@@ -142,24 +145,8 @@ export function PatientsPage({
     setFormOpen(true);
     setPhoto(null);
   }, [autoCreate, query.data]);
-  const patientList = query.data?.patients;
-  const filteredPatients = useMemo(() => {
-    const patients = patientList ?? [];
-    const term = deferredSearch.trim().toLocaleLowerCase("pt-BR");
-    if (!term) return patients;
-    return patients.filter((patient) =>
-      [
-        patient.fullName,
-        patient.internalCode,
-        patient.documentNumber,
-        patient.phone,
-        patient.email,
-        patient.unitName,
-      ]
-        .filter(Boolean)
-        .some((value) => value!.toLocaleLowerCase("pt-BR").includes(term)),
-    );
-  }, [deferredSearch, patientList]);
+  // Search normalization and matching belong to the paginated backend query.
+  const filteredPatients = query.data?.patients ?? [];
 
   if (query.isPending || query.error)
     return (
@@ -310,6 +297,32 @@ export function PatientsPage({
 
   return (
     <div className="space-y-6">
+      {query.data?.pagination && (
+        <nav
+          aria-label="Paginação dos pacientes"
+          className="flex items-center justify-end gap-3 text-sm"
+        >
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={page === 1 || query.isFetching}
+            onClick={() => setPage((value) => value - 1)}
+          >
+            Página anterior
+          </Button>
+          <span>
+            Página {page} · até {query.data.pagination.pageSize} pacientes
+          </span>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={!query.data.pagination.hasMore || query.isFetching}
+            onClick={() => setPage((value) => value + 1)}
+          >
+            Próxima página
+          </Button>
+        </nav>
+      )}
       <PageHeader
         eyebrow="Atendimento"
         title="Paciente360º"
@@ -685,7 +698,7 @@ export function PatientsPage({
             <h2 className="font-display font-semibold">Cadastros autorizados</h2>
             <p className="text-sm text-muted-foreground">
               {patients.length}{" "}
-              {patients.length === 1 ? "paciente no escopo atual" : "pacientes no escopo atual"}
+              {patients.length === 1 ? "paciente nesta página" : "pacientes nesta página"}
             </p>
           </div>
           <label className="relative block sm:w-80">
@@ -696,7 +709,10 @@ export function PatientsPage({
               type="search"
               placeholder="Buscar por nome, CPF, código ou contato"
               value={search}
-              onChange={(event) => setSearch(event.target.value)}
+              onChange={(event) => {
+                setSearch(event.target.value);
+                setPage(1);
+              }}
             />
           </label>
         </div>

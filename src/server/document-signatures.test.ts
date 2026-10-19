@@ -403,3 +403,22 @@ describe("individual document signature authorization and lifecycle", () => {
     expect(completeLacunaSignatureSession).not.toHaveBeenCalled();
   });
 });
+
+describe("signature current patient scope after transfer", () => {
+  it("refuses source and signature metadata outside the patient's current unit", async () => {
+    const f = await fixture();
+    const unit = randomUUID();
+    await getPool().query(
+      "INSERT INTO inventory_units(id,organization_id,name) VALUES($1,$2,'Transferred synthetic unit')",
+      [unit, f.org],
+    );
+    await getPool().query(
+      "UPDATE inventory_patients SET primary_unit_id=$1 WHERE id=(SELECT patient_id FROM inventory_encounter_documents WHERE id=$2)",
+      [unit, f.document],
+    );
+    expect((await f.request(f.author)).status).toBe(404);
+    expect((await f.request(f.author, undefined, {}, "&source=true")).status).toBe(404);
+    expect((await f.start()).status).toBe(404);
+    expect(createLacunaSignatureSession).not.toHaveBeenCalled();
+  });
+});

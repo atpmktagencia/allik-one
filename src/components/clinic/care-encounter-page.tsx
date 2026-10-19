@@ -1,3 +1,13 @@
+import { useQueryClient } from "@tanstack/react-query";
+import { withSelectedUnit } from "@/data/unit-context";
+import {
+  encounterReviewLaboratoryResource,
+  encounterReviewDocumentLimit,
+} from "@/data/care-encounter-resources";
+import type { ClinicalRequestsPayload } from "@/data/clinical-requests";
+import { ClinicalRequestTracker } from "./clinical-request-tracker";
+import { documentDraftHasContent, therapeuticDraftHasContent } from "@/lib/clinical-closure-policy";
+import { PatientTimelinePage } from "./patient-timeline-page";
 import { PreconsultationPanel } from "./preconsultation-panel";
 import { CareTasksPanel } from "./care-tasks-panel";
 import { PatientAllergySummary } from "./patient-allergy-summary";
@@ -28,7 +38,10 @@ import {
 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ClinicalPatientHeader } from "./clinical-patient-header";
-import { PatientDocumentCenter } from "./patient-document-center";
+import {
+  PatientDocumentCenter,
+  type PatientDocumentCenterViewState,
+} from "./patient-document-center";
 import { PatientClinicalPlans } from "./patient-clinical-plans";
 import { EncounterContextPanel } from "./encounter-context-panel";
 import { EncounterExamsPanel } from "./encounter-exams-panel";
@@ -297,6 +310,7 @@ const dateTime = (value: string) =>
   }).format(new Date(value));
 
 export function CareEncounterPage({ appointmentId }: { appointmentId: string }) {
+  const queryClient = useQueryClient();
   const query = useInventory<Payload>(`care-encounter?appointmentId=${appointmentId}`);
   const [activeStep, setActiveStep] = useState<EncounterStep>("anamnesis");
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -320,22 +334,94 @@ export function CareEncounterPage({ appointmentId }: { appointmentId: string }) 
       ),
     [],
   );
+  const [planDraftState, setPlanDraftState] = useState({ dirty: false, pending: false });
+  const onPlanDraftStateChange = useCallback(
+    (next: { dirty: boolean; pending: boolean }) =>
+      setPlanDraftState((current) =>
+        current.dirty === next.dirty && current.pending === next.pending ? current : next,
+      ),
+    [],
+  );
+  const [clinicalFileEditors, setClinicalFileEditors] = useState<
+    Record<string, { dirty: boolean; pending: boolean }>
+  >({});
+  useEffect(() => {
+    setClinicalFileEditors({});
+    function receive(event: Event) {
+      const state = (
+        event as CustomEvent<{
+          editorId: string;
+          patientId: string;
+          dirty: boolean;
+          pending: boolean;
+        }>
+      ).detail;
+      if (
+        !state ||
+        state.patientId !== query.data?.appointment.patientId ||
+        typeof state.editorId !== "string" ||
+        typeof state.dirty !== "boolean" ||
+        typeof state.pending !== "boolean"
+      )
+        return;
+      setClinicalFileEditors((current) => {
+        if (!state.dirty && !state.pending) {
+          const next = { ...current };
+          delete next[state.editorId];
+          return next;
+        }
+        if (
+          current[state.editorId]?.dirty === state.dirty &&
+          current[state.editorId]?.pending === state.pending
+        )
+          return current;
+        return { ...current, [state.editorId]: { dirty: state.dirty, pending: state.pending } };
+      });
+    }
+    window.addEventListener("allik:clinical-file-draft-state", receive);
+    return () => window.removeEventListener("allik:clinical-file-draft-state", receive);
+  }, [query.data?.appointment.patientId]);
+  const clinicalFilesDirty = Object.values(clinicalFileEditors).some((state) => state.dirty);
+  const clinicalFilesPending = Object.values(clinicalFileEditors).some((state) => state.pending);
+  const [historyOpen, setHistoryOpen] = useState(false);
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [documentsOpen, setDocumentsOpen] = useState(false);
+  const documentsViewState = useRef<PatientDocumentCenterViewState | null>(null);
+  const documentsScroll = useRef(0);
   const [vitalsOpen, setVitalsOpen] = useState(false);
   const [allergiesOpen, setAllergiesOpen] = useState(false);
   const [questionnairesOpen, setQuestionnairesOpen] = useState(false);
   const [templatesOpen, setTemplatesOpen] = useState(false);
   const editorRef = useRef<HTMLTextAreaElement>(null);
   const documentsQuery = useInventory<{
-    documents: Array<{ id: string; type: string; title: string; status: string }>;
+    documents: Array<{
+      id: string;
+      type: string;
+      title: string;
+      status: string;
+      content?: string;
+      richContent?: unknown;
+    }>;
     context?: { birthDate: string | null };
   }>(`encounter-documents?appointmentId=${encodeURIComponent(appointmentId)}`);
   const prescriptionQuery = useInventory<{
-    prescription: null | { items: unknown[]; status: string };
+    prescription: null | { items: unknown[]; status: string; generalInstructions?: string };
   }>(`encounter-prescriptions?appointmentId=${appointmentId}`);
+  const requestLifecycleQuery = useInventory<ClinicalRequestsPayload>(
+    `clinical-requests?appointmentId=${appointmentId}`,
+  );
   const quoteQuery = useInventory<{ quote: null | { status: string } }>(
     `encounter-quotes?appointmentId=${appointmentId}`,
+  );
+  const laboratoryFilesQuery = useInventory<{
+    documents: Array<{ laboratoryStatus?: string | null }>;
+    total: number;
+  }>(
+    encounterReviewLaboratoryResource(
+      query.data?.appointment.patientId ?? "",
+      query.data?.appointment.unitId ?? "",
+    ),
+    { enabled: Boolean(query.data?.appointment.patientId) && activeStep === "review" },
   );
   const [pending, setPending] = useState(false);
   const [message, setMessage] = useState("");
@@ -388,7 +474,17 @@ export function CareEncounterPage({ appointmentId }: { appointmentId: string }) 
     vitals,
   });
   const dirty = savedForm !== null && savedForm !== formSnapshot;
-  const navigationDirty = dirty || documentDraftState.dirty || prescriptionDraftState.dirty;
+  const navigationDirty =
+    dirty ||
+    documentDraftState.dirty ||
+    prescriptionDraftState.dirty ||
+    planDraftState.dirty ||
+    clinicalFilesDirty ||
+    pending ||
+    documentDraftState.pending ||
+    prescriptionDraftState.pending ||
+    planDraftState.pending ||
+    clinicalFilesPending;
   useBlocker({
     disabled: !navigationDirty,
     enableBeforeUnload: navigationDirty,
@@ -479,6 +575,24 @@ export function CareEncounterPage({ appointmentId }: { appointmentId: string }) 
       !window.confirm("Finalizar esta evolução? Depois disso, o conteúdo não poderá ser alterado.")
     )
       return;
+    const submitted = {
+      action,
+      appointmentId,
+      evolution,
+      conduct,
+      ...clinicalClosure,
+      returnOn: clinicalClosure.returnOn || null,
+      ...anamnesis,
+      ...physicalExam,
+      ...Object.fromEntries(
+        Object.entries(vitals).map(([key, value]) => [key, value === "" ? null : Number(value)]),
+      ),
+      version: displayedVersion,
+    };
+    const submittedSnapshot = formSnapshot;
+    const reconciliationPath = withSelectedUnit(
+      `/api/v1/inventory/care-encounter?appointmentId=${encodeURIComponent(appointmentId)}`,
+    );
     setPending(true);
     setError("");
     setMessage("");
@@ -487,23 +601,7 @@ export function CareEncounterPage({ appointmentId }: { appointmentId: string }) 
         method: "POST",
         credentials: "same-origin",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action,
-          appointmentId,
-          evolution,
-          conduct,
-          ...clinicalClosure,
-          returnOn: clinicalClosure.returnOn || null,
-          ...anamnesis,
-          ...physicalExam,
-          ...Object.fromEntries(
-            Object.entries(vitals).map(([key, value]) => [
-              key,
-              value === "" ? null : Number(value),
-            ]),
-          ),
-          version: displayedVersion,
-        }),
+        body: JSON.stringify(submitted),
       });
       const saved = await readInventoryResponse<{ id: string; version: number }>(
         response,
@@ -515,11 +613,60 @@ export function CareEncounterPage({ appointmentId }: { appointmentId: string }) 
         );
       setDisplayedVersion(saved.data.version);
       setLoadedNoteId(saved.data.id);
-      setSavedForm(formSnapshot);
+      setSavedForm(submittedSnapshot);
       await query.refetch();
       setMessage(action === "FINALIZE" ? "Evolução finalizada." : "Rascunho salvo.");
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Falha de conexão.");
+      // A failed response does not prove rollback. Read once, never replay the write.
+      // Only the exact next version, status and complete submitted content reconcile.
+      let reconciled = false;
+      try {
+        const response = await fetch(reconciliationPath, { credentials: "same-origin" });
+        const fresh = await readInventoryResponse<Payload>(
+          response,
+          "Não foi possível confirmar a evolução.",
+        );
+        const persisted = fresh.data?.clinicalNote;
+        const expectedVersion = submitted.version === null ? 0 : submitted.version + 1;
+        const expectedStatus = action === "FINALIZE" ? "FINAL" : "DRAFT";
+        const contentMatches =
+          persisted &&
+          Object.entries(submitted).every(([key, wanted]) => {
+            if (["action", "appointmentId", "version"].includes(key)) return true;
+            const actual = (persisted as unknown as Record<string, unknown>)[key];
+            if (wanted === null) return actual === null;
+            if (typeof wanted === "number") return actual != null && Number(actual) === wanted;
+            return (
+              typeof wanted === "string" && typeof actual === "string" && actual === wanted.trim()
+            );
+          });
+        if (
+          fresh.data?.appointment.id === appointmentId &&
+          persisted &&
+          typeof persisted.id === "string" &&
+          (!loadedNoteId || persisted.id === loadedNoteId) &&
+          persisted.version === expectedVersion &&
+          persisted.status === expectedStatus &&
+          contentMatches
+        ) {
+          setDisplayedVersion(persisted.version);
+          setLoadedNoteId(persisted.id);
+          setSavedForm(submittedSnapshot);
+          queryClient.setQueryData(["inventory", reconciliationPath], fresh.data);
+          setMessage(
+            action === "FINALIZE"
+              ? "Finalização confirmada no servidor após falha de resposta."
+              : "Rascunho confirmado no servidor após falha de resposta.",
+          );
+          reconciled = true;
+        }
+      } catch {
+        /* Keep the local buffer and its original version when confirmation fails. */
+      }
+      if (!reconciled)
+        setError(
+          cause instanceof Error ? cause.message : "Falha de conexão. Seu texto foi preservado.",
+        );
     } finally {
       setPending(false);
     }
@@ -564,9 +711,15 @@ export function CareEncounterPage({ appointmentId }: { appointmentId: string }) 
   }
 
   async function updateStatus(status: string) {
+    if (status === "COMPLETED" && completionBlockReason) {
+      setError(completionBlockReason);
+      return;
+    }
     if (
       status === "COMPLETED" &&
-      !window.confirm("Confirmar a conclusão deste atendimento? Esta situação encerra a operação.")
+      !window.confirm(
+        "Concluir este atendimento? A evolução deve estar finalizada e não pode haver conteúdo clínico em rascunho. Após a conclusão, os registros originais ficam somente leitura; adendos e retificações documentais seguem o fluxo explícito próprio.",
+      )
     )
       return;
     setPending(true);
@@ -605,15 +758,57 @@ export function CareEncounterPage({ appointmentId }: { appointmentId: string }) 
       input?.setSelectionRange(start + text.length, start + text.length);
     });
   }
+  function navigateStep(step: EncounterStep) {
+    setActiveStep(step);
+    requestAnimationFrame(() => document.getElementById(`encounter-tab-${step}`)?.focus());
+  }
   function navigateContext(target: "exams" | "documents" | "questionnaires") {
     if (target === "questionnaires") setQuestionnairesOpen(true);
     else if (target === "documents") setDocumentsOpen(true);
-    else setActiveStep("exams");
+    else navigateStep("exams");
   }
   const canComplete = data.canManage && appointment.status === "IN_PROGRESS";
-  const anyDirty = dirty || documentDraftState.dirty || prescriptionDraftState.dirty;
-  const anyPending = pending || documentDraftState.pending || prescriptionDraftState.pending;
-  const completeDisabled = anyPending || anyDirty;
+  const anyDirty =
+    dirty ||
+    documentDraftState.dirty ||
+    prescriptionDraftState.dirty ||
+    planDraftState.dirty ||
+    clinicalFilesDirty;
+  const anyPending =
+    pending ||
+    documentDraftState.pending ||
+    prescriptionDraftState.pending ||
+    planDraftState.pending ||
+    clinicalFilesPending;
+  const verificationPending =
+    documentsQuery.isPending || prescriptionQuery.isPending || requestLifecycleQuery.isPending;
+  const verificationError = Boolean(
+    documentsQuery.error || prescriptionQuery.error || requestLifecycleQuery.error,
+  );
+  const persistedDrafts =
+    documentsQuery.data?.documents.some(
+      (item) => item.status === "DRAFT" && documentDraftHasContent(item.content, item.richContent),
+    ) ||
+    (prescriptionQuery.data?.prescription?.status === "DRAFT" &&
+      therapeuticDraftHasContent(
+        prescriptionQuery.data.prescription.items,
+        prescriptionQuery.data.prescription.generalInstructions,
+      ));
+  const pendingPlans = requestLifecycleQuery.data?.requests?.some(
+    (item) => item.sourceKind === "PLAN" && item.recordStatus === "DRAFT",
+  );
+  const completionBlockReason = anyDirty
+    ? "Salve as alterações antes de concluir."
+    : anyPending || verificationPending
+      ? "Aguarde a verificação dos registros clínicos."
+      : verificationError
+        ? "Não foi possível verificar os registros. Tente novamente."
+        : data.clinicalNote?.status !== "FINAL"
+          ? "Finalize a evolução clínica antes de concluir."
+          : persistedDrafts || pendingPlans
+            ? "Resolva os rascunhos clínicos e planos vinculados antes de concluir."
+            : null;
+  const completeDisabled = Boolean(completionBlockReason);
   const completedDocuments =
     documentsQuery.data?.documents.filter((item) => item.status === "FINAL") ?? [];
   const instructionsCount =
@@ -625,6 +820,9 @@ export function CareEncounterPage({ appointmentId }: { appointmentId: string }) 
   return (
     <div className="clinical-workspace encounter-workspace min-h-screen bg-background">
       <h1 className="sr-only">Atendimento de {appointment.patientName}</h1>
+      <p aria-live="polite" className="sr-only">
+        Etapa atual: {encounterSteps.find((step) => step.id === activeStep)?.label}
+      </p>
       <div className="flex min-h-12 flex-wrap items-center justify-between gap-2 px-4 py-2 lg:px-5">
         <div className="flex min-w-0 items-center gap-2 text-xs text-muted-foreground">
           <Button
@@ -684,7 +882,7 @@ export function CareEncounterPage({ appointmentId }: { appointmentId: string }) 
               <DropdownMenuItem onSelect={() => setQuestionnairesOpen(true)}>
                 Questionários e tarefas
               </DropdownMenuItem>
-              <DropdownMenuItem onSelect={() => setActiveStep("review")}>
+              <DropdownMenuItem onSelect={() => navigateStep("review")}>
                 Revisar atendimento e orçamento
               </DropdownMenuItem>
             </DropdownMenuContent>
@@ -693,7 +891,7 @@ export function CareEncounterPage({ appointmentId }: { appointmentId: string }) 
             <Button
               size="sm"
               disabled={completeDisabled}
-              title={anyDirty ? "Salve os rascunhos antes de concluir." : undefined}
+              title={completionBlockReason ?? undefined}
               onClick={() => updateStatus("COMPLETED")}
             >
               Concluir atendimento
@@ -738,7 +936,7 @@ export function CareEncounterPage({ appointmentId }: { appointmentId: string }) 
                 {dirty
                   ? "Alterações não salvas"
                   : data.clinicalNote?.updatedAt
-                    ? dateTime(data.clinicalNote.updatedAt)
+                    ? `Nota atualizada em ${dateTime(data.clinicalNote.updatedAt)} · horário de medição não registrado`
                     : "Registrar sinais vitais"}
               </span>
             </button>
@@ -765,6 +963,9 @@ export function CareEncounterPage({ appointmentId }: { appointmentId: string }) 
                   </span>
                 )}
               </div>
+              {data.allergySummary?.status === "REPORTED" && (
+                <span className="mt-1 block text-amber-800">Relatadas · não verificadas</span>
+              )}
               {data.clinicalAlerts.some((item) => item.type !== "ALLERGY") && (
                 <span className="mt-1 block text-amber-700">
                   Há outros alertas ativos · ver detalhes
@@ -777,7 +978,7 @@ export function CareEncounterPage({ appointmentId }: { appointmentId: string }) 
               type="button"
               className="w-full text-left text-xs"
               onClick={() => {
-                setActiveStep("anamnesis");
+                navigateStep("anamnesis");
                 requestAnimationFrame(() => {
                   const element = document.getElementById(
                     "avaliacao-plano",
@@ -785,6 +986,11 @@ export function CareEncounterPage({ appointmentId }: { appointmentId: string }) 
                   if (element) {
                     element.open = true;
                     element.scrollIntoView({ behavior: "smooth", block: "center" });
+                    element
+                      .querySelector<HTMLElement>(
+                        "textarea:not(:disabled), input:not(:disabled), summary",
+                      )
+                      ?.focus();
                   }
                 });
               }}
@@ -823,7 +1029,7 @@ export function CareEncounterPage({ appointmentId }: { appointmentId: string }) 
             <button
               type="button"
               onClick={() => {
-                setActiveStep("anamnesis");
+                navigateStep("anamnesis");
                 setSidebarOpen(false);
               }}
               className="flex h-10 w-full items-center gap-3 rounded-lg bg-accent px-3 text-left text-[13px] font-semibold text-primary"
@@ -839,14 +1045,14 @@ export function CareEncounterPage({ appointmentId }: { appointmentId: string }) 
               <UserRound className="size-4" />
               Visão geral
             </Link>
-            <Link
-              to="/pacientes/$patientId/prontuario"
-              params={{ patientId: appointment.patientId }}
-              className="flex h-10 items-center gap-3 rounded-lg px-3 text-[13px] text-muted-foreground hover:bg-accent"
+            <button
+              type="button"
+              onClick={() => setHistoryOpen(true)}
+              className="flex h-10 w-full items-center gap-3 rounded-lg px-3 text-[13px] text-muted-foreground hover:bg-accent"
             >
               <History className="size-4" />
               Histórico
-            </Link>
+            </button>
             <button
               type="button"
               onClick={() => setDocumentsOpen(true)}
@@ -867,7 +1073,7 @@ export function CareEncounterPage({ appointmentId }: { appointmentId: string }) 
                 key={item.id}
                 type="button"
                 onClick={() => {
-                  setActiveStep(item.id);
+                  navigateStep(item.id);
                   setSidebarOpen(false);
                 }}
                 className="flex min-h-10 w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-[13px] text-muted-foreground hover:bg-accent"
@@ -1398,6 +1604,7 @@ export function CareEncounterPage({ appointmentId }: { appointmentId: string }) 
                 patientId={appointment.patientId}
                 unitId={appointment.unitId}
                 onNavigate={navigateContext}
+                active={activeStep === "exams"}
               />
             </div>
             <div
@@ -1411,7 +1618,13 @@ export function CareEncounterPage({ appointmentId }: { appointmentId: string }) 
                   appointmentId={appointmentId}
                   mode={activeStep === "requests" ? "requests" : "prescription"}
                   onDraftStateChange={onDocumentDraftStateChange}
-                  procedures={<PatientClinicalPlans patientId={appointment.patientId} />}
+                  procedures={
+                    <PatientClinicalPlans
+                      patientId={appointment.patientId}
+                      appointmentId={appointmentId}
+                      onDraftStateChange={onPlanDraftStateChange}
+                    />
+                  }
                   medications={({ onInsert, canInsert, search }) => (
                     <EncounterPrescriptionCard
                       appointmentId={appointmentId}
@@ -1422,6 +1635,9 @@ export function CareEncounterPage({ appointmentId }: { appointmentId: string }) 
                     />
                   )}
                 />
+                <div hidden={activeStep !== "requests"} className="p-3">
+                  <ClinicalRequestTracker appointmentId={appointmentId} />
+                </div>
               </div>
             </div>
             <div
@@ -1478,7 +1694,7 @@ export function CareEncounterPage({ appointmentId }: { appointmentId: string }) 
                         ? "Não foi possível verificar"
                         : documentsQuery.isPending || prescriptionQuery.isPending
                           ? "Consultando…"
-                          : `${documentsQuery.data?.documents.filter((item) => item.type === "PRESCRIPTION").length ?? 0} documento(s) · ${prescriptionQuery.data?.prescription?.items.length ?? 0} item(ns) terapêutico(s)`,
+                          : `${documentsQuery.data?.documents.filter((item) => item.type === "PRESCRIPTION" && item.status === "FINAL").length ?? 0} receita(s) finalizada(s) · ${documentsQuery.data?.documents.filter((item) => item.type === "PRESCRIPTION" && item.status === "DRAFT").length ?? 0} rascunho(s) · Registro terapêutico: ${prescriptionQuery.data?.prescription ? (prescriptionQuery.data.prescription.status === "FINAL" ? "finalizado" : therapeuticDraftHasContent(prescriptionQuery.data.prescription.items, prescriptionQuery.data.prescription.generalInstructions) ? "rascunho persistido" : "vazio · nenhum conteúdo pendente") : "não iniciado (opcional)"} · ${prescriptionQuery.data?.prescription?.items.length ?? 0} item(ns)`,
                     target: "prescription",
                   },
                   {
@@ -1487,7 +1703,7 @@ export function CareEncounterPage({ appointmentId }: { appointmentId: string }) 
                       ? "Não foi possível verificar"
                       : documentsQuery.isPending
                         ? "Consultando…"
-                        : `${documentsQuery.data?.documents.filter((item) => item.type !== "PRESCRIPTION").length ?? 0} documento(s)`,
+                        : `${documentsQuery.data?.documents.filter((item) => item.type !== "PRESCRIPTION" && item.status === "FINAL").length ?? 0} finalizado(s) · ${documentsQuery.data?.documents.filter((item) => item.type !== "PRESCRIPTION" && item.status === "DRAFT").length ?? 0} rascunho(s) · ${requestLifecycleQuery.data?.requests?.filter((item) => item.sourceKind === "PLAN").length ?? 0} plano(s) vinculado(s)`,
                     target: "requests",
                   },
                   {
@@ -1531,7 +1747,7 @@ export function CareEncounterPage({ appointmentId }: { appointmentId: string }) 
                       type="button"
                       className="rounded bg-accent px-2 py-1 text-xs font-medium text-primary"
                       onClick={() => {
-                        setActiveStep(item.target as EncounterStep);
+                        navigateStep(item.target as EncounterStep);
                         if (item.target === "review")
                           requestAnimationFrame(() =>
                             document
@@ -1558,13 +1774,69 @@ export function CareEncounterPage({ appointmentId }: { appointmentId: string }) 
                   )}
                   {data.clinicalNote?.status !== "FINAL" && (
                     <li>
-                      A evolução ainda não foi finalizada. A conclusão operacional não substitui a
-                      finalização clínica.
+                      A evolução ainda não foi finalizada. Finalize-a antes de concluir o
+                      atendimento.
                     </li>
                   )}
-                  {documentsQuery.data?.documents.some((item) => item.status === "DRAFT") && (
-                    <li>Há documentos em rascunho. Confira se devem ser finalizados.</li>
+                  {documentsQuery.data?.documents.some(
+                    (item) =>
+                      item.status === "DRAFT" &&
+                      documentDraftHasContent(item.content, item.richContent),
+                  ) && (
+                    <li>
+                      Há documentos com conteúdo em rascunho. Finalize ou limpe o conteúdo antes de
+                      concluir.
+                    </li>
                   )}
+                  {prescriptionQuery.data?.prescription?.status === "DRAFT" &&
+                    therapeuticDraftHasContent(
+                      prescriptionQuery.data.prescription.items,
+                      prescriptionQuery.data.prescription.generalInstructions,
+                    ) && (
+                      <li>
+                        O registro terapêutico contém rascunho persistido. Finalize ou limpe o
+                        conteúdo antes de concluir.
+                      </li>
+                    )}
+                  {pendingPlans && (
+                    <li>
+                      Há planos vinculados em rascunho. Revise, ative ou arquive antes de concluir.
+                    </li>
+                  )}
+                  {(verificationPending || verificationError) && (
+                    <li>
+                      {verificationPending
+                        ? "Verificando registros clínicos obrigatórios…"
+                        : "Não foi possível verificar os registros clínicos. A conclusão está bloqueada."}
+                      <button
+                        type="button"
+                        className="ml-2 underline text-primary"
+                        onClick={() => {
+                          void documentsQuery.refetch();
+                          void prescriptionQuery.refetch();
+                          void requestLifecycleQuery.refetch();
+                        }}
+                      >
+                        Tentar novamente
+                      </button>
+                    </li>
+                  )}
+                  <li>
+                    {laboratoryFilesQuery.error
+                      ? "Não foi possível verificar os arquivos de exames."
+                      : laboratoryFilesQuery.isPending
+                        ? "Consultando arquivos de exames…"
+                        : `${laboratoryFilesQuery.data?.documents.filter((item) => item.laboratoryStatus && item.laboratoryStatus !== "VALIDATED").length ?? 0} arquivo(s) de exames aguardando processamento ou revisão${(laboratoryFilesQuery.data?.total ?? 0) > encounterReviewDocumentLimit ? ` (nos primeiros ${encounterReviewDocumentLimit} de ${laboratoryFilesQuery.data?.total} arquivos; consulte Exames para os demais)` : ""}.`}{" "}
+                    Exames podem ser acompanhados após o atendimento; esta pendência não bloqueia a
+                    conclusão.{" "}
+                    <button
+                      type="button"
+                      className="underline text-primary"
+                      onClick={() => navigateStep("exams")}
+                    >
+                      Conferir exames
+                    </button>
+                  </li>
                   {documentsQuery.data && !documentsQuery.error && (
                     <li>
                       {completedDocuments.length} documento(s) finalizado(s) neste atendimento.
@@ -1581,7 +1853,9 @@ export function CareEncounterPage({ appointmentId }: { appointmentId: string }) 
               {canComplete && (
                 <p className="text-xs text-muted-foreground">
                   Use “Concluir atendimento” na barra superior após a conferência. A ação mantém as
-                  validações operacionais do atendimento.
+                  validações clínicas e operacionais. Prescrição e exames são opcionais; rascunhos
+                  clínicos com conteúdo e planos vinculados precisam ser resolvidos. Contêineres
+                  vazios não representam prescrição ou solicitação pendente.
                 </p>
               )}
             </div>
@@ -1592,6 +1866,7 @@ export function CareEncounterPage({ appointmentId }: { appointmentId: string }) 
               unitId={appointment.unitId}
               onNavigate={navigateContext}
               onCollapseChange={setContextCollapsed}
+              active={activeStep === "anamnesis"}
               quickNotes={
                 <label className="block space-y-2 text-xs text-muted-foreground">
                   Anotações de conduta — salvas com evolução
@@ -1609,22 +1884,67 @@ export function CareEncounterPage({ appointmentId }: { appointmentId: string }) 
                 </label>
               }
               onQuickNote={() => {
-                setActiveStep("anamnesis");
+                navigateStep("anamnesis");
                 requestAnimationFrame(() => editorRef.current?.focus());
               }}
             />
           </div>
         </div>
       </div>
-      <Dialog open={documentsOpen} onOpenChange={setDocumentsOpen}>
-        <DialogContent className="clinical-workspace max-h-[90dvh] overflow-y-auto sm:max-w-[min(1240px,94vw)]">
+      <Dialog
+        open={documentsOpen}
+        onOpenChange={(open) => {
+          if (
+            !open &&
+            !window.dispatchEvent(
+              new CustomEvent("allik:before-clinical-file-close", {
+                cancelable: true,
+                detail: { patientId: appointment.patientId },
+              }),
+            )
+          )
+            return;
+          setDocumentsOpen(open);
+        }}
+      >
+        <DialogContent
+          onScroll={(event) => {
+            documentsScroll.current = event.currentTarget.scrollTop;
+          }}
+          onOpenAutoFocus={() => {
+            requestAnimationFrame(() => {
+              const dialog = document.getElementById("encounter-documents-dialog");
+              if (dialog) dialog.scrollTop = documentsScroll.current;
+            });
+          }}
+          id="encounter-documents-dialog"
+          className="clinical-workspace max-h-[90dvh] overflow-y-auto sm:max-w-[min(1240px,94vw)]"
+        >
           <DialogHeader>
             <DialogTitle>Documentos do paciente</DialogTitle>
             <DialogDescription>
               Arquivos, documentos clínicos e originais associados a este paciente.
             </DialogDescription>
           </DialogHeader>
-          <PatientDocumentCenter patientId={appointment.patientId} />
+          <PatientDocumentCenter
+            patientId={appointment.patientId}
+            unitId={appointment.unitId}
+            active={documentsOpen}
+            viewState={documentsViewState}
+          />
+        </DialogContent>
+      </Dialog>
+      <Dialog open={historyOpen} onOpenChange={setHistoryOpen}>
+        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-5xl">
+          <DialogHeader>
+            <DialogTitle>Histórico longitudinal do paciente</DialogTitle>
+            <DialogDescription>Consulta somente leitura sem sair do atendimento.</DialogDescription>
+          </DialogHeader>
+          <PatientTimelinePage
+            patientId={appointment.patientId}
+            unitId={appointment.unitId}
+            embedded
+          />
         </DialogContent>
       </Dialog>
       <Dialog open={vitalsOpen} onOpenChange={setVitalsOpen}>

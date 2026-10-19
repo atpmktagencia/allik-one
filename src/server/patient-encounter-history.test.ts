@@ -4,6 +4,8 @@ import { migrate } from "drizzle-orm/node-postgres/migrator";
 import { getDb, getPool } from "./db";
 import { hashToken } from "./auth";
 import { patientDetailResponse } from "./patient-treatments";
+import { patientTimelineResponse } from "./patient-timeline";
+import { patientsResponse } from "./patients";
 const origin = "https://allergy-test.example";
 beforeAll(async () => {
   if (!new URL(process.env["DATABASE_URL"] ?? "postgres://invalid").pathname.endsWith("_test"))
@@ -62,7 +64,7 @@ async function fixture() {
         headers: { cookie: `allik_inventory_session=${token}` },
       }),
     );
-  return { org, unit, otherUnit, user, patient, appointment, membership, read };
+  return { org, unit, otherUnit, user, patient, appointment, membership, read, token };
 }
 async function note(f: Awaited<ReturnType<typeof fixture>>, status: string) {
   await getPool().query(
@@ -183,5 +185,104 @@ describe("Patient consultation summaries", () => {
       hasOwnDraft: false,
     });
     expect(JSON.stringify(data)).not.toContain("Synthetic evolution content");
+  });
+  it("consolidates authorized historical units, preserves current-unit gate and includes the return date", async () => {
+    const f = await fixture();
+    await note(f, "FINAL");
+    await getPool().query(
+      "INSERT INTO inventory_unit_access(membership_id,unit_id) VALUES($1,$2)",
+      [f.membership, f.otherUnit],
+    );
+    const appointment = randomUUID();
+    await getPool().query(
+      "INSERT INTO inventory_care_appointments(id,organization_id,unit_id,patient_id,professional_user_id,care_type,starts_at,ends_at,room) VALUES($1,$2,$3,$4,$5,'CONSULTATION',now()+interval '1 day',now()+interval '25 hours','Historical room')",
+      [appointment, f.org, f.otherUnit, f.patient, f.user],
+    );
+    await getPool().query(
+      `INSERT INTO inventory_clinical_notes(organization_id,unit_id,patient_id,appointment_id,author_user_id,author_name,professional_council,council_number,council_region,evolution,conduct,return_recommendation,return_on,status,finalized_at) VALUES($1,$2,$3,$4,$5,'Synthetic clinician','CRM','123','CE','Historical evolution','Historical conduct','Review requested','2030-12-20','FINAL',now()+interval '1 day')`,
+      [f.org, f.otherUnit, f.patient, appointment, f.user],
+    );
+    await getPool().query(
+      `INSERT INTO inventory_patient_clinical_problems(organization_id,unit_id,patient_id,description,author_user_id,author_name,professional_council,council_number,council_region) VALUES($1,$2,$3,'Historical problem',$4,'Synthetic clinician','CRM','123','CE')`,
+      [f.org, f.otherUnit, f.patient, f.user],
+    );
+    let data = (await (await f.read()).json()).data;
+    expect(data.clinicalProblems).toEqual([
+      expect.objectContaining({
+        description: "Historical problem",
+        unitId: f.otherUnit,
+        unitName: "Juazeiro",
+      }),
+    ]);
+    expect(data.clinicalHistory).toHaveLength(2);
+    expect(data.clinicalHistory[0]).toMatchObject({
+      unitId: f.otherUnit,
+      unitName: "Juazeiro",
+      evolution: "Historical evolution",
+    });
+    expect(data.encounterHistory).toHaveLength(2);
+    const request = (path: string) =>
+      new Request(origin + path, { headers: { cookie: `allik_inventory_session=${f.token}` } });
+    const timeline = await patientTimelineResponse(
+      request(`/api/v1/inventory/patient-timeline?patientId=${f.patient}&unitId=${f.otherUnit}`),
+    );
+    expect(timeline.status).toBe(200);
+    expect(JSON.stringify((await timeline.json()).data.events)).toContain(
+      "Data prevista de retorno: 20/12/2030",
+    );
+    await getPool().query(
+      "DELETE FROM inventory_unit_access WHERE membership_id=$1 AND unit_id=$2",
+      [f.membership, f.otherUnit],
+    );
+    data = (await (await f.read()).json()).data;
+    expect(data.clinicalHistory).toHaveLength(1);
+    expect(data.clinicalProblems).toEqual([]);
+    expect(JSON.stringify(data)).not.toContain("Historical evolution");
+    await getPool().query("UPDATE inventory_patients SET primary_unit_id=$2 WHERE id=$1", [
+      f.patient,
+      f.otherUnit,
+    ]);
+    expect((await f.read()).status).toBe(404);
+    expect(
+      (
+        await patientTimelineResponse(
+          request(`/api/v1/inventory/patient-timeline?patientId=${f.patient}`),
+        )
+      ).status,
+    ).toBe(404);
+  });
+  it("handles invalid identifiers and paginates stable scoped patient searches", async () => {
+    const f = await fixture();
+    const request = (path: string) =>
+      new Request(origin + path, { headers: { cookie: `allik_inventory_session=${f.token}` } });
+    expect(
+      (
+        await patientDetailResponse(
+          request("/api/v1/inventory/patient-detail?patientId=ana-beatriz"),
+        )
+      ).status,
+    ).toBe(400);
+    await getPool().query(
+      "INSERT INTO inventory_patients(id,organization_id,primary_unit_id,internal_code,full_name) VALUES($1,$2,$3,'PAGE-TEST','Synthetic patient two')",
+      [randomUUID(), f.org, f.unit],
+    );
+    const first = (
+      await (
+        await patientsResponse(
+          request("/api/v1/inventory/patients?search=Synthetic&page=1&pageSize=1"),
+        )
+      ).json()
+    ).data;
+    const second = (
+      await (
+        await patientsResponse(
+          request("/api/v1/inventory/patients?search=Synthetic&page=2&pageSize=1"),
+        )
+      ).json()
+    ).data;
+    expect(first.pagination).toEqual({ page: 1, pageSize: 1, hasMore: true });
+    expect(second.pagination).toEqual({ page: 2, pageSize: 1, hasMore: false });
+    expect(first.patients[0].id).not.toBe(second.patients[0].id);
+    expect((await patientsResponse(request("/api/v1/inventory/patients?page=0"))).status).toBe(400);
   });
 });

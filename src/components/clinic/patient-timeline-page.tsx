@@ -65,11 +65,19 @@ function dateLabel(value: string, includeTime = false) {
   }).format(new Date(value));
 }
 
-export function PatientTimelinePage({ patientId }: { patientId: string }) {
+export function PatientTimelinePage({
+  patientId,
+  embedded = false,
+  unitId: scopedUnitId,
+}: {
+  patientId: string;
+  embedded?: boolean;
+  unitId?: string;
+}) {
   const [kind, setKind] = useState("");
   const unitId = useSyncExternalStore(subscribeUnit, selectedUnitId, () => "");
   const path = withSelectedUnit(
-    `/api/v1/inventory/patient-timeline?patientId=${encodeURIComponent(patientId)}${kind ? `&kind=${kind}` : ""}`,
+    `/api/v1/inventory/patient-timeline?patientId=${encodeURIComponent(patientId)}${kind ? `&kind=${kind}` : ""}${scopedUnitId ? `&unitId=${encodeURIComponent(scopedUnitId)}` : ""}`,
   );
   const query = useInfiniteQuery({
     queryKey: ["inventory", "patient-timeline", unitId, path],
@@ -104,33 +112,40 @@ export function PatientTimelinePage({ patientId }: { patientId: string }) {
     );
   return (
     <div className="clinical-workspace mx-auto max-w-5xl space-y-6 rounded-2xl bg-background p-4 sm:p-6">
-      <header className="space-y-4 rounded-2xl border bg-card p-5">
-        <Button variant="ghost" size="sm" asChild>
-          <Link to="/pacientes/$patientId" params={{ patientId }}>
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            Cadastro do paciente
-          </Link>
-        </Button>
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <p className="text-sm text-muted-foreground">Prontuário longitudinal</p>
-            <h1 className="mt-1 text-2xl font-semibold">{patient.name}</h1>
-            <p className="mt-2 text-sm text-muted-foreground">
-              {patient.internalCode} · {patient.unitName}
-            </p>
+      {!embedded && (
+        <header className="space-y-4 rounded-2xl border bg-card p-5">
+          <Button variant="ghost" size="sm" asChild>
+            <Link to="/pacientes/$patientId" params={{ patientId }}>
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              Cadastro do paciente
+            </Link>
+          </Button>
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <p className="text-sm text-muted-foreground">Prontuário longitudinal</p>
+              <h1 className="mt-1 text-2xl font-semibold">{patient.name}</h1>
+              <p className="mt-2 text-sm text-muted-foreground">
+                {patient.internalCode} · {patient.unitName}
+              </p>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge variant="outline">Histórico clínico</Badge>
+              {query.data?.pages[0]?.canCreateEncounter && (
+                <PatientNewEncounter patientId={patientId} unitId={patient.primaryUnitId} />
+              )}
+            </div>
           </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <Badge variant="outline">Histórico clínico</Badge>
-            {query.data?.pages[0]?.canCreateEncounter && (
-              <PatientNewEncounter patientId={patientId} unitId={patient.primaryUnitId} />
-            )}
-          </div>
-        </div>
-        <p className="text-sm text-muted-foreground">
-          Consulte atendimentos, registros clínicos finalizados e a trajetória do tratamento.
+          <p className="text-sm text-muted-foreground">
+            Consulte atendimentos, registros clínicos finalizados e a trajetória do tratamento.
+          </p>
+        </header>
+      )}
+      {embedded && (
+        <p className="text-xs text-muted-foreground">
+          Histórico somente leitura · unidade deste atendimento. Seu rascunho permanece aberto.
         </p>
-      </header>
-      {query.data?.pages[0]?.allergySummary && (
+      )}
+      {!embedded && query.data?.pages[0]?.allergySummary && (
         <PatientAllergySummary patientId={patientId} summary={query.data.pages[0].allergySummary} />
       )}
       <div className="flex flex-wrap items-center gap-3">
@@ -193,7 +208,7 @@ export function PatientTimelinePage({ patientId }: { patientId: string }) {
                 </details>
               )}
               <div className="mt-4 flex flex-wrap gap-3">
-                {event.appointmentId && (
+                {!embedded && event.appointmentId && (
                   <Button variant="outline" size="sm" asChild>
                     <Link
                       to="/atendimentos/$appointmentId"

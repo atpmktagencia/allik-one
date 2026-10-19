@@ -112,7 +112,8 @@ export async function patientTimelineResponse(request: Request) {
           CASE WHEN s.diagnostic_hypotheses<>'' THEN 'Hipóteses diagnósticas: '||s.diagnostic_hypotheses END,
           CASE WHEN s.clinical_plan<>'' THEN 'Plano: '||s.clinical_plan END,
           CASE WHEN s.conduct<>'' THEN 'Conduta: '||s.conduct END,
-          CASE WHEN s.return_recommendation<>'' THEN 'Retorno: '||s.return_recommendation END)
+          CASE WHEN s.return_recommendation<>'' THEN 'Retorno: '||s.return_recommendation END,
+          CASE WHEN s.return_on IS NOT NULL THEN 'Data prevista de retorno: '||to_char(s.return_on,'DD/MM/YYYY') END)
       FROM inventory_clinical_notes s JOIN inventory_units u ON u.id=s.unit_id AND u.organization_id=s.organization_id WHERE ${scope} AND s.status='FINAL'
       UNION ALL
       SELECT s.id,'PRESCRIPTION',s.finalized_at,'Prescrição de injetáveis',s.author_name,u.name,s.status,s.appointment_id,NULL::uuid,

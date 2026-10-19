@@ -109,6 +109,17 @@ export async function patientsResponse(request: Request) {
     const url = new URL(request.url);
     const requestedUnit = url.searchParams.get("unitId");
     const rawSearch = url.searchParams.get("search")?.trim() ?? "";
+    const page = Number(url.searchParams.get("page") ?? "1");
+    const pageSize = Number(url.searchParams.get("pageSize") ?? "100");
+    if (
+      !Number.isInteger(page) ||
+      page < 1 ||
+      page > 100000 ||
+      !Number.isInteger(pageSize) ||
+      pageSize < 1 ||
+      pageSize > 500
+    )
+      return Response.json({ error: "Paginação inválida." }, { status: 400, headers });
     if (rawSearch.length > 100)
       return Response.json({ error: "Busca inválida." }, { status: 400, headers });
     const search = rawSearch.length >= 2 ? rawSearch : null;
@@ -143,7 +154,7 @@ export async function patientsResponse(request: Request) {
              OR regexp_replace(COALESCE(p.phone2,''),'[^0-9]','','g') LIKE '%'||$6||'%'
              OR regexp_replace(COALESCE(p.document_number,''),'[^0-9]','','g') LIKE '%'||$6||'%'
            )))
-       ORDER BY p.active DESC,lower(p.full_name),p.id LIMIT 500`,
+       ORDER BY p.active DESC,lower(p.full_name),p.id LIMIT $8 OFFSET $9`,
         [
           auth.organizationId,
           requestedUnit,
@@ -152,6 +163,8 @@ export async function patientsResponse(request: Request) {
           search,
           searchDigits,
           canReadPrivate,
+          pageSize + 1,
+          (page - 1) * pageSize,
         ],
       ),
       pool.query(
@@ -164,12 +177,15 @@ export async function patientsResponse(request: Request) {
     ]);
     await recordClinicalListAccess(
       auth,
-      result.rows.map((row) => ({ unitId: row.primaryUnitId, patientId: row.id })),
+      result.rows
+        .slice(0, pageSize)
+        .map((row) => ({ unitId: row.primaryUnitId, patientId: row.id })),
     );
     return Response.json(
       {
         data: {
-          patients: result.rows,
+          patients: result.rows.slice(0, pageSize),
+          pagination: { page, pageSize, hasMore: result.rows.length > pageSize },
           units: availableUnits.rows,
           canManage: can(auth, "patients.manage"),
           canReadPrivate,

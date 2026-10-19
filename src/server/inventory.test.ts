@@ -667,6 +667,35 @@ describe("operational patients", () => {
       activePrescriptionId,
     );
     expect(downloaded.status).toBe(200);
+    expect(downloaded.headers.get("X-Allik-Original-Integrity")).toBe("verified");
+    expect(
+      (
+        await getPool().query(
+          "SELECT source_id,action FROM inventory_clinical_access_events WHERE source_kind='UPLOADED_PRESCRIPTION' AND source_id=$1",
+          [activePrescriptionId],
+        )
+      ).rows,
+    ).toEqual([
+      expect.objectContaining({ source_id: activePrescriptionId, action: "DOCUMENT_OPEN" }),
+    ]);
+    vi.mocked(getBlob).mockResolvedValueOnce({
+      statusCode: 200,
+      stream: new ReadableStream({
+        start(controller) {
+          controller.enqueue(new TextEncoder().encode("%PDF-1.4 synthetic replacemenX"));
+          controller.close();
+        },
+      }),
+    } as never);
+    const tampered = await prescriptionDownloadResponse(
+      new Request(`${origin}/api/v1/inventory/prescriptions/${activePrescriptionId}`, {
+        headers: { cookie: managerCookie },
+      }),
+      activePrescriptionId,
+    );
+    expect(tampered.status).toBe(503);
+    expect(await tampered.text()).not.toContain("%PDF");
+
     expect(
       (
         await getPool().query(

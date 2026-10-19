@@ -34,6 +34,8 @@ const request = (body: unknown = input, extra: Record<string, string> = {}) =>
 beforeEach(async () => {
   vi.clearAllMocks();
   vi.stubEnv("INVENTORY_ENVIRONMENT", "test");
+  vi.stubEnv("INVENTORY_PREVIEW_DATA_CLASSIFICATION", "synthetic");
+  vi.stubEnv("DATABASE_URL", "postgres://synthetic@127.0.0.1/allik_test");
   vi.stubEnv("INVENTORY_PREVIEW_PASSWORD", "synthetic-test-password");
   vi.stubEnv("INVENTORY_SESSION_SECRET", "synthetic-test-session-secret-32-characters");
   const login = await previewLogin(

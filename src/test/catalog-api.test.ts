@@ -13,6 +13,8 @@ afterEach(() => {
 const origin = "http://localhost:4317";
 async function cookie() {
   vi.stubEnv("INVENTORY_ENVIRONMENT", "test");
+  vi.stubEnv("INVENTORY_PREVIEW_DATA_CLASSIFICATION", "synthetic");
+  vi.stubEnv("DATABASE_URL", "postgres://synthetic@127.0.0.1/allik_test");
   vi.stubEnv("INVENTORY_PREVIEW_PASSWORD", "synthetic-test-password");
   vi.stubEnv("INVENTORY_SESSION_SECRET", "synthetic-test-session-secret-32-characters");
   const response = await previewLogin(

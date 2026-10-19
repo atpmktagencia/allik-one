@@ -19,7 +19,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Link } from "@tanstack/react-router";
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { AlertTriangle, ArrowLeft, FileText, Plus, Stethoscope } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -62,6 +62,7 @@ type Payload = {
     id: string;
     treatmentId: string;
     originalFilename: string;
+    hasIntegrityReference?: boolean;
     contentType: string;
     sizeBytes: number;
     uploadedAt: string;
@@ -130,6 +131,12 @@ type Payload = {
     unitShortageUnits: number | null;
   }>;
   encounterHistory: PatientEncounterSummary[];
+  historyHasMore?: {
+    clinicalHistory: boolean;
+    clinicalProblems: boolean;
+    clinicalAlerts: boolean;
+    encounters: boolean;
+  };
   clinicalHistory: Array<{
     id: string;
     appointmentId: string;
@@ -167,10 +174,14 @@ type Payload = {
     finalizedAt: string;
     appointmentStartsAt: string;
     careTypeName: string;
+    unitName?: string;
+    unitId?: string;
   }>;
   clinicalProblems: Array<{
     id: string;
     description: string;
+    unitName?: string;
+    unitId?: string;
     icd10Code: string | null;
     onsetOn: string | null;
     resolvedOn: string | null;
@@ -185,6 +196,8 @@ type Payload = {
   }>;
   clinicalAlerts: Array<{
     id: string;
+    unitName?: string;
+    unitId?: string;
     type: "ALLERGY" | "WARNING" | "PRECAUTION";
     title: string;
     reaction: string | null;
@@ -270,8 +283,42 @@ const blankAlert = {
 export function PatientTreatmentPage({ patientId }: { patientId: string }) {
   const queryClient = useQueryClient();
   const query = useInventory<Payload>(`patient-detail?patientId=${patientId}`);
-  const [workspaceSection, setWorkspaceSection] = useState<PatientWorkspaceSection>("overview");
-  const [documentsOpened, setDocumentsOpened] = useState(false);
+  const readWorkspaceSection = (): PatientWorkspaceSection => {
+    const value =
+      typeof window === "undefined"
+        ? null
+        : new URLSearchParams(window.location.hash.slice(1)).get("secao");
+    return value && ["overview", "encounters", "documents", "exams", "treatments"].includes(value)
+      ? (value as PatientWorkspaceSection)
+      : "overview";
+  };
+  const [workspaceSection, updateWorkspaceSection] =
+    useState<PatientWorkspaceSection>(readWorkspaceSection);
+  const [documentsOpened, setDocumentsOpened] = useState(() =>
+    ["documents", "exams"].includes(readWorkspaceSection()),
+  );
+  const setWorkspaceSection = (section: PatientWorkspaceSection) => {
+    updateWorkspaceSection(section);
+    const url = new URL(window.location.href);
+    const hash = new URLSearchParams(url.hash.slice(1));
+    hash.set("secao", section);
+    url.hash = hash.toString();
+    window.history.replaceState(window.history.state, "", url);
+    if (section === "documents" || section === "exams") setDocumentsOpened(true);
+  };
+  useEffect(() => {
+    const restore = () => {
+      const section = readWorkspaceSection();
+      updateWorkspaceSection(section);
+      if (section === "documents" || section === "exams") setDocumentsOpened(true);
+    };
+    window.addEventListener("hashchange", restore);
+    window.addEventListener("popstate", restore);
+    return () => {
+      window.removeEventListener("hashchange", restore);
+      window.removeEventListener("popstate", restore);
+    };
+  }, []);
   const [preconsultationOpen, setPreconsultationOpen] = useState(false);
   const [clinicalSummaryOpen, setClinicalSummaryOpen] = useState(false);
   const [open, setOpen] = useState(false);
@@ -334,7 +381,15 @@ export function PatientTreatmentPage({ patientId }: { patientId: string }) {
       });
       const result = (await response.json()) as { error?: string };
       if (!response.ok) throw new Error(result.error ?? "Não foi possível salvar o alerta.");
-      await queryClient.invalidateQueries({ queryKey: ["inventory"] });
+      await queryClient.invalidateQueries({
+        predicate: (candidate) => {
+          const key = candidate.queryKey;
+          return (
+            key[0] === "inventory" &&
+            key.some((value) => typeof value === "string" && value.includes(patientId))
+          );
+        },
+      });
       setClinicalAlert(blankAlert);
       setAlertFormOpen(false);
       setMessage("Alerta clínico salvo com auditoria.");
@@ -637,6 +692,14 @@ export function PatientTreatmentPage({ patientId }: { patientId: string }) {
           </div>
         }
       />
+      <p className="px-1 text-xs text-slate-500" role="note">
+        Histórico consolidado das unidades autorizadas. A unidade do cadastro é{" "}
+        {data.patient.unitName}; cada registro mantém sua unidade de origem. Alergias ativas
+        acompanham o paciente por segurança.
+        {data.historyHasMore &&
+          Object.values(data.historyHasMore).some(Boolean) &&
+          " Resumo limitado aos 100 registros clínicos, 200 problemas/alertas e 50 consultas mais recentes. Consulte o Histórico para registros clínicos anteriores."}
+      </p>
       <div className="flex flex-wrap justify-end gap-2 [&_button]:h-8 [&_button]:text-xs [&_a]:text-xs">
         <div className="flex flex-wrap gap-2">
           <Button variant="outline" onClick={() => setPreconsultationOpen(true)}>
@@ -914,6 +977,7 @@ export function PatientTreatmentPage({ patientId }: { patientId: string }) {
                             <p className="mt-2 text-xs text-muted-foreground">
                               {item.authorName} · {item.professionalCouncil} {item.councilNumber}/
                               {item.councilRegion}
+                              {item.unitName ? ` · ${item.unitName}` : ""}
                             </p>
                           </div>
                           {data.canManageClinicalProblems ? (
@@ -1081,6 +1145,7 @@ export function PatientTreatmentPage({ patientId }: { patientId: string }) {
                             <p className="mt-2 text-xs text-muted-foreground">
                               {item.authorName} · {item.professionalCouncil} {item.councilNumber}/
                               {item.councilRegion}
+                              {item.unitName ? ` · ${item.unitName}` : ""}
                             </p>
                             {item.notes ? (
                               <p className="mt-3 whitespace-pre-wrap text-sm">{item.notes}</p>
@@ -1132,8 +1197,9 @@ export function PatientTreatmentPage({ patientId }: { patientId: string }) {
                               timeZone: "America/Fortaleza",
                             }).format(new Date(note.finalizedAt))}
                             {" · "}
-                            {note.authorName} · {note.professionalCouncil} {note.councilNumber}/
-                            {note.councilRegion}
+                            {note.authorName}
+                            {note.unitName ? ` · ${note.unitName}` : ""} ·{" "}
+                            {note.professionalCouncil} {note.councilNumber}/{note.councilRegion}
                           </p>
                         </div>
                         <Button asChild variant="outline" size="sm">
@@ -1198,6 +1264,7 @@ export function PatientTreatmentPage({ patientId }: { patientId: string }) {
           >
             {documentsOpened && (
               <PatientDocumentCenter
+                unitId=""
                 patientId={patientId}
                 examsOnly={workspaceSection === "exams"}
               />
@@ -1870,6 +1937,12 @@ export function PatientTreatmentPage({ patientId }: { patientId: string }) {
                             Versão {p.version} · {Math.ceil(p.sizeBytes / 1024)} KB ·{" "}
                             {prescriptionLabels[p.effectiveStatus] ?? p.effectiveStatus}
                           </p>
+                          {!p.hasIntegrityReference && (
+                            <p className="text-xs text-warning-foreground">
+                              Original legado sem hash de origem: integridade histórica não
+                              comprovada.
+                            </p>
+                          )}
                           {p.prescriberName ? (
                             <p className="text-xs text-muted-foreground">
                               {p.prescriberName} · {p.councilNumber}/{p.councilRegion} · emissão{" "}

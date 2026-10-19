@@ -94,4 +94,45 @@ describe("Patients UI", () => {
       ),
     );
   });
+  it("paginates server results visibly and preserves the search for the next page", async () => {
+    const requests: string[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: string | URL | Request) => {
+        const path = String(input);
+        requests.push(path);
+        const page = Number(new URL(path, "https://example.test").searchParams.get("page"));
+        return Response.json({
+          data: {
+            patients: [],
+            units: [],
+            canManage: false,
+            pagination: { page, pageSize: 50, hasMore: page === 1 },
+          },
+        });
+      }),
+    );
+    mount();
+    await screen.findByRole("navigation", { name: "Paginação dos pacientes" });
+    fireEvent.change(screen.getByRole("searchbox", { name: "Buscar paciente" }), {
+      target: { value: "Maria" },
+    });
+    await waitFor(() =>
+      expect(
+        requests.some((path) => path.includes("search=Maria") && path.includes("page=1")),
+      ).toBe(true),
+    );
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Próxima página" })).not.toBeDisabled(),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Próxima página" }));
+    await waitFor(() =>
+      expect(
+        requests.some((path) => path.includes("search=Maria") && path.includes("page=2")),
+      ).toBe(true),
+    );
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Próxima página" })).toBeDisabled(),
+    );
+  });
 });

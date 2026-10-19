@@ -15,6 +15,7 @@ const input = z
     operationId: z.string().uuid(),
     version: z.number().int().positive().nullable(),
     patientId: z.string().uuid(),
+    appointmentId: z.string().uuid().nullable().optional(),
     title: z.string().trim().min(2).max(200),
     status: z.enum(["DRAFT", "ACTIVE", "ARCHIVED"]),
     plan: treatmentPlanSchema,
@@ -49,7 +50,7 @@ async function body(request: Request) {
     reader.releaseLock();
   }
 }
-const headFields = `id,patient_id AS "patientId",unit_id AS "unitId",author_user_id AS "authorUserId",title,status,version,start_date::text AS "startDate",preview_days AS "previewDays"`;
+const headFields = `id,patient_id AS "patientId",appointment_id AS "appointmentId",unit_id AS "unitId",author_user_id AS "authorUserId",title,status,version,start_date::text AS "startDate",preview_days AS "previewDays"`;
 export async function patientTreatmentPlansResponse(request: Request) {
   const auth = await authenticate(request);
   if (!auth) return fail("Entre para consultar os planos.", 401);
@@ -75,6 +76,7 @@ export async function patientTreatmentPlansResponse(request: Request) {
     .object({
       patientId: z.string().uuid(),
       planId: z.string().uuid().optional(),
+      appointmentId: z.string().uuid().optional(),
       unitId: z.string().uuid().optional(),
     })
     .strict()
@@ -114,6 +116,50 @@ export async function patientTreatmentPlansResponse(request: Request) {
     ).rows[0];
     if (!patient || !can(auth, "patients.private.read", patient.primary_unit_id))
       return fail("Paciente não encontrado.", 404);
+    // Resolve the immutable encounter binding before locking the plan. This uses the
+    // same appointment -> clinical-record lock order as encounter completion.
+    const existingBinding = data
+      ? (
+          await client.query(
+            "SELECT appointment_id FROM inventory_clinical_plans WHERE id=$1 AND organization_id=$2 AND patient_id=$3",
+            [data.id, auth.organizationId, patient.id],
+          )
+        ).rows[0]
+      : null;
+    const appointmentId: string | null = data
+      ? data.appointmentId === undefined
+        ? (existingBinding?.appointment_id ?? null)
+        : data.appointmentId
+      : (filter.data.appointmentId ?? null);
+    if (existingBinding?.appointment_id && existingBinding.appointment_id !== appointmentId)
+      return fail("O vínculo do plano com o atendimento é imutável.", 409);
+    const appointment = appointmentId
+      ? (
+          await client.query(
+            `SELECT id,unit_id,professional_user_id,status FROM inventory_care_appointments WHERE id=$1 AND organization_id=$2 AND patient_id=$3 ${data ? "FOR UPDATE" : "FOR SHARE"}`,
+            [appointmentId, auth.organizationId, patient.id],
+          )
+        ).rows[0]
+      : null;
+    if (
+      appointmentId &&
+      (!appointment ||
+        !can(auth, "patients.private.read", appointment.unit_id) ||
+        !can(auth, "patients.clinical.manage", appointment.unit_id))
+    )
+      return fail("Atendimento não encontrado.", 404);
+    const appointmentWritable =
+      !appointmentId ||
+      Boolean(
+        appointment &&
+        !["COMPLETED", "CANCELED", "NO_SHOW"].includes(appointment.status) &&
+        appointment.professional_user_id === auth.user.id,
+      );
+    if (data && appointmentId && !appointmentWritable)
+      return fail(
+        "Atendimento encerrado ou sem autorização do profissional responsável.",
+        appointment?.professional_user_id === auth.user.id ? 409 : 403,
+      );
     const professional = (
       await client.query(
         "SELECT professional_council,council_number,council_region,inventory_professional_registration_state(id,$2) AS registry_state FROM inventory_users WHERE id=$1 AND active FOR SHARE",
@@ -128,24 +174,31 @@ export async function patientTreatmentPlansResponse(request: Request) {
     if (!data) {
       const rows = (
         await client.query(
-          `SELECT ${headFields} FROM inventory_clinical_plans WHERE organization_id=$1 AND patient_id=$2 AND ($3::boolean OR unit_id=ANY($4::uuid[])) ORDER BY updated_at DESC,id LIMIT 25`,
-          [auth.organizationId, patient.id, canAccessAllUnits(auth), auth.unitIds],
+          `SELECT ${headFields} FROM inventory_clinical_plans WHERE organization_id=$1 AND patient_id=$2 AND ($3::boolean OR unit_id=ANY($4::uuid[])) AND ($5::uuid IS NULL OR appointment_id=$5) ORDER BY updated_at DESC,id LIMIT 25`,
+          [auth.organizationId, patient.id, canAccessAllUnits(auth), auth.unitIds, appointmentId],
         )
       ).rows;
       const plans = rows.map((r) => ({
         ...r,
-        canEdit: Boolean(clinical && r.authorUserId === auth.user.id && r.status !== "ARCHIVED"),
+        canEdit: Boolean(
+          clinical &&
+          appointmentWritable &&
+          (!r.appointmentId || r.appointmentId === appointmentId) &&
+          r.authorUserId === auth.user.id &&
+          r.status !== "ARCHIVED",
+        ),
       }));
       if (filter.data.planId) {
         const record = (
           await client.query(
-            `SELECT ${headFields} FROM inventory_clinical_plans WHERE id=$1 AND organization_id=$2 AND patient_id=$3 AND ($4::boolean OR unit_id=ANY($5::uuid[])) FOR SHARE`,
+            `SELECT ${headFields} FROM inventory_clinical_plans WHERE id=$1 AND organization_id=$2 AND patient_id=$3 AND ($4::boolean OR unit_id=ANY($5::uuid[])) AND ($6::uuid IS NULL OR appointment_id=$6) FOR SHARE`,
             [
               filter.data.planId,
               auth.organizationId,
               patient.id,
               canAccessAllUnits(auth),
               auth.unitIds,
+              appointmentId,
             ],
           )
         ).rows[0];
@@ -176,7 +229,11 @@ export async function patientTreatmentPlansResponse(request: Request) {
               plan,
               preview,
               canEdit: Boolean(
-                clinical && record.authorUserId === auth.user.id && record.status !== "ARCHIVED",
+                clinical &&
+                appointmentWritable &&
+                (!record.appointmentId || record.appointmentId === appointmentId) &&
+                record.authorUserId === auth.user.id &&
+                record.status !== "ARCHIVED",
               ),
             },
           },
@@ -197,8 +254,8 @@ export async function patientTreatmentPlansResponse(request: Request) {
           [auth.organizationId, patient.id, canAccessAllUnits(auth), auth.unitIds],
         ),
         await client.query(
-          `SELECT id,care_type||' · '||starts_at::text AS label FROM inventory_care_appointments WHERE organization_id=$1 AND patient_id=$2 AND ($3::boolean OR unit_id=ANY($4::uuid[])) ORDER BY starts_at DESC,id LIMIT 100`,
-          [auth.organizationId, patient.id, canAccessAllUnits(auth), auth.unitIds],
+          `SELECT id,care_type||' · '||starts_at::text AS label FROM inventory_care_appointments WHERE organization_id=$1 AND patient_id=$2 AND ($3::boolean OR unit_id=ANY($4::uuid[])) AND ($5::uuid IS NULL OR id=$5) ORDER BY starts_at DESC,id LIMIT 100`,
+          [auth.organizationId, patient.id, canAccessAllUnits(auth), auth.unitIds, appointmentId],
         ),
         await client.query(
           `SELECT i.id,d.title||' · '||i.created_at::text AS label FROM inventory_prescription_protocol_instances i JOIN inventory_encounter_documents d ON d.id=i.document_id WHERE i.organization_id=$1 AND d.patient_id=$2 AND ($3::boolean OR d.unit_id=ANY($4::uuid[])) ORDER BY i.created_at DESC,i.id LIMIT 100`,
@@ -216,7 +273,8 @@ export async function patientTreatmentPlansResponse(request: Request) {
         {
           data: {
             plans,
-            canManage: Boolean(clinical && patient.active),
+            canManage: Boolean(clinical && patient.active && appointmentWritable),
+            appointmentId,
             targets: {
               products: products.rows,
               catalogItems: catalogItems.rows,
@@ -255,6 +313,10 @@ export async function patientTreatmentPlansResponse(request: Request) {
       (!can(auth, "patients.clinical.manage", before.unit_id) || before.patient_id !== patient.id)
     )
       return fail("Plano não encontrado.", 404);
+    if (before?.appointment_id && before.appointment_id !== appointmentId)
+      return fail("O vínculo do plano com o atendimento é imutável.", 409);
+    if (appointment && before && before.unit_id !== appointment.unit_id)
+      return fail("O plano e o atendimento pertencem a unidades diferentes.", 409);
     if (before && before.author_user_id !== auth.user.id)
       return fail("Somente o autor pode editar este plano.", 403);
     const hash = createHash("sha256")
@@ -275,7 +337,7 @@ export async function patientTreatmentPlansResponse(request: Request) {
     if ((before && before.version !== data.version) || (!before && data.version !== null))
       return fail("Plano alterado. Atualize antes de salvar.", 409);
     if (before?.status === "ARCHIVED") return fail("Plano arquivado não pode ser editado.", 409);
-    const unitId: string = before?.unit_id ?? patient.primary_unit_id;
+    const unitId: string = appointment?.unit_id ?? before?.unit_id ?? patient.primary_unit_id;
     if (
       (
         await client.query(
@@ -287,6 +349,8 @@ export async function patientTreatmentPlansResponse(request: Request) {
       return fail("Unidade indisponível.", 403);
     // Validate all explicit references without inferring links from labels or similar names.
     for (const item of data.plan.items) {
+      if (appointmentId && item.appointmentId !== appointmentId)
+        return fail("Cada procedimento deve indicar o atendimento deste plano.", 400);
       if (
         item.productId &&
         !(
@@ -352,12 +416,20 @@ export async function patientTreatmentPlansResponse(request: Request) {
     const version = (before?.version ?? 0) + 1;
     if (before)
       await client.query(
-        "UPDATE inventory_clinical_plans SET title=$2,status=$3,start_date=$4,preview_days=$5,version=$6,updated_at=now() WHERE id=$1",
-        [data.id, data.title, data.status, data.plan.startDate, data.plan.previewDays, version],
+        "UPDATE inventory_clinical_plans SET title=$2,status=$3,start_date=$4,preview_days=$5,version=$6,appointment_id=$7,updated_at=now() WHERE id=$1",
+        [
+          data.id,
+          data.title,
+          data.status,
+          data.plan.startDate,
+          data.plan.previewDays,
+          version,
+          appointmentId,
+        ],
       );
     else
       await client.query(
-        "INSERT INTO inventory_clinical_plans(id,organization_id,patient_id,unit_id,author_user_id,title,status,start_date,preview_days) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9)",
+        "INSERT INTO inventory_clinical_plans(id,organization_id,patient_id,unit_id,author_user_id,title,status,start_date,preview_days,appointment_id) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)",
         [
           data.id,
           auth.organizationId,
@@ -368,6 +440,7 @@ export async function patientTreatmentPlansResponse(request: Request) {
           data.status,
           data.plan.startDate,
           data.plan.previewDays,
+          appointmentId,
         ],
       );
     await client.query("UPDATE inventory_clinical_plan_items SET active=false WHERE plan_id=$1", [

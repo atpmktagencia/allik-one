@@ -4,6 +4,7 @@ import { migrate } from "drizzle-orm/node-postgres/migrator";
 import { getDb, getPool } from "./db";
 import {
   sessionResponse,
+  previewLogin,
   hashToken,
   can,
   type AuthContext,
@@ -298,12 +299,23 @@ describe("Quote and cost segregation", () => {
       expect(keys(manager)).not.toContain(forbidden);
   });
   it("denies shared Preview pricing mutations even though its demo role can read synthetic costs", async () => {
-    vi.stubEnv("INVENTORY_ENVIRONMENT", "preview");
-    vi.stubEnv("VERCEL_ENV", "preview");
-    vi.stubEnv("INVENTORY_DISABLE_PREVIEW_LOGIN", "true");
+    vi.stubEnv("INVENTORY_ENVIRONMENT", "test");
+    vi.stubEnv("INVENTORY_PREVIEW_PASSWORD", "synthetic-test-password");
+    vi.stubEnv("INVENTORY_SESSION_SECRET", "synthetic-test-secret".repeat(3));
     vi.stubEnv("INVENTORY_PREVIEW_DATA_CLASSIFICATION", "synthetic");
     try {
-      const session = await sessionResponse(new Request(`${origin}/api/inventory-session`));
+      const login = await previewLogin(
+        new Request(`${origin}/api/inventory-session`, {
+          method: "POST",
+          headers: { origin, "Content-Type": "application/json" },
+          body: JSON.stringify({ password: "synthetic-test-password" }),
+        }),
+      );
+      expect(login.status).toBe(200);
+      const cookie = login.headers.get("set-cookie")!.split(";")[0]!;
+      const session = await sessionResponse(
+        new Request(`${origin}/api/inventory-session`, { headers: { cookie } }),
+      );
       expect(session.status).toBe(200);
       const body = await session.json();
       expect(body.data.capabilities.canReadPricingCosts).toBe(true);
@@ -311,7 +323,7 @@ describe("Quote and cost segregation", () => {
       const response = await pricingResponse(
         new Request(`${origin}/api/v1/inventory/pricing`, {
           method: "POST",
-          headers: { origin, "Content-Type": "application/json" },
+          headers: { origin, cookie, "Content-Type": "application/json" },
           body: JSON.stringify({ action: "CREATE_PRESENTATION" }),
         }),
       );

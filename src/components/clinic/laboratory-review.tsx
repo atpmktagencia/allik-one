@@ -4,7 +4,7 @@ import {
   type LaboratorySourceChecks,
 } from "@/lib/laboratory-review-checks";
 import { laboratoryFailureMessages } from "@/lib/laboratory-results";
-import { Fragment, useCallback, useEffect, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useId, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { invalidatePatientLaboratoryQueries } from "@/data/patient-laboratory-queries";
 import { Button } from "@/components/ui/button";
@@ -66,13 +66,16 @@ const eventNames: Record<string, string> = {
 export function LaboratoryReview({
   patientId,
   documentId,
+  unitId,
   onChanged,
 }: {
   patientId: string;
   documentId: string;
+  unitId?: string | undefined;
   onChanged?: () => void;
 }) {
   const queryClient = useQueryClient();
+  const editorId = useId();
   const [open, setOpen] = useState(false),
     [data, setData] = useState<Data | null>(null),
     [draft, setDraft] = useState<LaboratoryDraft>(emptyLaboratoryDraft);
@@ -90,7 +93,10 @@ export function LaboratoryReview({
     generation = useRef(0),
     requests = useRef(new Set<AbortController>()),
     operation = useRef<{ key: string; id: string } | null>(null);
-  const endpoint = withSelectedUnit("/api/v1/inventory/laboratory-results");
+  const unitQuery = unitId !== undefined ? "unitId=" + encodeURIComponent(unitId) : "";
+  const endpoint = withSelectedUnit(
+    "/api/v1/inventory/laboratory-results" + (unitQuery ? "?" + unitQuery : ""),
+  );
   const send = useCallback(
     async (body?: Record<string, unknown>, reviewId?: string) => {
       const controller = new AbortController();
@@ -108,7 +114,8 @@ export function LaboratoryReview({
                   patientId +
                   "&documentId=" +
                   documentId +
-                  (reviewId ? "&reviewId=" + reviewId : ""),
+                  (reviewId ? "&reviewId=" + reviewId : "") +
+                  (unitQuery ? "&" + unitQuery : ""),
               ),
           {
             method: body ? "POST" : "GET",
@@ -133,7 +140,7 @@ export function LaboratoryReview({
         requests.current.delete(controller);
       }
     },
-    [endpoint, patientId, documentId],
+    [endpoint, patientId, documentId, unitQuery],
   );
   const apply = useCallback((next: Data) => {
     setData(next);
@@ -249,6 +256,39 @@ export function LaboratoryReview({
     data?.import?.processing_started_at &&
     Date.now() - new Date(data.import.processing_started_at).getTime() > 90000;
   const editable = !!data?.import && !busy && !validated && !processing && !historical;
+  useEffect(() => {
+    const publish = (dirty: boolean, pending: boolean) =>
+      window.dispatchEvent(
+        new CustomEvent("allik:clinical-file-draft-state", {
+          detail: { editorId, patientId, dirty, pending },
+        }),
+      );
+    publish(open && dirty, open && busy);
+    return () => {
+      publish(false, false);
+    };
+  }, [editorId, patientId, open, dirty, busy]);
+  useEffect(() => {
+    if (!open || (!dirty && !busy)) return;
+    const preventClose = (event: Event) => {
+      const detail = (event as CustomEvent<{ patientId?: string }>).detail;
+      if (detail?.patientId && detail.patientId !== patientId) return;
+      event.preventDefault();
+      setError("Salve ou descarte explicitamente a conferência antes de sair.");
+    };
+    const unload = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = "";
+    };
+    window.addEventListener("allik:before-clinical-file-close", preventClose);
+    window.addEventListener("allik:before-unit-change", preventClose);
+    window.addEventListener("beforeunload", unload);
+    return () => {
+      window.removeEventListener("allik:before-clinical-file-close", preventClose);
+      window.removeEventListener("allik:before-unit-change", preventClose);
+      window.removeEventListener("beforeunload", unload);
+    };
+  }, [open, dirty, busy, patientId]);
   const shownDraft = historical?.snapshot ?? draft;
   const problem = laboratoryValidationProblem(draft);
   const rowCheck = (row: LaboratoryRow, index: number) => {

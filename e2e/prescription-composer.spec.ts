@@ -160,6 +160,8 @@ test("individual clinician composes a prescription and explicitly saves a draft"
     await dialog.getByLabel("Quantidade a dispensar", { exact: true }).fill("70");
     await dialog.getByLabel("Unidade de dispensação", { exact: true }).fill("cápsulas");
     const first = dialog.getByRole("group", { name: "Etapa 1", exact: true });
+    for (const field of ["Unidades por administração", "Administrações por dia", "Duração em dias"])
+      await expect(first.getByLabel(field, { exact: true })).toHaveValue("");
     await first.getByLabel("Unidades por administração", { exact: true }).fill("1");
     await first.getByLabel("Administrações por dia", { exact: true }).fill("2");
     await first.getByLabel("Duração em dias", { exact: true }).fill("10");
@@ -237,7 +239,19 @@ test("individual clinician composes a prescription and explicitly saves a draft"
       "SELECT id FROM inventory_prescription_protocols WHERE organization_id=$1",
       [org],
     );
+    page.once("dialog", async (confirmation) => {
+      expect(confirmation.message()).toBe(
+        "Substituir a composição local ainda não inserida na receita?",
+      );
+      await confirmation.accept();
+    });
     await dialog.getByRole("combobox", { name: "Protocolo pessoal", exact: true }).selectOption("");
+    page.once("dialog", async (confirmation) => {
+      expect(confirmation.message()).toBe(
+        "Substituir a composição local ainda não inserida na receita?",
+      );
+      await confirmation.accept();
+    });
     await dialog
       .getByRole("combobox", { name: "Protocolo pessoal", exact: true })
       .selectOption(protocol.rows[0].id);

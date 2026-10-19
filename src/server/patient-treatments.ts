@@ -2,6 +2,8 @@ import { patientEncounterHistory } from "./patient-encounter-history";
 import { recordClinicalAccess } from "./clinical-access-audit";
 import { patientAllergySummary } from "./patient-allergies";
 import "@tanstack/react-start/server-only";
+import { createHash } from "node:crypto";
+import { verifiedOriginal } from "./private-original";
 import { del, get, put } from "@vercel/blob";
 import { actor, authenticate, can, canAccessAllUnits, type AuthContext } from "./auth";
 import { getPool } from "./db";
@@ -40,6 +42,11 @@ export async function patientDetailResponse(request: Request) {
   const patientId = new URL(request.url).searchParams.get("patientId");
   if (!patientId)
     return Response.json({ error: "Paciente não informado." }, { status: 400, headers });
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(patientId))
+    return Response.json(
+      { error: "Identificador do paciente inválido." },
+      { status: 400, headers },
+    );
   const patient = await scopedPatient(auth, patientId);
   if (!patient || !can(auth, "patients.private.read", String(patient.primaryUnitId)))
     return Response.json({ error: "Paciente não encontrado." }, { status: 404, headers });
@@ -72,7 +79,7 @@ export async function patientDetailResponse(request: Request) {
       ),
       getPool().query(
         `SELECT id,treatment_id AS "treatmentId",original_filename AS "originalFilename",
-          content_type AS "contentType",size_bytes AS "sizeBytes",uploaded_at AS "uploadedAt",
+          content_type AS "contentType",size_bytes AS "sizeBytes",sha256 IS NOT NULL AS "hasIntegrityReference",uploaded_at AS "uploadedAt",
           prescriber_name AS "prescriberName",council_number AS "councilNumber",
           council_region AS "councilRegion",issued_on::text AS "issuedOn",
           valid_until::text AS "validUntil",document_status AS "documentStatus",version,
@@ -158,37 +165,38 @@ export async function patientDetailResponse(request: Request) {
           n.systolic_pressure AS "systolicPressure",n.diastolic_pressure AS "diastolicPressure",
           n.heart_rate AS "heartRate",n.oxygen_saturation AS "oxygenSaturation",
           n.temperature_c AS "temperatureC",n.weight_kg AS "weightKg",n.height_cm AS "heightCm",
-          n.finalized_at AS "finalizedAt",a.starts_at AS "appointmentStartsAt",
+          n.finalized_at AS "finalizedAt",n.unit_id AS "unitId",u.name AS "unitName",a.starts_at AS "appointmentStartsAt",
           COALESCE(ct.name,a.other_care_type,a.care_type) AS "careTypeName"
          FROM inventory_clinical_notes n
-         JOIN inventory_care_appointments a ON a.id=n.appointment_id
+         JOIN inventory_care_appointments a ON a.id=n.appointment_id AND a.organization_id=n.organization_id AND a.patient_id=n.patient_id AND a.unit_id=n.unit_id
+         JOIN inventory_units u ON u.id=n.unit_id AND u.organization_id=n.organization_id
          LEFT JOIN inventory_care_types ct ON ct.organization_id=a.organization_id AND ct.code=a.care_type
-         WHERE n.patient_id=$1 AND n.organization_id=$2 AND n.unit_id=$3 AND n.status='FINAL'
-         ORDER BY n.finalized_at DESC,n.id DESC LIMIT 100`,
-        [patientId, auth.organizationId, patient.primaryUnitId],
+         WHERE n.patient_id=$1 AND n.organization_id=$2 AND ($3::boolean OR n.unit_id=ANY($4::uuid[])) AND n.status='FINAL'
+         ORDER BY n.finalized_at DESC,n.id DESC LIMIT 101`,
+        [patientId, auth.organizationId, canAccessAllUnits(auth), auth.unitIds],
       ),
       getPool().query(
-        `SELECT id,description,icd10_code AS "icd10Code",onset_on::text AS "onsetOn",
+        `SELECT id,unit_id AS "unitId",(SELECT u.name FROM inventory_units u WHERE u.id=inventory_patient_clinical_problems.unit_id) AS "unitName",description,icd10_code AS "icd10Code",onset_on::text AS "onsetOn",
           resolved_on::text AS "resolvedOn",status,notes,author_name AS "authorName",
           professional_council AS "professionalCouncil",council_number AS "councilNumber",
           council_region AS "councilRegion",version,created_at AS "createdAt",updated_at AS "updatedAt"
          FROM inventory_patient_clinical_problems
-         WHERE patient_id=$1 AND organization_id=$2 AND unit_id=$3
+         WHERE patient_id=$1 AND organization_id=$2 AND ($3::boolean OR unit_id=ANY($4::uuid[]))
          ORDER BY CASE status WHEN 'ACTIVE' THEN 0 WHEN 'RESOLVED' THEN 1 ELSE 2 END,
-           updated_at DESC,id DESC LIMIT 200`,
-        [patientId, auth.organizationId, patient.primaryUnitId],
+           updated_at DESC,id DESC LIMIT 201`,
+        [patientId, auth.organizationId, canAccessAllUnits(auth), auth.unitIds],
       ),
       getPool().query(
-        `SELECT id,type,title,reaction,severity,status,notes,author_name AS "authorName",
+        `SELECT id,unit_id AS "unitId",(SELECT u.name FROM inventory_units u WHERE u.id=inventory_patient_clinical_alerts.unit_id) AS "unitName",type,title,reaction,severity,status,notes,author_name AS "authorName",
           professional_council AS "professionalCouncil",council_number AS "councilNumber",
           council_region AS "councilRegion",version,created_at AS "createdAt",updated_at AS "updatedAt"
          FROM inventory_patient_clinical_alerts
          WHERE patient_id=$1 AND organization_id=$2
-           AND (unit_id=$3 OR (type='ALLERGY' AND status='ACTIVE'))
+           AND (($3::boolean OR unit_id=ANY($4::uuid[])) OR (type='ALLERGY' AND status='ACTIVE'))
          ORDER BY CASE status WHEN 'ACTIVE' THEN 0 ELSE 1 END,
           CASE severity WHEN 'SEVERE' THEN 0 WHEN 'MODERATE' THEN 1 WHEN 'MILD' THEN 2 ELSE 3 END,
-          updated_at DESC,id DESC LIMIT 200`,
-        [patientId, auth.organizationId, patient.primaryUnitId],
+          updated_at DESC,id DESC LIMIT 201`,
+        [patientId, auth.organizationId, canAccessAllUnits(auth), auth.unitIds],
       ),
       patientEncounterHistory(auth, patientId),
     ]);
@@ -198,14 +206,39 @@ export async function patientDetailResponse(request: Request) {
     const stockRows = stock.rows as Array<Record<string, unknown>>;
     const unitDemandRows = unitDemand.rows as Array<Record<string, unknown>>;
     const openStockRows = openStock.rows as Array<Record<string, unknown>>;
+    const groupByTreatment = (rows: Array<Record<string, unknown>>) => {
+      const grouped = new Map<string, Array<Record<string, unknown>>>();
+      for (const row of rows) {
+        const key = String(row["treatmentId"]);
+        const group = grouped.get(key);
+        if (group) group.push(row);
+        else grouped.set(key, [row]);
+      }
+      return grouped;
+    };
+    const schedulesByTreatment = groupByTreatment(scheduleRows);
+    const purchasesByTreatment = groupByTreatment(purchaseRows);
+    const productUnitKey = (product: unknown, unit: unknown) =>
+      `${String(product)}:${String(unit)}`;
+    const presentationsByProductUnit = new Map(
+      presentationRows.map((row) => [productUnitKey(row["productId"], row["baseUnit"]), row]),
+    );
+    const stockByProduct = new Map(stockRows.map((row) => [String(row["productId"]), row]));
+    const openByProductUnit = new Map(
+      openStockRows.map((row) => [productUnitKey(row["productId"], row["baseUnit"]), row]),
+    );
+    const demandByProductUnit = new Map(
+      unitDemandRows.map((row) => [productUnitKey(row["productId"], row["doseUnit"]), row]),
+    );
     const summaries = treatments.rows.map((treatment: Record<string, unknown>) => {
       const treatmentId = String(treatment["id"]);
       const doseUnit = String(treatment["doseUnit"]).toUpperCase();
-      const treatmentSchedule = scheduleRows.filter((row) => row["treatmentId"] === treatmentId);
+      const treatmentSchedule = schedulesByTreatment.get(treatmentId) ?? [];
       const activeSchedule = treatmentSchedule.filter((row) => row["status"] !== "CANCELED");
-      const purchasedQuantity = purchaseRows
-        .filter((row) => row["treatmentId"] === treatmentId)
-        .reduce((sum, row) => sum + Number(row["purchasedQuantity"]), 0);
+      const purchasedQuantity = (purchasesByTreatment.get(treatmentId) ?? []).reduce(
+        (sum, row) => sum + Number(row["purchasedQuantity"]),
+        0,
+      );
       const reservedQuantity = activeSchedule
         .filter((row) => row["status"] === "RESERVED")
         .reduce((sum, row) => sum + Number(row["doseQuantity"]), 0);
@@ -215,11 +248,11 @@ export async function patientDetailResponse(request: Request) {
       const plannedQuantity = activeSchedule
         .filter((row) => row["status"] === "PLANNED")
         .reduce((sum, row) => sum + Number(row["doseQuantity"]), 0);
-      const presentation = presentationRows.find(
-        (row) => row["productId"] === treatment["productId"] && row["baseUnit"] === doseUnit,
+      const presentation = presentationsByProductUnit.get(
+        productUnitKey(treatment["productId"], doseUnit),
       );
       const availableStockUnits = Number(
-        stockRows.find((row) => row["productId"] === treatment["productId"])?.["quantity"] ?? 0,
+        stockByProduct.get(String(treatment["productId"]))?.["quantity"] ?? 0,
       );
       const usablePerPresentation = presentation
         ? Number(presentation["totalBaseQuantity"]) *
@@ -232,9 +265,7 @@ export async function patientDetailResponse(request: Request) {
           : null;
       const demandQuantity = plannedQuantity + reservedQuantity;
       const openQuantity = Number(
-        openStockRows.find(
-          (row) => row["productId"] === treatment["productId"] && row["baseUnit"] === doseUnit,
-        )?.["quantity"] ?? 0,
+        openByProductUnit.get(productUnitKey(treatment["productId"], doseUnit))?.["quantity"] ?? 0,
       );
       const physicalAvailableDose =
         usablePerPresentation === null
@@ -245,14 +276,13 @@ export async function patientDetailResponse(request: Request) {
           ? Math.ceil(demandQuantity / usablePerPresentation)
           : null;
       const unitDemandQuantity = Number(
-        unitDemandRows.find(
-          (row) => row["productId"] === treatment["productId"] && row["doseUnit"] === doseUnit,
-        )?.["quantity"] ?? 0,
+        demandByProductUnit.get(productUnitKey(treatment["productId"], doseUnit))?.["quantity"] ??
+          0,
       );
       const unitReservedQuantity = Number(
-        unitDemandRows.find(
-          (row) => row["productId"] === treatment["productId"] && row["doseUnit"] === doseUnit,
-        )?.["reservedQuantity"] ?? 0,
+        demandByProductUnit.get(productUnitKey(treatment["productId"], doseUnit))?.[
+          "reservedQuantity"
+        ] ?? 0,
       );
       const unitRequiredPresentationUnits =
         usablePerPresentation && usablePerPresentation > 0
@@ -318,7 +348,7 @@ export async function patientDetailResponse(request: Request) {
     return Response.json(
       {
         data: {
-          encounterHistory: encounters.rows,
+          encounterHistory: encounters.rows.slice(0, 50),
           patient,
           treatments: treatments.rows,
           prescriptions: prescriptions.rows,
@@ -327,9 +357,22 @@ export async function patientDetailResponse(request: Request) {
           schedule: scheduleRows,
           supplySummaries: summaries,
           locations: locations.rows,
-          clinicalHistory: clinicalHistory.rows,
-          clinicalProblems: clinicalProblems.rows,
-          clinicalAlerts: clinicalAlerts.rows,
+          historyScope: "AUTHORIZED_UNITS",
+          historyLimits: {
+            clinicalHistory: 100,
+            clinicalProblems: 200,
+            clinicalAlerts: 200,
+            encounters: 50,
+          },
+          historyHasMore: {
+            clinicalHistory: clinicalHistory.rows.length > 100,
+            clinicalProblems: clinicalProblems.rows.length > 200,
+            clinicalAlerts: clinicalAlerts.rows.length > 200,
+            encounters: encounters.rows.length > 50,
+          },
+          clinicalHistory: clinicalHistory.rows.slice(0, 100),
+          clinicalProblems: clinicalProblems.rows.slice(0, 200),
+          clinicalAlerts: clinicalAlerts.rows.slice(0, 200),
           allergySummary: await patientAllergySummary(
             auth,
             patientId,
@@ -748,7 +791,9 @@ async function uploadPrescription(
   const extension =
     file.type === "application/pdf" ? "pdf" : file.type.split("/")[1]!.replace("jpeg", "jpg");
   const pathname = `prescriptions/${auth.organizationId}/${patient["id"]}/${prescriptionId}.${extension}`;
-  const blob = await put(pathname, file, {
+  const bytes = Buffer.from(await file.arrayBuffer());
+  const sha256 = createHash("sha256").update(bytes).digest("hex");
+  const blob = await put(pathname, bytes, {
     access: "private",
     addRandomSuffix: false,
     contentType: file.type,
@@ -782,8 +827,8 @@ async function uploadPrescription(
       `INSERT INTO inventory_patient_prescriptions(
         id,organization_id,patient_id,treatment_id,blob_pathname,original_filename,content_type,
         size_bytes,prescriber_name,council_number,council_region,issued_on,valid_until,
-        document_status,version,supersedes_id,uploaded_by_user_id
-       ) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,'ACTIVE',$14,$15,$16)`,
+        document_status,version,supersedes_id,uploaded_by_user_id,sha256
+       ) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,'ACTIVE',$14,$15,$16,$17)`,
       [
         prescriptionId,
         auth.organizationId,
@@ -801,6 +846,7 @@ async function uploadPrescription(
         version,
         input.supersedesId || null,
         auth.user.id,
+        sha256,
       ],
     );
     await client.query(
@@ -844,7 +890,7 @@ export async function prescriptionDownloadResponse(request: Request, prescriptio
   if (!auth || !can(auth, "patients.private.read"))
     return Response.json({ error: "Acesso negado." }, { status: auth ? 403 : 401, headers });
   const result = await getPool().query(
-    `SELECT d.blob_pathname,d.original_filename,d.content_type,p.primary_unit_id,t.unit_id FROM inventory_patient_prescriptions d JOIN inventory_patients p ON p.id=d.patient_id JOIN inventory_patient_treatments t ON t.id=d.treatment_id AND t.organization_id=d.organization_id WHERE d.id=$1 AND d.organization_id=$2`,
+    `SELECT d.id,d.patient_id,d.sha256,d.size_bytes,d.blob_pathname,d.original_filename,d.content_type,p.primary_unit_id,t.unit_id FROM inventory_patient_prescriptions d JOIN inventory_patients p ON p.id=d.patient_id AND p.organization_id=d.organization_id JOIN inventory_patient_treatments t ON t.id=d.treatment_id AND t.organization_id=d.organization_id WHERE d.id=$1 AND d.organization_id=$2`,
     [prescriptionId, auth.organizationId],
   );
   const document = result.rows[0];
@@ -855,16 +901,42 @@ export async function prescriptionDownloadResponse(request: Request, prescriptio
   const blob = await get(String(document.blob_pathname), { access: "private" });
   if (!blob || blob.statusCode !== 200)
     return Response.json({ error: "Documento não encontrado." }, { status: 404, headers });
+  let bytes: Buffer;
+  try {
+    bytes = await verifiedOriginal(
+      blob.stream,
+      Number(document.size_bytes),
+      document.sha256 ?? null,
+      10 * 1024 * 1024,
+    );
+    await recordClinicalAccess(auth, {
+      patientId: String(document.patient_id),
+      unitId: String(document.unit_id),
+      sourceKind: "UPLOADED_PRESCRIPTION",
+      sourceId: String(document.id),
+      action:
+        new URL(request.url).searchParams.get("download") === "true"
+          ? "DOCUMENT_DOWNLOAD"
+          : "DOCUMENT_OPEN",
+      resourceIds: [String(document.id)],
+    });
+  } catch {
+    return Response.json(
+      { error: "Não foi possível verificar ou auditar o original. Nenhum arquivo foi entregue." },
+      { status: 503, headers },
+    );
+  }
   await getPool().query(
     `INSERT INTO inventory_patient_prescription_access
       (organization_id,prescription_id,actor,actor_user_id) VALUES($1,$2,$3,$4)`,
     [auth.organizationId, prescriptionId, actor(auth).name, actor(auth).userId],
   );
   const safeName = String(document.original_filename).replace(/["\\\r\n]/g, "_");
-  return new Response(blob.stream, {
+  return new Response(new Uint8Array(bytes), {
     headers: {
       "Content-Type": String(document.content_type),
-      "Content-Disposition": `inline; filename="${safeName}"`,
+      "X-Allik-Original-Integrity": document.sha256 ? "verified" : "legacy-unverified",
+      "Content-Disposition": `${new URL(request.url).searchParams.get("download") === "true" ? "attachment" : "inline"}; filename="${safeName}"`,
       "Cache-Control": "private, no-store",
       "X-Content-Type-Options": "nosniff",
     },

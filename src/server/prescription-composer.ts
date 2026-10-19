@@ -103,7 +103,7 @@ export async function prescriptionComposerResponse(request: Request) {
     await client.query("BEGIN");
     const a = (
       await client.query(
-        `SELECT a.*,u.professional_council,u.council_number,u.council_region,inventory_professional_registration_state(u.id,a.organization_id) AS registry_state,p.primary_unit_id,p.active AS patient_active,p.full_name AS patient_name FROM inventory_care_appointments a JOIN inventory_users u ON u.id=a.professional_user_id JOIN inventory_patients p ON p.id=a.patient_id AND p.organization_id=a.organization_id WHERE a.id=$1 AND a.organization_id=$2 FOR SHARE OF a,u,p`,
+        `SELECT a.*,u.professional_council,u.council_number,u.council_region,inventory_professional_registration_state(u.id,a.organization_id) AS registry_state,p.primary_unit_id,p.active AS patient_active,p.full_name AS patient_name FROM inventory_care_appointments a JOIN inventory_users u ON u.id=a.professional_user_id JOIN inventory_patients p ON p.id=a.patient_id AND p.organization_id=a.organization_id WHERE a.id=$1 AND a.organization_id=$2 FOR UPDATE OF a FOR SHARE OF u,p`,
         [appointmentId, auth.organizationId],
       )
     ).rows[0];
@@ -119,7 +119,7 @@ export async function prescriptionComposerResponse(request: Request) {
       ["INVALID", "DUPLICATE"].includes(a.registry_state) ||
       !hasClinicalRegistration(a) ||
       !canWriteClinicalDocument(a.professional_council, "PRESCRIPTION") ||
-      ["NO_SHOW", "CANCELED"].includes(a.status)
+      ["NO_SHOW", "CANCELED", "COMPLETED"].includes(a.status)
     )
       return fail("Composição indisponível para este atendimento.", 403);
     const approver = can(auth, "clinical.templates.approve", a.unit_id);

@@ -249,7 +249,9 @@ async function view(a: Actor, s: Source, reviewId?: string) {
             "/api/v1/inventory/patient-document-file?patientId=" +
             s.patient_id +
             "&sourceKind=GENERAL_DOCUMENT&sourceId=" +
-            s.id,
+            s.id +
+            "&unitId=" +
+            s.unit_id,
         },
         import: j,
         evidenceChecks,
@@ -297,7 +299,10 @@ async function finishExtraction(
         { headers: request.headers },
       ),
     );
-    if (!original.ok) throw Error("SOURCE_UNAVAILABLE");
+    if (!original.ok) {
+      const problem = await original.json().catch(() => null);
+      throw Error(problem?.code === "SOURCE_INTEGRITY" ? "SOURCE_INTEGRITY" : "SOURCE_UNAVAILABLE");
+    }
     const bytes = await bounded(original.body, PATIENT_DOCUMENT_MAX_BYTES);
     if (
       createHash("sha256").update(bytes).digest("hex") !== s.sha256 ||
@@ -402,7 +407,7 @@ export async function laboratoryResultsResponse(request: Request) {
         .object({
           patientId: uuid,
           documentId: uuid,
-          unitId: uuid.optional(),
+          unitId: z.preprocess((value) => (value === "" ? undefined : value), uuid.optional()),
           reviewId: uuid.optional(),
         })
         .strict()
@@ -410,8 +415,14 @@ export async function laboratoryResultsResponse(request: Request) {
       if (!p.success) return fail("Exame inválido.", 400);
       const s = await scope(a, p.data.patientId, p.data.documentId);
       if (!s) return fail("Exame não encontrado.", 404);
-      if (p.data.unitId && !can(a, "patients.clinical.manage", p.data.unitId))
+      if (
+        p.data.unitId &&
+        (!can(a, "patients.clinical.manage", p.data.unitId) ||
+          !can(a, "patients.private.read", p.data.unitId))
+      )
         return fail("Unidade não autorizada.", 403);
+      if (p.data.unitId && s.unit_id !== p.data.unitId)
+        return fail("Exame não encontrado nesta unidade.", 404);
       return await view(a, s, p.data.reviewId);
     }
     if (request.method !== "POST") return fail("Método não permitido.", 405);
@@ -439,6 +450,11 @@ export async function laboratoryResultsResponse(request: Request) {
       if (!s) {
         await c.query("ROLLBACK");
         return fail("Exame não encontrado.", 404);
+      }
+      const requestedUnit = url.searchParams.get("unitId");
+      if (requestedUnit && requestedUnit !== s.unit_id) {
+        await c.query("ROLLBACK");
+        return fail("Exame não encontrado nesta unidade.", 404);
       }
       await c.query("SELECT pg_advisory_xact_lock(hashtextextended($1,0))", [
         "lab:" + a.organizationId + ":" + s.id,

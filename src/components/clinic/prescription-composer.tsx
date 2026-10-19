@@ -24,9 +24,9 @@ const emptyIngredient = () => ({
   individualCapsule: false,
 });
 const emptyPhase = () => ({
-  doseUnits: 1,
-  frequencyPerDay: 1,
-  durationDays: 1,
+  doseUnits: NaN,
+  frequencyPerDay: NaN,
+  durationDays: NaN,
   maintenance: false,
 });
 const emptyFormula = (): PrescriptionFormula => ({
@@ -44,10 +44,12 @@ export function PrescriptionComposer({
   appointmentId,
   documentId,
   onInsert,
+  onDraftStateChange,
 }: {
   appointmentId: string;
   documentId: string;
-  onInsert: (text: string, instanceId?: string) => void;
+  onInsert: (text: string, instanceId?: string) => boolean | void;
+  onDraftStateChange?: (state: { dirty: boolean; pending: boolean }) => void;
 }) {
   const query = useInventory<{
     templates: PrescriptionProtocol[];
@@ -59,6 +61,7 @@ export function PrescriptionComposer({
   }>(`prescription-composer?appointmentId=${encodeURIComponent(appointmentId)}`);
   const unitListId = useId();
   const dispenseListId = useId();
+  const [dirty, setDirty] = useState(false);
   const [formula, setFormula] = useState<PrescriptionFormula>(emptyFormula);
   const [activeTab, setActiveTab] = useState<"prescription" | "quote">("prescription");
   const [quoteOpened, setQuoteOpened] = useState(false);
@@ -76,6 +79,7 @@ export function PrescriptionComposer({
     function reset() {
       scopeRevision.current += 1;
       setFormula(emptyFormula());
+      setDirty(false);
       setActiveTab("prescription");
       setQuoteOpened(false);
       setProtocol(null);
@@ -100,6 +104,25 @@ export function PrescriptionComposer({
   const [pending, setPending] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  useEffect(() => {
+    onDraftStateChange?.({ dirty, pending });
+  }, [dirty, pending, onDraftStateChange]);
+  useEffect(() => {
+    function guardUnload(event: BeforeUnloadEvent) {
+      if (!dirty && !pending) return;
+      event.preventDefault();
+      event.returnValue = "";
+    }
+    function guardUnit(event: Event) {
+      if (dirty || pending) event.preventDefault();
+    }
+    window.addEventListener("beforeunload", guardUnload);
+    window.addEventListener("allik:before-unit-change", guardUnit);
+    return () => {
+      window.removeEventListener("beforeunload", guardUnload);
+      window.removeEventListener("allik:before-unit-change", guardUnit);
+    };
+  }, [dirty, pending]);
   const lock = useRef(false);
   const [excluded, setExcluded] = useState<Set<number>>(() => new Set());
   const [search, setSearch] = useState("");
@@ -107,6 +130,7 @@ export function PrescriptionComposer({
   const pointerClick = useRef(false);
   const suppressionTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   function selectIngredient(index: number, selected: boolean) {
+    setDirty(true);
     setExcluded((previous) => {
       const next = new Set(previous);
       if (selected) next.delete(index);
@@ -161,6 +185,8 @@ export function PrescriptionComposer({
   const validComposition = prescriptionFormulaSchema.safeParse(selectedFormula).success;
   const livePreview = validComposition ? composePrescription(selectedFormula) : null;
   function loadProtocol(item: PrescriptionProtocol | null) {
+    if (dirty && !window.confirm("Substituir a composição local ainda não inserida na receita?"))
+      return;
     setProtocol(item);
     setEditingSource(false);
     setModelOpen(false);
@@ -170,6 +196,7 @@ export function PrescriptionComposer({
     change(item ? structuredClone(item.formula) : emptyFormula());
   }
   function change(value: PrescriptionFormula) {
+    setDirty(true);
     setFormula(value);
     setPreview(null);
     setReviewed(false);
@@ -338,7 +365,7 @@ export function PrescriptionComposer({
       if (scope !== scopeRevision.current) return;
       if (!result.data?.instanceId)
         throw new Error("O servidor não confirmou o registro da composição.");
-      onInsert(result.data.text, result.data.instanceId);
+      if (onInsert(result.data.text, result.data.instanceId) !== false) setDirty(false);
     } catch (cause) {
       if (scope !== scopeRevision.current) return;
       setError(cause instanceof Error ? cause.message : "Não foi possível inserir a composição.");
@@ -355,6 +382,13 @@ export function PrescriptionComposer({
     return <p>A composição exige o profissional responsável pelo atendimento.</p>;
   return (
     <div className="space-y-4 text-sm">
+      <p role="status" className="text-xs text-muted-foreground">
+        {pending
+          ? "Processando composição…"
+          : dirty
+            ? "Composição local não inserida na receita. Insira no rascunho ou confirme o descarte ao fechar."
+            : "Composição sem alterações locais pendentes."}
+      </p>
       <datalist id={unitListId}>
         {["mg", "g", "mcg", "µg", "UI", "mL", "%"].map((unit) => (
           <option key={unit} value={unit} />
@@ -574,6 +608,11 @@ export function PrescriptionComposer({
               variant="outline"
               className="h-auto w-full justify-start whitespace-normal border-teal-300 bg-teal-50 py-3 text-left text-teal-900"
               onClick={() => {
+                if (
+                  dirty &&
+                  !window.confirm("Substituir a composição local ainda não inserida na receita?")
+                )
+                  return;
                 const next = {
                   ...emptyFormula(),
                   phases: [

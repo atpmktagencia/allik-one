@@ -113,8 +113,31 @@ test("individual holder publishes questionnaire, patient submits once, clinician
         publicPage.getByRole("heading", { name: "Respostas enviadas", exact: true }),
       ).toBeVisible();
       const replayPage = await publicContext.newPage();
+      const closedRead = replayPage.waitForResponse(
+        (response) =>
+          response.url().includes("/preconsultation-public") &&
+          response.request().postDataJSON()?.action === "READ",
+      );
+      const receipt = replayPage.waitForResponse(
+        (response) =>
+          response.url().includes("/preconsultation-public") &&
+          response.request().postDataJSON()?.action === "STATUS",
+      );
       await replayPage.goto(link);
-      await expect(replayPage.getByRole("alert")).toBeVisible();
+      // A consumed bearer cannot reopen the questionnaire. Until its original
+      // expiry it may retrieve only a minimal acknowledgement of the submission.
+      expect((await closedRead).status()).toBe(404);
+      const receiptResponse = await receipt;
+      expect(receiptResponse.status()).toBe(200);
+      expect(await receiptResponse.json()).toEqual({ data: { submitted: true } });
+      await expect(
+        replayPage.getByRole("heading", { name: "Respostas enviadas", exact: true }),
+      ).toBeVisible();
+      expect(new URL(replayPage.url()).hash).toBe("");
+      await expect(replayPage.locator("form")).toHaveCount(0);
+      await expect(
+        replayPage.getByRole("button", { name: "Enviar respostas", exact: true }),
+      ).toHaveCount(0);
       await expect(
         replayPage.getByText("Desejo organizar o acompanhamento", { exact: true }),
       ).toHaveCount(0);
@@ -131,6 +154,7 @@ test("individual holder publishes questionnaire, patient submits once, clinician
       "SELECT r.answers FROM inventory_preconsultation_responses r JOIN inventory_preconsultation_invitations i ON i.id=r.invitation_id WHERE i.patient_id=$1",
       [patient],
     );
+    expect(rows.rows).toHaveLength(1);
     expect(Object.values(rows.rows[0].answers).sort()).toEqual([
       ...Array(6).fill(""),
       "Desejo organizar o acompanhamento",
