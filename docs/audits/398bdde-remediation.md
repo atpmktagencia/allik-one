@@ -73,8 +73,39 @@ A ativação transacional no Preview terminou com 76 checkpoints. Permaneceram 5
 - Cenário de beta no bundle de produção: migração 0012→atual, autorização individual, congelamento documental e backup/restauração descartável aprovados. Isso não comprova restauração do provedor/produção.
 - Typecheck e build aprovados; lint sem erros, com seis avisos Fast Refresh preexistentes.
 - Interface/unidade: 483 testes em 75 arquivos aprovados, incluindo resposta perdida após salvar/finalizar e rascunho de procedimentos preservado entre categorias.
-- Confirmação do deployment e CI remoto: registrada após publicação.
+- CI remoto de `02b843259619e74708b0e67d7a72fee843afe10c`: [39332896424](https://github.com/atpmktagencia/allik-one/actions/runs/39332896424), aprovado; 485 testes UI/unidade, 418 integrações, 17 E2Es e cenário beta com restauração descartável.
+- CI remoto de `82a2772b91867dffa7b670b2735b837559a62307`: [39333871240](https://github.com/atpmktagencia/allik-one/actions/runs/39333871240), aprovado. Esse commit acrescenta somente diagnósticos redigidos, sem relaxar autorização.
+- Endurecimento posterior do banco: 6/6 testes de integração do guard e 3/3 de provisionamento aprovados em banco descartável. O guard protege toda a branch clínica de Preview, mesmo se a URL inválida para compartilhamento desabilitar esse acesso.
 
 Os dois E2Es de questionários foram adaptados ao novo recibo mínimo: reabertura mantém READ bloqueado, STATUS contém apenas submitted=true, sem formulário nem respostas anteriores. O teste Care custoso recebeu orçamento individual explícito; falhas por novos hooks de guard nos testes foram corrigidas selecionando o bloqueio do pai, sem retirar a proteção da aplicação.
 
 Testes de escrita, concorrência e navegadores usam apenas bancos descartáveis com dados sintéticos. E-mail, WhatsApp e IA remotos não são acionados por esses testes. No Preview remoto, além de DDL e grants explícitos, a homologação usa leituras autenticadas; não emite novos documentos clínicos.
+
+
+## Gate remoto ainda bloqueado — não homologado
+
+O código foi publicado na branch solicitada. O deployment `allik-orogfjjqx-atp-mkt.vercel.app` (`82a2772`, READY no provedor) respondeu 401 ao GET de sessão do operador compartilhado. READY atesta implantação, não homologação funcional.
+
+A evidência de runtime, sem valores de credenciais, é:
+
+```text
+SHARED_PREVIEW_ACCESS_DENIED PREVIEW_BOUNDARY_RUNTIME_USER
+expectedRoleIsAllikRuntime: true
+urlUserIsAllikRuntime: false
+pgUserIsAllikRuntime: false
+```
+
+A conexão canônica existente de `allik_runtime` foi obtida pelo conector Neon, validada contra o endpoint/banco autorizados e testada com SELECT a partir de sandbox Vercel: autentica corretamente como papel restrito em `neondb`. Nenhuma senha foi exibida, redefinida ou armazenada no repositório.
+
+Os 13 overrides existentes de conexão/aliases foram atualizados por upsert, exclusivamente para Preview + `feature/allik-patients`; a API confirmou 13 alterações e zero falhas. Deployments novos por Git, com e sem SHA explícito e tanto com target padrão de Preview quanto com o target legado staging, ainda entregaram identidade efetiva divergente. A hipótese é uma substituição da configuração na integração/provisionamento do deployment; a origem exata ainda não foi demonstrada. Não se afirma que ocorreu acesso indevido ou exposição de dados.
+
+As ferramentas disponíveis permitem ler a configuração da integração Neon, mas não editar sua vinculação/provisionamento ao projeto. Não foi desconectada a integração, excluído qualquer ambiente/branch, alterada configuração de Production ou substituída a credencial global de Preview, pois isso atingiria ambientes fora da branch autorizada.
+
+Para desbloquear, o responsável pela configuração precisa verificar a conexão Neon do projeto `allik-one` na Vercel e impedir que a identidade entregue **a esta branch de Preview** substitua os overrides de `allik_runtime`. Se for necessário ajustar a integração, limitar a mudança ao Preview; não desconectar o recurso do projeto inteiro e não alterar Production. Depois, criar um novo deployment do candidato e verificar:
+
+1. Sessão automática sintética retorna 200 com `sharedPreviewOperator=true`.
+2. A identidade real de banco passa pelo guard de privilégios, sem credenciais administrativas/aliases de outro usuário.
+3. Paciente com UUID válido, atendimento, aba Exames e acompanhamento de solicitações respondem 200.
+4. Os documentos finais/checkpoints permanecem íntegros e o alias de produção segue no deployment anterior.
+
+Até essa verificação, a ativação funcional do candidato permanece bloqueada. Não há aprovação para produção e não foi realizado teste de digitação, salvamento ou conclusão contra os registros remotos.

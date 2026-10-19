@@ -2,7 +2,6 @@ import "@tanstack/react-start/server-only";
 import { Pool } from "pg";
 import { drizzle } from "drizzle-orm/node-postgres";
 import * as schema from "./schema";
-import { sharedPreviewBoundaryEnabled } from "../lib/preview-operator-policy";
 
 const ownerAliases = [
   "DATABASE_URL_UNPOOLED",
@@ -13,7 +12,7 @@ const ownerAliases = [
 ];
 
 /**
- * Production and the authorized shared synthetic Preview run as the restricted role created by
+ * Production and the clinical Preview branch run as the restricted role created by
  * scripts/provision-runtime-role.mjs. Refuse to serve with an owner or
  * maintenance identity, or while owner credentials remain in the environment.
  */
@@ -110,7 +109,7 @@ let maintenanceIdentity = false;
  * Explicit opt-in for administrative scripts (migrations, bootstrap, audited
  * maintenance) that must connect with the maintenance identity. The deployed
  * application never calls this, so environment variables alone cannot disable
- * the production runtime-role guard.
+ * the runtime-role guard.
  */
 export function allowMaintenanceIdentity() {
   if (pool) throw new Error("Call allowMaintenanceIdentity() before opening the pool.");
@@ -128,7 +127,9 @@ export function getPool(): Pool {
     };
     if (
       (process.env["INVENTORY_ENVIRONMENT"] === "production" ||
-        (process.env["VERCEL_ENV"] === "preview" && sharedPreviewBoundaryEnabled(process.env))) &&
+        (process.env["VERCEL_ENV"] === "preview" &&
+          process.env["INVENTORY_ENVIRONMENT"] === "preview" &&
+          process.env["VERCEL_GIT_COMMIT_REF"] === "feature/allik-patients")) &&
       !maintenanceIdentity
     ) {
       const expectedRole =

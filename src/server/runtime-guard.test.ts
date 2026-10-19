@@ -1,11 +1,7 @@
 import { afterAll, describe, expect, it, vi } from "vitest";
 import { randomBytes } from "node:crypto";
 import { Pool } from "pg";
-const previewBoundary = vi.hoisted(() => ({ enabled: false }));
-vi.mock("../lib/preview-operator-policy", async (original) => ({
-  ...(await original<typeof import("../lib/preview-operator-policy")>()),
-  sharedPreviewBoundaryEnabled: () => previewBoundary.enabled,
-}));
+import { sharedPreviewBoundaryEnabled } from "../lib/preview-operator-policy";
 
 afterAll(() => {
   vi.unstubAllEnvs();
@@ -66,8 +62,11 @@ describe("production database identity guard", () => {
         vi.stubEnv("DATABASE_URL", runtimeUrl.href);
         vi.stubEnv("INVENTORY_ENVIRONMENT", environment);
         vi.stubEnv("VERCEL_ENV", environment);
-        previewBoundary.enabled = environment === "preview";
+        vi.stubEnv("VERCEL_GIT_COMMIT_REF", "feature/allik-patients");
+        vi.stubEnv("INVENTORY_PREVIEW_OPERATOR_FULL_ACCESS", "false");
         vi.stubEnv("INVENTORY_RUNTIME_ROLE", role);
+        if (environment === "preview")
+          expect(sharedPreviewBoundaryEnabled(process.env)).toBe(false);
         vi.resetModules();
         runtime = (await import("./db")).getPool();
         const activePool = runtime;
@@ -101,19 +100,21 @@ describe("production database identity guard", () => {
         await owner.query(`DROP OWNED BY ${role}`).catch(() => {});
         await owner.query(`DROP ROLE IF EXISTS ${role}`);
         await owner.end();
-        previewBoundary.enabled = false;
       }
     },
   );
-  it("applies the same actual-role rejection in a shared synthetic Preview, including callback and Promise connections", async () => {
+  it("applies actual-role rejection across the Preview branch even when shared authentication is disabled", async () => {
     vi.unstubAllEnvs();
     const url = process.env["DATABASE_URL"]!;
     if (!new URL(url).pathname.endsWith("_test")) throw new Error("Disposable database required");
     vi.stubEnv("INVENTORY_ENVIRONMENT", "preview");
     vi.stubEnv("VERCEL_ENV", "preview");
+    vi.stubEnv("VERCEL_GIT_COMMIT_REF", "feature/allik-patients");
+    vi.stubEnv("INVENTORY_PREVIEW_OPERATOR_FULL_ACCESS", "false");
+    vi.stubEnv("INVENTORY_PREVIEW_DATA_CLASSIFICATION", "pilot");
     vi.stubEnv("INVENTORY_RUNTIME_ROLE", decodeURIComponent(new URL(url).username));
     vi.stubEnv("DATABASE_ADMIN_URL", "");
-    previewBoundary.enabled = true;
+    expect(sharedPreviewBoundaryEnabled(process.env)).toBe(false);
     vi.resetModules();
     const pool = (await import("./db")).getPool();
     try {
@@ -125,7 +126,26 @@ describe("production database identity guard", () => {
       expect(error.message).toBe("INVENTORY_RUNTIME_ROLE_REJECTED");
     } finally {
       await pool.end();
-      previewBoundary.enabled = false;
     }
   });
+  it.each([undefined, "allik_runtime"])(
+    "rejects an owner URL before opening a Preview connection with the default or explicit runtime role (%s)",
+    async (runtimeRole) => {
+      vi.unstubAllEnvs();
+      const url = process.env["DATABASE_URL"]!;
+      if (!new URL(url).pathname.endsWith("_test")) throw new Error("Disposable database required");
+      vi.stubEnv("INVENTORY_ENVIRONMENT", "preview");
+      vi.stubEnv("VERCEL_ENV", "preview");
+      vi.stubEnv("VERCEL_GIT_COMMIT_REF", "feature/allik-patients");
+      vi.stubEnv("INVENTORY_PREVIEW_OPERATOR_FULL_ACCESS", "false");
+      vi.stubEnv("INVENTORY_PREVIEW_DATA_CLASSIFICATION", "pilot");
+      vi.stubEnv("INVENTORY_RUNTIME_ROLE", runtimeRole);
+      vi.stubEnv("DATABASE_ADMIN_URL", "");
+      expect(decodeURIComponent(new URL(url).username)).not.toBe("allik_runtime");
+      expect(sharedPreviewBoundaryEnabled(process.env)).toBe(false);
+      vi.resetModules();
+      const { getPool } = await import("./db");
+      expect(() => getPool()).toThrow("INVENTORY_RUNTIME_ROLE_REJECTED");
+    },
+  );
 });
