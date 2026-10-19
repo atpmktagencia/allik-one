@@ -1,3 +1,4 @@
+import { laboratoryFailureMessages } from "@/lib/laboratory-results";
 import { Fragment, useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -411,8 +412,9 @@ export function LaboratoryReview({
               )}
               {status === "FAILED" && (
                 <p role="alert" className="text-sm text-amber-900">
-                  A extração não foi concluída. O original está preservado. Tente novamente ou
-                  preencha manualmente.
+                  {laboratoryFailureMessages[data?.import?.failure_code ?? ""] ??
+                    "A extração não foi concluída."}{" "}
+                  O original está preservado e a conferência manual continua disponível.
                 </p>
               )}
               {pendingAction === "EXTRACT" && !processing && (

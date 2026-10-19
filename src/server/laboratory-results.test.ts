@@ -7,7 +7,8 @@ import * as accessAudit from "./clinical-access-audit";
 import { laboratoryResultsResponse } from "./laboratory-results";
 import { emptyLaboratoryRow } from "../lib/laboratory-results";
 const ai = vi.hoisted(() => ({ extract: vi.fn() }));
-vi.mock("./laboratory-extraction", () => ({
+vi.mock("./laboratory-extraction", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("./laboratory-extraction")>()),
   laboratoryExtractionConfiguration: () => ({ enabled: true, model: "synthetic/model" }),
   extractLaboratoryPdf: ai.extract,
   laboratoryModels: vi.fn(async () => []),

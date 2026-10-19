@@ -17,6 +17,8 @@ import {
   extractLaboratoryPdf,
   laboratoryExtractionConfiguration,
   laboratoryModels,
+  laboratoryFailureCode,
+  laboratoryProviderStatus,
 } from "./laboratory-extraction";
 
 type Actor = AuthContext & { user: AuthContext["user"] & { id: string } };
@@ -213,9 +215,12 @@ async function view(a: Actor, s: Source, reviewId?: string) {
         historicalReview,
         events,
         extractionAvailable:
-          config.enabled && !!config.model && s.size_bytes <= PATIENT_DOCUMENT_MAX_BYTES,
+          config.enabled &&
+          !!config.model &&
+          !config.problem &&
+          s.size_bytes <= PATIENT_DOCUMENT_MAX_BYTES,
         extractionMessage:
-          !config.enabled || !config.model
+          !config.enabled || !config.model || config.problem
             ? "Extração por IA ainda não configurada. A conferência manual está disponível."
             : s.size_bytes > PATIENT_DOCUMENT_MAX_BYTES
               ? "Este PDF excede o limite de 4 MB para extração."
@@ -235,6 +240,7 @@ async function finishExtraction(
 ) {
   let draft = emptyLaboratoryDraft(),
     failure: string | null = null;
+  let stage: "SOURCE" | "PROVIDER" = "SOURCE";
   try {
     const original = await patientDocumentFileResponse(
       new Request(
@@ -255,15 +261,14 @@ async function finishExtraction(
       new TextDecoder().decode(bytes.subarray(0, 5)) !== "%PDF-"
     )
       throw Error("SOURCE_INTEGRITY");
+    stage = "PROVIDER";
     draft = laboratoryDraft.parse(await extractLaboratoryPdf(bytes, model));
     draft.patientConfirmed = false;
     draft.rows = draft.rows.map((r) => ({ ...r, verified: false }));
   } catch (e) {
-    failure =
-      e instanceof Error &&
-      ["NO_RESULTS", "EXTRACTION_TIMEOUT", "SOURCE_INTEGRITY"].includes(e.message)
-        ? e.message
-        : "EXTRACTION_FAILED";
+    failure = laboratoryFailureCode(e);
+    if (stage === "SOURCE" && failure === "EXTRACTION_FAILED") failure = "SOURCE_UNAVAILABLE";
+    console.warn("Laboratory extraction failed", { code: failure, stage });
   }
   const fresh = await authenticate(request);
   if (!fresh || fresh.user.id !== a.user.id || fresh.organizationId !== a.organizationId)
@@ -312,7 +317,10 @@ export async function laboratoryResultsResponse(request: Request) {
     url = new URL(request.url);
   try {
     if (request.method === "GET") {
-      if (url.searchParams.get("models") === "true") {
+      if (
+        url.searchParams.get("models") === "true" ||
+        url.searchParams.get("providerStatus") === "true"
+      ) {
         if (a.role !== "SUPER_ADMIN" || process.env["VERCEL_ENV"] !== "preview")
           return fail("Acesso negado.", 403);
         let timer: ReturnType<typeof setTimeout> | undefined;
@@ -320,7 +328,9 @@ export async function laboratoryResultsResponse(request: Request) {
           return Response.json(
             {
               data: await Promise.race([
-                laboratoryModels(),
+                url.searchParams.get("providerStatus") === "true"
+                  ? laboratoryProviderStatus()
+                  : laboratoryModels(),
                 new Promise<never>((_, reject) => {
                   timer = setTimeout(() => reject(Error("MODEL_CATALOG_TIMEOUT")), 8000);
                 }),
@@ -492,7 +502,7 @@ export async function laboratoryResultsResponse(request: Request) {
           j = await change(c, a, j, "VALIDATED", draft, "VALIDATED", { review: d.operationId! });
         } else if (d.action === "EXTRACT") {
           const config = laboratoryExtractionConfiguration();
-          if (!config.enabled || !config.model) {
+          if (!config.enabled || !config.model || config.problem) {
             await c.query("ROLLBACK");
             return fail("Extração por IA ainda não configurada.", 503);
           }

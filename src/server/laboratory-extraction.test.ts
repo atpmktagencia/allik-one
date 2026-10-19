@@ -1,5 +1,10 @@
 import { afterEach, expect, it, vi } from "vitest";
-import { extractLaboratoryPdf } from "./laboratory-extraction";
+import {
+  extractLaboratoryPdf,
+  laboratoryFailureCode,
+  laboratoryExtractionConfiguration,
+  laboratoryProviderStatus,
+} from "./laboratory-extraction";
 import { emptyLaboratoryRow } from "../lib/laboratory-results";
 const sdk = vi.hoisted(() => ({ generate: vi.fn() }));
 vi.mock("ai", () => ({
@@ -10,6 +15,7 @@ vi.mock("ai", () => ({
 afterEach(() => {
   sdk.generate.mockReset();
   vi.useRealTimers();
+  vi.unstubAllEnvs();
 });
 const extractedRow = () => {
   const row: Partial<ReturnType<typeof emptyLaboratoryRow>> = {
@@ -55,4 +61,56 @@ it("aborts a stuck provider at the bounded deadline", async () => {
   await vi.advanceTimersByTimeAsync(60001);
   await rejection;
   expect(sdk.generate.mock.calls[0]![0].abortSignal.aborted).toBe(true);
+});
+
+it("classifies provider failures without leaking arbitrary messages or response data", () => {
+  expect(laboratoryFailureCode({ statusCode: 402, message: "SECRET" })).toBe("PROVIDER_CREDITS");
+  expect(
+    laboratoryFailureCode({
+      statusCode: 403,
+      responseBody: JSON.stringify({
+        error: { code: "customer_verification_required", message: "SECRET" },
+      }),
+    }),
+  ).toBe("PROVIDER_VERIFICATION");
+  expect(
+    laboratoryFailureCode({
+      statusCode: 429,
+      responseBody: JSON.stringify({ error: { code: "insufficient_quota" } }),
+    }),
+  ).toBe("PROVIDER_CREDITS");
+  expect(laboratoryFailureCode({ cause: { statusCode: 401 } })).toBe("PROVIDER_AUTHENTICATION");
+  expect(
+    laboratoryFailureCode({ name: "AI_NoObjectGeneratedError", message: "PATIENT DATA" }),
+  ).toBe("PROVIDER_INVALID_OUTPUT");
+  expect(laboratoryFailureCode({ statusCode: 400 })).toBe("PROVIDER_REQUEST_REJECTED");
+  expect(laboratoryFailureCode(new Error("SECRET PATIENT DATA"))).toBe("EXTRACTION_FAILED");
+});
+it("does not fall back to Gateway or call a provider when direct OpenAI credentials are missing", async () => {
+  vi.stubEnv("LAB_EXTRACTION_PROVIDER", "openai");
+  vi.stubEnv("LAB_EXTRACTION_MODEL", "openai/gpt-6-luna");
+  vi.stubEnv("OPENAI_API_KEY", "");
+  expect(laboratoryExtractionConfiguration().problem).toBe("PROVIDER_AUTHENTICATION");
+  await expect(extractLaboratoryPdf(new Uint8Array(), "openai/gpt-6-luna")).rejects.toThrow(
+    "PROVIDER_AUTHENTICATION",
+  );
+  expect(sdk.generate).not.toHaveBeenCalled();
+  expect(await laboratoryProviderStatus()).toMatchObject({
+    ready: false,
+    failureCode: "PROVIDER_AUTHENTICATION",
+  });
+});
+
+it("uses direct Responses with storage disabled and preserves required human confirmation", async () => {
+  vi.stubEnv("LAB_EXTRACTION_PROVIDER", "openai");
+  vi.stubEnv("LAB_EXTRACTION_MODEL", "openai/gpt-6-luna");
+  vi.stubEnv("OPENAI_API_KEY", "synthetic-not-a-credential");
+  sdk.generate.mockResolvedValue({ output: { notes: "", rows: [extractedRow()] } });
+  const result = await extractLaboratoryPdf(new Uint8Array(), "openai/gpt-6-luna");
+  const call = sdk.generate.mock.calls[0]![0];
+  expect(call.model.modelId).toBe("gpt-6-luna");
+  expect(call.model.provider).toBe("openai.responses");
+  expect(call.providerOptions).toEqual({ openai: { store: false } });
+  expect(result.patientConfirmed).toBe(false);
+  expect(result.rows[0]?.verified).toBe(false);
 });

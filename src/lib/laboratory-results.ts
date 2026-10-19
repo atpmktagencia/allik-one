@@ -64,3 +64,27 @@ export function laboratoryValidationProblem(draft: LaboratoryDraft) {
     return "Confira nome e resultado, resolva as pendências e confirme cada linha.";
   return null;
 }
+
+export const laboratoryFailureMessages: Record<string, string> = {
+  PROVIDER_AUTHENTICATION:
+    "A credencial do serviço de IA está ausente ou foi recusada. Solicite a configuração ao administrador.",
+  PROVIDER_CREDITS:
+    "O serviço de IA está sem saldo disponível ou atingiu seu orçamento. O administrador precisa verificar a cobrança.",
+  PROVIDER_VERIFICATION:
+    "O provedor exige a verificação da conta ou da forma de pagamento pelo administrador.",
+  PROVIDER_FORBIDDEN: "A conta não tem autorização para esta operação no serviço de IA.",
+  PROVIDER_CONFIGURATION:
+    "A configuração do provedor e do modelo de IA precisa ser corrigida pelo administrador.",
+  PROVIDER_RATE_LIMIT:
+    "O serviço de IA atingiu um limite temporário de solicitações. Aguarde antes de tentar novamente.",
+  PROVIDER_MODEL_UNAVAILABLE: "O modelo configurado não está disponível para esta conta.",
+  PROVIDER_REQUEST_REJECTED:
+    "O serviço de IA recusou o formato da solicitação. A integração precisa ser revisada.",
+  PROVIDER_INVALID_OUTPUT:
+    "A IA não devolveu resultados no formato seguro esperado. Nenhum resultado foi confirmado.",
+  PROVIDER_UNAVAILABLE: "O serviço de IA está temporariamente indisponível.",
+  SOURCE_UNAVAILABLE: "Não foi possível ler o arquivo original privado para extração.",
+  SOURCE_INTEGRITY: "A verificação de integridade do PDF falhou. A extração foi interrompida.",
+  NO_RESULTS: "Não foram encontrados resultados laboratoriais neste documento.",
+  EXTRACTION_TIMEOUT: "A extração excedeu o tempo limite e foi interrompida.",
+};
