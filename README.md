@@ -523,3 +523,7 @@ A conferência de exames inclui [checagem independente de trechos e revisão por
 ### Patient Workspace — Fase 3: histórico de exames (Preview)
 
 Em **Paciente → Exames → Histórico de resultados**, a tabela reúne somente revisões confirmadas, com datas de coleta/resultado, referências individuais, busca, períodos e gráficos conservadores. Unidades e métodos diferentes permanecem separados; valores censurados ou ambíguos não viram pontos numéricos. Consulte [regras de comparação, autorização e limites](docs/patient-workspace-phase3.md). Sem nova migração ou chamada de IA; publicação somente no Preview.
+
+### Patient Workspace — Fase 4: questionários pré-consulta (em andamento)
+
+O formulário do paciente divide questionários longos em etapas de até cinco perguntas opcionais, preserva respostas ao voltar e permite revisão antes do envio. As respostas não são persistidas no navegador; somente o envio final usa a operação existente de resposta única. Consulte [escopo e pendências da Fase 4](docs/patient-workspace-phase4.md). Sem migração ou alteração de produção.

@@ -28,6 +28,9 @@ export function PreconsultationPublic() {
   const [error, setError] = useState("");
   const [pending, setPending] = useState(true);
   const [done, setDone] = useState(false);
+  const [step, setStep] = useState(0);
+  const [reviewing, setReviewing] = useState(false);
+  const heading = useRef<HTMLHeadingElement | null>(null);
   useEffect(() => {
     function load(reuseInMemoryToken = false) {
       const url = new URL(window.location.href);
@@ -43,6 +46,8 @@ export function PreconsultationPublic() {
       request.current = controller;
       setQuestionnaire(null);
       setAnswers({});
+      setStep(0);
+      setReviewing(false);
       setDone(false);
       setError("");
       setPending(true);
@@ -117,6 +122,22 @@ export function PreconsultationPublic() {
       if (generation.current === current && !controller.signal.aborted) setPending(false);
     }
   }
+  const pageSize = 5;
+  const steps = Math.max(1, Math.ceil((questionnaire?.questions.length ?? 0) / pageSize));
+  const currentStep = Math.min(step, steps - 1);
+  const answered =
+    questionnaire?.questions.filter(
+      (question) => Object.hasOwn(answers, question.id) && !!answers[question.id]?.trim(),
+    ).length ?? 0;
+  const visibleQuestions = reviewing
+    ? []
+    : (questionnaire?.questions.slice(currentStep * pageSize, (currentStep + 1) * pageSize) ?? []);
+  function navigate(next: number) {
+    setStep(next);
+    setReviewing(false);
+    heading.current?.focus();
+    heading.current?.scrollIntoView?.({ block: "start", behavior: "smooth" });
+  }
   return (
     <main className="min-h-screen bg-background px-4 py-10">
       <div className="mx-auto max-w-2xl space-y-6 rounded-xl border bg-card p-6 sm:p-8">
@@ -128,7 +149,7 @@ export function PreconsultationPublic() {
           </>
         ) : (
           <>
-            <h1 className="text-2xl font-semibold">
+            <h1 ref={heading} tabIndex={-1} className="text-2xl font-semibold focus:outline-none">
               {questionnaire?.title ?? "Questionário de pré-consulta"}
             </h1>
             {error && (
@@ -138,16 +159,52 @@ export function PreconsultationPublic() {
             )}
             {pending && !questionnaire && <p role="status">Abrindo questionário…</p>}
             {questionnaire && (
-              <form onSubmit={submit} className="space-y-6">
+              <form
+                onSubmit={(event) => {
+                  if (!reviewing && currentStep < steps - 1) {
+                    event.preventDefault();
+                    if (!pending) navigate(currentStep + 1);
+                  } else void submit(event);
+                }}
+                className="space-y-6"
+              >
                 <p className="whitespace-pre-wrap text-sm">{questionnaire.description}</p>
                 <p className="rounded-md bg-muted p-3 text-sm">
                   Todas as respostas são opcionais. Deixe em branco o que preferir não responder.
-                  Este formulário não substitui uma consulta e não é um canal de urgência.
+                  Este formulário não substitui uma consulta e não é um canal de urgência. As
+                  respostas são enviadas apenas ao finalizar; fechar ou recarregar esta página
+                  descarta o preenchimento ainda não enviado.
                 </p>
-                {questionnaire.questions.map((question, index) => (
+                <div className="space-y-2" aria-label="Progresso do questionário">
+                  <p role="status" className="text-sm text-muted-foreground">
+                    {reviewing ? "Revisão das respostas" : `Etapa ${currentStep + 1} de ${steps}`} ·{" "}
+                    {answered} de {questionnaire.questions.length} respostas preenchidas
+                  </p>
+                  <progress
+                    className="h-2 w-full accent-teal-600"
+                    max={steps}
+                    value={reviewing ? steps : currentStep + 1}
+                    aria-label="Etapas do questionário"
+                  />
+                </div>
+                {reviewing && (
+                  <dl className="space-y-4" aria-label="Revisão das respostas">
+                    {questionnaire.questions.map((question) => (
+                      <div key={question.id} className="border-b pb-3">
+                        <dt className="text-sm font-medium">{question.label}</dt>
+                        <dd className="mt-1 whitespace-pre-wrap break-words text-sm text-muted-foreground">
+                          {Object.hasOwn(answers, question.id) && answers[question.id]?.trim()
+                            ? answers[question.id]
+                            : "Não respondida"}
+                        </dd>
+                      </div>
+                    ))}
+                  </dl>
+                )}
+                {visibleQuestions.map((question, index) => (
                   <label key={question.id} className="block space-y-2 text-sm font-medium">
                     <span>
-                      {index + 1}. {question.label}{" "}
+                      {currentStep * pageSize + index + 1}. {question.label}{" "}
                       <span className="font-normal text-muted-foreground">(opcional)</span>
                     </span>
                     {question.type === "CHOICE" ? (
@@ -183,9 +240,42 @@ export function PreconsultationPublic() {
                   Ao enviar, as respostas ficam disponíveis para a equipe autorizada da clínica.
                   Confira antes de enviar: este link pode ser usado uma única vez.
                 </p>
-                <Button type="submit" disabled={pending}>
-                  {pending ? "Enviando…" : "Enviar respostas"}
-                </Button>
+                <div className="flex flex-wrap gap-2">
+                  {(currentStep > 0 || reviewing) && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      disabled={pending}
+                      onClick={() =>
+                        reviewing
+                          ? (setReviewing(false), heading.current?.focus())
+                          : navigate(currentStep - 1)
+                      }
+                    >
+                      {reviewing ? "Voltar às perguntas" : "Etapa anterior"}
+                    </Button>
+                  )}
+                  {!reviewing && currentStep === steps - 1 && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      disabled={pending}
+                      onClick={() => {
+                        setReviewing(true);
+                        heading.current?.focus();
+                      }}
+                    >
+                      Revisar respostas
+                    </Button>
+                  )}
+                  <Button type="submit" disabled={pending}>
+                    {pending
+                      ? "Enviando…"
+                      : !reviewing && currentStep < steps - 1
+                        ? "Próxima etapa"
+                        : "Enviar respostas"}
+                  </Button>
+                </div>
               </form>
             )}
           </>

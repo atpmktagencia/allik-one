@@ -7,7 +7,7 @@ test("individual holder publishes questionnaire, patient submits once, clinician
   browser,
   context,
   baseURL,
-}) => {
+}, testInfo) => {
   const url = process.env["DATABASE_URL"];
   if (!url || !new URL(url).pathname.endsWith("_test"))
     throw Error("Disposable test database required");
@@ -60,6 +60,13 @@ test("individual holder publishes questionnaire, patient submits once, clinician
     await page.getByLabel("Texto da pergunta", { exact: true }).fill("Qual seu objetivo?");
     await page.getByRole("button", { name: "Adicionar pergunta", exact: true }).click();
     await page.getByLabel("Texto da pergunta", { exact: true }).nth(1).fill("Algo mais?");
+    for (let index = 2; index < 7; index++) {
+      await page.getByRole("button", { name: "Adicionar pergunta", exact: true }).click();
+      await page
+        .getByLabel("Texto da pergunta", { exact: true })
+        .nth(index)
+        .fill(`Pergunta adicional ${index + 1}`);
+    }
     await page.getByRole("button", { name: "Salvar rascunho", exact: true }).click();
     await page.getByRole("button", { name: "Publicar versão", exact: true }).click();
     await page.getByRole("combobox", { name: "Paciente", exact: true }).selectOption(patient);
@@ -74,7 +81,7 @@ test("individual holder publishes questionnaire, patient submits once, clinician
     const link = await page.getByLabel("Link de pré-consulta", { exact: true }).inputValue();
     expect(new URL(link).search).toBe("");
     expect(new URL(link).hash).toContain("token=");
-    const publicContext = await browser.newContext();
+    const publicContext = await browser.newContext({ viewport: { width: 390, height: 844 } });
     try {
       const publicPage = await publicContext.newPage();
       await publicPage.goto(link);
@@ -86,6 +93,21 @@ test("individual holder publishes questionnaire, patient submits once, clinician
         0,
       );
       await publicPage.getByLabel(/Qual seu objetivo/).fill("Desejo organizar o acompanhamento");
+      await publicPage.getByRole("button", { name: "Próxima etapa", exact: true }).click();
+      await expect(publicPage.getByText(/Etapa 2 de 2/)).toBeVisible();
+      await publicPage.getByRole("button", { name: "Etapa anterior", exact: true }).click();
+      await expect(publicPage.getByLabel(/Qual seu objetivo/)).toHaveValue(
+        "Desejo organizar o acompanhamento",
+      );
+      await publicPage.getByRole("button", { name: "Próxima etapa", exact: true }).click();
+      await publicPage.screenshot({
+        path: testInfo.outputPath("preconsultation-steps-mobile.png"),
+        fullPage: false,
+      });
+      await publicPage.getByRole("button", { name: "Revisar respostas", exact: true }).click();
+      await expect(
+        publicPage.getByText("Desejo organizar o acompanhamento", { exact: true }),
+      ).toBeVisible();
       await publicPage.getByRole("button", { name: "Enviar respostas", exact: true }).click();
       await expect(
         publicPage.getByRole("heading", { name: "Respostas enviadas", exact: true }),
@@ -104,13 +126,13 @@ test("individual holder publishes questionnaire, patient submits once, clinician
     await expect(
       page.getByText("Desejo organizar o acompanhamento", { exact: true }),
     ).toBeVisible();
-    await expect(page.getByText("Não informado", { exact: true })).toBeVisible();
+    await expect(page.getByText("Não informado", { exact: true })).toHaveCount(6);
     const rows = await pool.query(
       "SELECT r.answers FROM inventory_preconsultation_responses r JOIN inventory_preconsultation_invitations i ON i.id=r.invitation_id WHERE i.patient_id=$1",
       [patient],
     );
     expect(Object.values(rows.rows[0].answers).sort()).toEqual([
-      "",
+      ...Array(6).fill(""),
       "Desejo organizar o acompanhamento",
     ]);
   } finally {

@@ -204,3 +204,56 @@ describe("Public preconsultation bearer credential", () => {
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
 });
+
+it("keeps optional answers in memory across steps and reviews without submitting early", async () => {
+  window.history.replaceState({}, "", `/preconsulta#token=${token}`);
+  const requests: Record<string, unknown>[] = [];
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (_url: unknown, init: RequestInit) => {
+      const body = JSON.parse(String(init.body));
+      requests.push(body);
+      return Response.json({
+        data:
+          body.action === "READ"
+            ? {
+                title: "Questionário por etapas",
+                description: "Respostas opcionais",
+                expiresAt: "2030-01-01",
+                questions: Array.from({ length: 7 }, (_, index) => ({
+                  id: `q${index}`,
+                  label: `Pergunta ${index + 1}`,
+                  type: "TEXT",
+                })),
+              }
+            : { submitted: true },
+      });
+    }),
+  );
+  render(<PreconsultationPublic />);
+  await screen.findByRole("heading", { name: "Questionário por etapas" });
+  expect(screen.queryByLabelText(/Pergunta 6/)).not.toBeInTheDocument();
+  fireEvent.change(screen.getByLabelText(/Pergunta 1 /), {
+    target: { value: "Relato voluntário" },
+  });
+  fireEvent.click(screen.getByRole("button", { name: "Próxima etapa" }));
+  expect(requests).toHaveLength(1);
+  fireEvent.change(screen.getByLabelText(/Pergunta 7 /), { target: { value: "Outro relato" } });
+  fireEvent.click(screen.getByRole("button", { name: "Etapa anterior" }));
+  expect(screen.getByLabelText(/Pergunta 1 /)).toHaveValue("Relato voluntário");
+  fireEvent.click(screen.getByRole("button", { name: "Próxima etapa" }));
+  expect(screen.getByLabelText(/Pergunta 7 /)).toHaveValue("Outro relato");
+  fireEvent.click(screen.getByRole("button", { name: "Revisar respostas" }));
+  expect(screen.getByText("Relato voluntário")).toBeVisible();
+  expect(screen.getAllByText("Não respondida")).toHaveLength(5);
+  expect(requests).toHaveLength(1);
+  expect(window.localStorage.length).toBe(0);
+  expect(window.sessionStorage.length).toBe(0);
+  fireEvent.click(screen.getByRole("button", { name: "Enviar respostas" }));
+  await screen.findByRole("heading", { name: "Respostas enviadas" });
+  expect(requests[1]).toEqual({
+    action: "SUBMIT",
+    token,
+    answers: { q0: "Relato voluntário", q6: "Outro relato" },
+  });
+});
