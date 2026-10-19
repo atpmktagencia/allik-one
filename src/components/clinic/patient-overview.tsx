@@ -54,6 +54,49 @@ const dateLabel = (value: string, time = false) =>
     timeZone: "America/Fortaleza",
   }).format(new Date(value.length === 10 ? `${value}T12:00:00Z` : value));
 
+export function PatientOverviewVitals({
+  note,
+}: {
+  note: {
+    systolicPressure: number | null;
+    diastolicPressure: number | null;
+    heartRate: number | null;
+    oxygenSaturation: string | null;
+    temperatureC: string | null;
+    weightKg: string | null;
+    heightCm: string | null;
+    finalizedAt: string;
+  };
+}) {
+  const values = [
+    note.systolicPressure != null && note.diastolicPressure != null
+      ? `PA ${note.systolicPressure}/${note.diastolicPressure} mmHg`
+      : null,
+    note.heartRate != null ? `FC ${note.heartRate} bpm` : null,
+    note.oxygenSaturation != null ? `SpO₂ ${note.oxygenSaturation}%` : null,
+    note.temperatureC != null ? `T ${note.temperatureC} °C` : null,
+    note.weightKg != null ? `Peso ${note.weightKg} kg` : null,
+    note.heightCm != null ? `Altura ${note.heightCm} cm` : null,
+  ].filter((value): value is string => value !== null);
+  return (
+    <div className="space-y-1 text-xs text-slate-600">
+      {values.length ? (
+        <div className="grid grid-cols-2 gap-x-3 gap-y-1">
+          {values.map((value) => (
+            <span key={value}>{value}</span>
+          ))}
+        </div>
+      ) : (
+        <p>Sinais vitais não informados</p>
+      )}
+      <p className="text-[10px] text-slate-400">
+        Última evolução:{" "}
+        {new Date(note.finalizedAt).toLocaleDateString("pt-BR", { timeZone: "America/Fortaleza" })}
+      </p>
+    </div>
+  );
+}
+
 function OverviewPanel({
   title,
   icon,

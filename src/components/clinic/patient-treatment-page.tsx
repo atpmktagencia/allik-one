@@ -28,7 +28,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useInventory } from "@/data/inventory-api";
 import { InventoryState } from "./inventory-state";
 import { ClinicalPatientHeader } from "./clinical-patient-header";
-import { PatientOverview } from "./patient-overview";
+import { PatientOverview, PatientOverviewVitals } from "./patient-overview";
 import { treatmentCadenceLabel } from "@/data/treatment-cadence-label";
 
 type Treatment = {
@@ -601,43 +601,7 @@ export function PatientTreatmentPage({ patientId }: { patientId: string }) {
         unitName={data.patient.unitName}
         secondaryInfo={data.patient.active ? "Cadastro ativo" : "Cadastro inativo"}
         vitals={
-          clinicalHistory[0] ? (
-            <div className="space-y-1 text-xs text-slate-600">
-              <div className="grid grid-cols-2 gap-x-3 gap-y-1">
-                {[
-                  clinicalHistory[0].systolicPressure != null &&
-                  clinicalHistory[0].diastolicPressure != null
-                    ? `PA ${clinicalHistory[0].systolicPressure}/${clinicalHistory[0].diastolicPressure} mmHg`
-                    : null,
-                  clinicalHistory[0].heartRate != null
-                    ? `FC ${clinicalHistory[0].heartRate} bpm`
-                    : null,
-                  clinicalHistory[0].oxygenSaturation != null
-                    ? `SpO₂ ${clinicalHistory[0].oxygenSaturation}%`
-                    : null,
-                  clinicalHistory[0].temperatureC != null
-                    ? `T ${clinicalHistory[0].temperatureC} °C`
-                    : null,
-                  clinicalHistory[0].weightKg != null
-                    ? `Peso ${clinicalHistory[0].weightKg} kg`
-                    : null,
-                  clinicalHistory[0].heightCm != null
-                    ? `Altura ${clinicalHistory[0].heightCm} cm`
-                    : null,
-                ]
-                  .filter(Boolean)
-                  .map((value) => (
-                    <span key={value}>{value}</span>
-                  ))}
-              </div>
-              <p className="text-[10px] text-slate-400">
-                Última evolução:{" "}
-                {new Date(clinicalHistory[0].finalizedAt).toLocaleDateString("pt-BR", {
-                  timeZone: "America/Fortaleza",
-                })}
-              </p>
-            </div>
-          ) : undefined
+          clinicalHistory[0] ? <PatientOverviewVitals note={clinicalHistory[0]} /> : undefined
         }
         allergies={
           data.allergySummary ? (

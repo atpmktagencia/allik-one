@@ -71,7 +71,27 @@ describe("Care encounter UI", () => {
         if (String(_input).includes("/inventory/patients"))
           return Response.json({ data: { patients: [] } });
         if (String(_input).includes("encounter-documents"))
-          return Response.json({ data: { documents: [], templates: [], canAuthor: true } });
+          return Response.json({
+            data: {
+              documents: [
+                {
+                  id: "instructions-test",
+                  type: "INSTRUCTIONS",
+                  title: "Orientações do atendimento",
+                  content: "Orientações sintéticas registradas pelo profissional.",
+                  status: "FINAL",
+                  version: 1,
+                  authorName: "Dra. Profissional",
+                  professionalCouncil: "CRM",
+                  councilNumber: "12345",
+                  councilRegion: "CE",
+                  canEdit: false,
+                },
+              ],
+              templates: [],
+              canAuthor: true,
+            },
+          });
         if (init?.method === "POST") {
           writes.push(JSON.parse(String(init.body)) as Record<string, unknown>);
           return Response.json({ data: { id: "44444444-4444-4444-8444-444444444444" } });
@@ -202,6 +222,16 @@ describe("Care encounter UI", () => {
     expect(screen.queryByRole("textbox", { name: "Frequência" })).not.toBeInTheDocument();
     fireEvent.click(within(steps).getByRole("tab", { name: /^Revisão$/ }));
     expect(screen.getByRole("heading", { name: "Resumo do atendimento" })).toBeInTheDocument();
+    const guidanceCard = screen
+      .getByRole("heading", { name: "Orientações e retorno" })
+      .closest("article")!;
+    expect(within(guidanceCard).getByText("1 documento(s) de orientações")).toBeInTheDocument();
+    expect(within(guidanceCard).queryByText("Não registrados")).not.toBeInTheDocument();
+    fireEvent.click(within(guidanceCard).getByRole("button", { name: "Revisar" }));
+    expect(within(steps).getByRole("tab", { name: /^Prescrição$/ })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
     fireEvent.click(within(steps).getByRole("tab", { name: /^Exames$/ }));
     fireEvent.click(within(steps).getByRole("tab", { name: /^Anamnese$/ }));
     expect(screen.getByLabelText("Evolução")).toBe(evolution);

@@ -20,7 +20,9 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-function workspace() {
+function workspace(
+  access: { canAuthor: boolean; allowedDocumentTypes?: string[] } = { canAuthor: true },
+) {
   const fetch = vi.fn(async (_url: string, _init?: RequestInit) =>
     Response.json({
       data: {
@@ -53,7 +55,8 @@ function workspace() {
           },
         ],
         templates: [],
-        canAuthor: true,
+        canAuthor: access.canAuthor,
+        allowedDocumentTypes: access.allowedDocumentTypes,
       },
     }),
   );
@@ -77,6 +80,21 @@ async function edit(text: string) {
 }
 
 describe("Encounter document step navigation", () => {
+  it.each([{ canAuthor: false }, { canAuthor: true, allowedDocumentTypes: [] }])(
+    "does not recommend an unavailable creation action: %o",
+    async (access) => {
+      const view = workspace(access);
+      view.switchTo("requests");
+      fireEvent.click(await screen.findByRole("button", { name: "Encaminhamentos" }));
+      expect(
+        await screen.findByText(
+          "Nenhuma solicitação nesta categoria. A inclusão depende do profissional responsável e das permissões de emissão.",
+        ),
+      ).toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "Novo documento" })).not.toBeInTheDocument();
+      expect(screen.queryByText(/Use Novo documento/)).not.toBeInTheDocument();
+    },
+  );
   it("preserves independent unsaved buffers across repeated prescription/request changes", async () => {
     const view = workspace();
     await screen.findByRole("button", { name: "Medicamentos" });

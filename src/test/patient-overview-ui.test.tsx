@@ -1,6 +1,10 @@
 import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { PatientOverview, type PatientOverviewProps } from "@/components/clinic/patient-overview";
+import {
+  PatientOverview,
+  PatientOverviewVitals,
+  type PatientOverviewProps,
+} from "@/components/clinic/patient-overview";
 import { PatientWorkspaceNavigation } from "@/components/clinic/patient-workspace-navigation";
 import type { LaboratoryHistoryEntry } from "@/lib/laboratory-history";
 
@@ -61,6 +65,50 @@ const result = (
 });
 
 describe("Paciente360º overview", () => {
+  it("labels the latest note's empty vital signs instead of displaying a blank card", () => {
+    render(
+      <PatientOverviewVitals
+        note={{
+          systolicPressure: null,
+          diastolicPressure: null,
+          heartRate: null,
+          oxygenSaturation: null,
+          temperatureC: null,
+          weightKg: null,
+          heightCm: null,
+          finalizedAt: "2026-10-12T15:00:00Z",
+        }}
+      />,
+    );
+    expect(screen.getByText("Sinais vitais não informados")).toBeVisible();
+    expect(screen.getByText(/Última evolução: 12\/10\/2026/)).toBeVisible();
+  });
+  it("preserves zero-valued vital signs instead of treating them as absent", () => {
+    render(
+      <PatientOverviewVitals
+        note={{
+          systolicPressure: 0,
+          diastolicPressure: 0,
+          heartRate: 0,
+          oxygenSaturation: "0",
+          temperatureC: "0",
+          weightKg: "0",
+          heightCm: "0",
+          finalizedAt: "2026-10-12T15:00:00Z",
+        }}
+      />,
+    );
+    for (const label of [
+      "PA 0/0 mmHg",
+      "FC 0 bpm",
+      "SpO₂ 0%",
+      "T 0 °C",
+      "Peso 0 kg",
+      "Altura 0 cm",
+    ])
+      expect(screen.getByText(label)).toBeVisible();
+    expect(screen.queryByText("Sinais vitais não informados")).not.toBeInTheDocument();
+  });
   it("shows honest empty states without invented clinical results or diagnoses", () => {
     useInventory.mockReturnValue({ data: { rows: [], hasMore: false } });
     render(<PatientOverview {...props()} />);

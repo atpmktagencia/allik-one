@@ -616,6 +616,11 @@ export function CareEncounterPage({ appointmentId }: { appointmentId: string }) 
   const completeDisabled = anyPending || anyDirty;
   const completedDocuments =
     documentsQuery.data?.documents.filter((item) => item.status === "FINAL") ?? [];
+  const instructionsCount =
+    documentsQuery.data?.documents.filter((item) => item.type === "INSTRUCTIONS").length ?? 0;
+  const hasReturnGuidance = Boolean(
+    clinicalClosure.returnRecommendation.trim() || clinicalClosure.returnOn,
+  );
 
   return (
     <div className="clinical-workspace encounter-workspace min-h-screen bg-background">
@@ -1487,11 +1492,17 @@ export function CareEncounterPage({ appointmentId }: { appointmentId: string }) 
                   },
                   {
                     label: "Orientações e retorno",
-                    value:
-                      clinicalClosure.returnRecommendation.trim() || clinicalClosure.returnOn
-                        ? "Registrados"
-                        : "Não registrados",
-                    target: "anamnesis",
+                    value: documentsQuery.error
+                      ? "Não foi possível verificar orientações"
+                      : documentsQuery.isPending
+                        ? "Consultando…"
+                        : instructionsCount
+                          ? `${hasReturnGuidance ? "Retorno · " : ""}${instructionsCount} documento(s) de orientações`
+                          : hasReturnGuidance
+                            ? "Retorno registrado"
+                            : "Não registrados",
+                    target:
+                      instructionsCount > 0 && !hasReturnGuidance ? "prescription" : "anamnesis",
                   },
                   {
                     label: "Orçamento",

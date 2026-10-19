@@ -980,8 +980,9 @@ export function EncounterDocumentsCard({
                 </div>
               ) : (
                 <p className="rounded-lg bg-muted/30 p-4 text-sm text-muted-foreground">
-                  Nenhuma solicitação nesta categoria. Use Novo documento para adicionar uma
-                  solicitação autorizada.
+                  {data.canAuthor && modeTypes.length > 0
+                    ? "Nenhuma solicitação nesta categoria. Use Novo documento para adicionar uma solicitação autorizada."
+                    : "Nenhuma solicitação nesta categoria. A inclusão depende do profissional responsável e das permissões de emissão."}
                 </p>
               )}
             </div>
@@ -1098,7 +1099,7 @@ export function EncounterDocumentsCard({
           >
             {!selected || !buffer ? (
               <div className="px-6 py-12 text-sm text-[#636366]">
-                {data.canAuthor && allowedTypes.length > 0
+                {data.canAuthor && modeTypes.length > 0
                   ? "Escolha um tipo de documento autorizado para iniciar."
                   : "Nenhum documento disponível. A elaboração exige o profissional responsável pelo atendimento."}
               </div>
