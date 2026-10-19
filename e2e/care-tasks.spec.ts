@@ -53,6 +53,7 @@ test("individual holder creates, completes, reopens and audits a patient task", 
     );
     await context.addCookies([{ name: "allik_inventory_session", value: token, url: baseURL! }]);
     await page.goto(`/atendimentos/${appointment}`);
+    await page.getByRole("button", { name: "Questionários e tarefas", exact: true }).click();
     const tasks = page.getByRole("region", { name: "Tarefas da equipe" });
     await expect(tasks.getByRole("button", { name: "Nova tarefa", exact: true })).toBeVisible();
     await tasks.getByRole("button", { name: "Nova tarefa", exact: true }).click();

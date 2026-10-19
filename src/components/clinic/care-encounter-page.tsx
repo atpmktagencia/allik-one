@@ -7,6 +7,15 @@ import "./clinical-workspace.css";
 import {
   AlertTriangle,
   ArrowLeft,
+  CheckCircle2,
+  ChevronDown,
+  ChevronRight,
+  Menu,
+  MoreHorizontal,
+  List,
+  Heading2,
+  Plus,
+  Save,
   CalendarClock,
   ClipboardList,
   FileText,
@@ -17,7 +26,26 @@ import {
   Stethoscope,
   UserRound,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { ClinicalPatientHeader } from "./clinical-patient-header";
+import { PatientDocumentCenter } from "./patient-document-center";
+import { PatientClinicalPlans } from "./patient-clinical-plans";
+import { EncounterContextPanel } from "./encounter-context-panel";
+import { EncounterExamsPanel } from "./encounter-exams-panel";
+import { allergyLabel } from "@/lib/patient-allergies";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -157,49 +185,14 @@ const scheduleLabels: Record<string, string> = {
   CONSUMED: "Consumida",
   CANCELED: "Cancelada",
 };
-const encounterSections = [
-  { id: "resumo", label: "Resumo", icon: UserRound },
-  { id: "evolucao", label: "Evolução", icon: FileText },
-  { id: "anamnese", label: "Anamnese", icon: ListTree },
-  { id: "exame-fisico", label: "Exame físico", icon: Stethoscope },
-  { id: "avaliacao-plano", label: "Avaliação e plano", icon: ClipboardList },
-  { id: "conduta", label: "Conduta", icon: FileText },
-  { id: "prescricao", label: "Prescrição", icon: Pill },
-  { id: "documentos", label: "Receitas e exames", icon: FileText },
-  { id: "orcamento", label: "Orçamento", icon: ReceiptText },
-  { id: "contexto", label: "Contexto e histórico", icon: History },
+const encounterSteps = [
+  { id: "anamnesis", label: "Anamnese" },
+  { id: "exams", label: "Exames" },
+  { id: "prescription", label: "Prescrição" },
+  { id: "requests", label: "Solicitações" },
+  { id: "review", label: "Revisão" },
 ] as const;
-
-function EncounterNavigation({ mobile = false }: { mobile?: boolean }) {
-  return (
-    <nav
-      aria-label="Seções do atendimento"
-      className={
-        mobile
-          ? "sticky top-16 z-10 mx-4 flex gap-1 overflow-x-auto rounded-2xl border bg-background/95 px-3 py-2 shadow-sm backdrop-blur lg:hidden"
-          : "sticky top-40 hidden self-start rounded-2xl border bg-card p-3 lg:block"
-      }
-    >
-      {!mobile ? (
-        <p className="mb-3 px-3 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
-          Neste atendimento
-        </p>
-      ) : null}
-      <div className={mobile ? "flex gap-1" : "space-y-1"}>
-        {encounterSections.map((item) => (
-          <a
-            key={item.id}
-            href={`#${item.id}`}
-            className="flex h-9 shrink-0 items-center gap-2 rounded-md px-3 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          >
-            <item.icon className="size-4" />
-            {item.label}
-          </a>
-        ))}
-      </div>
-    </nav>
-  );
-}
+type EncounterStep = (typeof encounterSteps)[number]["id"];
 const anamnesisTemplates = {
   sevenPillars: {
     label: "Anamnese 7 pilares (Tarso)",
@@ -305,6 +298,45 @@ const dateTime = (value: string) =>
 
 export function CareEncounterPage({ appointmentId }: { appointmentId: string }) {
   const query = useInventory<Payload>(`care-encounter?appointmentId=${appointmentId}`);
+  const [activeStep, setActiveStep] = useState<EncounterStep>("anamnesis");
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [contextCollapsed, setContextCollapsed] = useState(false);
+  const [documentDraftState, setDocumentDraftState] = useState({ dirty: false, pending: false });
+  const onDocumentDraftStateChange = useCallback(
+    (next: { dirty: boolean; pending: boolean }) =>
+      setDocumentDraftState((current) =>
+        current.dirty === next.dirty && current.pending === next.pending ? current : next,
+      ),
+    [],
+  );
+  const [prescriptionDraftState, setPrescriptionDraftState] = useState({
+    dirty: false,
+    pending: false,
+  });
+  const onPrescriptionDraftStateChange = useCallback(
+    (next: { dirty: boolean; pending: boolean }) =>
+      setPrescriptionDraftState((current) =>
+        current.dirty === next.dirty && current.pending === next.pending ? current : next,
+      ),
+    [],
+  );
+  const [detailsOpen, setDetailsOpen] = useState(false);
+  const [documentsOpen, setDocumentsOpen] = useState(false);
+  const [vitalsOpen, setVitalsOpen] = useState(false);
+  const [allergiesOpen, setAllergiesOpen] = useState(false);
+  const [questionnairesOpen, setQuestionnairesOpen] = useState(false);
+  const [templatesOpen, setTemplatesOpen] = useState(false);
+  const editorRef = useRef<HTMLTextAreaElement>(null);
+  const documentsQuery = useInventory<{
+    documents: Array<{ id: string; type: string; title: string; status: string }>;
+    context?: { birthDate: string | null };
+  }>(`encounter-documents?appointmentId=${encodeURIComponent(appointmentId)}`);
+  const prescriptionQuery = useInventory<{
+    prescription: null | { items: unknown[]; status: string };
+  }>(`encounter-prescriptions?appointmentId=${appointmentId}`);
+  const quoteQuery = useInventory<{ quote: null | { status: string } }>(
+    `encounter-quotes?appointmentId=${appointmentId}`,
+  );
   const [pending, setPending] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
@@ -356,13 +388,27 @@ export function CareEncounterPage({ appointmentId }: { appointmentId: string }) 
     vitals,
   });
   const dirty = savedForm !== null && savedForm !== formSnapshot;
+  const navigationDirty = dirty || documentDraftState.dirty || prescriptionDraftState.dirty;
   useBlocker({
-    disabled: !dirty,
-    enableBeforeUnload: dirty,
+    disabled: !navigationDirty,
+    enableBeforeUnload: navigationDirty,
     shouldBlockFn: ({ current, next }) =>
       current.pathname !== next.pathname &&
-      !window.confirm("Há alterações não salvas na evolução. Deseja sair e descartá-las?"),
+      !window.confirm("Há alterações não salvas no atendimento. Deseja sair e descartá-las?"),
   });
+  useEffect(() => {
+    const blockUnitChange = (event: Event) => {
+      if (
+        navigationDirty ||
+        pending ||
+        documentDraftState.pending ||
+        prescriptionDraftState.pending
+      )
+        event.preventDefault();
+    };
+    window.addEventListener("allik:before-unit-change", blockUnitChange);
+    return () => window.removeEventListener("allik:before-unit-change", blockUnitChange);
+  }, [navigationDirty, pending, documentDraftState.pending, prescriptionDraftState.pending]);
   const [selectedTemplate, setSelectedTemplate] = useState("");
   const loadedNote = query.data?.clinicalNote;
   useEffect(() => {
@@ -549,476 +595,1104 @@ export function CareEncounterPage({ appointmentId }: { appointmentId: string }) 
     }
   }
 
+  function insertClinicalText(text: string) {
+    const input = editorRef.current;
+    const start = input?.selectionStart ?? evolution.length;
+    const end = input?.selectionEnd ?? start;
+    setEvolution(evolution.slice(0, start) + text + evolution.slice(end));
+    requestAnimationFrame(() => {
+      input?.focus();
+      input?.setSelectionRange(start + text.length, start + text.length);
+    });
+  }
+  function navigateContext(target: "exams" | "documents" | "questionnaires") {
+    if (target === "questionnaires") setQuestionnairesOpen(true);
+    else if (target === "documents") setDocumentsOpen(true);
+    else setActiveStep("exams");
+  }
+  const canComplete = data.canManage && appointment.status === "IN_PROGRESS";
+  const anyDirty = dirty || documentDraftState.dirty || prescriptionDraftState.dirty;
+  const anyPending = pending || documentDraftState.pending || prescriptionDraftState.pending;
+  const completeDisabled = anyPending || anyDirty;
+  const completedDocuments =
+    documentsQuery.data?.documents.filter((item) => item.status === "FINAL") ?? [];
+
   return (
-    <div className="clinical-workspace min-h-screen bg-background">
-      <div className="border-b bg-background lg:sticky lg:top-16 lg:z-20">
-        <div className="mx-auto flex max-w-[1320px] items-center gap-3 px-4 py-3 sm:px-6 lg:px-8">
+    <div className="clinical-workspace encounter-workspace min-h-screen bg-background">
+      <h1 className="sr-only">Atendimento de {appointment.patientName}</h1>
+      <div className="flex min-h-12 flex-wrap items-center justify-between gap-2 px-4 py-2 lg:px-5">
+        <div className="flex min-w-0 items-center gap-2 text-xs text-muted-foreground">
           <Button
-            asChild
             variant="ghost"
             size="icon"
-            className="shrink-0"
-            aria-label="Voltar à agenda"
+            className="size-7 lg:hidden"
+            aria-label={sidebarOpen ? "Recolher navegação clínica" : "Abrir navegação clínica"}
+            onClick={() => setSidebarOpen(!sidebarOpen)}
           >
-            <Link to="/agenda">
-              <ArrowLeft />
-            </Link>
+            <Menu className="size-4" />
           </Button>
-          <div className="min-w-0 flex-1">
-            <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
-              <h1 className="truncate font-display text-lg font-semibold text-foreground sm:text-xl">
-                {appointment.patientName}
-              </h1>
-              <Badge variant="outline" className="shrink-0">
-                {statusLabels[appointment.status] ?? appointment.status}
-              </Badge>
+          <Link to="/pacientes">Pacientes</Link>
+          <ChevronRight className="size-3" />
+          <Link
+            to="/pacientes/$patientId"
+            params={{ patientId: appointment.patientId }}
+            className="max-w-44 truncate"
+          >
+            {appointment.patientName}
+          </Link>
+          <ChevronRight className="size-3" />
+          <span className="font-semibold text-foreground">Atendimento</span>
+        </div>
+        <div className="flex items-center gap-3">
+          <span
+            role="status"
+            aria-live="polite"
+            className="hidden items-center gap-1 text-[11px] text-muted-foreground sm:flex"
+          >
+            <CheckCircle2
+              className={anyDirty ? "size-3.5 text-amber-600" : "size-3.5 text-emerald-600"}
+            />
+            {anyPending
+              ? "Processando…"
+              : anyDirty
+                ? "Alterações não salvas"
+                : data.clinicalNote
+                  ? `Último salvamento: ${dateTime(data.clinicalNote.updatedAt)}`
+                  : "Evolução ainda não salva"}
+          </span>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm">
+                Mais ações <ChevronDown className="size-3.5" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onSelect={() => setDetailsOpen(true)}>
+                Contexto e histórico do atendimento
+              </DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => setVitalsOpen(true)}>
+                Editar sinais vitais
+              </DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => setAllergiesOpen(true)}>
+                Conferir alergias e alertas
+              </DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => setQuestionnairesOpen(true)}>
+                Questionários e tarefas
+              </DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => setActiveStep("review")}>
+                Revisar atendimento e orçamento
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+          {canComplete ? (
+            <Button
+              size="sm"
+              disabled={completeDisabled}
+              title={anyDirty ? "Salve os rascunhos antes de concluir." : undefined}
+              onClick={() => updateStatus("COMPLETED")}
+            >
+              Concluir atendimento
+            </Button>
+          ) : (
+            <Badge variant="outline">
+              {statusLabels[appointment.status] ?? appointment.status}
+            </Badge>
+          )}
+        </div>
+      </div>
+      <div className="px-4 lg:px-5">
+        <ClinicalPatientHeader
+          name={appointment.patientName}
+          birthDate={documentsQuery.data?.context?.birthDate ?? null}
+          code={appointment.patientCode}
+          unitName={appointment.unitName}
+          secondaryInfo={
+            <span>
+              {appointment.professionalName} · {appointment.careTypeName}
+            </span>
+          }
+          vitals={
+            <button
+              type="button"
+              onClick={() => setVitalsOpen(true)}
+              className="w-full text-left text-xs leading-5 text-muted-foreground"
+              aria-label="Ver ou editar sinais vitais"
+            >
+              <div className="grid grid-cols-2 gap-x-3">
+                <span>
+                  PA{" "}
+                  {vitals.systolicPressure && vitals.diastolicPressure
+                    ? `${vitals.systolicPressure}/${vitals.diastolicPressure} mmHg`
+                    : "—"}
+                </span>
+                <span>FC {vitals.heartRate ? `${vitals.heartRate} bpm` : "—"}</span>
+                <span>SpO₂ {vitals.oxygenSaturation ? `${vitals.oxygenSaturation}%` : "—"}</span>
+                <span>T {vitals.temperatureC ? `${vitals.temperatureC} °C` : "—"}</span>
+              </div>
+              <span className="mt-1 block text-[10px]">
+                {dirty
+                  ? "Alterações não salvas"
+                  : data.clinicalNote?.updatedAt
+                    ? dateTime(data.clinicalNote.updatedAt)
+                    : "Registrar sinais vitais"}
+              </span>
+            </button>
+          }
+          allergies={
+            <button
+              type="button"
+              className="w-full text-left text-xs"
+              onClick={() => setAllergiesOpen(true)}
+              aria-label="Ver alergias e alertas"
+            >
+              <div className="flex flex-wrap gap-1">
+                {data.allergySummary?.allergies.length ? (
+                  data.allergySummary.allergies.map((item) => (
+                    <span key={item} className="rounded-lg bg-rose-100 px-2 py-1 text-rose-800">
+                      {item}
+                    </span>
+                  ))
+                ) : (
+                  <span className="text-muted-foreground">
+                    {data.allergySummary
+                      ? allergyLabel(data.allergySummary)
+                      : "Alergias não informadas"}
+                  </span>
+                )}
+              </div>
+              {data.clinicalAlerts.some((item) => item.type !== "ALLERGY") && (
+                <span className="mt-1 block text-amber-700">
+                  Há outros alertas ativos · ver detalhes
+                </span>
+              )}
+            </button>
+          }
+          diagnoses={
+            <button
+              type="button"
+              className="w-full text-left text-xs"
+              onClick={() => {
+                setActiveStep("anamnesis");
+                requestAnimationFrame(() => {
+                  const element = document.getElementById(
+                    "avaliacao-plano",
+                  ) as HTMLDetailsElement | null;
+                  if (element) {
+                    element.open = true;
+                    element.scrollIntoView({ behavior: "smooth", block: "center" });
+                  }
+                });
+              }}
+            >
+              <span
+                className={
+                  clinicalClosure.diagnosticHypotheses.trim()
+                    ? "line-clamp-2 rounded-lg bg-amber-50 px-2 py-1 text-amber-900"
+                    : "text-muted-foreground"
+                }
+              >
+                {clinicalClosure.diagnosticHypotheses ||
+                  "Nenhuma hipótese registrada neste atendimento"}
+              </span>
+            </button>
+          }
+        />
+      </div>
+      {(message || error) && (
+        <div
+          role={error ? "alert" : "status"}
+          className={
+            error
+              ? "mx-4 mt-3 rounded-lg border bg-card px-4 py-2 text-sm text-destructive lg:mx-5"
+              : "pointer-events-none fixed bottom-4 right-4 z-50 max-w-sm rounded-lg border bg-card px-4 py-3 text-sm text-foreground shadow-sm"
+          }
+        >
+          {error || message}
+        </div>
+      )}
+      <div className="grid min-w-0 gap-3 px-4 py-3 lg:grid-cols-[206px_minmax(0,1fr)] lg:px-5">
+        <aside
+          className={`${sidebarOpen ? "block" : "hidden"} rounded-xl border bg-card p-2.5 lg:block`}
+        >
+          <nav aria-label="Navegação clínica do paciente" className="space-y-1">
+            <button
+              type="button"
+              onClick={() => {
+                setActiveStep("anamnesis");
+                setSidebarOpen(false);
+              }}
+              className="flex h-10 w-full items-center gap-3 rounded-lg bg-accent px-3 text-left text-[13px] font-semibold text-primary"
+            >
+              <ClipboardList className="size-4" />
+              Atendimento
+            </button>
+            <Link
+              to="/pacientes/$patientId"
+              params={{ patientId: appointment.patientId }}
+              className="flex h-10 items-center gap-3 rounded-lg px-3 text-[13px] text-muted-foreground hover:bg-accent"
+            >
+              <UserRound className="size-4" />
+              Visão geral
+            </Link>
+            <Link
+              to="/pacientes/$patientId/prontuario"
+              params={{ patientId: appointment.patientId }}
+              className="flex h-10 items-center gap-3 rounded-lg px-3 text-[13px] text-muted-foreground hover:bg-accent"
+            >
+              <History className="size-4" />
+              Histórico
+            </Link>
+            <button
+              type="button"
+              onClick={() => setDocumentsOpen(true)}
+              className="flex h-10 w-full items-center gap-3 rounded-lg px-3 text-left text-[13px] text-muted-foreground hover:bg-accent"
+            >
+              <FileText className="size-4" />
+              Documentos
+            </button>
+            {(
+              [
+                { id: "exams", label: "Exames", icon: Stethoscope },
+                { id: "requests", label: "Solicitações", icon: FileText },
+                { id: "prescription", label: "Prescrições", icon: Pill },
+                { id: "review", label: "Orçamentos", icon: ReceiptText },
+              ] as const
+            ).map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => {
+                  setActiveStep(item.id);
+                  setSidebarOpen(false);
+                }}
+                className="flex min-h-10 w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-[13px] text-muted-foreground hover:bg-accent"
+              >
+                <item.icon className="size-4 shrink-0" />
+                {item.label}
+              </button>
+            ))}
+            <button
+              type="button"
+              onClick={() => setQuestionnairesOpen(true)}
+              className="flex h-10 w-full items-center gap-3 rounded-lg px-3 text-left text-[13px] text-muted-foreground hover:bg-accent"
+            >
+              <ClipboardList className="size-4" />
+              Questionários e tarefas
+            </button>
+            <button
+              type="button"
+              onClick={() => setDetailsOpen(true)}
+              className="flex h-10 w-full items-center gap-3 rounded-lg px-3 text-left text-[13px] text-muted-foreground hover:bg-accent"
+            >
+              <ListTree className="size-4" />
+              Plano de cuidado
+            </button>
+            <div className="mx-2 my-4 border-t" />
+            <Link
+              to="/agenda"
+              className="flex h-10 items-center gap-3 rounded-lg px-3 text-[13px] text-muted-foreground hover:bg-accent"
+            >
+              <ArrowLeft className="size-4" />
+              Voltar à agenda
+            </Link>
+          </nav>
+        </aside>
+        <div
+          className={`grid min-w-0 items-start gap-3 ${activeStep === "anamnesis" ? (contextCollapsed ? "xl:grid-cols-[minmax(0,1fr)_48px]" : "xl:grid-cols-[minmax(0,1fr)_minmax(260px,328px)]") : ""}`}
+        >
+          <main className="min-w-0 rounded-xl border bg-card p-2">
+            <nav
+              aria-label="Etapas do atendimento"
+              className="mb-3 flex min-h-10 overflow-x-auto border-b"
+              role="tablist"
+            >
+              {encounterSteps.map((step, index) => (
+                <button
+                  key={step.id}
+                  type="button"
+                  role="tab"
+                  id={`encounter-tab-${step.id}`}
+                  aria-selected={activeStep === step.id}
+                  aria-controls={`encounter-panel-${step.id === "requests" || step.id === "prescription" ? "documents" : step.id}`}
+                  tabIndex={activeStep === step.id ? 0 : -1}
+                  onKeyDown={(event) => {
+                    if (event.key === "ArrowRight" || event.key === "ArrowLeft") {
+                      event.preventDefault();
+                      const next =
+                        encounterSteps[
+                          (index + (event.key === "ArrowRight" ? 1 : -1) + encounterSteps.length) %
+                            encounterSteps.length
+                        ]!;
+                      setActiveStep(next.id);
+                      document.getElementById(`encounter-tab-${next.id}`)?.focus();
+                    }
+                  }}
+                  onClick={() => setActiveStep(step.id)}
+                  className={`flex min-w-28 flex-1 items-center justify-center gap-2 border-b-2 px-3 pb-2 text-xs transition-colors ${activeStep === step.id ? "border-primary font-semibold text-primary" : "border-transparent text-muted-foreground hover:text-foreground"}`}
+                >
+                  <span
+                    aria-hidden="true"
+                    className={`flex size-6 shrink-0 items-center justify-center rounded-full text-xs ${activeStep === step.id ? "bg-primary text-primary-foreground" : "bg-muted text-foreground"}`}
+                  >
+                    {index + 1}
+                  </span>
+                  {step.label}
+                </button>
+              ))}
+            </nav>
+            <div
+              role="tabpanel"
+              id="encounter-panel-anamnesis"
+              aria-labelledby="encounter-tab-anamnesis"
+              hidden={activeStep !== "anamnesis"}
+            >
+              {data.canManage && ["SCHEDULED", "CONFIRMED"].includes(appointment.status) ? (
+                <section className="flex flex-wrap gap-2 rounded-xl border bg-card p-4">
+                  {appointment.status === "SCHEDULED" ? (
+                    <Button
+                      variant="outline"
+                      disabled={pending}
+                      onClick={() => updateStatus("CONFIRMED")}
+                    >
+                      Confirmar presença
+                    </Button>
+                  ) : null}
+                  {["SCHEDULED", "CONFIRMED"].includes(appointment.status) ? (
+                    <Button disabled={pending} onClick={() => updateStatus("IN_PROGRESS")}>
+                      Iniciar atendimento
+                    </Button>
+                  ) : null}
+                </section>
+              ) : null}
+              <section
+                id="evolucao"
+                className="encounter-editor-surface space-y-3 rounded-xl border bg-card p-3 sm:p-4"
+              >
+                <div className="flex items-center justify-between gap-3 pb-1">
+                  <div className="flex min-w-0 items-center gap-3">
+                    <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-accent text-primary">
+                      <FileText className="size-5" />
+                    </span>
+                    <div>
+                      <h2 className="text-lg font-semibold">Anamnese e evolução</h2>
+                      <p className="mt-0.5 text-xs text-muted-foreground">
+                        História clínica, exame físico, avaliação e plano
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setTemplatesOpen(!templatesOpen)}
+                      aria-expanded={templatesOpen}
+                    >
+                      <FileText className="size-4" /> Modelos
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      aria-label="Informações do atendimento"
+                      onClick={() => setDetailsOpen(true)}
+                    >
+                      <MoreHorizontal className="size-4" />
+                    </Button>
+                  </div>
+                </div>
+                <div
+                  hidden={!templatesOpen}
+                  className="space-y-2 rounded-lg border bg-muted/30 p-3"
+                >
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
+                    <label className="flex-1 space-y-1 text-sm font-medium">
+                      Escolha um modelo de anamnese
+                      <select
+                        className="h-10 w-full rounded-md border bg-background px-3 font-normal"
+                        value={selectedTemplate}
+                        disabled={
+                          !data.canAuthorClinicalNote || data.clinicalNote?.status === "FINAL"
+                        }
+                        onChange={(event) => setSelectedTemplate(event.target.value)}
+                      >
+                        <option value="">Selecione um modelo de anamnese (opcional)</option>
+                        {Object.entries(anamnesisTemplates).map(([key, template]) => (
+                          <option key={key} value={key}>
+                            {template.label}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      disabled={
+                        !selectedTemplate ||
+                        !data.canAuthorClinicalNote ||
+                        data.clinicalNote?.status === "FINAL"
+                      }
+                      onClick={applyAnamnesisTemplate}
+                    >
+                      Inserir modelo
+                    </Button>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    O modelo será inserido como texto editável na evolução e não substitui o
+                    julgamento clínico.
+                  </p>
+                </div>
+                <div className="overflow-hidden rounded-lg border">
+                  <div
+                    className="flex h-9 items-center gap-1 border-b bg-muted/30 px-2"
+                    role="toolbar"
+                    aria-label="Ferramentas do texto clínico"
+                  >
+                    <span className="mr-2 border-r pr-3 text-xs text-muted-foreground">
+                      Texto clínico
+                    </span>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 px-2 text-xs"
+                      disabled={
+                        !data.canAuthorClinicalNote || data.clinicalNote?.status === "FINAL"
+                      }
+                      onClick={() => insertClinicalText("\n\nHistória clínica / Anamnese\n")}
+                    >
+                      <Heading2 className="size-3.5" /> Seção
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 px-2 text-xs"
+                      disabled={
+                        !data.canAuthorClinicalNote || data.clinicalNote?.status === "FINAL"
+                      }
+                      onClick={() => insertClinicalText("\n• ")}
+                    >
+                      <List className="size-3.5" /> Lista
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 px-2 text-xs"
+                      disabled={
+                        !data.canAuthorClinicalNote || data.clinicalNote?.status === "FINAL"
+                      }
+                      onClick={() =>
+                        insertClinicalText(
+                          "\n\nExame físico\n\nAvaliação clínica\n\nPlano e conduta\n\nOrientações e retorno\n",
+                        )
+                      }
+                    >
+                      <Plus className="size-3.5" /> Estrutura
+                    </Button>
+                  </div>
+                  <label className="block text-sm font-medium">
+                    <span className="sr-only">Evolução</span>
+                    <Textarea
+                      ref={editorRef}
+                      value={evolution}
+                      onChange={(event) => setEvolution(event.target.value)}
+                      disabled={
+                        !data.canAuthorClinicalNote || data.clinicalNote?.status === "FINAL"
+                      }
+                      rows={12}
+                      maxLength={20000}
+                      placeholder={
+                        "1. História clínica / Anamnese\nRegistre a história clínica deste atendimento.\n\n2. Exame físico\n\n3. Avaliação clínica\n\n4. Plano e conduta\n\n5. Orientações e retorno"
+                      }
+                      className="min-h-[360px] resize-y rounded-none border-0 px-5 py-4 text-[13px] leading-7 shadow-none focus-visible:ring-inset"
+                    />
+                  </label>
+                </div>
+                <Accordion
+                  id="anamnese"
+                  type="multiple"
+                  className="scroll-mt-40 rounded-lg border px-4"
+                >
+                  <AccordionItem value="structured-anamnesis" className="border-b-0">
+                    <AccordionTrigger className="text-base">Anamnese estruturada</AccordionTrigger>
+                    <AccordionContent>
+                      <p className="mb-3 text-xs text-muted-foreground">
+                        Preencha apenas os campos aplicáveis ao atendimento.
+                      </p>
+                      <fieldset
+                        disabled={
+                          !data.canAuthorClinicalNote || data.clinicalNote?.status === "FINAL"
+                        }
+                      >
+                        <Accordion type="multiple" className="rounded-lg border px-4">
+                          <AnamnesisField
+                            label="Motivo da consulta"
+                            field="chiefComplaint"
+                            value={anamnesis.chiefComplaint}
+                            maxLength={2000}
+                            setAnamnesis={setAnamnesis}
+                          />
+                          <AnamnesisField
+                            label="História da condição atual"
+                            field="currentHistory"
+                            value={anamnesis.currentHistory}
+                            maxLength={10000}
+                            setAnamnesis={setAnamnesis}
+                          />
+                          <AnamnesisField
+                            label="Antecedentes pessoais"
+                            field="personalHistory"
+                            value={anamnesis.personalHistory}
+                            maxLength={10000}
+                            setAnamnesis={setAnamnesis}
+                          />
+                          <AnamnesisField
+                            label="Antecedentes familiares"
+                            field="familyHistory"
+                            value={anamnesis.familyHistory}
+                            maxLength={10000}
+                            setAnamnesis={setAnamnesis}
+                          />
+                          <AnamnesisField
+                            label="Hábitos e contexto"
+                            field="habits"
+                            value={anamnesis.habits}
+                            maxLength={5000}
+                            setAnamnesis={setAnamnesis}
+                          />
+                          <AnamnesisField
+                            label="Revisão de sistemas"
+                            field="systemsReview"
+                            value={anamnesis.systemsReview}
+                            maxLength={10000}
+                            setAnamnesis={setAnamnesis}
+                          />
+                        </Accordion>
+                      </fieldset>
+                    </AccordionContent>
+                  </AccordionItem>
+                </Accordion>
+                <Accordion
+                  id="exame-fisico"
+                  type="multiple"
+                  className="scroll-mt-40 rounded-lg border px-4"
+                >
+                  <AccordionItem value="structured-physical-exam" className="border-b-0">
+                    <AccordionTrigger className="text-base">
+                      Exame físico estruturado
+                    </AccordionTrigger>
+                    <AccordionContent>
+                      <p className="mb-3 text-xs text-muted-foreground">
+                        Registre somente os sistemas examinados neste atendimento.
+                      </p>
+                      <fieldset
+                        disabled={
+                          !data.canAuthorClinicalNote || data.clinicalNote?.status === "FINAL"
+                        }
+                      >
+                        <Accordion type="multiple" className="rounded-lg border px-4">
+                          <PhysicalExamField
+                            label="Estado geral"
+                            field="generalExam"
+                            value={physicalExam.generalExam}
+                            setPhysicalExam={setPhysicalExam}
+                          />
+                          <PhysicalExamField
+                            label="Cardiovascular"
+                            field="cardiovascularExam"
+                            value={physicalExam.cardiovascularExam}
+                            setPhysicalExam={setPhysicalExam}
+                          />
+                          <PhysicalExamField
+                            label="Respiratório"
+                            field="respiratoryExam"
+                            value={physicalExam.respiratoryExam}
+                            setPhysicalExam={setPhysicalExam}
+                          />
+                          <PhysicalExamField
+                            label="Abdominal"
+                            field="abdominalExam"
+                            value={physicalExam.abdominalExam}
+                            setPhysicalExam={setPhysicalExam}
+                          />
+                          <PhysicalExamField
+                            label="Neurológico"
+                            field="neurologicalExam"
+                            value={physicalExam.neurologicalExam}
+                            setPhysicalExam={setPhysicalExam}
+                          />
+                          <PhysicalExamField
+                            label="Musculoesquelético"
+                            field="musculoskeletalExam"
+                            value={physicalExam.musculoskeletalExam}
+                            setPhysicalExam={setPhysicalExam}
+                          />
+                          <PhysicalExamField
+                            label="Pele e anexos"
+                            field="skinExam"
+                            value={physicalExam.skinExam}
+                            setPhysicalExam={setPhysicalExam}
+                          />
+                          <PhysicalExamField
+                            label="Outros achados"
+                            field="otherExam"
+                            value={physicalExam.otherExam}
+                            setPhysicalExam={setPhysicalExam}
+                          />
+                        </Accordion>
+                      </fieldset>
+                    </AccordionContent>
+                  </AccordionItem>
+                </Accordion>
+                <details id="avaliacao-plano" className="scroll-mt-40 rounded-lg border px-4">
+                  <summary className="cursor-pointer py-3 text-sm font-semibold">
+                    Hipóteses diagnósticas, plano clínico e retorno{" "}
+                    <span className="ml-2 font-normal text-muted-foreground">
+                      {clinicalClosure.diagnosticHypotheses.trim()
+                        ? "Preenchido"
+                        : "Não registrado"}
+                    </span>
+                  </summary>
+                  <div className="space-y-4 pb-4">
+                    <div>
+                      <h3 className="font-semibold">Avaliação e plano clínico</h3>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        Registre as hipóteses como avaliação do atendimento; elas não são
+                        convertidas automaticamente em diagnóstico definitivo.
+                      </p>
+                    </div>
+                    <label className="block space-y-2 text-sm font-medium">
+                      Hipóteses diagnósticas e diagnósticos
+                      <Textarea
+                        value={clinicalClosure.diagnosticHypotheses}
+                        onChange={(event) =>
+                          setClinicalClosure((current) => ({
+                            ...current,
+                            diagnosticHypotheses: event.target.value,
+                          }))
+                        }
+                        disabled={
+                          !data.canAuthorClinicalNote || data.clinicalNote?.status === "FINAL"
+                        }
+                        rows={4}
+                        maxLength={10000}
+                        placeholder="Descreva as hipóteses diagnósticas, os diagnósticos estabelecidos e os diagnósticos diferenciais relevantes."
+                      />
+                    </label>
+                    <label className="block space-y-2 text-sm font-medium">
+                      Plano clínico
+                      <Textarea
+                        value={clinicalClosure.clinicalPlan}
+                        onChange={(event) =>
+                          setClinicalClosure((current) => ({
+                            ...current,
+                            clinicalPlan: event.target.value,
+                          }))
+                        }
+                        disabled={
+                          !data.canAuthorClinicalNote || data.clinicalNote?.status === "FINAL"
+                        }
+                        rows={4}
+                        maxLength={10000}
+                        placeholder="Registre o plano diagnóstico, terapêutico, de acompanhamento e as orientações."
+                      />
+                    </label>
+                    <div className="grid gap-4 md:grid-cols-[1fr_220px]">
+                      <label className="block space-y-2 text-sm font-medium">
+                        Orientações para retorno
+                        <Textarea
+                          value={clinicalClosure.returnRecommendation}
+                          onChange={(event) =>
+                            setClinicalClosure((current) => ({
+                              ...current,
+                              returnRecommendation: event.target.value,
+                            }))
+                          }
+                          disabled={
+                            !data.canAuthorClinicalNote || data.clinicalNote?.status === "FINAL"
+                          }
+                          rows={3}
+                          maxLength={2000}
+                          placeholder="Ex.: retornar após os exames ou em quatro semanas."
+                        />
+                      </label>
+                      <label className="block space-y-2 text-sm font-medium">
+                        Data prevista para retorno
+                        <Input
+                          type="date"
+                          value={clinicalClosure.returnOn}
+                          onChange={(event) =>
+                            setClinicalClosure((current) => ({
+                              ...current,
+                              returnOn: event.target.value,
+                            }))
+                          }
+                          disabled={
+                            !data.canAuthorClinicalNote || data.clinicalNote?.status === "FINAL"
+                          }
+                        />
+                      </label>
+                    </div>
+                  </div>
+                </details>
+                {data.clinicalNote ? (
+                  <p className="text-xs text-muted-foreground">
+                    {data.clinicalNote.authorName} · {data.clinicalNote.professionalCouncil}{" "}
+                    {data.clinicalNote.councilNumber}/{data.clinicalNote.councilRegion}
+                    {data.clinicalNote.finalizedAt
+                      ? ` · finalizada em ${dateTime(data.clinicalNote.finalizedAt)}`
+                      : ` · salva em ${dateTime(data.clinicalNote.updatedAt)}`}
+                  </p>
+                ) : null}
+                {!data.canAuthorClinicalNote ? (
+                  <div className="space-y-3 rounded-lg bg-muted p-3 text-sm text-muted-foreground">
+                    <p>{data.clinicalAuthorBlockReason}</p>
+                    {data.canClaimClinicalNote ? (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        disabled={pending}
+                        onClick={claimClinicalNote}
+                      >
+                        Assumir responsabilidade pelo atendimento
+                      </Button>
+                    ) : null}
+                    {data.needsProfessionalRegistration ? (
+                      <Button asChild type="button" variant="outline">
+                        <Link to="/estoque/usuarios">Completar meu registro profissional</Link>
+                      </Button>
+                    ) : null}
+                  </div>
+                ) : null}
+                {data.canAuthorClinicalNote && data.clinicalNote?.status !== "FINAL" ? (
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      variant="outline"
+                      disabled={pending}
+                      onClick={() => saveClinicalNote("SAVE_DRAFT")}
+                    >
+                      {pending ? "Salvando…" : "Salvar rascunho"}
+                    </Button>
+                    <Button
+                      disabled={pending || evolution.trim().length < 10}
+                      onClick={() => saveClinicalNote("FINALIZE")}
+                    >
+                      {pending ? "Finalizando…" : "Finalizar evolução"}
+                    </Button>
+                  </div>
+                ) : null}
+              </section>
             </div>
-            <p className="mt-0.5 truncate text-xs text-muted-foreground sm:text-sm">
-              {appointment.patientCode} · {appointment.unitName} · {appointment.careTypeName} ·{" "}
-              {dateTime(appointment.startsAt)} · {appointment.professionalName}
-            </p>
+            <div
+              role="tabpanel"
+              id="encounter-panel-exams"
+              aria-labelledby="encounter-tab-exams"
+              hidden={activeStep !== "exams"}
+            >
+              <EncounterExamsPanel
+                patientId={appointment.patientId}
+                unitId={appointment.unitId}
+                onNavigate={navigateContext}
+              />
+            </div>
+            <div
+              role="tabpanel"
+              id="encounter-panel-documents"
+              aria-labelledby={`encounter-tab-${activeStep === "requests" ? "requests" : "prescription"}`}
+              hidden={activeStep !== "prescription" && activeStep !== "requests"}
+            >
+              <div id="documentos">
+                <EncounterDocumentsCard
+                  appointmentId={appointmentId}
+                  mode={activeStep === "requests" ? "requests" : "prescription"}
+                  onDraftStateChange={onDocumentDraftStateChange}
+                  procedures={<PatientClinicalPlans patientId={appointment.patientId} />}
+                  medications={({ onInsert, canInsert, search }) => (
+                    <EncounterPrescriptionCard
+                      appointmentId={appointmentId}
+                      onDraftStateChange={onPrescriptionDraftStateChange}
+                      onInsertIntoDocument={onInsert}
+                      canInsertIntoDocument={canInsert}
+                      searchQuery={search}
+                    />
+                  )}
+                />
+              </div>
+            </div>
+            <div
+              role="tabpanel"
+              id="encounter-panel-review"
+              aria-labelledby="encounter-tab-review"
+              hidden={activeStep !== "review"}
+              className="space-y-4 p-3"
+            >
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <h2 className="text-lg font-semibold">Resumo do atendimento</h2>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Revise as informações antes de concluir.
+                  </p>
+                </div>
+                {data.canAuthorClinicalNote && data.clinicalNote?.status !== "FINAL" && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={pending}
+                    onClick={() => saveClinicalNote("SAVE_DRAFT")}
+                  >
+                    <Save className="size-3.5" />
+                    Salvar evolução como rascunho
+                  </Button>
+                )}
+              </div>
+              <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-6">
+                {[
+                  {
+                    label: "Evolução clínica",
+                    value:
+                      data.clinicalNote?.status === "FINAL"
+                        ? "Finalizada"
+                        : evolution.trim()
+                          ? dirty
+                            ? "Alterações não salvas"
+                            : "Rascunho salvo"
+                          : "Não registrada",
+                    target: "anamnesis",
+                  },
+                  {
+                    label: "Diagnósticos e hipóteses",
+                    value: clinicalClosure.diagnosticHypotheses.trim()
+                      ? "Registrados na avaliação"
+                      : "Não registrados",
+                    target: "anamnesis",
+                  },
+                  {
+                    label: "Prescrição",
+                    value:
+                      prescriptionQuery.error || documentsQuery.error
+                        ? "Não foi possível verificar"
+                        : documentsQuery.isPending || prescriptionQuery.isPending
+                          ? "Consultando…"
+                          : `${documentsQuery.data?.documents.filter((item) => item.type === "PRESCRIPTION").length ?? 0} documento(s) · ${prescriptionQuery.data?.prescription?.items.length ?? 0} item(ns) terapêutico(s)`,
+                    target: "prescription",
+                  },
+                  {
+                    label: "Solicitações e documentos",
+                    value: documentsQuery.error
+                      ? "Não foi possível verificar"
+                      : documentsQuery.isPending
+                        ? "Consultando…"
+                        : `${documentsQuery.data?.documents.filter((item) => item.type !== "PRESCRIPTION").length ?? 0} documento(s)`,
+                    target: "requests",
+                  },
+                  {
+                    label: "Orientações e retorno",
+                    value:
+                      clinicalClosure.returnRecommendation.trim() || clinicalClosure.returnOn
+                        ? "Registrados"
+                        : "Não registrados",
+                    target: "anamnesis",
+                  },
+                  {
+                    label: "Orçamento",
+                    value: quoteQuery.error
+                      ? "Não foi possível verificar"
+                      : quoteQuery.isPending
+                        ? "Consultando…"
+                        : quoteQuery.data?.quote
+                          ? ((
+                              {
+                                DRAFT: "Rascunho",
+                                ISSUED: "Emitido",
+                                APPROVED: "Aprovado",
+                                DECLINED: "Recusado",
+                                PAID: "Pago",
+                              } as Record<string, string>
+                            )[quoteQuery.data.quote.status] ?? "Disponível")
+                          : "Não iniciado · opcional",
+                    target: "review",
+                  },
+                ].map((item) => (
+                  <article key={item.label} className="rounded-lg border p-3">
+                    <h3 className="text-xs font-semibold">{item.label}</h3>
+                    <p className="my-2 text-xs text-muted-foreground">{item.value}</p>
+                    <button
+                      type="button"
+                      className="rounded bg-accent px-2 py-1 text-xs font-medium text-primary"
+                      onClick={() => {
+                        setActiveStep(item.target as EncounterStep);
+                        if (item.target === "review")
+                          requestAnimationFrame(() =>
+                            document
+                              .getElementById("orcamento")
+                              ?.scrollIntoView?.({ behavior: "smooth", block: "start" }),
+                          );
+                      }}
+                    >
+                      Revisar
+                    </button>
+                  </article>
+                ))}
+              </div>
+              <section className="rounded-lg border bg-amber-50/40 p-3">
+                <h3 className="flex items-center gap-2 text-sm font-semibold">
+                  <AlertTriangle className="size-4 text-amber-600" />
+                  Pendências e conferência
+                </h3>
+                <ul className="mt-2 space-y-1 text-xs text-muted-foreground">
+                  {anyDirty && (
+                    <li>
+                      Há alterações não salvas nos editores. Salve os rascunhos antes de concluir.
+                    </li>
+                  )}
+                  {data.clinicalNote?.status !== "FINAL" && (
+                    <li>
+                      A evolução ainda não foi finalizada. A conclusão operacional não substitui a
+                      finalização clínica.
+                    </li>
+                  )}
+                  {documentsQuery.data?.documents.some((item) => item.status === "DRAFT") && (
+                    <li>Há documentos em rascunho. Confira se devem ser finalizados.</li>
+                  )}
+                  {documentsQuery.data && !documentsQuery.error && (
+                    <li>
+                      {completedDocuments.length} documento(s) finalizado(s) neste atendimento.
+                    </li>
+                  )}
+                  <li>
+                    Confira alergias, autoria, orientações e os documentos antes da conclusão.
+                  </li>
+                </ul>
+              </section>
+              <div id="orcamento">
+                <EncounterQuoteCard appointmentId={appointmentId} />
+              </div>
+              {canComplete && (
+                <p className="text-xs text-muted-foreground">
+                  Use “Concluir atendimento” na barra superior após a conferência. A ação mantém as
+                  validações operacionais do atendimento.
+                </p>
+              )}
+            </div>
+          </main>
+          <div hidden={activeStep !== "anamnesis"} className="min-w-0">
+            <EncounterContextPanel
+              patientId={appointment.patientId}
+              unitId={appointment.unitId}
+              onNavigate={navigateContext}
+              onCollapseChange={setContextCollapsed}
+              quickNotes={
+                <label className="block space-y-2 text-xs text-muted-foreground">
+                  Anotações de conduta — salvas com evolução
+                  <Textarea
+                    id="conduta"
+                    aria-label="Conduta"
+                    value={conduct}
+                    onChange={(event) => setConduct(event.target.value)}
+                    disabled={!data.canAuthorClinicalNote || data.clinicalNote?.status === "FINAL"}
+                    rows={4}
+                    maxLength={10000}
+                    placeholder="Adicionar anotação clínica…"
+                    className="min-h-20 text-xs"
+                  />
+                </label>
+              }
+              onQuickNote={() => {
+                setActiveStep("anamnesis");
+                requestAnimationFrame(() => editorRef.current?.focus());
+              }}
+            />
           </div>
         </div>
       </div>
-      <EncounterNavigation mobile />
-      <div className="mx-auto grid max-w-[1320px] gap-6 px-4 py-5 sm:px-6 lg:grid-cols-[210px_minmax(0,960px)] lg:px-8 lg:py-7">
-        <EncounterNavigation />
-        <div className="min-w-0 space-y-5">
-          <section id="resumo" className="scroll-mt-40 space-y-4">
-            {(message || error) && (
-              <div
-                role={error ? "alert" : "status"}
-                className="rounded-lg border px-4 py-3 text-sm"
-              >
-                {error || message}
-              </div>
-            )}
-            {data.allergySummary && (
-              <PatientAllergySummary
-                patientId={appointment.patientId}
-                summary={data.allergySummary}
-              />
-            )}
-            {data.clinicalAlerts?.length ? (
-              <section
-                className="space-y-3 rounded-xl border border-warning bg-warning-soft p-5"
-                role="alert"
-              >
-                <h2 className="flex items-center gap-2 font-semibold text-warning-foreground">
-                  <AlertTriangle className="size-5" /> Alergias e alertas ativos
-                </h2>
-                <div className="grid gap-3 md:grid-cols-2">
-                  {data.clinicalAlerts.map((item) => (
-                    <article key={item.id} className="rounded-lg border bg-card p-3 text-sm">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <strong>{item.title}</strong>
-                        <Badge variant={item.severity === "SEVERE" ? "destructive" : "outline"}>
-                          {item.severity === "SEVERE"
-                            ? "Grave"
-                            : item.severity === "MODERATE"
-                              ? "Moderada"
-                              : item.severity === "MILD"
-                                ? "Leve"
-                                : "Não informada"}
-                        </Badge>
-                      </div>
-                      {item.reaction ? <p className="mt-2">Reação: {item.reaction}</p> : null}
-                      {item.notes ? (
-                        <p className="mt-1 text-xs text-muted-foreground">{item.notes}</p>
-                      ) : null}
-                    </article>
-                  ))}
-                </div>
-              </section>
-            ) : null}
-            {data.canManage && ["SCHEDULED", "CONFIRMED"].includes(appointment.status) ? (
-              <section className="flex flex-wrap gap-2 rounded-xl border bg-card p-4">
-                {appointment.status === "SCHEDULED" ? (
-                  <Button
-                    variant="outline"
-                    disabled={pending}
-                    onClick={() => updateStatus("CONFIRMED")}
-                  >
-                    Confirmar presença
-                  </Button>
-                ) : null}
-                {["SCHEDULED", "CONFIRMED"].includes(appointment.status) ? (
-                  <Button disabled={pending} onClick={() => updateStatus("IN_PROGRESS")}>
-                    Iniciar atendimento
-                  </Button>
-                ) : null}
-              </section>
-            ) : null}
-          </section>
-          <section id="evolucao" className="scroll-mt-40 space-y-4 rounded-xl border bg-card p-5">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <div>
-                <h2 className="font-semibold">Evolução clínica</h2>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  Rascunhos podem ser corrigidos. A finalização registra autoria e torna o conteúdo
-                  imutável.
-                </p>
-              </div>
-              <Badge variant="outline">
-                {data.clinicalNote?.status === "FINAL"
-                  ? "Finalizada"
-                  : data.clinicalNote
-                    ? "Rascunho"
-                    : "Não iniciada"}
-              </Badge>
-            </div>
-            <VitalsSection
-              vitals={vitals}
-              setVitals={setVitals}
-              disabled={!data.canAuthorClinicalNote || data.clinicalNote?.status === "FINAL"}
+      <Dialog open={documentsOpen} onOpenChange={setDocumentsOpen}>
+        <DialogContent className="clinical-workspace max-h-[90dvh] overflow-y-auto sm:max-w-[min(1240px,94vw)]">
+          <DialogHeader>
+            <DialogTitle>Documentos do paciente</DialogTitle>
+            <DialogDescription>
+              Arquivos, documentos clínicos e originais associados a este paciente.
+            </DialogDescription>
+          </DialogHeader>
+          <PatientDocumentCenter patientId={appointment.patientId} />
+        </DialogContent>
+      </Dialog>
+      <Dialog open={vitalsOpen} onOpenChange={setVitalsOpen}>
+        <DialogContent className="clinical-workspace max-h-[90dvh] overflow-y-auto sm:max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>Sinais vitais do atendimento</DialogTitle>
+            <DialogDescription>
+              As alterações são incluídas no rascunho da evolução e ficam sujeitas às mesmas regras
+              de autoria.
+            </DialogDescription>
+          </DialogHeader>
+          <VitalsSection
+            vitals={vitals}
+            setVitals={setVitals}
+            disabled={!data.canAuthorClinicalNote || data.clinicalNote?.status === "FINAL"}
+          />
+        </DialogContent>
+      </Dialog>
+      <Dialog open={allergiesOpen} onOpenChange={setAllergiesOpen}>
+        <DialogContent className="clinical-workspace max-h-[90dvh] overflow-y-auto sm:max-w-xl">
+          <DialogHeader>
+            <DialogTitle>Alergias e alertas ativos</DialogTitle>
+            <DialogDescription>Confira os dados registrados antes de prescrever.</DialogDescription>
+          </DialogHeader>
+          {data.allergySummary && (
+            <PatientAllergySummary
+              patientId={appointment.patientId}
+              summary={data.allergySummary}
             />
-            <div className="space-y-2">
-              <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
-                <label className="flex-1 space-y-1 text-sm font-medium">
-                  Escolha um modelo de anamnese
-                  <select
-                    className="h-10 w-full rounded-md border bg-background px-3 font-normal"
-                    value={selectedTemplate}
-                    disabled={!data.canAuthorClinicalNote || data.clinicalNote?.status === "FINAL"}
-                    onChange={(event) => setSelectedTemplate(event.target.value)}
-                  >
-                    <option value="">Selecione um modelo de anamnese (opcional)</option>
-                    {Object.entries(anamnesisTemplates).map(([key, template]) => (
-                      <option key={key} value={key}>
-                        {template.label}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <Button
-                  type="button"
-                  variant="outline"
-                  disabled={
-                    !selectedTemplate ||
-                    !data.canAuthorClinicalNote ||
-                    data.clinicalNote?.status === "FINAL"
-                  }
-                  onClick={applyAnamnesisTemplate}
-                >
-                  Inserir modelo
-                </Button>
-              </div>
-              <p className="text-xs text-muted-foreground">
-                O modelo será inserido como texto editável na evolução e não substitui o julgamento
-                clínico.
-              </p>
-            </div>
-            <label className="block space-y-2 text-sm font-medium">
-              Evolução
-              <Textarea
-                value={evolution}
-                onChange={(event) => setEvolution(event.target.value)}
-                disabled={!data.canAuthorClinicalNote || data.clinicalNote?.status === "FINAL"}
-                rows={16}
-                maxLength={20000}
-                placeholder="Registre a evolução clínica."
-                className="min-h-[420px] resize-y text-base leading-relaxed"
-              />
-            </label>
-            <Accordion
-              id="anamnese"
-              type="multiple"
-              className="scroll-mt-40 rounded-lg border px-4"
-            >
-              <AccordionItem value="structured-anamnesis" className="border-b-0">
-                <AccordionTrigger className="text-base">Anamnese estruturada</AccordionTrigger>
-                <AccordionContent>
-                  <p className="mb-3 text-xs text-muted-foreground">
-                    Preencha apenas os campos aplicáveis ao atendimento.
-                  </p>
-                  <fieldset
-                    disabled={!data.canAuthorClinicalNote || data.clinicalNote?.status === "FINAL"}
-                  >
-                    <Accordion type="multiple" className="rounded-lg border px-4">
-                      <AnamnesisField
-                        label="Motivo da consulta"
-                        field="chiefComplaint"
-                        value={anamnesis.chiefComplaint}
-                        maxLength={2000}
-                        setAnamnesis={setAnamnesis}
-                      />
-                      <AnamnesisField
-                        label="História da condição atual"
-                        field="currentHistory"
-                        value={anamnesis.currentHistory}
-                        maxLength={10000}
-                        setAnamnesis={setAnamnesis}
-                      />
-                      <AnamnesisField
-                        label="Antecedentes pessoais"
-                        field="personalHistory"
-                        value={anamnesis.personalHistory}
-                        maxLength={10000}
-                        setAnamnesis={setAnamnesis}
-                      />
-                      <AnamnesisField
-                        label="Antecedentes familiares"
-                        field="familyHistory"
-                        value={anamnesis.familyHistory}
-                        maxLength={10000}
-                        setAnamnesis={setAnamnesis}
-                      />
-                      <AnamnesisField
-                        label="Hábitos e contexto"
-                        field="habits"
-                        value={anamnesis.habits}
-                        maxLength={5000}
-                        setAnamnesis={setAnamnesis}
-                      />
-                      <AnamnesisField
-                        label="Revisão de sistemas"
-                        field="systemsReview"
-                        value={anamnesis.systemsReview}
-                        maxLength={10000}
-                        setAnamnesis={setAnamnesis}
-                      />
-                    </Accordion>
-                  </fieldset>
-                </AccordionContent>
-              </AccordionItem>
-            </Accordion>
-            <Accordion
-              id="exame-fisico"
-              type="multiple"
-              className="scroll-mt-40 rounded-lg border px-4"
-            >
-              <AccordionItem value="structured-physical-exam" className="border-b-0">
-                <AccordionTrigger className="text-base">Exame físico estruturado</AccordionTrigger>
-                <AccordionContent>
-                  <p className="mb-3 text-xs text-muted-foreground">
-                    Registre somente os sistemas examinados neste atendimento.
-                  </p>
-                  <fieldset
-                    disabled={!data.canAuthorClinicalNote || data.clinicalNote?.status === "FINAL"}
-                  >
-                    <Accordion type="multiple" className="rounded-lg border px-4">
-                      <PhysicalExamField
-                        label="Estado geral"
-                        field="generalExam"
-                        value={physicalExam.generalExam}
-                        setPhysicalExam={setPhysicalExam}
-                      />
-                      <PhysicalExamField
-                        label="Cardiovascular"
-                        field="cardiovascularExam"
-                        value={physicalExam.cardiovascularExam}
-                        setPhysicalExam={setPhysicalExam}
-                      />
-                      <PhysicalExamField
-                        label="Respiratório"
-                        field="respiratoryExam"
-                        value={physicalExam.respiratoryExam}
-                        setPhysicalExam={setPhysicalExam}
-                      />
-                      <PhysicalExamField
-                        label="Abdominal"
-                        field="abdominalExam"
-                        value={physicalExam.abdominalExam}
-                        setPhysicalExam={setPhysicalExam}
-                      />
-                      <PhysicalExamField
-                        label="Neurológico"
-                        field="neurologicalExam"
-                        value={physicalExam.neurologicalExam}
-                        setPhysicalExam={setPhysicalExam}
-                      />
-                      <PhysicalExamField
-                        label="Musculoesquelético"
-                        field="musculoskeletalExam"
-                        value={physicalExam.musculoskeletalExam}
-                        setPhysicalExam={setPhysicalExam}
-                      />
-                      <PhysicalExamField
-                        label="Pele e anexos"
-                        field="skinExam"
-                        value={physicalExam.skinExam}
-                        setPhysicalExam={setPhysicalExam}
-                      />
-                      <PhysicalExamField
-                        label="Outros achados"
-                        field="otherExam"
-                        value={physicalExam.otherExam}
-                        setPhysicalExam={setPhysicalExam}
-                      />
-                    </Accordion>
-                  </fieldset>
-                </AccordionContent>
-              </AccordionItem>
-            </Accordion>
-            <section id="avaliacao-plano" className="scroll-mt-40 space-y-4 rounded-lg border p-4">
-              <div>
-                <h3 className="font-semibold">Avaliação e plano clínico</h3>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  Registre as hipóteses como avaliação do atendimento; elas não são convertidas
-                  automaticamente em diagnóstico definitivo.
-                </p>
-              </div>
-              <label className="block space-y-2 text-sm font-medium">
-                Hipóteses diagnósticas e diagnósticos
-                <Textarea
-                  value={clinicalClosure.diagnosticHypotheses}
-                  onChange={(event) =>
-                    setClinicalClosure((current) => ({
-                      ...current,
-                      diagnosticHypotheses: event.target.value,
-                    }))
-                  }
-                  disabled={!data.canAuthorClinicalNote || data.clinicalNote?.status === "FINAL"}
-                  rows={4}
-                  maxLength={10000}
-                  placeholder="Descreva as hipóteses diagnósticas, os diagnósticos estabelecidos e os diagnósticos diferenciais relevantes."
-                />
-              </label>
-              <label className="block space-y-2 text-sm font-medium">
-                Plano clínico
-                <Textarea
-                  value={clinicalClosure.clinicalPlan}
-                  onChange={(event) =>
-                    setClinicalClosure((current) => ({
-                      ...current,
-                      clinicalPlan: event.target.value,
-                    }))
-                  }
-                  disabled={!data.canAuthorClinicalNote || data.clinicalNote?.status === "FINAL"}
-                  rows={4}
-                  maxLength={10000}
-                  placeholder="Registre o plano diagnóstico, terapêutico, de acompanhamento e as orientações."
-                />
-              </label>
-              <div className="grid gap-4 md:grid-cols-[1fr_220px]">
-                <label className="block space-y-2 text-sm font-medium">
-                  Orientações para retorno
-                  <Textarea
-                    value={clinicalClosure.returnRecommendation}
-                    onChange={(event) =>
-                      setClinicalClosure((current) => ({
-                        ...current,
-                        returnRecommendation: event.target.value,
-                      }))
-                    }
-                    disabled={!data.canAuthorClinicalNote || data.clinicalNote?.status === "FINAL"}
-                    rows={3}
-                    maxLength={2000}
-                    placeholder="Ex.: retornar após os exames ou em quatro semanas."
-                  />
-                </label>
-                <label className="block space-y-2 text-sm font-medium">
-                  Data prevista para retorno
-                  <Input
-                    type="date"
-                    value={clinicalClosure.returnOn}
-                    onChange={(event) =>
-                      setClinicalClosure((current) => ({
-                        ...current,
-                        returnOn: event.target.value,
-                      }))
-                    }
-                    disabled={!data.canAuthorClinicalNote || data.clinicalNote?.status === "FINAL"}
-                  />
-                </label>
-              </div>
-            </section>
-            <PreconsultationPanel
-              key={`pre-${appointmentId}`}
-              patientId={data.appointment.patientId}
-              appointmentId={appointmentId}
-              unitId={data.appointment.unitId}
-            />
-            <CareTasksPanel
-              key={appointmentId}
-              unitId={data.appointment.unitId}
-              patientId={data.appointment.patientId}
-              appointmentId={appointmentId}
-              returnOn={clinicalClosure.returnOn}
-            />
-            <label id="conduta" className="block scroll-mt-40 space-y-2 text-sm font-medium">
-              Conduta
-              <Textarea
-                value={conduct}
-                onChange={(event) => setConduct(event.target.value)}
-                disabled={!data.canAuthorClinicalNote || data.clinicalNote?.status === "FINAL"}
-                rows={4}
-                maxLength={10000}
-                placeholder="Registre a conduta clínica adotada."
-              />
-            </label>
-            {data.clinicalNote ? (
-              <p className="text-xs text-muted-foreground">
-                {data.clinicalNote.authorName} · {data.clinicalNote.professionalCouncil}{" "}
-                {data.clinicalNote.councilNumber}/{data.clinicalNote.councilRegion}
-                {data.clinicalNote.finalizedAt
-                  ? ` · finalizada em ${dateTime(data.clinicalNote.finalizedAt)}`
-                  : ` · salva em ${dateTime(data.clinicalNote.updatedAt)}`}
-              </p>
-            ) : null}
-            {!data.canAuthorClinicalNote ? (
-              <div className="space-y-3 rounded-lg bg-muted p-3 text-sm text-muted-foreground">
-                <p>{data.clinicalAuthorBlockReason}</p>
-                {data.canClaimClinicalNote ? (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    disabled={pending}
-                    onClick={claimClinicalNote}
-                  >
-                    Assumir responsabilidade pelo atendimento
-                  </Button>
-                ) : null}
-                {data.needsProfessionalRegistration ? (
-                  <Button asChild type="button" variant="outline">
-                    <Link to="/estoque/usuarios">Completar meu registro profissional</Link>
-                  </Button>
-                ) : null}
-              </div>
-            ) : null}
-            {data.canAuthorClinicalNote && data.clinicalNote?.status !== "FINAL" ? (
-              <div className="flex flex-wrap gap-2">
-                <Button
-                  variant="outline"
-                  disabled={pending}
-                  onClick={() => saveClinicalNote("SAVE_DRAFT")}
-                >
-                  {pending ? "Salvando…" : "Salvar rascunho"}
-                </Button>
-                <Button
-                  disabled={pending || evolution.trim().length < 10}
-                  onClick={() => saveClinicalNote("FINALIZE")}
-                >
-                  {pending ? "Finalizando…" : "Finalizar evolução"}
-                </Button>
-              </div>
-            ) : null}
-          </section>
-          <div id="prescricao" className="scroll-mt-40">
-            <EncounterPrescriptionCard appointmentId={appointmentId} />
-          </div>
-          <div id="documentos" className="scroll-mt-40">
-            <EncounterDocumentsCard appointmentId={appointmentId} />
-          </div>
-          <div id="orcamento" className="scroll-mt-40">
-            <EncounterQuoteCard appointmentId={appointmentId} />
-          </div>
-          {data.canManage && appointment.status === "IN_PROGRESS" && (
-            <section
-              aria-label="Conclusão do atendimento"
-              className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border bg-card p-5"
-            >
-              <div>
-                <h2 className="font-semibold">Conclusão do atendimento</h2>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  Confira a evolução, os documentos e a conduta antes de concluir.
-                </p>
-              </div>
-              <Button disabled={pending} onClick={() => updateStatus("COMPLETED")}>
-                Concluir atendimento
-              </Button>
-            </section>
           )}
+          {data.clinicalAlerts.map((item) => (
+            <article key={item.id} className="rounded-lg border p-3 text-sm">
+              <strong>{item.title}</strong>
+              <span className="ml-2 text-xs text-muted-foreground">
+                {item.severity === "SEVERE"
+                  ? "Grave"
+                  : item.severity === "MODERATE"
+                    ? "Moderada"
+                    : item.severity === "MILD"
+                      ? "Leve"
+                      : "Gravidade não informada"}
+              </span>
+              {item.reaction && <p className="mt-1">Reação: {item.reaction}</p>}
+              {item.notes && <p className="mt-1 text-muted-foreground">{item.notes}</p>}
+            </article>
+          ))}
+        </DialogContent>
+      </Dialog>
+      <Dialog open={questionnairesOpen} onOpenChange={setQuestionnairesOpen}>
+        <DialogContent className="clinical-workspace max-h-[90dvh] overflow-y-auto sm:max-w-4xl">
+          <DialogHeader>
+            <DialogTitle>Questionários e tarefas do atendimento</DialogTitle>
+            <DialogDescription>
+              Respostas declaradas pelo paciente e acompanhamento vinculado ao atendimento.
+            </DialogDescription>
+          </DialogHeader>
+          <PreconsultationPanel
+            key={`pre-${appointmentId}`}
+            patientId={appointment.patientId}
+            appointmentId={appointmentId}
+            unitId={appointment.unitId}
+          />
+          <CareTasksPanel
+            key={appointmentId}
+            unitId={appointment.unitId}
+            patientId={appointment.patientId}
+            appointmentId={appointmentId}
+            returnOn={clinicalClosure.returnOn}
+          />
+        </DialogContent>
+      </Dialog>
+      <Dialog open={detailsOpen} onOpenChange={setDetailsOpen}>
+        <DialogContent className="clinical-workspace max-h-[90dvh] overflow-y-auto sm:max-w-4xl">
+          <DialogHeader>
+            <DialogTitle>Contexto e histórico do atendimento</DialogTitle>
+            <DialogDescription>
+              Dados do agendamento, autoria, tratamentos e acompanhamento do paciente.
+            </DialogDescription>
+          </DialogHeader>
           <div id="contexto" className="scroll-mt-40 grid gap-5 xl:grid-cols-[1fr_.9fr]">
             <section className="space-y-4 rounded-xl border bg-card p-5">
               <h2 className="flex items-center gap-2 font-semibold">
@@ -1112,8 +1786,8 @@ export function CareEncounterPage({ appointmentId }: { appointmentId: string }) 
               ))}
             </section>
           </div>
-        </div>
-      </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -90,6 +90,25 @@ it("searches parameters and exposes empty search feedback", () => {
   expect(screen.getByText("Nenhum exame encontrado nesta busca.")).toBeInTheDocument();
 });
 
+it("opens the selected original in the contextual viewer without changing the confirmed values", () => {
+  setup();
+  const onOpenOriginal = vi.fn();
+  render(<LaboratoryHistory patientId="patient" compact onOpenOriginal={onOpenOriginal} />);
+  expect(screen.getByRole("table", { name: "Tabela longitudinal de exames" })).toBeInTheDocument();
+  fireEvent.click(
+    screen.getAllByRole("button", { name: "Ver original: Original privado.pdf" })[0]!,
+  );
+  expect(onOpenOriginal).toHaveBeenCalledWith(
+    expect.objectContaining({
+      documentId: "doc",
+      documentTitle: "Original privado.pdf",
+      payload: expect.objectContaining({ result: "30" }),
+    }),
+  );
+  expect(screen.getByText("<0,1")).toBeInTheDocument();
+  expect(screen.getByText("0,25")).toBeInTheDocument();
+});
+
 it("passes date filters to the backend and hides old results for invalid periods", () => {
   setup();
   render(<LaboratoryHistory patientId="patient" />);

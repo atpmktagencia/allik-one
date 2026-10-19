@@ -27,7 +27,8 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useInventory } from "@/data/inventory-api";
 import { InventoryState } from "./inventory-state";
-import { PageHeader } from "./page-kit";
+import { ClinicalPatientHeader } from "./clinical-patient-header";
+import { PatientOverview } from "./patient-overview";
 import { treatmentCadenceLabel } from "@/data/treatment-cadence-label";
 
 type Treatment = {
@@ -272,6 +273,7 @@ export function PatientTreatmentPage({ patientId }: { patientId: string }) {
   const [workspaceSection, setWorkspaceSection] = useState<PatientWorkspaceSection>("overview");
   const [documentsOpened, setDocumentsOpened] = useState(false);
   const [preconsultationOpen, setPreconsultationOpen] = useState(false);
+  const [clinicalSummaryOpen, setClinicalSummaryOpen] = useState(false);
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState(blank);
   const [pending, setPending] = useState(false);
@@ -579,60 +581,129 @@ export function PatientTreatmentPage({ patientId }: { patientId: string }) {
     }
   }
   return (
-    <div className="clinical-workspace mx-auto max-w-[1320px] space-y-6 rounded-2xl bg-background p-4 sm:p-6">
-      <Link
-        to="/pacientes"
-        className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
-      >
-        <ArrowLeft className="size-4" />
-        Voltar aos pacientes
-      </Link>
-      <PageHeader
-        eyebrow={`Paciente360º · ${data.patient.internalCode} · ${data.patient.unitName}`}
-        title={data.patient.fullName}
-        description="Prontuário, documentos, exames, questionários, prescrições e acompanhamento em um só contexto."
-        action={
-          <div className="flex flex-wrap gap-2">
-            <Button variant="outline" onClick={() => setPreconsultationOpen(true)}>
-              Pré-consulta
-            </Button>
-            <Button asChild variant="outline">
-              <Link to="/tarefas" search={{ patientId }}>
-                Tarefas da equipe
-              </Link>
-            </Button>
-            <Button asChild variant="outline">
-              <Link to="/pacientes/$patientId/prontuario" params={{ patientId }}>
-                <Stethoscope /> Abrir prontuário
-              </Link>
-            </Button>
-            {data.canManage ? (
-              <>
-                <PatientNewEncounter patientId={patientId} unitId={data.patient.primaryUnitId} />
-                <Button
-                  onClick={() => {
-                    setError("");
-                    setWorkspaceSection("treatments");
-                    setForm({
-                      ...blank,
-                      firstScheduledOn: new Intl.DateTimeFormat("en-CA", {
-                        timeZone: "America/Fortaleza",
-                        year: "numeric",
-                        month: "2-digit",
-                        day: "2-digit",
-                      }).format(new Date()),
-                    });
-                    setOpen(true);
-                  }}
+    <div className="clinical-workspace patient-workspace w-full min-w-0 space-y-3 bg-background p-3 sm:p-5">
+      <h1 className="sr-only">Prontuário de {data.patient.fullName} · Paciente360º</h1>
+      <div className="flex flex-wrap items-center justify-between gap-2 px-1 text-xs text-slate-500">
+        <div className="flex items-center gap-2">
+          <Link to="/pacientes" className="inline-flex items-center gap-1 hover:text-teal-800">
+            <ArrowLeft className="size-3.5" /> Pacientes
+          </Link>
+          <span aria-hidden="true">›</span>
+          <span>{data.patient.fullName}</span>
+          <span aria-hidden="true">›</span>
+          <span className="font-semibold text-slate-900">Prontuário</span>
+        </div>
+        <span>Paciente360º · {data.patient.unitName}</span>
+      </div>
+      <ClinicalPatientHeader
+        name={data.patient.fullName}
+        code={data.patient.internalCode}
+        unitName={data.patient.unitName}
+        secondaryInfo={data.patient.active ? "Cadastro ativo" : "Cadastro inativo"}
+        vitals={
+          clinicalHistory[0] ? (
+            <div className="space-y-1 text-xs text-slate-600">
+              <div className="grid grid-cols-2 gap-x-3 gap-y-1">
+                {[
+                  clinicalHistory[0].systolicPressure != null &&
+                  clinicalHistory[0].diastolicPressure != null
+                    ? `PA ${clinicalHistory[0].systolicPressure}/${clinicalHistory[0].diastolicPressure} mmHg`
+                    : null,
+                  clinicalHistory[0].heartRate != null
+                    ? `FC ${clinicalHistory[0].heartRate} bpm`
+                    : null,
+                  clinicalHistory[0].oxygenSaturation != null
+                    ? `SpO₂ ${clinicalHistory[0].oxygenSaturation}%`
+                    : null,
+                  clinicalHistory[0].temperatureC != null
+                    ? `T ${clinicalHistory[0].temperatureC} °C`
+                    : null,
+                  clinicalHistory[0].weightKg != null
+                    ? `Peso ${clinicalHistory[0].weightKg} kg`
+                    : null,
+                  clinicalHistory[0].heightCm != null
+                    ? `Altura ${clinicalHistory[0].heightCm} cm`
+                    : null,
+                ]
+                  .filter(Boolean)
+                  .map((value) => (
+                    <span key={value}>{value}</span>
+                  ))}
+              </div>
+              <p className="text-[10px] text-slate-400">
+                Última evolução:{" "}
+                {new Date(clinicalHistory[0].finalizedAt).toLocaleDateString("pt-BR", {
+                  timeZone: "America/Fortaleza",
+                })}
+              </p>
+            </div>
+          ) : undefined
+        }
+        allergies={
+          data.allergySummary ? (
+            <div className="[&>section]:border-0 [&>section]:p-0 [&_p]:text-[11px] [&_button]:h-7 [&_button]:px-2 [&_button]:text-[10px]">
+              <PatientAllergySummary patientId={patientId} summary={data.allergySummary} />
+            </div>
+          ) : undefined
+        }
+        diagnoses={
+          <div className="flex flex-wrap gap-1.5">
+            {clinicalProblems
+              .filter((item) => item.status === "ACTIVE")
+              .slice(0, 3)
+              .map((item) => (
+                <span
+                  key={item.id}
+                  className="rounded-md bg-teal-50 px-2 py-1 text-[11px] text-teal-800"
                 >
-                  <Plus className="mr-2 size-4" />
-                  Novo tratamento
-                </Button>
-              </>
-            ) : null}
+                  {item.icd10Code ? `${item.icd10Code} · ` : ""}
+                  {item.description}
+                </span>
+              ))}
+            {!clinicalProblems.some((item) => item.status === "ACTIVE") && (
+              <span className="text-xs text-slate-500">Nenhum problema ativo registrado.</span>
+            )}
+            <button
+              type="button"
+              className="ml-auto rounded-md border border-slate-200 px-2 py-1 text-[10px] text-slate-600 hover:bg-slate-50"
+              onClick={() => setClinicalSummaryOpen(true)}
+            >
+              Ver resumo completo
+            </button>
           </div>
         }
       />
+      <div className="flex flex-wrap justify-end gap-2 [&_button]:h-8 [&_button]:text-xs [&_a]:text-xs">
+        <div className="flex flex-wrap gap-2">
+          <Button variant="outline" onClick={() => setPreconsultationOpen(true)}>
+            Pré-consulta
+          </Button>
+          {data.canManage ? (
+            <>
+              <PatientNewEncounter patientId={patientId} unitId={data.patient.primaryUnitId} />
+              <Button
+                onClick={() => {
+                  setError("");
+                  setWorkspaceSection("treatments");
+                  setForm({
+                    ...blank,
+                    firstScheduledOn: new Intl.DateTimeFormat("en-CA", {
+                      timeZone: "America/Fortaleza",
+                      year: "numeric",
+                      month: "2-digit",
+                      day: "2-digit",
+                    }).format(new Date()),
+                  });
+                  setOpen(true);
+                }}
+              >
+                <Plus className="mr-2 size-4" />
+                Novo tratamento
+              </Button>
+            </>
+          ) : null}
+        </div>
+      </div>
       <Dialog open={preconsultationOpen} onOpenChange={setPreconsultationOpen}>
         <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-4xl">
           <DialogHeader>
@@ -658,12 +729,14 @@ export function PatientTreatmentPage({ patientId }: { patientId: string }) {
           {error || message}
         </div>
       )}
-      {data.allergySummary && (
-        <PatientAllergySummary patientId={patientId} summary={data.allergySummary} />
-      )}
-      <div className="grid min-w-0 gap-5 lg:grid-cols-[180px_minmax(0,1fr)]">
+      <div className="grid min-w-0 gap-3 lg:grid-cols-[auto_minmax(0,1fr)]">
         <PatientWorkspaceNavigation
           patient={data.patient}
+          patientId={patientId}
+          activeAppointmentId={
+            (data.encounterHistory ?? []).find((item) => item.status === "IN_PROGRESS")?.id
+          }
+          onPreconsultation={() => setPreconsultationOpen(true)}
           section={workspaceSection}
           onSelect={(section) => {
             setWorkspaceSection(section);
@@ -671,392 +744,405 @@ export function PatientTreatmentPage({ patientId }: { patientId: string }) {
           }}
         />
         <main className="min-w-0" aria-label="Área do paciente">
-          <div hidden={workspaceSection !== "overview"} className="space-y-5">
-            <section
-              className="space-y-3 border-b border-slate-200 pb-5"
-              aria-label="Visão geral do paciente"
-            >
-              <h2 className="text-xl font-semibold">Visão geral</h2>
-              <p className="text-sm text-muted-foreground">
-                Informações clínicas e acesso ao histórico deste paciente.
-              </p>
-              <div className="flex flex-wrap gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setWorkspaceSection("encounters")}
-                >
-                  Ver consultas
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => {
-                    setWorkspaceSection("documents");
-                    setDocumentsOpened(true);
-                  }}
-                >
-                  Abrir documentos
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setWorkspaceSection("treatments")}
-                >
-                  Ver tratamentos
-                </Button>
-              </div>
-            </section>
-            <section className="space-y-4 rounded-xl border border-warning bg-warning-soft p-5">
-              <div className="flex flex-wrap items-start justify-between gap-3">
-                <div>
-                  <h2 className="flex items-center gap-2 font-semibold text-warning-foreground">
-                    <AlertTriangle className="size-5" /> Alergias e alertas clínicos
-                  </h2>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    Alertas ativos ficam destacados também durante o atendimento.
-                  </p>
-                </div>
-                {data.canManageClinicalProblems ? (
-                  <Button
-                    variant="outline"
-                    onClick={() => {
-                      setClinicalAlert(blankAlert);
-                      setAlertFormOpen(true);
-                    }}
-                  >
-                    <Plus /> Adicionar alerta
-                  </Button>
-                ) : null}
-              </div>
-              {alertFormOpen && data.canManageClinicalProblems ? (
-                <form
-                  onSubmit={saveClinicalAlert}
-                  className="space-y-4 rounded-lg border bg-card p-4"
-                >
-                  <div className="grid gap-4 md:grid-cols-2">
-                    <label className="space-y-1 text-sm font-medium">
-                      Tipo
-                      <select
-                        className="h-10 w-full rounded-md border bg-background px-3"
-                        value={clinicalAlert.type}
-                        onChange={(event) =>
-                          setClinicalAlert({
-                            ...clinicalAlert,
-                            type: event.target.value as typeof clinicalAlert.type,
-                          })
-                        }
-                      >
-                        <option value="ALLERGY">Alergia</option>
-                        <option value="WARNING">Alerta</option>
-                        <option value="PRECAUTION">Precaução</option>
-                      </select>
-                    </label>
-                    <label className="space-y-1 text-sm font-medium">
-                      Gravidade
-                      <select
-                        className="h-10 w-full rounded-md border bg-background px-3"
-                        value={clinicalAlert.severity}
-                        onChange={(event) =>
-                          setClinicalAlert({
-                            ...clinicalAlert,
-                            severity: event.target.value as typeof clinicalAlert.severity,
-                          })
-                        }
-                      >
-                        <option value="UNKNOWN">Não informada</option>
-                        <option value="MILD">Leve</option>
-                        <option value="MODERATE">Moderada</option>
-                        <option value="SEVERE">Grave</option>
-                      </select>
-                    </label>
-                    <label className="space-y-1 text-sm font-medium md:col-span-2">
-                      Agente, alergia ou título do alerta
-                      <Input
-                        required
-                        minLength={2}
-                        maxLength={200}
-                        value={clinicalAlert.title}
-                        onChange={(event) =>
-                          setClinicalAlert({ ...clinicalAlert, title: event.target.value })
-                        }
-                      />
-                    </label>
-                    <label className="space-y-1 text-sm font-medium">
-                      Reação conhecida (opcional)
-                      <Input
-                        maxLength={500}
-                        value={clinicalAlert.reaction}
-                        onChange={(event) =>
-                          setClinicalAlert({ ...clinicalAlert, reaction: event.target.value })
-                        }
-                      />
-                    </label>
-                    <label className="space-y-1 text-sm font-medium">
-                      Situação
-                      <select
-                        className="h-10 w-full rounded-md border bg-background px-3"
-                        value={clinicalAlert.status}
-                        onChange={(event) =>
-                          setClinicalAlert({
-                            ...clinicalAlert,
-                            status: event.target.value as typeof clinicalAlert.status,
-                          })
-                        }
-                      >
-                        <option value="ACTIVE">Ativo</option>
-                        <option value="INACTIVE">Inativo</option>
-                      </select>
-                    </label>
-                    <label className="space-y-1 text-sm font-medium md:col-span-2">
-                      Observações
-                      <Textarea
-                        maxLength={2000}
-                        rows={3}
-                        value={clinicalAlert.notes}
-                        onChange={(event) =>
-                          setClinicalAlert({ ...clinicalAlert, notes: event.target.value })
-                        }
-                      />
-                    </label>
-                    <label className="space-y-1 text-sm font-medium md:col-span-2">
-                      Motivo da inclusão ou alteração
-                      <Input
-                        required
-                        minLength={10}
-                        maxLength={500}
-                        value={clinicalAlert.reason}
-                        onChange={(event) =>
-                          setClinicalAlert({ ...clinicalAlert, reason: event.target.value })
-                        }
-                      />
-                    </label>
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    <Button disabled={pending}>{pending ? "Salvando…" : "Salvar alerta"}</Button>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      disabled={pending}
-                      onClick={() => setAlertFormOpen(false)}
-                    >
-                      Cancelar
-                    </Button>
-                  </div>
-                </form>
-              ) : null}
-              {clinicalAlerts.length ? (
-                <div className="grid gap-3 lg:grid-cols-2">
-                  {clinicalAlerts.map((item) => (
-                    <article
-                      key={item.id}
-                      className={`rounded-lg border p-4 ${item.status === "ACTIVE" ? "bg-card" : "opacity-60"}`}
-                    >
-                      <div className="flex items-start justify-between gap-3">
-                        <div>
-                          <div className="flex flex-wrap items-center gap-2">
-                            <p className="font-medium">{item.title}</p>
-                            <Badge variant={item.severity === "SEVERE" ? "destructive" : "outline"}>
-                              {alertSeverityLabels[item.severity]}
-                            </Badge>
-                            <Badge variant="secondary">{alertTypeLabels[item.type]}</Badge>
-                            {item.status === "INACTIVE" ? (
-                              <Badge variant="outline">Inativo</Badge>
-                            ) : null}
-                          </div>
-                          {item.reaction ? (
-                            <p className="mt-2 text-sm">Reação: {item.reaction}</p>
-                          ) : null}
-                          {item.notes ? (
-                            <p className="mt-2 whitespace-pre-wrap text-sm text-muted-foreground">
-                              {item.notes}
-                            </p>
-                          ) : null}
-                          <p className="mt-2 text-xs text-muted-foreground">
-                            {item.authorName} · {item.professionalCouncil} {item.councilNumber}/
-                            {item.councilRegion}
-                          </p>
-                        </div>
-                        {data.canManageClinicalProblems ? (
-                          <Button variant="ghost" size="sm" onClick={() => editClinicalAlert(item)}>
-                            Editar
-                          </Button>
-                        ) : null}
-                      </div>
-                    </article>
-                  ))}
-                </div>
-              ) : (
-                <p className="rounded-lg bg-card p-4 text-sm text-muted-foreground">
-                  Nenhuma alergia ou alerta clínico registrado.
-                </p>
-              )}
-            </section>
-            <section className="space-y-4 rounded-xl border bg-card p-5">
-              <div className="flex flex-wrap items-start justify-between gap-3">
-                <div>
-                  <h2 className="font-semibold">Problemas e antecedentes clínicos</h2>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    Registros estruturados com CID-10 opcional, situação e autoria profissional.
-                  </p>
-                </div>
-                {data.canManageClinicalProblems ? (
-                  <Button
-                    variant="outline"
-                    onClick={() => {
-                      setProblem(blankProblem);
-                      setProblemFormOpen(true);
-                    }}
-                  >
-                    <Plus /> Adicionar registro
-                  </Button>
-                ) : null}
-              </div>
-              {problemFormOpen && data.canManageClinicalProblems ? (
-                <form onSubmit={saveClinicalProblem} className="space-y-4 rounded-lg border p-4">
-                  <div className="grid gap-4 md:grid-cols-2">
-                    <label className="space-y-1 text-sm font-medium md:col-span-2">
-                      Problema ou antecedente
-                      <Input
-                        required
-                        minLength={3}
-                        maxLength={300}
-                        value={problem.description}
-                        onChange={(event) =>
-                          setProblem({ ...problem, description: event.target.value })
-                        }
-                      />
-                    </label>
-                    <label className="space-y-1 text-sm font-medium">
-                      CID-10 (opcional)
-                      <Input
-                        maxLength={8}
-                        placeholder="Ex.: E11.9"
-                        value={problem.icd10Code}
-                        onChange={(event) =>
-                          setProblem({ ...problem, icd10Code: event.target.value.toUpperCase() })
-                        }
-                      />
-                    </label>
-                    <label className="space-y-1 text-sm font-medium">
-                      Situação
-                      <select
-                        className="h-10 w-full rounded-md border bg-background px-3"
-                        value={problem.status}
-                        onChange={(event) =>
-                          setProblem({
-                            ...problem,
-                            status: event.target.value as typeof problem.status,
-                          })
-                        }
-                      >
-                        <option value="ACTIVE">Ativo</option>
-                        <option value="RESOLVED">Resolvido</option>
-                        <option value="INACTIVE">Inativo/Histórico</option>
-                      </select>
-                    </label>
-                    <label className="space-y-1 text-sm font-medium">
-                      Início conhecido (opcional)
-                      <Input
-                        type="date"
-                        value={problem.onsetOn}
-                        onChange={(event) =>
-                          setProblem({ ...problem, onsetOn: event.target.value })
-                        }
-                      />
-                    </label>
-                    <label className="space-y-1 text-sm font-medium">
-                      Data de resolução{" "}
-                      {problem.status === "RESOLVED" ? "(obrigatória)" : "(opcional)"}
-                      <Input
-                        type="date"
-                        required={problem.status === "RESOLVED"}
-                        value={problem.resolvedOn}
-                        onChange={(event) =>
-                          setProblem({ ...problem, resolvedOn: event.target.value })
-                        }
-                      />
-                    </label>
-                    <label className="space-y-1 text-sm font-medium md:col-span-2">
-                      Observações clínicas limitadas
-                      <Textarea
-                        maxLength={2000}
-                        rows={3}
-                        value={problem.notes}
-                        onChange={(event) => setProblem({ ...problem, notes: event.target.value })}
-                      />
-                    </label>
-                    <label className="space-y-1 text-sm font-medium md:col-span-2">
-                      Motivo da inclusão ou alteração
-                      <Input
-                        required
-                        minLength={10}
-                        maxLength={500}
-                        value={problem.reason}
-                        onChange={(event) => setProblem({ ...problem, reason: event.target.value })}
-                      />
-                    </label>
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    <Button disabled={pending}>{pending ? "Salvando…" : "Salvar registro"}</Button>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      disabled={pending}
-                      onClick={() => setProblemFormOpen(false)}
-                    >
-                      Cancelar
-                    </Button>
-                  </div>
-                </form>
-              ) : null}
-              {clinicalProblems.length ? (
-                <div className="grid gap-3 lg:grid-cols-2">
-                  {clinicalProblems.map((item) => (
-                    <article key={item.id} className="rounded-lg border p-4">
-                      <div className="flex items-start justify-between gap-3">
-                        <div>
-                          <div className="flex flex-wrap items-center gap-2">
-                            <p className="font-medium">{item.description}</p>
-                            <Badge variant={item.status === "ACTIVE" ? "default" : "secondary"}>
-                              {item.status === "ACTIVE"
-                                ? "Ativo"
-                                : item.status === "RESOLVED"
-                                  ? "Resolvido"
-                                  : "Histórico"}
-                            </Badge>
-                            {item.icd10Code ? (
-                              <Badge variant="outline">CID-10 {item.icd10Code}</Badge>
-                            ) : null}
-                          </div>
-                          <p className="mt-2 text-xs text-muted-foreground">
-                            {item.authorName} · {item.professionalCouncil} {item.councilNumber}/
-                            {item.councilRegion}
-                          </p>
-                          {item.notes ? (
-                            <p className="mt-3 whitespace-pre-wrap text-sm">{item.notes}</p>
-                          ) : null}
-                        </div>
-                        {data.canManageClinicalProblems ? (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => editClinicalProblem(item)}
-                          >
-                            Editar
-                          </Button>
-                        ) : null}
-                      </div>
-                    </article>
-                  ))}
-                </div>
-              ) : (
-                <p className="rounded-lg bg-muted p-4 text-sm text-muted-foreground">
-                  Nenhum problema ou antecedente clínico registrado.
-                </p>
-              )}
-            </section>
+          <div hidden={workspaceSection !== "overview"}>
+            {workspaceSection === "overview" && (
+              <PatientOverview
+                key={patientId}
+                patientId={patientId}
+                treatments={data.treatments}
+                encounters={data.encounterHistory ?? []}
+                latestNote={clinicalHistory[0]}
+                allergyReviewPending={
+                  !data.allergySummary || data.allergySummary.status === "UNKNOWN"
+                }
+                unverifiedApplications={
+                  data.schedule.filter(
+                    (item) =>
+                      ["PLANNED", "RESERVED"].includes(item.status) && !item.hasValidPrescription,
+                  ).length
+                }
+                onClinicalSummary={() => setClinicalSummaryOpen(true)}
+                onExams={() => {
+                  setWorkspaceSection("exams");
+                  setDocumentsOpened(true);
+                }}
+                onTreatments={() => setWorkspaceSection("treatments")}
+                onEncounters={() => setWorkspaceSection("encounters")}
+              />
+            )}
           </div>
+          <Dialog open={clinicalSummaryOpen} onOpenChange={setClinicalSummaryOpen}>
+            <DialogContent className="clinical-workspace max-h-[90dvh] overflow-y-auto sm:max-w-4xl">
+              <DialogHeader>
+                <DialogTitle>Resumo clínico · {data.patient.fullName}</DialogTitle>
+                <DialogDescription>
+                  Antecedentes, problemas e alertas registrados. Alterações mantêm autoria e
+                  auditoria.
+                </DialogDescription>
+              </DialogHeader>
+              <section className="space-y-4 rounded-xl border border-warning bg-warning-soft p-5">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <h2 className="flex items-center gap-2 font-semibold text-warning-foreground">
+                      <AlertTriangle className="size-5" /> Alergias e alertas clínicos
+                    </h2>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      Alertas ativos ficam destacados também durante o atendimento.
+                    </p>
+                  </div>
+                  {data.canManageClinicalProblems ? (
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        setClinicalAlert(blankAlert);
+                        setAlertFormOpen(true);
+                      }}
+                    >
+                      <Plus /> Adicionar alerta
+                    </Button>
+                  ) : null}
+                </div>
+                {alertFormOpen && data.canManageClinicalProblems ? (
+                  <form
+                    onSubmit={saveClinicalAlert}
+                    className="space-y-4 rounded-lg border bg-card p-4"
+                  >
+                    <div className="grid gap-4 md:grid-cols-2">
+                      <label className="space-y-1 text-sm font-medium">
+                        Tipo
+                        <select
+                          className="h-10 w-full rounded-md border bg-background px-3"
+                          value={clinicalAlert.type}
+                          onChange={(event) =>
+                            setClinicalAlert({
+                              ...clinicalAlert,
+                              type: event.target.value as typeof clinicalAlert.type,
+                            })
+                          }
+                        >
+                          <option value="ALLERGY">Alergia</option>
+                          <option value="WARNING">Alerta</option>
+                          <option value="PRECAUTION">Precaução</option>
+                        </select>
+                      </label>
+                      <label className="space-y-1 text-sm font-medium">
+                        Gravidade
+                        <select
+                          className="h-10 w-full rounded-md border bg-background px-3"
+                          value={clinicalAlert.severity}
+                          onChange={(event) =>
+                            setClinicalAlert({
+                              ...clinicalAlert,
+                              severity: event.target.value as typeof clinicalAlert.severity,
+                            })
+                          }
+                        >
+                          <option value="UNKNOWN">Não informada</option>
+                          <option value="MILD">Leve</option>
+                          <option value="MODERATE">Moderada</option>
+                          <option value="SEVERE">Grave</option>
+                        </select>
+                      </label>
+                      <label className="space-y-1 text-sm font-medium md:col-span-2">
+                        Agente, alergia ou título do alerta
+                        <Input
+                          required
+                          minLength={2}
+                          maxLength={200}
+                          value={clinicalAlert.title}
+                          onChange={(event) =>
+                            setClinicalAlert({ ...clinicalAlert, title: event.target.value })
+                          }
+                        />
+                      </label>
+                      <label className="space-y-1 text-sm font-medium">
+                        Reação conhecida (opcional)
+                        <Input
+                          maxLength={500}
+                          value={clinicalAlert.reaction}
+                          onChange={(event) =>
+                            setClinicalAlert({ ...clinicalAlert, reaction: event.target.value })
+                          }
+                        />
+                      </label>
+                      <label className="space-y-1 text-sm font-medium">
+                        Situação
+                        <select
+                          className="h-10 w-full rounded-md border bg-background px-3"
+                          value={clinicalAlert.status}
+                          onChange={(event) =>
+                            setClinicalAlert({
+                              ...clinicalAlert,
+                              status: event.target.value as typeof clinicalAlert.status,
+                            })
+                          }
+                        >
+                          <option value="ACTIVE">Ativo</option>
+                          <option value="INACTIVE">Inativo</option>
+                        </select>
+                      </label>
+                      <label className="space-y-1 text-sm font-medium md:col-span-2">
+                        Observações
+                        <Textarea
+                          maxLength={2000}
+                          rows={3}
+                          value={clinicalAlert.notes}
+                          onChange={(event) =>
+                            setClinicalAlert({ ...clinicalAlert, notes: event.target.value })
+                          }
+                        />
+                      </label>
+                      <label className="space-y-1 text-sm font-medium md:col-span-2">
+                        Motivo da inclusão ou alteração
+                        <Input
+                          required
+                          minLength={10}
+                          maxLength={500}
+                          value={clinicalAlert.reason}
+                          onChange={(event) =>
+                            setClinicalAlert({ ...clinicalAlert, reason: event.target.value })
+                          }
+                        />
+                      </label>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      <Button disabled={pending}>{pending ? "Salvando…" : "Salvar alerta"}</Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        disabled={pending}
+                        onClick={() => setAlertFormOpen(false)}
+                      >
+                        Cancelar
+                      </Button>
+                    </div>
+                  </form>
+                ) : null}
+                {clinicalAlerts.length ? (
+                  <div className="grid gap-3 lg:grid-cols-2">
+                    {clinicalAlerts.map((item) => (
+                      <article
+                        key={item.id}
+                        className={`rounded-lg border p-4 ${item.status === "ACTIVE" ? "bg-card" : "opacity-60"}`}
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div>
+                            <div className="flex flex-wrap items-center gap-2">
+                              <p className="font-medium">{item.title}</p>
+                              <Badge
+                                variant={item.severity === "SEVERE" ? "destructive" : "outline"}
+                              >
+                                {alertSeverityLabels[item.severity]}
+                              </Badge>
+                              <Badge variant="secondary">{alertTypeLabels[item.type]}</Badge>
+                              {item.status === "INACTIVE" ? (
+                                <Badge variant="outline">Inativo</Badge>
+                              ) : null}
+                            </div>
+                            {item.reaction ? (
+                              <p className="mt-2 text-sm">Reação: {item.reaction}</p>
+                            ) : null}
+                            {item.notes ? (
+                              <p className="mt-2 whitespace-pre-wrap text-sm text-muted-foreground">
+                                {item.notes}
+                              </p>
+                            ) : null}
+                            <p className="mt-2 text-xs text-muted-foreground">
+                              {item.authorName} · {item.professionalCouncil} {item.councilNumber}/
+                              {item.councilRegion}
+                            </p>
+                          </div>
+                          {data.canManageClinicalProblems ? (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => editClinicalAlert(item)}
+                            >
+                              Editar
+                            </Button>
+                          ) : null}
+                        </div>
+                      </article>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="rounded-lg bg-card p-4 text-sm text-muted-foreground">
+                    Nenhuma alergia ou alerta clínico registrado.
+                  </p>
+                )}
+              </section>
+              <section className="space-y-4 rounded-xl border bg-card p-5">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <h2 className="font-semibold">Problemas e antecedentes clínicos</h2>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      Registros estruturados com CID-10 opcional, situação e autoria profissional.
+                    </p>
+                  </div>
+                  {data.canManageClinicalProblems ? (
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        setProblem(blankProblem);
+                        setProblemFormOpen(true);
+                      }}
+                    >
+                      <Plus /> Adicionar registro
+                    </Button>
+                  ) : null}
+                </div>
+                {problemFormOpen && data.canManageClinicalProblems ? (
+                  <form onSubmit={saveClinicalProblem} className="space-y-4 rounded-lg border p-4">
+                    <div className="grid gap-4 md:grid-cols-2">
+                      <label className="space-y-1 text-sm font-medium md:col-span-2">
+                        Problema ou antecedente
+                        <Input
+                          required
+                          minLength={3}
+                          maxLength={300}
+                          value={problem.description}
+                          onChange={(event) =>
+                            setProblem({ ...problem, description: event.target.value })
+                          }
+                        />
+                      </label>
+                      <label className="space-y-1 text-sm font-medium">
+                        CID-10 (opcional)
+                        <Input
+                          maxLength={8}
+                          placeholder="Ex.: E11.9"
+                          value={problem.icd10Code}
+                          onChange={(event) =>
+                            setProblem({ ...problem, icd10Code: event.target.value.toUpperCase() })
+                          }
+                        />
+                      </label>
+                      <label className="space-y-1 text-sm font-medium">
+                        Situação
+                        <select
+                          className="h-10 w-full rounded-md border bg-background px-3"
+                          value={problem.status}
+                          onChange={(event) =>
+                            setProblem({
+                              ...problem,
+                              status: event.target.value as typeof problem.status,
+                            })
+                          }
+                        >
+                          <option value="ACTIVE">Ativo</option>
+                          <option value="RESOLVED">Resolvido</option>
+                          <option value="INACTIVE">Inativo/Histórico</option>
+                        </select>
+                      </label>
+                      <label className="space-y-1 text-sm font-medium">
+                        Início conhecido (opcional)
+                        <Input
+                          type="date"
+                          value={problem.onsetOn}
+                          onChange={(event) =>
+                            setProblem({ ...problem, onsetOn: event.target.value })
+                          }
+                        />
+                      </label>
+                      <label className="space-y-1 text-sm font-medium">
+                        Data de resolução{" "}
+                        {problem.status === "RESOLVED" ? "(obrigatória)" : "(opcional)"}
+                        <Input
+                          type="date"
+                          required={problem.status === "RESOLVED"}
+                          value={problem.resolvedOn}
+                          onChange={(event) =>
+                            setProblem({ ...problem, resolvedOn: event.target.value })
+                          }
+                        />
+                      </label>
+                      <label className="space-y-1 text-sm font-medium md:col-span-2">
+                        Observações clínicas limitadas
+                        <Textarea
+                          maxLength={2000}
+                          rows={3}
+                          value={problem.notes}
+                          onChange={(event) =>
+                            setProblem({ ...problem, notes: event.target.value })
+                          }
+                        />
+                      </label>
+                      <label className="space-y-1 text-sm font-medium md:col-span-2">
+                        Motivo da inclusão ou alteração
+                        <Input
+                          required
+                          minLength={10}
+                          maxLength={500}
+                          value={problem.reason}
+                          onChange={(event) =>
+                            setProblem({ ...problem, reason: event.target.value })
+                          }
+                        />
+                      </label>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      <Button disabled={pending}>
+                        {pending ? "Salvando…" : "Salvar registro"}
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        disabled={pending}
+                        onClick={() => setProblemFormOpen(false)}
+                      >
+                        Cancelar
+                      </Button>
+                    </div>
+                  </form>
+                ) : null}
+                {clinicalProblems.length ? (
+                  <div className="grid gap-3 lg:grid-cols-2">
+                    {clinicalProblems.map((item) => (
+                      <article key={item.id} className="rounded-lg border p-4">
+                        <div className="flex items-start justify-between gap-3">
+                          <div>
+                            <div className="flex flex-wrap items-center gap-2">
+                              <p className="font-medium">{item.description}</p>
+                              <Badge variant={item.status === "ACTIVE" ? "default" : "secondary"}>
+                                {item.status === "ACTIVE"
+                                  ? "Ativo"
+                                  : item.status === "RESOLVED"
+                                    ? "Resolvido"
+                                    : "Histórico"}
+                              </Badge>
+                              {item.icd10Code ? (
+                                <Badge variant="outline">CID-10 {item.icd10Code}</Badge>
+                              ) : null}
+                            </div>
+                            <p className="mt-2 text-xs text-muted-foreground">
+                              {item.authorName} · {item.professionalCouncil} {item.councilNumber}/
+                              {item.councilRegion}
+                            </p>
+                            {item.notes ? (
+                              <p className="mt-3 whitespace-pre-wrap text-sm">{item.notes}</p>
+                            ) : null}
+                          </div>
+                          {data.canManageClinicalProblems ? (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => editClinicalProblem(item)}
+                            >
+                              Editar
+                            </Button>
+                          ) : null}
+                        </div>
+                      </article>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="rounded-lg bg-muted p-4 text-sm text-muted-foreground">
+                    Nenhum problema ou antecedente clínico registrado.
+                  </p>
+                )}
+              </section>
+            </DialogContent>
+          </Dialog>
           <div hidden={workspaceSection !== "encounters"} className="space-y-5">
             <PatientEncounterHistory encounters={data.encounterHistory ?? []} />
             <section className="space-y-4 rounded-xl border bg-card p-5">

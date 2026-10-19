@@ -39,7 +39,26 @@ function ReferenceStatus({ entry }: { entry: LaboratoryHistoryEntry }) {
     </p>
   );
 }
-function Source({ entry }: { entry: LaboratoryHistoryEntry }) {
+function Source({
+  entry,
+  onOpenOriginal,
+  compact = false,
+}: {
+  entry: LaboratoryHistoryEntry;
+  onOpenOriginal?: ((entry: LaboratoryHistoryEntry) => void) | undefined;
+  compact?: boolean;
+}) {
+  if (onOpenOriginal)
+    return (
+      <button
+        type="button"
+        className="text-xs text-teal-700 underline-offset-2 hover:underline"
+        aria-label={`Ver original: ${entry.documentTitle}`}
+        onClick={() => onOpenOriginal(entry)}
+      >
+        {compact ? "PDF" : entry.documentTitle}
+      </button>
+    );
   return (
     <a
       className="text-xs text-primary underline underline-offset-2"
@@ -51,7 +70,13 @@ function Source({ entry }: { entry: LaboratoryHistoryEntry }) {
     </a>
   );
 }
-function HistoryGraph({ group }: { group: LaboratoryHistoryGroup }) {
+function HistoryGraph({
+  group,
+  onOpenOriginal,
+}: {
+  group: LaboratoryHistoryGroup;
+  onOpenOriginal?: ((entry: LaboratoryHistoryEntry) => void) | undefined;
+}) {
   const { points, segments } = laboratoryHistorySeries(group);
   if (!points.length)
     return (
@@ -128,14 +153,24 @@ function HistoryGraph({ group }: { group: LaboratoryHistoryGroup }) {
             {p.entry.payload.result} {group.unit ?? ""} ·{" "}
             <span>Ref.: {p.entry.payload.reference ?? "Não informada"}</span>
             <ReferenceStatus entry={p.entry} />
-            <Source entry={p.entry} />
+            <Source entry={p.entry} onOpenOriginal={onOpenOriginal} />
           </li>
         ))}
       </ul>
     </div>
   );
 }
-export function LaboratoryHistory({ patientId }: { patientId: string }) {
+export function LaboratoryHistory({
+  patientId,
+  unitId,
+  compact = false,
+  onOpenOriginal,
+}: {
+  patientId: string;
+  unitId?: string | undefined;
+  compact?: boolean;
+  onOpenOriginal?: ((entry: LaboratoryHistoryEntry) => void) | undefined;
+}) {
   const [dateFrom, setDateFrom] = useState("");
   const [offset, setOffset] = useState(0);
   const [dateTo, setDateTo] = useState("");
@@ -145,6 +180,7 @@ export function LaboratoryHistory({ patientId }: { patientId: string }) {
     (!!dateFrom && !!dateTo && dateFrom > dateTo);
   const resource =
     `laboratory-history?patientId=${encodeURIComponent(patientId)}` +
+    (unitId ? `&unitId=${encodeURIComponent(unitId)}` : "") +
     (dateFrom ? `&dateFrom=${dateFrom}` : "") +
     (dateTo ? `&dateTo=${dateTo}` : "") +
     (offset ? `&offset=${offset}` : "");
@@ -176,11 +212,24 @@ export function LaboratoryHistory({ patientId }: { patientId: string }) {
   const startDate = Math.max(0, endDate - 12);
   const visibleDates = relevantDates.slice(startDate, endDate);
   return (
-    <section className="min-w-0 space-y-4" aria-label="Histórico longitudinal de exames">
+    <section
+      className={
+        compact
+          ? "min-w-0 space-y-3 [&_input]:h-8 [&_input]:text-xs [&_button]:text-xs"
+          : "min-w-0 space-y-4"
+      }
+      aria-label="Histórico longitudinal de exames"
+    >
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h3 className="font-semibold">Resultados laboratoriais</h3>
-          <p className="text-sm text-muted-foreground">
+          <h3 className={compact ? "sr-only" : "font-semibold"}>
+            {compact ? "Histórico de resultados" : "Resultados laboratoriais"}
+          </h3>
+          <p
+            className={
+              compact ? "max-w-xl text-xs text-muted-foreground" : "text-sm text-muted-foreground"
+            }
+          >
             Somente resultados confirmados. Unidades, métodos, material e laboratórios diferentes
             permanecem separados.
           </p>
@@ -237,38 +286,40 @@ export function LaboratoryHistory({ patientId }: { patientId: string }) {
         />
       ) : (
         <>
-          <div className="flex flex-wrap items-center gap-3 text-xs">
-            <span>
-              Comparação limitada aos resultados desta página. Página {Math.floor(offset / 500) + 1}
-              .
-            </span>
-            <Button
-              size="sm"
-              variant="outline"
-              disabled={!query.data?.hasMore || offset >= 10000}
-              onClick={() => {
-                setOffset((n) => Math.min(10000, n + 500));
-                setDateOffset(0);
-                setGroupLimit(50);
-                setExpanded(null);
-              }}
-            >
-              Resultados anteriores
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              disabled={offset === 0}
-              onClick={() => {
-                setOffset((n) => Math.max(0, n - 500));
-                setDateOffset(0);
-                setGroupLimit(50);
-                setExpanded(null);
-              }}
-            >
-              Resultados mais recentes
-            </Button>
-          </div>
+          {(!compact || query.data?.hasMore || offset > 0) && (
+            <div className="flex flex-wrap items-center gap-3 text-xs">
+              <span>
+                Comparação limitada aos resultados desta página. Página{" "}
+                {Math.floor(offset / 500) + 1}.
+              </span>
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={!query.data?.hasMore || offset >= 10000}
+                onClick={() => {
+                  setOffset((n) => Math.min(10000, n + 500));
+                  setDateOffset(0);
+                  setGroupLimit(50);
+                  setExpanded(null);
+                }}
+              >
+                Resultados anteriores
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={offset === 0}
+                onClick={() => {
+                  setOffset((n) => Math.max(0, n - 500));
+                  setDateOffset(0);
+                  setGroupLimit(50);
+                  setExpanded(null);
+                }}
+              >
+                Resultados mais recentes
+              </Button>
+            </div>
+          )}
           {offset >= 10000 && query.data?.hasMore && (
             <p role="status" className="text-sm text-amber-900">
               Limite de páginas atingido. Selecione um período menor para consultar os demais
@@ -280,7 +331,7 @@ export function LaboratoryHistory({ patientId }: { patientId: string }) {
               Exibindo parte do histórico. Há resultados adicionais não incluídos nesta consulta.
             </p>
           )}
-          {!!groups.length && (
+          {!!groups.length && (!compact || relevantDates.length > 12 || dateOffset > 0) && (
             <div className="flex flex-wrap items-center gap-3 text-xs">
               <span>
                 {Math.min(groupLimit, groups.length)} de {groups.length} exames · Datas{" "}
@@ -317,22 +368,44 @@ export function LaboratoryHistory({ patientId }: { patientId: string }) {
           ) : (
             <div className="max-h-[70vh] overflow-auto rounded-xl border">
               <table
-                className="w-full min-w-[800px] text-left text-sm"
+                className={
+                  compact
+                    ? "w-full min-w-[720px] text-left text-xs [&_td]:p-2.5 [&_th]:p-2.5"
+                    : "w-full min-w-[800px] text-left text-sm"
+                }
                 aria-label="Tabela longitudinal de exames"
               >
                 <thead className="sticky top-0 z-20 bg-white">
                   <tr>
-                    <th className="sticky left-0 z-30 w-56 min-w-56 max-w-56 bg-white p-3">
+                    <th
+                      className={
+                        compact
+                          ? "sticky left-0 z-30 w-40 min-w-40 max-w-40 bg-white p-3"
+                          : "sticky left-0 z-30 w-56 min-w-56 max-w-56 bg-white p-3"
+                      }
+                    >
                       Exame
                     </th>
-                    <th className="md:sticky md:left-56 z-30 w-28 min-w-28 max-w-28 bg-white p-3">
+                    <th
+                      className={
+                        compact
+                          ? "md:sticky md:left-40 z-30 w-20 min-w-20 max-w-20 bg-white p-3"
+                          : "md:sticky md:left-56 z-30 w-28 min-w-28 max-w-28 bg-white p-3"
+                      }
+                    >
                       Unidade
                     </th>
-                    <th className="md:sticky md:left-[21rem] z-30 w-48 min-w-48 max-w-48 bg-white p-3">
+                    <th
+                      className={
+                        compact
+                          ? "md:sticky md:left-60 z-30 w-32 min-w-32 max-w-32 bg-white p-3"
+                          : "md:sticky md:left-[21rem] z-30 w-48 min-w-48 max-w-48 bg-white p-3"
+                      }
+                    >
                       Referência do laboratório
                     </th>
                     {visibleDates.map((date) => (
-                      <th className="min-w-44 p-3" key={date}>
+                      <th className={compact ? "min-w-28 p-3" : "min-w-44 p-3"} key={date}>
                         {labelDate(date)}
                       </th>
                     ))}
@@ -344,7 +417,11 @@ export function LaboratoryHistory({ patientId }: { patientId: string }) {
                       <tr className="border-t align-top">
                         <th
                           scope="row"
-                          className="sticky left-0 z-10 w-56 min-w-56 max-w-56 bg-white p-3"
+                          className={
+                            compact
+                              ? "sticky left-0 z-10 w-40 min-w-40 max-w-40 bg-white p-3"
+                              : "sticky left-0 z-10 w-56 min-w-56 max-w-56 bg-white p-3"
+                          }
                         >
                           <Button
                             className="h-auto whitespace-normal p-0 text-left"
@@ -354,7 +431,14 @@ export function LaboratoryHistory({ patientId }: { patientId: string }) {
                           >
                             {group.name}
                           </Button>
-                          <p className="mt-1 text-xs font-normal text-muted-foreground">
+                          <p
+                            title={`${group.method ?? "Método não informado"} · ${group.material ?? "Material não informado"} · ${group.laboratory ?? "Laboratório não informado"}`}
+                            className={
+                              compact
+                                ? "mt-1 truncate text-[10px] font-normal text-muted-foreground"
+                                : "mt-1 text-xs font-normal text-muted-foreground"
+                            }
+                          >
                             {group.method ?? "Método não informado: comparação limitada"}
                             {group.material
                               ? ` · ${group.material}`
@@ -364,18 +448,32 @@ export function LaboratoryHistory({ patientId }: { patientId: string }) {
                               : " · Laboratório não informado: comparação limitada"}
                           </p>
                         </th>
-                        <td className="md:sticky md:left-56 z-10 w-28 min-w-28 max-w-28 bg-white p-3">
+                        <td
+                          className={
+                            compact
+                              ? "md:sticky md:left-40 z-10 w-20 min-w-20 max-w-20 bg-white p-3"
+                              : "md:sticky md:left-56 z-10 w-28 min-w-28 max-w-28 bg-white p-3"
+                          }
+                        >
                           {group.unit ?? "Não informada"}
                         </td>
-                        <td className="md:sticky md:left-[21rem] z-10 w-48 min-w-48 max-w-48 bg-white p-3 text-xs">
+                        <td
+                          className={
+                            compact
+                              ? "md:sticky md:left-60 z-10 w-32 min-w-32 max-w-32 bg-white p-3 text-[10px]"
+                              : "md:sticky md:left-[21rem] z-10 w-48 min-w-48 max-w-48 bg-white p-3 text-xs"
+                          }
+                        >
                           {[
                             ...new Set(
                               group.entries.map((e) => e.payload.reference ?? "Não informada"),
                             ),
                           ].join(" · ")}
-                          <p className="mt-1 text-muted-foreground">
-                            Confira a referência em cada resultado.
-                          </p>
+                          {!compact && (
+                            <p className="mt-1 text-muted-foreground">
+                              Confira a referência em cada resultado.
+                            </p>
+                          )}
                         </td>
                         {visibleDates.map((date) => (
                           <td key={date} className="p-3">
@@ -383,19 +481,41 @@ export function LaboratoryHistory({ patientId }: { patientId: string }) {
                               .filter((e) => (laboratoryHistoryDate(e) ?? "undated") === date)
                               .map((entry) => (
                                 <div className="mb-3 space-y-1 last:mb-0" key={entry.id}>
-                                  <p className="font-medium">{entry.payload.result}</p>
-                                  <p className="text-xs text-muted-foreground">
-                                    {entry.payload.collectedOn
-                                      ? "Data de coleta"
-                                      : entry.payload.reportedOn
-                                        ? "Data do resultado"
-                                        : "Data não informada"}
-                                  </p>
-                                  <ReferenceStatus entry={entry} />
-                                  <p className="text-xs text-muted-foreground">
-                                    Ref.: {entry.payload.reference ?? "Não informada"}
-                                  </p>
-                                  <Source entry={entry} />
+                                  {compact ? (
+                                    <div
+                                      className="flex items-center gap-1.5"
+                                      title={`${entry.payload.collectedOn ? "Coleta" : entry.payload.reportedOn ? "Resultado" : "Sem data"} · Ref.: ${entry.payload.reference ?? "Não informada"}`}
+                                    >
+                                      <span
+                                        className={`h-1.5 w-1.5 shrink-0 rounded-full ${laboratoryHistoryReference(entry) === "within" ? "bg-emerald-600" : laboratoryHistoryReference(entry) === "unknown" ? "bg-slate-300" : "bg-amber-500"}`}
+                                      />
+                                      <span className="font-medium">{entry.payload.result}</span>
+                                      <div className="sr-only">
+                                        <ReferenceStatus entry={entry} /> Ref.:{" "}
+                                        {entry.payload.reference ?? "Não informada"}
+                                      </div>
+                                    </div>
+                                  ) : (
+                                    <>
+                                      <p className="font-medium">{entry.payload.result}</p>
+                                      <p className="text-xs text-muted-foreground">
+                                        {entry.payload.collectedOn
+                                          ? "Data de coleta"
+                                          : entry.payload.reportedOn
+                                            ? "Data do resultado"
+                                            : "Data não informada"}
+                                      </p>
+                                      <ReferenceStatus entry={entry} />
+                                      <p className="text-xs text-muted-foreground">
+                                        Ref.: {entry.payload.reference ?? "Não informada"}
+                                      </p>
+                                    </>
+                                  )}
+                                  <Source
+                                    entry={entry}
+                                    compact={compact}
+                                    onOpenOriginal={onOpenOriginal}
+                                  />
                                 </div>
                               ))}
                           </td>
@@ -404,7 +524,7 @@ export function LaboratoryHistory({ patientId }: { patientId: string }) {
                       {expanded === group.id && (
                         <tr>
                           <td colSpan={visibleDates.length + 3}>
-                            <HistoryGraph group={group} />
+                            <HistoryGraph group={group} onOpenOriginal={onOpenOriginal} />
                           </td>
                         </tr>
                       )}

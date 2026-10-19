@@ -338,6 +338,10 @@ test("Paciente360º preserves laboratory review, conditional preconsultation and
     ).toBeVisible();
     await page.goto(`/pacientes/${patient}`);
 
+    await page.setViewportSize({ width: 1536, height: 1024 });
+    await expect(page.getByRole("region", { name: "Visão geral do paciente" })).toBeVisible();
+    await page.screenshot({ path: testInfo.outputPath("mockup-06-prontuario-desktop.png") });
+
     // Create and start a real consultation through existing scheduling rules.
     await page.getByRole("button", { name: "Nova consulta", exact: true }).click();
     const newEncounter = page.getByRole("dialog", { name: "Nova consulta", exact: true });
@@ -353,6 +357,37 @@ test("Paciente360º preserves laboratory review, conditional preconsultation and
     await expect(page).toHaveURL(/\/atendimentos\/[a-f0-9-]+$/);
     const appointmentId = new URL(page.url()).pathname.split("/").at(-1)!;
     await page.getByRole("button", { name: "Iniciar atendimento", exact: true }).click();
+    await expect(
+      page.getByRole("button", { name: "Concluir atendimento", exact: true }),
+    ).toBeVisible();
+    const steps = page.getByRole("tablist", { name: "Etapas do atendimento" });
+    const evolutionDraft =
+      "Consulta sintética integrada: exames e respostas declaradas conferidos pelo profissional.";
+    await page.getByRole("textbox", { name: "Evolução", exact: true }).fill(evolutionDraft);
+    await page.screenshot({ path: testInfo.outputPath("mockup-01-anamnese-desktop.png") });
+    await steps.getByRole("tab", { name: "Exames", exact: true }).click();
+    await expect(
+      page.getByRole("heading", { name: "Exames laboratoriais", exact: true }),
+    ).toBeVisible();
+    await page
+      .getByRole("button", { name: /^Ver original:/ })
+      .first()
+      .click();
+    const originalPanel = page.getByRole("complementary", {
+      name: "Documento original do exame",
+      exact: true,
+    });
+    await expect(originalPanel.getByRole("link", { name: "Baixar", exact: true })).toHaveAttribute(
+      "href",
+      /download=true/,
+    );
+    await expect(originalPanel.locator("iframe")).toHaveAttribute("src", /^blob:/);
+    await page.screenshot({ path: testInfo.outputPath("mockup-02-exames-desktop.png") });
+    await steps.getByRole("tab", { name: "Anamnese", exact: true }).click();
+    await expect(page.getByRole("textbox", { name: "Evolução", exact: true })).toHaveValue(
+      evolutionDraft,
+    );
+    await steps.getByRole("tab", { name: "Prescrição", exact: true }).click();
     const documents = page.locator("#documentos");
     await documents.getByRole("button", { name: "Novo documento", exact: true }).click();
     await page.getByRole("menuitem", { name: "Receita médica", exact: true }).click();
@@ -402,8 +437,23 @@ test("Paciente360º preserves laboratory review, conditional preconsultation and
     expect(saved[0]).toMatchObject({ status: "DRAFT", patient_id: patient });
     expect(saved[0].content).toContain("Componente sintético integrado: 10 mg");
     expect(saved[0].content).toContain("Quantidade a dispensar: 30 cápsulas");
+    // Persist the clinical note before a page reload; internal tabs did not submit or discard it.
+    await steps.getByRole("tab", { name: "Anamnese", exact: true }).click();
+    await page
+      .locator("#evolucao")
+      .getByRole("button", { name: "Salvar rascunho", exact: true })
+      .click();
+    await expect(page.getByRole("status").filter({ hasText: /^Rascunho salvo\.$/ })).toBeVisible();
     await page.reload({ waitUntil: "networkidle" });
-    await expect(documents.getByText(/Componente sintético integrado: 10 mg/)).toBeVisible();
+    await steps.getByRole("tab", { name: "Prescrição", exact: true }).click();
+    await documents.getByRole("button", { name: "Editar receita", exact: true }).click();
+    await expect(
+      documents.getByRole("textbox", { name: "Conteúdo do documento", exact: true }),
+    ).toContainText("Componente sintético integrado: 10 mg");
+    await page.screenshot({ path: testInfo.outputPath("mockup-03-prescricao-editor-desktop.png") });
+    await documents.getByRole("button", { name: "Voltar aos medicamentos", exact: true }).click();
+    await page.screenshot({ path: testInfo.outputPath("mockup-03-prescricao-desktop.png") });
+    await documents.getByRole("button", { name: "Editar receita", exact: true }).click();
     page.once("dialog", (confirmation) => confirmation.accept());
     await documents.getByRole("button", { name: "Finalizar documento", exact: true }).click();
     await expect(documents.getByText("Documento finalizado.", { exact: true })).toBeVisible();
@@ -422,9 +472,28 @@ test("Paciente360º preserves laboratory review, conditional preconsultation and
     await expect(printPage.locator("body")).toContainText("Componente sintético integrado");
     await expect(printPage.locator("body")).toContainText("30 cápsulas");
     await printPage.close();
+    await steps.getByRole("tab", { name: "Solicitações", exact: true }).click();
+    await documents.getByRole("button", { name: "Novo documento", exact: true }).click();
+    await page.getByRole("menuitem", { name: "Solicitação de exames", exact: true }).click();
+    await documents
+      .getByRole("textbox", { name: "Conteúdo do documento", exact: true })
+      .fill("Solicitação sintética: TSH. Conferir conforme avaliação profissional.");
+    await documents.getByRole("button", { name: "Salvar rascunho", exact: true }).click();
+    await expect(documents.getByText("Rascunho salvo.", { exact: true })).toBeVisible();
+    await page.screenshot({
+      path: testInfo.outputPath("mockup-04-solicitacoes-editor-desktop.png"),
+    });
+    await documents.getByRole("button", { name: "Voltar às solicitações", exact: true }).click();
+    await page.screenshot({ path: testInfo.outputPath("mockup-04-solicitacoes-desktop.png") });
+    await steps.getByRole("tab", { name: "Revisão", exact: true }).click();
+    await expect(
+      page.getByRole("heading", { name: "Resumo do atendimento", exact: true }),
+    ).toBeVisible();
+    await page.screenshot({ path: testInfo.outputPath("mockup-05-revisao-desktop.png") });
+    await steps.getByRole("tab", { name: "Anamnese", exact: true }).click();
     const evolution = page.locator("#evolucao");
     await evolution
-      .getByLabel("Evolução", { exact: true })
+      .getByRole("textbox", { name: "Evolução", exact: true })
       .fill(
         "Consulta sintética integrada: exames e respostas declaradas conferidos pelo profissional.",
       );

@@ -1,7 +1,11 @@
 import { Link, useRouterState } from "@tanstack/react-router";
 import { useEffect, useState, type ReactNode } from "react";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
+  Bell,
+  Building2,
+  ChevronDown,
+  Search,
   ChevronsUpDown,
   HeartPulse,
   Syringe,
@@ -38,7 +42,11 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { fetchInventory } from "@/data/inventory-api";
 import { cn } from "@/lib/utils";
+import "./clinical-workspace.css";
 import { selectedUnitId, setSelectedUnitId } from "@/data/unit-context";
 
 const operationItems = [
@@ -283,12 +291,242 @@ function SidebarContent({
   );
 }
 
+type ClinicalSearchPatient = {
+  id: string;
+  fullName: string;
+  internalCode: string;
+  unitName: string;
+};
+
+function ClinicalPatientSearch({ unitId }: { unitId: string }) {
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState("");
+  const term = search.trim();
+  const query = useQuery({
+    queryKey: ["inventory", "clinical-patient-search", unitId, term],
+    queryFn: () =>
+      fetchInventory<{ patients: ClinicalSearchPatient[] }>(
+        `patients?search=${encodeURIComponent(term)}`,
+      ),
+    enabled: open && term.length >= 2,
+    staleTime: 0,
+    retry: false,
+  });
+  useEffect(() => {
+    const handleKey = (event: KeyboardEvent) => {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
+        event.preventDefault();
+        setOpen((value) => !value);
+      }
+    };
+    window.addEventListener("keydown", handleKey);
+    return () => window.removeEventListener("keydown", handleKey);
+  }, []);
+  return (
+    <>
+      <button
+        type="button"
+        className="clinical-global-search"
+        onClick={() => setOpen(true)}
+        aria-label="Pesquisar pacientes"
+      >
+        <Search className="size-4 shrink-0" aria-hidden="true" />
+        <span className="hidden truncate sm:inline">Buscar paciente...</span>
+        <kbd className="ml-auto hidden rounded border px-1.5 text-[11px] lg:inline">⌘ K</kbd>
+      </button>
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="clinical-workspace sm:max-w-xl">
+          <DialogTitle>Pesquisar pacientes</DialogTitle>
+          <DialogDescription>
+            Localize pacientes nas unidades às quais você tem acesso.
+          </DialogDescription>
+          <Input
+            autoComplete="off"
+            aria-label="Nome ou código do paciente"
+            placeholder="Digite ao menos 2 caracteres"
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+          />
+          <div className="max-h-80 space-y-1 overflow-y-auto" aria-live="polite">
+            {term.length < 2 ? (
+              <p className="p-3 text-sm text-muted-foreground">
+                Busque pelo nome ou código do paciente.
+              </p>
+            ) : query.isFetching ? (
+              <p className="p-3 text-sm text-muted-foreground">Pesquisando...</p>
+            ) : query.isError ? (
+              <p className="p-3 text-sm text-destructive">
+                Não foi possível pesquisar. Altere a busca para tentar novamente.
+              </p>
+            ) : query.data?.patients.length ? (
+              query.data.patients.map((patient) => (
+                <Link
+                  key={patient.id}
+                  to="/pacientes/$patientId"
+                  params={{ patientId: patient.id }}
+                  onClick={() => {
+                    setOpen(false);
+                    setSearch("");
+                  }}
+                  className="flex items-center gap-3 rounded-lg p-3 hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  <UserRound className="size-4 text-primary" />
+                  <span className="min-w-0">
+                    <span className="block truncate text-sm font-medium">{patient.fullName}</span>
+                    <span className="block text-xs text-muted-foreground">
+                      {patient.internalCode} · {patient.unitName}
+                    </span>
+                  </span>
+                </Link>
+              ))
+            ) : (
+              <p className="p-3 text-sm text-muted-foreground">Nenhum paciente encontrado.</p>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}
+
+function ClinicalTopBar({
+  identity,
+  unitId,
+  onUnitChange,
+  onMenu,
+  onLogout,
+}: {
+  identity: Identity | null;
+  unitId: string;
+  onUnitChange: (unitId: string) => void;
+  onMenu: () => void;
+  onLogout: () => Promise<void>;
+}) {
+  return (
+    <header className="clinical-global-bar">
+      <Button
+        variant="ghost"
+        size="icon"
+        className="size-8 shrink-0"
+        aria-label="Abrir menu"
+        onClick={onMenu}
+      >
+        <Menu className="size-4" />
+      </Button>
+      <Link to="/pacientes" className="clinical-product-mark" aria-label="Allik One — Paciente360º">
+        <span>Allik</span> One
+      </Link>
+      {identity?.sharedPreviewOperator && (
+        <span
+          role="status"
+          className="clinical-preview-badge"
+          title="Preview de teste com dados fictícios. Operador compartilhado com acesso completo. Documentos sem validade clínica."
+          aria-label="Preview de teste com dados fictícios. Documentos sem validade clínica."
+        >
+          Preview<span className="hidden lg:inline"> · dados fictícios</span>
+        </span>
+      )}
+      <ClinicalPatientSearch unitId={unitId} />
+      <div className="ml-auto flex min-w-0 shrink-0 items-center gap-1.5 sm:gap-3">
+        {identity && (
+          <label className="clinical-unit-picker">
+            <Building2 className="hidden size-4 shrink-0 sm:block" aria-hidden="true" />
+            <select
+              aria-label="Unidade atual"
+              value={unitId}
+              onChange={(event) => onUnitChange(event.target.value)}
+            >
+              {identity.units.length > 1 && <option value="">Todas as unidades</option>}
+              {identity.units.map((unit) => (
+                <option key={unit.id} value={unit.id}>
+                  {unit.name}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="hidden gap-1.5 px-2 sm:inline-flex"
+              aria-label="Avisos"
+            >
+              <Bell className="size-4" />
+              <span className="hidden xl:inline">Avisos</span>
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="max-w-80">
+            <DropdownMenuLabel>Avisos do ambiente</DropdownMenuLabel>
+            <p className="px-2 py-1.5 text-xs text-muted-foreground">
+              {identity?.sharedPreviewOperator
+                ? "Preview com dados fictícios. Documentos sem validade clínica."
+                : "Use as tarefas da equipe para acompanhar pendências operacionais."}
+            </p>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem asChild>
+              <Link to="/tarefas">Consultar pendências da equipe</Link>
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+        <Button variant="ghost" size="sm" asChild className="hidden gap-1.5 px-2 sm:inline-flex">
+          <Link to="/tarefas">
+            <ListChecks className="size-4" />
+            <span className="hidden xl:inline">Tarefas</span>
+          </Link>
+        </Button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button
+              type="button"
+              disabled={!identity}
+              className="clinical-profile"
+              aria-label="Abrir menu do profissional"
+            >
+              <Avatar className="size-8">
+                <AvatarFallback className="bg-cyan-50 text-xs font-semibold text-primary">
+                  {identity ? initials(identity.user.name) : "AO"}
+                </AvatarFallback>
+              </Avatar>
+              <span className="hidden min-w-0 text-left lg:block">
+                <span className="block max-w-44 truncate text-xs font-semibold">
+                  {identity?.user.name ?? "Carregando conta…"}
+                </span>
+                <span className="block text-[10px] text-muted-foreground">
+                  {identity ? (roleLabels[identity.role] ?? identity.role) : "Allik One"}
+                </span>
+              </span>
+              <ChevronDown className="hidden size-3 text-muted-foreground sm:block" />
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem asChild>
+              <Link to="/estoque/minha-conta">Minha conta</Link>
+            </DropdownMenuItem>
+            <DropdownMenuItem asChild>
+              <Link to="/configuracoes">Configurações</Link>
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={() => void onLogout()}>Sair</DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+    </header>
+  );
+}
+
 export function AppShell({ children }: { children: ReactNode }) {
   const path = useRouterState({ select: (state) => state.location.pathname });
   const focusedEncounter = path.startsWith("/atendimentos/");
+  const clinicalWorkspace =
+    focusedEncounter ||
+    (path.startsWith("/pacientes/") &&
+      !["/pacientes/demanda", "/pacientes/fracionamento"].includes(path));
   const [mobileOpen, setMobileOpen] = useState(false);
   const [identity, setIdentity] = useState<Identity | null>(null);
   const [unitId, setUnitId] = useState("");
+  const [unitError, setUnitError] = useState("");
   const queryClient = useQueryClient();
   useEffect(() => {
     if (
@@ -316,12 +554,60 @@ export function AppShell({ children }: { children: ReactNode }) {
           : body.data.units.length === 1
             ? body.data.units[0]!.id
             : "";
-        setUnitId(initial);
-        setSelectedUnitId(initial);
+        if (setSelectedUnitId(initial)) {
+          setUnitId(initial);
+          setUnitError("");
+        } else {
+          setUnitId(saved);
+          setUnitError("Salve os rascunhos antes de trocar de unidade.");
+        }
       })
       .catch(() => {});
   }, [path]);
+  function changeUnit(value: string) {
+    if (value === unitId) return;
+    if (!setSelectedUnitId(value)) {
+      setUnitError("Salve os rascunhos antes de trocar de unidade.");
+      return;
+    }
+    setUnitId(value);
+    setUnitError("");
+    void queryClient.invalidateQueries({ queryKey: ["inventory"] });
+  }
   if (path === "/preconsulta") return <>{children}</>;
+  if (clinicalWorkspace)
+    return (
+      <div className="clinical-workspace clinical-app-shell min-h-screen bg-background">
+        <ClinicalTopBar
+          identity={identity}
+          unitId={unitId}
+          onMenu={() => setMobileOpen(true)}
+          onUnitChange={changeUnit}
+          onLogout={async () => {
+            await fetch("/api/inventory-session", { method: "DELETE", credentials: "same-origin" });
+            queryClient.clear();
+            setIdentity(null);
+            window.location.assign("/estoque/acesso");
+          }}
+        />
+        <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
+          <SheetContent side="left" className="w-[286px] border-sidebar-border bg-sidebar p-0">
+            <SheetTitle className="sr-only">Navegação principal</SheetTitle>
+            <SheetDescription className="sr-only">Áreas operacionais do Allik One</SheetDescription>
+            <SidebarContent identity={identity} onNavigate={() => setMobileOpen(false)} />
+          </SheetContent>
+        </Sheet>
+        {unitError && (
+          <p
+            role="alert"
+            className="border-b border-amber-200 bg-amber-50 px-5 py-2 text-sm text-amber-900"
+          >
+            {unitError}
+          </p>
+        )}
+        <main className="w-full min-w-0">{children}</main>
+      </div>
+    );
   const title = path.startsWith("/atendimentos/")
     ? "Atendimento"
     : path.startsWith("/pacientes/") && path.endsWith("/prontuario")
@@ -385,9 +671,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                     value={unitId}
                     onChange={(event) => {
                       const value = event.target.value;
-                      setUnitId(value);
-                      setSelectedUnitId(value);
-                      void queryClient.invalidateQueries({ queryKey: ["inventory"] });
+                      changeUnit(value);
                     }}
                   >
                     {identity.units.length > 1 && <option value="">Todas as unidades</option>}
@@ -441,6 +725,14 @@ export function AppShell({ children }: { children: ReactNode }) {
             Preview de teste · Dados fictícios · Operador compartilhado com acesso completo.
             Documentos sem validade clínica.
           </div>
+        )}
+        {unitError && (
+          <p
+            role="alert"
+            className="border-b border-amber-200 bg-amber-50 px-5 py-2 text-sm text-amber-900"
+          >
+            {unitError}
+          </p>
         )}
         <main
           className={cn(

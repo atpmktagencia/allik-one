@@ -55,6 +55,10 @@ test("individual clinician composes a prescription and explicitly saves a draft"
     await context.addCookies([{ name: "allik_inventory_session", value: token, url: baseURL! }]);
     await page.setViewportSize({ width: 1500, height: 1000 });
     await page.goto(`/atendimentos/${appointment}`);
+    await page
+      .getByRole("tablist", { name: "Etapas do atendimento" })
+      .getByRole("tab", { name: "Prescrição", exact: true })
+      .click();
     const documents = page.locator("#documentos");
     await documents.getByRole("button", { name: "Novo documento", exact: true }).click();
     await page.getByRole("menuitem", { name: "Receita médica", exact: true }).click();
@@ -283,7 +287,14 @@ test("individual clinician composes a prescription and explicitly saves a draft"
     expect(stored.rows[0].content).not.toContain("Ingrediente excluído B");
     expect(stored.rows[0].content).not.toContain("Ingrediente excluído C");
     await page.reload({ waitUntil: "networkidle" });
-    await expect(documents.getByText(/Componente sintético: 10 mg/)).toBeVisible();
+    await page
+      .getByRole("tablist", { name: "Etapas do atendimento" })
+      .getByRole("tab", { name: "Prescrição", exact: true })
+      .click();
+    await documents.getByRole("button", { name: "Editar receita", exact: true }).click();
+    await expect(
+      documents.getByRole("textbox", { name: "Conteúdo do documento", exact: true }),
+    ).toContainText("Componente sintético: 10 mg");
     await documents
       .getByRole("button", { name: "Compor receita estruturada", exact: true })
       .click();

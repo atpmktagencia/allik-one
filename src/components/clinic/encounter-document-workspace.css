@@ -1,0 +1,120 @@
+/* The existing document engine stays mounted while encounter steps change. */
+.clinical-documents.encounter-document-workspace {
+  height: max(660px, calc(100dvh - 308px));
+  min-height: 660px;
+  border-color: #e5ebef;
+  border-radius: 12px;
+  background: #fff;
+  color: #142033;
+}
+.encounter-document-workspace button,
+.encounter-document-workspace a {
+  border-radius: 7px;
+}
+.encounter-document-workspace button:focus-visible,
+.encounter-document-workspace a:focus-visible {
+  outline-color: #00868d;
+}
+.encounter-document-workspace .clinical-document-tabs {
+  gap: 4px;
+  padding-bottom: 4px;
+}
+.encounter-document-workspace .clinical-document-tabs button {
+  min-height: 32px;
+  padding: 5px 10px;
+}
+.encounter-document-workspace .clinical-document-tabs button[aria-selected="true"] {
+  color: #007b85;
+  background: #e9f7f7;
+  border-color: #d2eeee;
+}
+.clinical-documents.encounter-document-workspace > .encounter-document-columns {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(235px, 28%);
+  border-top: 1px solid #edf1f4;
+}
+.encounter-document-workspace[data-context-open="false"] > .encounter-document-columns {
+  grid-template-columns: minmax(0, 1fr);
+}
+.encounter-document-main {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+.encounter-document-context {
+  overflow: auto;
+  min-width: 0;
+  padding: 18px 14px;
+  border-left: 1px solid #edf1f4;
+  background: #fbfcfe;
+}
+.encounter-document-paper {
+  min-height: 360px;
+  padding: 25px 18px;
+  border: 1px solid #e6ebf0;
+  border-radius: 8px;
+  background: #fff;
+}
+.encounter-document-workspace .clinical-document-sheet {
+  border-color: #e8edf1;
+  border-radius: 8px;
+}
+.encounter-document-workspace .clinical-document-heading {
+  padding: 12px 18px 4px;
+}
+.encounter-document-workspace .clinical-document-heading h3 {
+  font-size: 17px;
+}
+.encounter-document-workspace .clinical-document-formatting {
+  background: #fafbfd;
+  border-color: #edf1f4;
+}
+.encounter-document-workspace .clinical-document-formatting button {
+  width: 29px;
+  height: 29px;
+}
+.encounter-document-workspace .clinical-document-formatting button[aria-pressed="true"] {
+  background: #e9f7f7;
+  color: #007b85;
+}
+.encounter-document-workspace .clinical-document-body {
+  padding: 14px 22px 25px;
+  font-size: 14px;
+  line-height: 1.7;
+}
+.encounter-document-workspace .clinical-document-footer {
+  gap: 8px;
+  padding: 10px 14px;
+  border-color: #edf1f4;
+  background: #fff;
+}
+.encounter-document-workspace .clinical-document-footer button {
+  min-height: 32px;
+  font-size: 12px;
+}
+.clinical-documents.encounter-document-workspace.clinical-documents-expanded {
+  height: auto;
+}
+@media (max-width: 1050px) {
+  .clinical-documents.encounter-document-workspace > .encounter-document-columns {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .encounter-document-context {
+    border-left: 0;
+    border-top: 1px solid #edf1f4;
+    max-height: 330px;
+  }
+  .encounter-document-main {
+    min-height: 580px;
+  }
+  .clinical-documents.encounter-document-workspace {
+    height: auto;
+    overflow: visible;
+  }
+  .encounter-document-workspace .clinical-document-editor-slot {
+    min-height: 300px;
+  }
+}

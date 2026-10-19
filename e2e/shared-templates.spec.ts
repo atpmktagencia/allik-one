@@ -96,6 +96,10 @@ test("clinician copies an organization template into a private model and indepen
     ]);
     await page.setViewportSize({ width: 1500, height: 1000 });
     await page.goto(`/atendimentos/${users["colleague"]!.appointment}`);
+    await page
+      .getByRole("tablist", { name: "Etapas do atendimento" })
+      .getByRole("tab", { name: "Prescrição", exact: true })
+      .click();
     const documents = page.locator("#documentos");
     await documents.getByRole("button", { name: "Novo documento", exact: true }).click();
     await page.getByRole("menuitem", { name: "Receita médica", exact: true }).click();
@@ -154,7 +158,14 @@ test("clinician copies an organization template into a private model and indepen
     });
     expect(update.status()).toBe(200);
     await page.reload({ waitUntil: "networkidle" });
-    await expect(documents.getByText(/Synthetic shared component: 5 mg/)).toBeVisible();
+    await page
+      .getByRole("tablist", { name: "Etapas do atendimento" })
+      .getByRole("tab", { name: "Prescrição", exact: true })
+      .click();
+    await documents.getByRole("button", { name: "Editar receita", exact: true }).click();
+    await expect(
+      documents.getByRole("textbox", { name: "Conteúdo do documento", exact: true }),
+    ).toContainText("Synthetic shared component: 5 mg");
     const persisted = await pool.query(
       "SELECT d.content,d.status,i.source_protocol_id,i.source_version,i.formula FROM inventory_encounter_documents d JOIN inventory_prescription_protocol_instances i ON i.document_id=d.id WHERE d.appointment_id=$1",
       [users["colleague"]!.appointment],

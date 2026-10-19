@@ -1,6 +1,6 @@
 import { useBlocker } from "@tanstack/react-router";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { ReactNode } from "react";
 import { CareEncounterPage } from "@/components/clinic/care-encounter-page";
@@ -29,6 +29,24 @@ describe("Care encounter UI", () => {
     vi.stubGlobal(
       "fetch",
       vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+        if (String(_input).includes("laboratory-history"))
+          return Response.json({ data: { rows: [], hasMore: false } });
+        if (String(_input).includes("patient-documents"))
+          return Response.json({
+            data: { documents: [], total: 0, categories: [], professionals: [], canUpload: false },
+          });
+        if (String(_input).includes("encounter-quotes"))
+          return Response.json({
+            data: {
+              prescription: null,
+              quote: null,
+              pricingOptions: [],
+              canManage: false,
+              canApprove: false,
+              canDecline: false,
+              canRegisterPayment: false,
+            },
+          });
         if (String(_input).includes("preconsultation"))
           return Response.json({
             data: {
@@ -110,62 +128,119 @@ describe("Care encounter UI", () => {
       </QueryClientProvider>,
     );
     expect(
-      await screen.findByRole("heading", { name: "Paciente Operacional" }),
+      await screen.findByRole("heading", { name: "Atendimento de Paciente Operacional" }),
     ).toBeInTheDocument();
-    const clinicalNavigation = screen.getAllByRole("navigation", {
-      name: "Seções do atendimento",
-    });
-    expect(clinicalNavigation).toHaveLength(2);
-    expect(clinicalNavigation[0]!.querySelector('a[href="#prescricao"]')).toHaveTextContent(
-      "Prescrição",
+    const cleanUnitChange = new Event("allik:before-unit-change", { cancelable: true });
+    window.dispatchEvent(cleanUnitChange);
+    expect(cleanUnitChange.defaultPrevented).toBe(false);
+    const steps = screen.getByRole("tablist", { name: "Etapas do atendimento" });
+    expect(
+      within(steps)
+        .getAllByRole("tab")
+        .map((item) => item.textContent),
+    ).toEqual(["1Anamnese", "2Exames", "3Prescrição", "4Solicitações", "5Revisão"]);
+    expect(within(steps).getByRole("tab", { name: "Anamnese" })).toHaveAttribute(
+      "aria-selected",
+      "true",
     );
-    expect(clinicalNavigation[0]!.querySelector('a[href="#orcamento"]')).toHaveTextContent(
-      "Orçamento",
+    fireEvent.click(screen.getByRole("button", { name: "Concluir atendimento" }));
+    await waitFor(() =>
+      expect(writes).toContainEqual(
+        expect.objectContaining({ action: "UPDATE_STATUS", status: "COMPLETED", version: 2 }),
+      ),
     );
+    fireEvent.click(within(steps).getByRole("tab", { name: /^Prescrição$/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Adicionar item" }));
+    const therapeuticBlocker = vi.mocked(useBlocker).mock.calls.at(-1)![0] as unknown as {
+      disabled: boolean;
+      enableBeforeUnload: boolean;
+    };
+    expect(therapeuticBlocker.disabled).toBe(false);
+    expect(therapeuticBlocker.enableBeforeUnload).toBe(true);
+    const unsafeUnitChange = new Event("allik:before-unit-change", { cancelable: true });
+    window.dispatchEvent(unsafeUnitChange);
+    expect(unsafeUnitChange.defaultPrevented).toBe(true);
+    fireEvent.click(within(steps).getByRole("tab", { name: /^Anamnese$/ }));
+    expect(screen.getByRole("textbox", { name: "Evolução" })).toHaveValue("");
+    expect(screen.getByRole("button", { name: "Concluir atendimento" })).toBeDisabled();
+    fireEvent.click(screen.getByRole("button", { name: "Informações do atendimento" }));
     expect(screen.getByText("CRM 12345/CE")).toBeInTheDocument();
+    fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Close" }));
+    fireEvent.click(screen.getByRole("button", { name: "Ver ou editar sinais vitais" }));
     fireEvent.change(screen.getByLabelText(/Peso/), { target: { value: "70" } });
     fireEvent.change(screen.getByLabelText(/Altura/), { target: { value: "175" } });
     expect(screen.getByText("IMC: 22.9")).toBeInTheDocument();
+    fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Close" }));
+    fireEvent.click(screen.getByRole("button", { name: /^Modelos$/ }));
     fireEvent.change(screen.getByLabelText("Escolha um modelo de anamnese"), {
       target: { value: "healthyLongevity" },
     });
     fireEvent.click(screen.getByRole("button", { name: "Inserir modelo" }));
-    expect((screen.getByLabelText("Evolução") as HTMLTextAreaElement).value).toContain(
-      "ANAMNESE LONGEVIDADE SAUDÁVEL",
-    );
+    const evolution = screen.getByLabelText("Evolução");
+    expect((evolution as HTMLTextAreaElement).value).toContain("ANAMNESE LONGEVIDADE SAUDÁVEL");
     expect(screen.queryByRole("textbox", { name: "Motivo da consulta" })).not.toBeInTheDocument();
     expect(screen.getByRole("textbox", { name: "Conduta" })).toBeInTheDocument();
+    fireEvent.click(screen.getByText(/Hipóteses diagnósticas, plano clínico e retorno/));
     expect(
       screen.getByRole("textbox", { name: "Hipóteses diagnósticas e diagnósticos" }),
     ).toBeInTheDocument();
     expect(screen.getByRole("textbox", { name: "Plano clínico" })).toBeInTheDocument();
     expect(screen.getByLabelText("Data prevista para retorno")).toBeInTheDocument();
-    expect(await screen.findByText("Prescrição do atendimento")).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Adicionar item" }));
+    fireEvent.click(screen.getByRole("button", { name: "Anamnese estruturada" }));
+    fireEvent.click(screen.getByRole("button", { name: "Motivo da consulta" }));
+    fireEvent.change(screen.getByRole("textbox", { name: "Motivo da consulta" }), {
+      target: { value: "Motivo preservado" },
+    });
+    fireEvent.click(within(steps).getByRole("tab", { name: /^Prescrição$/ }));
+    expect(
+      await screen.findByRole("heading", { name: "Registro terapêutico" }),
+    ).toBeInTheDocument();
     expect(screen.getByLabelText("Intervalo da frequência do item 1")).toHaveValue(1);
     expect(screen.getByLabelText("Unidade da frequência do item 1")).toHaveValue("WEEK");
     expect(screen.getByLabelText("Quantidade da duração do item 1")).toHaveValue(4);
     expect(screen.getByLabelText("Unidade da duração do item 1")).toHaveValue("WEEK");
     expect(screen.queryByRole("textbox", { name: "Frequência" })).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Anamnese estruturada" }));
-    fireEvent.click(screen.getByRole("button", { name: "Motivo da consulta" }));
-    expect(screen.getByRole("textbox", { name: "Motivo da consulta" })).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Concluir atendimento" }));
-    await waitFor(() =>
-      expect(writes).toContainEqual(
-        expect.objectContaining({
-          action: "UPDATE_STATUS",
-          status: "COMPLETED",
-          version: 2,
-        }),
-      ),
+    fireEvent.click(within(steps).getByRole("tab", { name: /^Revisão$/ }));
+    expect(screen.getByRole("heading", { name: "Resumo do atendimento" })).toBeInTheDocument();
+    fireEvent.click(within(steps).getByRole("tab", { name: /^Exames$/ }));
+    fireEvent.click(within(steps).getByRole("tab", { name: /^Anamnese$/ }));
+    expect(screen.getByLabelText("Evolução")).toBe(evolution);
+    expect((evolution as HTMLTextAreaElement).value).toContain("ANAMNESE LONGEVIDADE SAUDÁVEL");
+    expect(screen.getByRole("textbox", { name: "Motivo da consulta" })).toHaveValue(
+      "Motivo preservado",
     );
+    const blocker = vi.mocked(useBlocker).mock.calls.at(-1)![0] as unknown as {
+      disabled: boolean;
+      enableBeforeUnload: boolean;
+    };
+    expect(blocker.disabled).toBe(false);
+    expect(blocker.enableBeforeUnload).toBe(true);
+    expect(screen.getByRole("button", { name: "Concluir atendimento" })).toBeDisabled();
+    expect(screen.getAllByText("Alterações não salvas")[0]).toBeVisible();
   });
 
   it("shows reassignment when another professional owns an existing draft", async () => {
     vi.stubGlobal(
       "fetch",
       vi.fn(async (input: RequestInfo | URL) => {
+        if (String(input).includes("laboratory-history"))
+          return Response.json({ data: { rows: [], hasMore: false } });
+        if (String(input).includes("patient-documents"))
+          return Response.json({
+            data: { documents: [], total: 0, categories: [], professionals: [], canUpload: false },
+          });
+        if (String(input).includes("encounter-quotes"))
+          return Response.json({
+            data: {
+              prescription: null,
+              quote: null,
+              pricingOptions: [],
+              canManage: false,
+              canApprove: false,
+              canDecline: false,
+              canRegisterPayment: false,
+            },
+          });
         if (String(input).includes("preconsultation"))
           return Response.json({
             data: {
@@ -272,6 +347,24 @@ describe("Clinical draft concurrency", () => {
     vi.stubGlobal(
       "fetch",
       vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        if (String(input).includes("laboratory-history"))
+          return Response.json({ data: { rows: [], hasMore: false } });
+        if (String(input).includes("patient-documents"))
+          return Response.json({
+            data: { documents: [], total: 0, categories: [], professionals: [], canUpload: false },
+          });
+        if (String(input).includes("encounter-quotes"))
+          return Response.json({
+            data: {
+              prescription: null,
+              quote: null,
+              pricingOptions: [],
+              canManage: false,
+              canApprove: false,
+              canDecline: false,
+              canRegisterPayment: false,
+            },
+          });
         if (String(input).includes("preconsultation"))
           return Response.json({
             data: {
@@ -389,6 +482,11 @@ describe("Clinical draft concurrency", () => {
     failSave = false;
     fireEvent.click(screen.getByRole("button", { name: "Salvar rascunho" }));
     await screen.findByText("Rascunho salvo.");
+    await waitFor(() => {
+      const savedUnitChange = new Event("allik:before-unit-change", { cancelable: true });
+      window.dispatchEvent(savedUnitChange);
+      expect(savedUnitChange.defaultPrevented).toBe(false);
+    });
     fireEvent.change(evolution, { target: { value: "Meu próximo texto" } });
     fireEvent.click(screen.getByRole("button", { name: "Salvar rascunho" }));
     await waitFor(() => expect(writes).toHaveLength(3));

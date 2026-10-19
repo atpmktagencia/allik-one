@@ -1,4 +1,4 @@
-import { Plus, Trash2 } from "lucide-react";
+import { Plus, Trash2, Pencil, ChevronUp } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -61,7 +61,19 @@ const emptyItem = (): PrescriptionItem => ({
   instructions: "",
 });
 
-export function EncounterPrescriptionCard({ appointmentId }: { appointmentId: string }) {
+export function EncounterPrescriptionCard({
+  appointmentId,
+  onDraftStateChange,
+  onInsertIntoDocument,
+  canInsertIntoDocument = true,
+  searchQuery = "",
+}: {
+  appointmentId: string;
+  onDraftStateChange?: (state: { dirty: boolean; pending: boolean }) => void;
+  onInsertIntoDocument?: (text: string) => void;
+  canInsertIntoDocument?: boolean;
+  searchQuery?: string;
+}) {
   const query = useInventory<Payload>(`encounter-prescriptions?appointmentId=${appointmentId}`);
   const [items, setItems] = useState<PrescriptionItem[]>([]);
   const [generalInstructions, setGeneralInstructions] = useState("");
@@ -69,6 +81,18 @@ export function EncounterPrescriptionCard({ appointmentId }: { appointmentId: st
   const [pending, setPending] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [editingItemId, setEditingItemId] = useState<string | null>(null);
+  const [dirty, setDirty] = useState(false);
+  useEffect(() => {
+    onDraftStateChange?.({ dirty, pending });
+  }, [dirty, pending, onDraftStateChange]);
+  useEffect(() => {
+    setLoadedId(undefined);
+    setItems([]);
+    setGeneralInstructions("");
+    setEditingItemId(null);
+    setDirty(false);
+  }, [appointmentId]);
   const loaded = query.data?.prescription;
 
   useEffect(() => {
@@ -85,6 +109,7 @@ export function EncounterPrescriptionCard({ appointmentId }: { appointmentId: st
       })),
     );
     setGeneralInstructions(loaded?.generalInstructions ?? "");
+    setDirty(false);
   }, [loaded, loadedId, query.data]);
 
   if (query.isPending || query.error)
@@ -96,6 +121,7 @@ export function EncounterPrescriptionCard({ appointmentId }: { appointmentId: st
   const disabled = !data.canAuthor || data.prescription?.status === "FINAL";
 
   function updateItem(id: string, values: Partial<PrescriptionItem>) {
+    setDirty(true);
     setItems((current) => current.map((item) => (item.id === id ? { ...item, ...values } : item)));
   }
 
@@ -125,6 +151,7 @@ export function EncounterPrescriptionCard({ appointmentId }: { appointmentId: st
       });
       await readInventoryResponse(response, "Não foi possível salvar a prescrição.");
       await query.refetch();
+      setDirty(false);
       setMessage(action === "FINALIZE" ? "Prescrição finalizada." : "Rascunho salvo.");
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Falha de conexão.");
@@ -133,13 +160,86 @@ export function EncounterPrescriptionCard({ appointmentId }: { appointmentId: st
     }
   }
 
+  function insertSavedItems() {
+    if (
+      !onInsertIntoDocument ||
+      !canInsertIntoDocument ||
+      dirty ||
+      pending ||
+      !loaded?.items.length
+    )
+      return;
+    const timeUnits = { HOUR: "hora(s)", DAY: "dia(s)", WEEK: "semana(s)", MONTH: "mês(es)" };
+    const doseUnits = {
+      MG: "mg",
+      MCG: "mcg",
+      G: "g",
+      ML: "mL",
+      UI: "UI",
+      UNIT: "unidade(s)",
+      OTHER: "",
+    };
+    // Only a backend-validated saved snapshot can cross into the printable document.
+    if (
+      loaded.items.some(
+        (item) =>
+          !item.medicationName?.trim() ||
+          !Number.isFinite(item.doseQuantity) ||
+          item.doseQuantity <= 0 ||
+          !item.route?.trim() ||
+          !Number.isInteger(item.frequencyEvery) ||
+          item.frequencyEvery <= 0 ||
+          !timeUnits[item.frequencyUnit] ||
+          !Object.hasOwn(doseUnits, item.doseUnit) ||
+          (item.doseUnit === "OTHER" && !item.doseUnitOther.trim()) ||
+          (!item.continuousUse &&
+            (!item.durationAmount || !item.durationUnit || !timeUnits[item.durationUnit])),
+      )
+    ) {
+      setError("Confira e salve os campos estruturados de cada item antes de inserir na receita.");
+      return;
+    }
+    const content = loaded.items
+      .map((item, index) => {
+        const doseUnit = item.doseUnit === "OTHER" ? item.doseUnitOther : doseUnits[item.doseUnit];
+        return [
+          `${index + 1}. ${item.medicationName}`,
+          `Dose: ${item.doseQuantity} ${doseUnit}. Via: ${item.route}.`,
+          `A cada ${item.frequencyEvery} ${timeUnits[item.frequencyUnit]}. ${item.continuousUse ? "Uso contínuo." : `Durante ${item.durationAmount} ${timeUnits[item.durationUnit!]}.`}`,
+          item.plannedAdministrations
+            ? `Número de aplicações: ${item.plannedAdministrations}.`
+            : "",
+          item.instructions,
+        ]
+          .filter(Boolean)
+          .join("\n");
+      })
+      .join("\n\n");
+    onInsertIntoDocument(
+      [
+        content,
+        loaded.generalInstructions ? `Orientações gerais: ${loaded.generalInstructions}` : "",
+      ]
+        .filter(Boolean)
+        .join("\n\n"),
+    );
+  }
+  const normalizedSearch = searchQuery.trim().toLocaleLowerCase("pt-BR");
+  const visibleItems = items.filter(
+    (item) =>
+      !normalizedSearch ||
+      `${item.medicationName} ${item.instructions}`
+        .toLocaleLowerCase("pt-BR")
+        .includes(normalizedSearch),
+  );
   return (
-    <section className="space-y-4 rounded-xl border bg-card p-5">
+    <section className="space-y-4 rounded-lg border border-slate-200 bg-white p-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h2 className="font-semibold">Prescrição do atendimento</h2>
+          <h2 className="font-semibold">Registro terapêutico</h2>
           <p className="mt-1 text-xs text-muted-foreground">
-            Registro terapêutico. Não reserva produtos, calcula valores ou baixa estoque.
+            Salvamento independente da receita. Não reserva produtos, calcula valores ou baixa
+            estoque.
           </p>
         </div>
         <Badge variant="outline">
@@ -156,9 +256,82 @@ export function EncounterPrescriptionCard({ appointmentId }: { appointmentId: st
         </div>
       )}
       {items.length ? (
-        <div className="space-y-4">
+        <div className="space-y-3">
+          <div className="overflow-x-auto rounded-lg border border-slate-200">
+            <table className="w-full min-w-[650px] text-left text-xs">
+              <thead className="bg-slate-50 text-[11px] text-slate-500">
+                <tr>
+                  <th className="px-3 py-3 font-medium">Medicamento / tratamento</th>
+                  <th className="px-3 py-3 font-medium">Dose / Posologia</th>
+                  <th className="px-3 py-3 font-medium">Via</th>
+                  <th className="px-3 py-3 font-medium">Duração</th>
+                  <th className="px-3 py-3 font-medium">Ações</th>
+                </tr>
+              </thead>
+              <tbody>
+                {visibleItems.map((item) => {
+                  const index = items.findIndex((entry) => entry.id === item.id);
+                  return (
+                    <tr key={item.id} className="border-t border-slate-100">
+                      <td className="px-3 py-3 font-medium">
+                        {item.medicationName || `Item ${index + 1} — preencher`}
+                      </td>
+                      <td className="px-3 py-3">
+                        {item.doseQuantity}{" "}
+                        {item.doseUnit === "OTHER"
+                          ? item.doseUnitOther
+                          : item.doseUnit === "UNIT"
+                            ? "unidade(s)"
+                            : item.doseUnit.toLowerCase()}
+                        <span className="mt-1 block text-muted-foreground">
+                          A cada {item.frequencyEvery}{" "}
+                          {
+                            { HOUR: "hora(s)", DAY: "dia(s)", WEEK: "semana(s)", MONTH: "mês(es)" }[
+                              item.frequencyUnit
+                            ]
+                          }
+                        </span>
+                      </td>
+                      <td className="px-3 py-3">{item.route || "Não informada"}</td>
+                      <td className="px-3 py-3">
+                        {item.continuousUse
+                          ? "Uso contínuo"
+                          : item.durationAmount && item.durationUnit
+                            ? `${item.durationAmount} ${{ DAY: "dia(s)", WEEK: "semana(s)", MONTH: "mês(es)" }[item.durationUnit]}`
+                            : "Não informada"}
+                      </td>
+                      <td className="px-3 py-3">
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="ghost"
+                          className="h-7 px-2 text-teal-700"
+                          aria-label={`${editingItemId === item.id ? "Recolher" : disabled ? "Ver" : "Editar"} item ${index + 1}`}
+                          aria-expanded={editingItemId === item.id}
+                          onClick={() =>
+                            setEditingItemId((current) => (current === item.id ? null : item.id))
+                          }
+                        >
+                          {editingItemId === item.id ? (
+                            <ChevronUp size={14} />
+                          ) : (
+                            <Pencil size={14} />
+                          )}
+                        </Button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
           {items.map((item, index) => (
-            <fieldset key={item.id} disabled={disabled} className="space-y-4 rounded-lg border p-4">
+            <fieldset
+              key={item.id}
+              hidden={editingItemId !== item.id}
+              disabled={disabled || pending}
+              className="space-y-4 rounded-lg border border-teal-100 bg-teal-50/20 p-4"
+            >
               <div className="flex items-center justify-between gap-3">
                 <legend className="font-medium">Item {index + 1}</legend>
                 {!disabled ? (
@@ -167,9 +340,10 @@ export function EncounterPrescriptionCard({ appointmentId }: { appointmentId: st
                     size="sm"
                     variant="ghost"
                     aria-label={`Remover item ${index + 1}`}
-                    onClick={() =>
-                      setItems((current) => current.filter(({ id }) => id !== item.id))
-                    }
+                    onClick={() => {
+                      setDirty(true);
+                      setItems((current) => current.filter(({ id }) => id !== item.id));
+                    }}
                   >
                     <Trash2 /> Remover
                   </Button>
@@ -190,11 +364,20 @@ export function EncounterPrescriptionCard({ appointmentId }: { appointmentId: st
                     }}
                   >
                     <option value="">Medicamento ou item não cadastrado</option>
-                    {data.products.map((product) => (
-                      <option key={product.id} value={product.id}>
-                        {product.name} · {product.sku}
-                      </option>
-                    ))}
+                    {data.products
+                      .filter(
+                        (product) =>
+                          product.id === item.productId ||
+                          !normalizedSearch ||
+                          `${product.name} ${product.sku}`
+                            .toLocaleLowerCase("pt-BR")
+                            .includes(normalizedSearch),
+                      )
+                      .map((product) => (
+                        <option key={product.id} value={product.id}>
+                          {product.name} · {product.sku}
+                        </option>
+                      ))}
                   </select>
                 </label>
                 <label className="space-y-1 text-sm font-medium">
@@ -414,7 +597,13 @@ export function EncounterPrescriptionCard({ appointmentId }: { appointmentId: st
         <Button
           type="button"
           variant="outline"
-          onClick={() => setItems((current) => [...current, emptyItem()])}
+          disabled={pending}
+          onClick={() => {
+            setDirty(true);
+            const item = emptyItem();
+            setItems((current) => [...current, item]);
+            setEditingItemId(item.id);
+          }}
         >
           <Plus /> Adicionar item
         </Button>
@@ -423,10 +612,13 @@ export function EncounterPrescriptionCard({ appointmentId }: { appointmentId: st
         Orientações gerais
         <Textarea
           value={generalInstructions}
-          disabled={disabled}
+          disabled={disabled || pending}
           rows={4}
           maxLength={5000}
-          onChange={(event) => setGeneralInstructions(event.target.value)}
+          onChange={(event) => {
+            setDirty(true);
+            setGeneralInstructions(event.target.value);
+          }}
         />
       </label>
       {data.prescription ? (
@@ -435,6 +627,23 @@ export function EncounterPrescriptionCard({ appointmentId }: { appointmentId: st
           {data.prescription.councilNumber}/{data.prescription.councilRegion}
         </p>
       ) : null}
+      {onInsertIntoDocument && (
+        <div className="space-y-2 rounded-lg border border-teal-100 bg-teal-50/40 p-3">
+          <Button
+            type="button"
+            variant="outline"
+            disabled={!canInsertIntoDocument || dirty || pending || !loaded?.items.length}
+            onClick={insertSavedItems}
+          >
+            Inserir itens na receita
+          </Button>
+          <p className="text-xs leading-5 text-muted-foreground">
+            Salve este registro e crie uma receita em Novo documento. A inserção é explícita; revise
+            o documento antes de finalizar. Alterações posteriores não sincronizam os dois
+            registros.
+          </p>
+        </div>
+      )}
       {!disabled ? (
         <div className="flex flex-wrap gap-2">
           <Button variant="outline" disabled={pending} onClick={() => save("SAVE_DRAFT")}>
