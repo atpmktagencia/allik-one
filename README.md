@@ -497,3 +497,11 @@ Tudo permanece “Orçamento estimado — não aprovado”: não gera venda, pag
 O compositor oferece as abas Receita e Orçamento na coluna direita, mantendo a biblioteca à esquerda e a edição clínica no centro, preservando a composição e os ajustes comerciais ao alternar. O orçamento exige escolher um plano clínico salvo do mesmo paciente e unidade; nomes livres de ativos não são convertidos em produtos ou preços. Planos sem vínculo explícito com uma instância desta receita são apresentados como estimativas independentes.
 
 Uma revisão salva pode gerar proposta imprimível, marcada como estimativa não aprovada, sem fórmulas, doses, custos internos ou margens. O documento usa os valores históricos da revisão, com pendências explícitas. Não aprova nem cria venda, pagamento, reserva, agendamento ou consumo. Consulte [desenho e validação do M21F](docs/m21f-composer-quote-workspace.md). Sem nova migração; publicação exclusivamente no Preview.
+
+### M21G — Contratos de integração e eventos transacionais (Preview)
+
+O M21 encerra seu roteiro na letra G. A finalização de receita, a primeira estimativa salva, a aplicação clínica registrada e cada consumo real de apresentação passam a gravar eventos imutáveis na mesma transação da operação original. Os eventos contêm apenas referências ao recurso e sua revisão, sem texto clínico, identidade de pacientes, doses ou preços.
+
+Recibos por consumidor e auditoria permitem processamento interno explícito sem duplicação; falhas desfazem os efeitos executados na mesma transação. Não há worker, envio externo, criação automática de venda ou novo consumo de estoque. Aprovação de orçamento, venda concluída e sessão agendada possuem contratos reservados, com emissão bloqueada até seus fluxos específicos serem implementados.
+
+Receitas criadas diretamente como finais preservam sua revisão histórica `0`; as demais fontes mantêm suas próprias versões. Consulte [desenho, limites e validação do M21G](docs/m21g-integration-contracts.md). Migração aditiva `0069_integration_outbox`, exclusivamente no Preview nesta entrega. A conclusão do M21 não representa liberação automática para produção nem conclusão dos módulos comerciais futuros.

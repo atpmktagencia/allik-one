@@ -2954,3 +2954,82 @@ export const planQuoteEvents = pgTable(
   },
   (t) => [uniqueIndex("plan_quote_operation_unique").on(t.organizationId, t.operationId)],
 );
+
+export const integrationOutbox = pgTable(
+  "inventory_integration_outbox",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id),
+    unitId: uuid("unit_id")
+      .notNull()
+      .references(() => units.id),
+    actorUserId: uuid("actor_user_id")
+      .notNull()
+      .references(() => users.id),
+    schemaVersion: integer("schema_version").notNull().default(1),
+    eventType: text("event_type").notNull(),
+    aggregateType: text("aggregate_type").notNull(),
+    aggregateId: uuid("aggregate_id").notNull(),
+    aggregateVersion: integer("aggregate_version").notNull(),
+    payload: jsonb("payload").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("integration_outbox_event_unique").on(
+      t.organizationId,
+      t.eventType,
+      t.aggregateType,
+      t.aggregateId,
+      t.aggregateVersion,
+    ),
+    index("integration_outbox_scope").on(t.organizationId, t.unitId, t.createdAt),
+  ],
+);
+export const integrationInboxReceipts = pgTable(
+  "inventory_integration_inbox_receipts",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id),
+    unitId: uuid("unit_id")
+      .notNull()
+      .references(() => units.id),
+    eventId: uuid("event_id")
+      .notNull()
+      .references(() => integrationOutbox.id),
+    consumerKey: text("consumer_key").notNull(),
+    actorUserId: uuid("actor_user_id")
+      .notNull()
+      .references(() => users.id),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("integration_inbox_consumer_unique").on(t.eventId, t.consumerKey),
+    index("integration_inbox_scope").on(t.organizationId, t.unitId),
+  ],
+);
+export const integrationEventAudit = pgTable(
+  "inventory_integration_event_audit",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id),
+    unitId: uuid("unit_id")
+      .notNull()
+      .references(() => units.id),
+    eventId: uuid("event_id")
+      .notNull()
+      .references(() => integrationOutbox.id),
+    actorUserId: uuid("actor_user_id")
+      .notNull()
+      .references(() => users.id),
+    consumerKey: text("consumer_key"),
+    action: text("action").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("integration_audit_event").on(t.eventId)],
+);

@@ -484,6 +484,13 @@
       "when": 1794272400025,
       "tag": "0068_plan_quote_estimates",
       "breakpoints": true
+    },
+    {
+      "idx": 69,
+      "version": "7",
+      "when": 1794272400026,
+      "tag": "0069_integration_outbox",
+      "breakpoints": true
     }
   ]
 }

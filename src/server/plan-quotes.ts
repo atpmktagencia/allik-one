@@ -1,3 +1,4 @@
+import { appendIntegrationEvent } from "./integration-events";
 import "@tanstack/react-start/server-only";
 import { createHash } from "node:crypto";
 import { z } from "zod";
@@ -486,6 +487,17 @@ export async function planQuotesResponse(request: Request, attempt = 0): Promise
         JSON.stringify(result),
       ],
     );
+    if (!before)
+      await appendIntegrationEvent(client, {
+        organizationId: auth.organizationId,
+        unitId: source.unit_id,
+        actorUserId: auth.user.id,
+        eventType: "QUOTE_CREATED",
+        aggregateType: "QUOTE",
+        aggregateId: d.id,
+        aggregateVersion: version,
+        payload: { resourceId: d.id, resourceVersion: version },
+      });
     await client.query("COMMIT");
     return Response.json({ data: result }, { headers, status: before ? 200 : 201 });
   } catch (error) {

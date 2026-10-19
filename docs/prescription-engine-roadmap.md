@@ -98,3 +98,9 @@ The general probable-quote engine uses typed commercial mappings and the clinica
 ## M21F implementation
 
 The structured composer adds Receita/Orçamento workspaces with retained clinical and commercial edits. An authenticated context bridge offers explicit saved-plan selection for the same patient and appointment unit, distinguishing independent plans from plans with a linked prescription instance. Free-text ingredients never imply commercial identity or prices. Saved immutable estimate revisions provide escaped, commercial-only printable proposals, visibly unapproved and without operational effects. See [M21F design and verification](m21f-composer-quote-workspace.md). No schema migration is required; event integration contracts remain M21G.
+
+## M21G implementation and roadmap boundary
+
+M21 ends at G. Immutable transactional outbox events, internal consumer receipts and audit preserve organization/unit/source identity and replay semantics. Actual producers cover final prescriptions, first saved estimates, recorded clinical administration and each actual base-unit CONSUME record. Strict contracts reserve quote approval, completed sales and scheduling for future explicit lifecycle adapters; unsupported production is rejected. Existing operational stock/container history remains authoritative and is not duplicated as a second consumption implementation. See [M21G design and verification](m21g-integration-contracts.md).
+
+This closes the planned prescription-engine architecture sequence, not a complete sales/payment/scheduling product. No external dispatcher, automatic sale, business consumer or production rollout is enabled. Each future adapter must separately validate domain permissions, current source state and cross-unit scope before applying business effects.

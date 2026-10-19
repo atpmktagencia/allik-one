@@ -1,3 +1,4 @@
+import * as authModule from "./auth";
 import { beforeAll, afterAll, describe, it, expect, vi } from "vitest";
 import { migrate } from "drizzle-orm/node-postgres/migrator";
 import { randomUUID } from "node:crypto";
@@ -337,6 +338,36 @@ describe("fractional presentation and dose pricing", () => {
 });
 
 describe("operational patients", () => {
+  it("rejects shared, anonymous-actor and integration identities before clinical administration", async () => {
+    const fortaleza = "a1100000-0000-4000-8000-000000000101";
+    const managerCookie = await scopedCookie(fortaleza, "PARTNER_ADMIN");
+    const request = () =>
+      new Request(`${origin}/api/v1/inventory/patient-applications`, {
+        method: "POST",
+        headers: { cookie: managerCookie, origin, "Content-Type": "application/json" },
+        body: "{}",
+      });
+    const individual = await authenticate(request());
+    expect(individual).not.toBeNull();
+    if (!individual) throw new Error("Missing synthetic identity");
+    const contexts = [
+      { ...individual, preview: true },
+      { ...individual, user: { ...individual.user, id: null } },
+      {
+        ...individual,
+        integration: { id: randomUUID(), name: "Synthetic integration", permissions: [] },
+      },
+    ];
+    for (const context of contexts) {
+      const mocked = vi.spyOn(authModule, "authenticate").mockResolvedValueOnce(context);
+      try {
+        expect((await patientApplicationResponse(request())).status).toBe(403);
+      } finally {
+        mocked.mockRestore();
+      }
+    }
+  });
+
   it("creates an audited patient and enforces unit scope on reads and writes", async () => {
     const fortaleza = "a1100000-0000-4000-8000-000000000101";
     const juazeiro = "a1100000-0000-4000-8000-000000000102";
@@ -1124,6 +1155,22 @@ describe("operational patients", () => {
     expect((await reused.json()).data).toEqual(
       expect.objectContaining({ physicalQuantity: 0, allocations: [] }),
     );
+    const producerEvents = (
+      await getPool().query(
+        `SELECT o.event_type,o.aggregate_id,o.aggregate_version,o.payload FROM inventory_integration_outbox o WHERE (o.event_type='ITEM_ADMINISTERED' AND o.aggregate_id IN (SELECT id FROM inventory_patient_applications WHERE patient_id=$1)) OR (o.event_type='STOCK_CONSUMED' AND o.aggregate_id IN (SELECT e.id FROM inventory_open_presentation_events e JOIN inventory_patient_applications pa ON pa.id=e.patient_application_id WHERE pa.patient_id=$1 AND e.type='CONSUME'))`,
+        [patientId],
+      )
+    ).rows;
+    expect(producerEvents.filter((e) => e.event_type === "ITEM_ADMINISTERED")).toHaveLength(2);
+    expect(producerEvents.filter((e) => e.event_type === "STOCK_CONSUMED")).toHaveLength(2);
+    for (const event of producerEvents)
+      expect(event.payload).toEqual({ resourceId: event.aggregate_id, resourceVersion: 1 });
+    // The second true consumption reuses an open presentation and creates no new whole-stock OUT movement.
+    expect(
+      producerEvents
+        .filter((e) => e.event_type === "STOCK_CONSUMED")
+        .every((e) => e.aggregate_version === 1),
+    ).toBe(true);
     const fraction = await getPool().query(
       `SELECT op.initial_base_quantity::text,op.remaining_base_quantity::text,op.status,
         COALESCE(sum(e.quantity) FILTER (WHERE e.type='TECHNICAL_LOSS'),0)::text AS technical_loss,

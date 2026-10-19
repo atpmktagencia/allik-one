@@ -1,3 +1,4 @@
+import { appendIntegrationEvent } from "./integration-events";
 import "@tanstack/react-start/server-only";
 import { createHash } from "node:crypto";
 import type { PoolClient } from "pg";
@@ -30,6 +31,11 @@ export async function patientApplicationResponse(request: Request) {
   const auth = await authenticate(request);
   if (!auth)
     return Response.json({ error: "Entre para registrar a aplicação." }, { status: 401, headers });
+  if (!auth.user.id || auth.preview || auth.integration)
+    return Response.json(
+      { error: "Use uma conta individual para registrar a administração clínica." },
+      { status: 403, headers },
+    );
   if (
     !can(auth, "inventory.consume") ||
     !can(auth, "patients.read") ||
@@ -381,6 +387,7 @@ export async function patientApplicationResponse(request: Request) {
     }
     let doseRemaining = doseQuantity;
     const containerUsages: Array<{ openPresentationId: string; quantity: number }> = [];
+    const consumedEventIds: string[] = [];
     for (const container of containers) {
       if (doseRemaining <= 0) break;
       const consumed = Math.min(doseRemaining, container.remaining);
@@ -394,10 +401,10 @@ export async function patientApplicationResponse(request: Request) {
            version=version+1,updated_at=now() WHERE id=$1`,
         [container.id, container.remaining],
       );
-      await client.query(
+      const consumedEvent = await client.query<{ id: string }>(
         `INSERT INTO inventory_open_presentation_events(
           open_presentation_id,patient_application_id,type,quantity,reason,actor,actor_user_id
-         ) VALUES($1,$2,'CONSUME',$3,$4,$5,$6)`,
+         ) VALUES($1,$2,'CONSUME',$3,$4,$5,$6) RETURNING id`,
         [
           container.id,
           input.operationId,
@@ -407,6 +414,7 @@ export async function patientApplicationResponse(request: Request) {
           actor(auth).userId,
         ],
       );
+      consumedEventIds.push(consumedEvent.rows[0]!.id);
     }
     if (doseRemaining > 0.000001)
       throw new PatientApplicationConflict("Não foi possível fechar a quantidade aplicada.");
@@ -454,6 +462,27 @@ export async function patientApplicationResponse(request: Request) {
         actor(auth).userId,
       ],
     );
+    await appendIntegrationEvent(client, {
+      organizationId: auth.organizationId,
+      unitId: schedule.unit_id,
+      actorUserId: auth.user.id,
+      eventType: "ITEM_ADMINISTERED",
+      aggregateType: "ADMINISTRATION",
+      aggregateId: input.operationId,
+      aggregateVersion: 1,
+      payload: { resourceId: input.operationId, resourceVersion: 1 },
+    });
+    for (const eventId of consumedEventIds)
+      await appendIntegrationEvent(client, {
+        organizationId: auth.organizationId,
+        unitId: schedule.unit_id,
+        actorUserId: auth.user.id,
+        eventType: "STOCK_CONSUMED",
+        aggregateType: "STOCK_CONSUMPTION",
+        aggregateId: eventId,
+        aggregateVersion: 1,
+        payload: { resourceId: eventId, resourceVersion: 1 },
+      });
     await client.query("COMMIT");
     return Response.json(
       {

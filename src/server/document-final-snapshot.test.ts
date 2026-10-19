@@ -1,3 +1,4 @@
+import * as integrationEvents from "./integration-events";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { randomUUID } from "node:crypto";
 import { migrate } from "drizzle-orm/node-postgres/migrator";
@@ -92,6 +93,97 @@ async function fixture() {
 }
 
 describe("final document snapshots", () => {
+  it("rolls back prescription finalization when transactional event persistence fails", async () => {
+    const f = await fixture();
+    const draft = (await (await f.post()).json()).data;
+    const failure = vi
+      .spyOn(integrationEvents, "appendIntegrationEvent")
+      .mockRejectedValueOnce(new Error("Synthetic outbox failure"));
+    try {
+      const response = await f.post({
+        action: "FINALIZE",
+        documentId: draft.id,
+        version: draft.version,
+      });
+      expect(response.status).toBeGreaterThanOrEqual(500);
+      expect(
+        (
+          await getPool().query(
+            "SELECT status,version FROM inventory_encounter_documents WHERE id=$1",
+            [draft.id],
+          )
+        ).rows,
+      ).toEqual([{ status: "DRAFT", version: draft.version }]);
+      expect(
+        (
+          await getPool().query(
+            "SELECT id FROM inventory_integration_outbox WHERE aggregate_id=$1",
+            [draft.id],
+          )
+        ).rowCount,
+      ).toBe(0);
+    } finally {
+      failure.mockRestore();
+    }
+    expect(
+      (await f.post({ action: "FINALIZE", documentId: draft.id, version: draft.version })).status,
+    ).toBe(200);
+  });
+
+  it("emits only a minimal finalized-prescription event, atomically and without replay duplication", async () => {
+    const f = await fixture();
+    const draft = (await (await f.post()).json()).data;
+    expect(
+      (
+        await getPool().query("SELECT id FROM inventory_integration_outbox WHERE aggregate_id=$1", [
+          draft.id,
+        ])
+      ).rowCount,
+    ).toBe(0);
+    const response = await f.post({
+      action: "FINALIZE",
+      documentId: draft.id,
+      version: draft.version,
+    });
+    expect(response.status).toBe(200);
+    const finalized = (await response.json()).data;
+    const events = (
+      await getPool().query(
+        "SELECT event_type,aggregate_type,aggregate_id,aggregate_version,payload FROM inventory_integration_outbox WHERE organization_id=$1 AND aggregate_id=$2",
+        [f.organizationId, draft.id],
+      )
+    ).rows;
+    expect(events).toEqual([
+      {
+        event_type: "PRESCRIPTION_FINALIZED",
+        aggregate_type: "PRESCRIPTION",
+        aggregate_id: draft.id,
+        aggregate_version: finalized.version,
+        payload: { resourceId: draft.id, resourceVersion: finalized.version },
+      },
+    ]);
+    expect(
+      (await f.post({ action: "FINALIZE", documentId: draft.id, version: draft.version })).status,
+    ).toBe(409);
+    expect(
+      (
+        await getPool().query("SELECT id FROM inventory_integration_outbox WHERE aggregate_id=$1", [
+          draft.id,
+        ])
+      ).rowCount,
+    ).toBe(1);
+    const instructions = await f.post({ action: "FINALIZE", type: "INSTRUCTIONS" });
+    expect(instructions.status).toBe(201);
+    const other = (await instructions.json()).data;
+    expect(
+      (
+        await getPool().query("SELECT id FROM inventory_integration_outbox WHERE aggregate_id=$1", [
+          other.id,
+        ])
+      ).rowCount,
+    ).toBe(0);
+  });
+
   it("persists printing metadata and freezes it in final snapshots", async () => {
     const f = await fixture();
     await getPool().query(
@@ -434,13 +526,27 @@ describe("final document snapshots", () => {
     const f = await fixture();
     const final = await f.post({ action: "FINALIZE" });
     expect(final.status).toBe(201);
-    const id = (await final.json()).data.id;
+    const finalized = (await final.json()).data;
+    const id = finalized.id;
+    expect(finalized.version).toBe(0);
     const saved = (
       await getPool().query(
         "SELECT final_snapshot,finalized_at FROM inventory_encounter_documents WHERE id=$1",
         [id],
       )
     ).rows[0];
+    const outbox = (
+      await getPool().query(
+        "SELECT aggregate_version,payload FROM inventory_integration_outbox WHERE aggregate_id=$1 AND event_type='PRESCRIPTION_FINALIZED'",
+        [id],
+      )
+    ).rows;
+    expect(outbox).toEqual([
+      {
+        aggregate_version: finalized.version,
+        payload: { resourceId: id, resourceVersion: finalized.version },
+      },
+    ]);
     expect(saved.final_snapshot.patientName).toBe("Snapshot patient original");
     expect(saved.final_snapshot.finalizedAt).toBe(saved.finalized_at.toISOString());
   });

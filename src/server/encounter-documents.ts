@@ -1,3 +1,4 @@
+import { appendIntegrationEvent } from "./integration-events";
 import { hasPrescriberContact, prescriberPrintDefaults } from "../lib/prescriber-contact";
 import { randomUUID } from "node:crypto";
 import { verifyClinicalDocumentResponse } from "./clinical-document-verification";
@@ -463,6 +464,17 @@ export async function encounterDocumentsResponse(request: Request) {
         auth.user.id,
       ],
     );
+    if (final && data.type === "PRESCRIPTION")
+      await appendIntegrationEvent(client, {
+        organizationId: auth.organizationId,
+        unitId: appointment.unit_id,
+        actorUserId: auth.user.id,
+        eventType: "PRESCRIPTION_FINALIZED",
+        aggregateType: "PRESCRIPTION",
+        aggregateId: document.id,
+        aggregateVersion: document.version,
+        payload: { resourceId: document.id, resourceVersion: document.version },
+      });
     await client.query("COMMIT");
     return Response.json(
       { data: { id: document.id, status: document.status, version: document.version } },

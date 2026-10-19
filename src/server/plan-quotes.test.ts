@@ -300,6 +300,31 @@ describe("Plan probable quote boundary", () => {
       ).rows;
     const before = await count();
     expect((await f.quotePost(d)).status).toBe(201);
+    expect((await f.quotePost(d)).status).toBe(200);
+    expect(
+      (
+        await f.quotePost({
+          ...d,
+          operationId: randomUUID(),
+          version: 1,
+          expectedPreviewHash: undefined,
+        })
+      ).status,
+    ).toBe(200);
+    const emitted = (
+      await getPool().query(
+        "SELECT event_type,aggregate_type,aggregate_version,payload FROM inventory_integration_outbox WHERE aggregate_id=$1",
+        [d.id],
+      )
+    ).rows;
+    expect(emitted).toEqual([
+      {
+        event_type: "QUOTE_CREATED",
+        aggregate_type: "QUOTE",
+        aggregate_version: 1,
+        payload: { resourceId: d.id, resourceVersion: 1 },
+      },
+    ]);
     const response = await f.quoteRead("finance", d.id);
     expect(response.status).toBe(200);
     const raw = await response.text(),
