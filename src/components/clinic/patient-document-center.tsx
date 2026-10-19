@@ -11,7 +11,7 @@ import { PATIENT_DOCUMENT_MAX_BYTES } from "@/data/patient-document-upload";
 import { InventoryState } from "./inventory-state";
 
 type Category = { id: string; name: string; builtin: boolean };
-type PatientDocument = {
+export type PatientDocument = {
   id: string;
   sourceKind: string;
   sourceId: string;
@@ -30,7 +30,7 @@ type PatientDocument = {
   downloadUrl: string | null;
   originUrl: string | null;
 };
-type Payload = {
+export type PatientDocumentsPayload = {
   documents: PatientDocument[];
   categories: Category[];
   professionals: { id: string; name: string }[];
@@ -164,7 +164,7 @@ export function PatientDocumentCenter({
   });
   for (const [key, value] of Object.entries(filters)) if (value) params.set(key, value);
   if (examsOnly) params.set("categoryGroup", "EXAMS");
-  const query = useInventory<Payload>(`patient-documents?${params}`);
+  const query = useInventory<PatientDocumentsPayload>(`patient-documents?${params}`);
   const data = query.data;
   function filter(key: keyof typeof filters, value: string) {
     setFilters((previous) => ({ ...previous, [key]: value }));

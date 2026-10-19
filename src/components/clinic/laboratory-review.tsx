@@ -5,6 +5,8 @@ import {
 } from "@/lib/laboratory-review-checks";
 import { laboratoryFailureMessages } from "@/lib/laboratory-results";
 import { Fragment, useCallback, useEffect, useRef, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { invalidatePatientLaboratoryQueries } from "@/data/patient-laboratory-queries";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -70,6 +72,7 @@ export function LaboratoryReview({
   documentId: string;
   onChanged?: () => void;
 }) {
+  const queryClient = useQueryClient();
   const [open, setOpen] = useState(false),
     [data, setData] = useState<Data | null>(null),
     [draft, setDraft] = useState<LaboratoryDraft>(emptyLaboratoryDraft);
@@ -205,6 +208,7 @@ export function LaboratoryReview({
       });
       if (current !== generation.current) return;
       apply(next);
+      void invalidatePatientLaboratoryQueries(queryClient, patientId);
       changed.current?.();
       setMessage(
         action === "VALIDATE"

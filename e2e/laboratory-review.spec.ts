@@ -369,9 +369,13 @@ test("Paciente360º preserves laboratory review, conditional preconsultation and
     await expect(
       page.getByRole("heading", { name: "Exames laboratoriais", exact: true }),
     ).toBeVisible();
-    await page
-      .getByRole("button", { name: /^Ver original:/ })
-      .first()
+    // A reopened PDF must remain visible even while the longitudinal table still
+    // serves the last confirmed revision. Confirming it refreshes this mounted
+    // table without a reload or switching away from the encounter.
+    const examFiles = page.getByRole("region", { name: "Arquivos de exames do paciente" });
+    await expect(examFiles.getByText("Pronto para revisão", { exact: true })).toBeVisible();
+    await examFiles
+      .getByRole("button", { name: "Abrir exame: Laboratório sintético", exact: true })
       .click();
     const originalPanel = page.getByRole("complementary", {
       name: "Documento original do exame",
@@ -382,6 +386,24 @@ test("Paciente360º preserves laboratory review, conditional preconsultation and
       /download=true/,
     );
     await expect(originalPanel.locator("iframe")).toHaveAttribute("src", /^blob:/);
+    await originalPanel
+      .getByRole("button", { name: "Conferir resultados laboratoriais", exact: true })
+      .click();
+    await expect(dialog.getByLabel("Resultado da linha 1", { exact: true })).toBeEnabled();
+    await dialog.getByLabel("Resultado da linha 1", { exact: true }).fill("0,2");
+    await dialog.getByLabel("Conferir linha 1", { exact: true }).check();
+    await dialog.getByLabel("Conferir linha 2", { exact: true }).check();
+    await dialog.getByLabel("Confirmei que o PDF corresponde ao paciente selecionado.").check();
+    await dialog.getByRole("button", { name: "Confirmar resultados", exact: true }).click();
+    await expect(dialog.getByText("Validado", { exact: true })).toBeVisible();
+    await dialog.getByRole("button", { name: "Close", exact: true }).click();
+    const encounterHistory = page.getByRole("table", {
+      name: "Tabela longitudinal de exames",
+      exact: true,
+    });
+    await expect(encounterHistory.getByText("0,2", { exact: true })).toBeVisible();
+    await expect(encounterHistory.getByText("<0,1", { exact: true })).toHaveCount(0);
+    await expect(examFiles.getByText("Validado", { exact: true })).toBeVisible();
     await page.screenshot({ path: testInfo.outputPath("mockup-02-exames-desktop.png") });
     await steps.getByRole("tab", { name: "Anamnese", exact: true }).click();
     await expect(page.getByRole("textbox", { name: "Evolução", exact: true })).toHaveValue(

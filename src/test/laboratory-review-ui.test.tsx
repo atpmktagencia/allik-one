@@ -1,7 +1,17 @@
+import type { ReactElement } from "react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { afterEach, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render as renderView, screen, waitFor } from "@testing-library/react";
 import { LaboratoryReview } from "@/components/clinic/laboratory-review";
 import { emptyLaboratoryDraft, emptyLaboratoryRow } from "@/lib/laboratory-results";
+function render(ui: ReactElement) {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  return renderView(ui, {
+    wrapper: ({ children }) => (
+      <QueryClientProvider client={client}>{children}</QueryClientProvider>
+    ),
+  });
+}
 vi.mock("@/components/clinic/private-document-preview", () => ({
   PrivateDocumentPreview: () => <div>PDF original preservado</div>,
 }));

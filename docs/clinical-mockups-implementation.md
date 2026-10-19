@@ -69,6 +69,16 @@ A sessão publicada foi somente de consulta/navegação, usando o operador e pac
 
 A segunda comparação confirmou as mensagens de permissão em Solicitações e de sinais vitais ausentes na Visão geral. O reconhecimento de orientações emitidas pela Prescrição foi coberto também por teste de interface. Não houve alteração de esquema ou migração nesta entrega. O alias de produção permaneceu no mesmo deployment durante a publicação e a verificação do Preview.
 
+### Correção da aba Exames após homologação no Preview
+
+A primeira versão exibia somente o histórico confirmado no atendimento. PDFs já enviados ou extraídos, mas ainda em revisão, ficavam disponíveis apenas na central de documentos. A aba agora lista os cinco arquivos de exames mais recentes, com seus estados de processamento e acesso aos demais arquivos. Selecionar um PDF permite abrir o original e sua conferência na própria aba; resultados ainda não confirmados continuam fora da tabela longitudinal.
+
+Após salvar, extrair, reabrir ou confirmar uma revisão, as consultas de arquivos e histórico desse paciente são invalidadas. Isso atualiza as tabelas e os painéis já montados, sem recarregar a página nem descartar a evolução em edição. A atualização preserva os filtros e não invalida consultas de outros pacientes ou os buffers clínicos.
+
+O teste integrado de navegador reproduz um PDF em revisão, abre o original no atendimento, confirma uma correção e verifica a nova versão e o estado Validado sem recarregar a página. O mesmo percurso verifica a preservação da evolução ao alternar as etapas. Não há confirmação automática pela IA, alteração de permissões ou migração nesta correção.
+
+Validação desta correção: 442 testes unitários/de interface aprovados, incluindo estados dos arquivos e isolamento da invalidação por paciente; o cenário integrado de navegador do Paciente360º passou em banco descartável com usuário restrito. Typecheck, lint (seis avisos preexistentes) e build aprovados.
+
 ### Diferenças necessárias e limites
 
 - A evolução usa ferramentas de texto simples; o editor rico existente continua disponível nos documentos. Não é prometida formatação que desapareceria ao recarregar.
