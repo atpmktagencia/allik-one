@@ -512,4 +512,8 @@ Receitas criadas diretamente como finais preservam sua revisão histórica `0`; 
 
 O paciente passa a ter navegação contextual por Visão geral, Consultas, Documentos, Exames e Tratamentos. A central reúne oito fontes existentes sem duplicar seus registros, com busca, categorias múltiplas, filtros, paginação e prévia privada. Novos anexos PDF/JPEG/PNG preservam o original e recebem hash calculado no servidor, com validação de acesso por organização, paciente e unidades.
 
-Os fluxos atuais de consulta e tratamento permanecem disponíveis. Nesta fase, Exames reúne pedidos e arquivos; extração por IA, validação de resultados, comparação longitudinal e evolução dos questionários seguem nas próximas fases, nessa ordem. Consulte [desenho, segurança e validação da Fase 1](docs/patient-workspace-phase1.md). Migração aditiva `0070_patient_documents`, com publicação restrita ao Preview.
+Os fluxos atuais de consulta e tratamento permanecem disponíveis. Nesta fase, Exames reúne pedidos e arquivos; a conferência de resultados está descrita na Fase 2 abaixo; comparação longitudinal e questionários seguem nas próximas fases, nessa ordem. Consulte [desenho, segurança e validação da Fase 1](docs/patient-workspace-phase1.md). Migração aditiva `0070_patient_documents`, com publicação restrita ao Preview.
+
+### Patient Workspace — Fase 2: conferência de exames (Preview)
+
+PDF original e tabela editável lado a lado, com revisão explícita por resultado, confirmação do paciente, versões imutáveis e correção rastreável. A extração por IA depende de configuração do provedor; a conferência manual permanece disponível. Resultados incertos não são publicados automaticamente. Consulte [fluxo, limites e validação](docs/patient-workspace-phase2.md). Migração aditiva `0071_laboratory_review`; produção permanece preservada.

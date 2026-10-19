@@ -1,3 +1,5 @@
+import { PrivateDocumentPreview } from "./private-document-preview";
+import { LaboratoryReview } from "./laboratory-review";
 import { useEffect, useId, useRef, useState, type FormEvent } from "react";
 import { Files, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -20,6 +22,7 @@ type PatientDocument = {
   professionalName: string;
   unitName: string;
   status: string;
+  laboratoryStatus?: string | null;
   contentType: string | null;
   sizeBytes: number | null;
   previewUrl: string | null;
@@ -80,96 +83,6 @@ const dateLabel = (value: string) =>
 function safeUrl(value: string | null) {
   if (!value || !value.startsWith("/api/v1/inventory/") || value.startsWith("//")) return null;
   return withSelectedUnit(value);
-}
-
-function DocumentPreview({ document }: { document: PatientDocument }) {
-  const [preview, setPreview] = useState<{ url: string; type: string } | null>(null);
-  const [error, setError] = useState("");
-  const [pending, setPending] = useState(false);
-  const url = safeUrl(document.previewUrl);
-  useEffect(() => {
-    setPreview(null);
-    setError("");
-    setPending(false);
-    if (
-      !url ||
-      !document.contentType ||
-      !["application/pdf", "image/jpeg", "image/png"].includes(document.contentType)
-    )
-      return;
-    const controller = new AbortController();
-    let objectUrl: string | null = null;
-    setPending(true);
-    void fetch(url, { credentials: "same-origin", signal: controller.signal })
-      .then(async (response) => {
-        if (!response.ok)
-          throw new Error(
-            "Não foi possível abrir a prévia privada. Verifique seu acesso e tente novamente.",
-          );
-        const type = response.headers.get("content-type")?.split(";")[0]?.trim() ?? "";
-        if (!["application/pdf", "image/jpeg", "image/png"].includes(type))
-          throw new Error("Este formato deve ser consultado no registro de origem.");
-        const blob = await response.blob();
-        if (controller.signal.aborted) return;
-        objectUrl = URL.createObjectURL(blob);
-        setPreview({ url: objectUrl, type });
-      })
-      .catch((cause) => {
-        if (!controller.signal.aborted)
-          setError(cause instanceof Error ? cause.message : "Não foi possível abrir a prévia.");
-      })
-      .finally(() => {
-        if (!controller.signal.aborted) setPending(false);
-      });
-    return () => {
-      controller.abort();
-      if (objectUrl) URL.revokeObjectURL(objectUrl);
-    };
-  }, [url, document.contentType]);
-  return (
-    <div className="space-y-2">
-      {pending && (
-        <p role="status" className="text-sm">
-          Abrindo prévia privada…
-        </p>
-      )}
-      {error && (
-        <p role="alert" className="text-sm text-red-700">
-          {error}
-        </p>
-      )}
-      {url && document.contentType === "text/html" && (
-        <iframe
-          title={`Prévia privada: ${document.title}`}
-          src={url}
-          sandbox=""
-          referrerPolicy="no-referrer"
-          className="h-[60dvh] min-h-80 w-full rounded-md border bg-white"
-        />
-      )}
-      {preview &&
-        (preview.type.startsWith("image/") ? (
-          <img
-            src={preview.url}
-            alt={`Original: ${document.title}`}
-            className="max-h-[65dvh] w-full rounded-md object-contain"
-          />
-        ) : (
-          <iframe
-            title={`Prévia privada: ${document.title}`}
-            src={preview.url}
-            sandbox=""
-            referrerPolicy="no-referrer"
-            className="h-[60dvh] min-h-80 w-full rounded-md border bg-white"
-          />
-        ))}
-      {!pending && !error && !preview && !(url && document.contentType === "text/html") && (
-        <p className="text-sm text-muted-foreground">
-          Consulte este documento no registro de origem ou baixe o original, conforme seu acesso.
-        </p>
-      )}
-    </div>
-  );
 }
 
 export function PatientDocumentCenter({
@@ -340,7 +253,7 @@ export function PatientDocumentCenter({
           <h2 className="text-xl font-semibold">{examsOnly ? "Exames" : "Documentos"}</h2>
           <p className="mt-1 text-sm text-muted-foreground">
             {examsOnly
-              ? "Solicitações e arquivos de exames. Resultados laboratoriais estruturados ainda não fazem parte desta tela."
+              ? "Solicitações, arquivos e conferência de resultados. A comparação longitudinal será a próxima etapa."
               : "Registros e arquivos deste paciente, preservados em suas fontes de origem."}
           </p>
         </div>
@@ -545,7 +458,8 @@ export function PatientDocumentCenter({
                       {document.categories
                         .map((category) => categories.get(category) ?? "Categoria")
                         .join(" · ")}{" "}
-                      · {statusNames[document.status] ?? document.status}
+                      ·{" "}
+                      {statusNames[document.laboratoryStatus ?? document.status] ?? document.status}
                     </span>
                   </button>
                 </li>
@@ -596,7 +510,10 @@ export function PatientDocumentCenter({
                           .map((category) => categories.get(category) ?? "Categoria")
                           .join(" · ")}
                       </td>
-                      <td className="p-2">{statusNames[document.status] ?? document.status}</td>
+                      <td className="p-2">
+                        {statusNames[document.laboratoryStatus ?? document.status] ??
+                          document.status}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -661,7 +578,10 @@ export function PatientDocumentCenter({
                 <h3 className="break-words font-semibold">{selected.title}</h3>
                 <p className="text-xs text-muted-foreground">
                   {sourceNames[selected.sourceKind] ?? "Registro do paciente"} ·{" "}
-                  {statusNames[selected.status] ?? selected.status}
+                  {statusNames[
+                    data.documents.find((d) => d.id === selected.id)?.laboratoryStatus ??
+                      selected.status
+                  ] ?? selected.status}
                   {selected.revision !== null ? ` · versão ${selected.revision}` : ""}
                 </p>
                 <p className="text-sm">
@@ -683,7 +603,19 @@ export function PatientDocumentCenter({
                   </p>
                 )}
               </div>
-              <DocumentPreview key={selected.id} document={selected} />
+              <PrivateDocumentPreview key={selected.id} document={selected} />
+              {data.canUpload &&
+                selected.sourceKind === "GENERAL_DOCUMENT" &&
+                selected.contentType === "application/pdf" && (
+                  <LaboratoryReview
+                    key={patientId + selected.id}
+                    patientId={patientId}
+                    documentId={selected.sourceId}
+                    onChanged={() => {
+                      void query.refetch();
+                    }}
+                  />
+                )}
               {safeUrl(selected.previewUrl) &&
                 !["application/pdf", "image/jpeg", "image/png"].includes(
                   selected.contentType ?? "",

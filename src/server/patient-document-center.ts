@@ -203,7 +203,7 @@ export async function patientDocumentsResponse(request: Request) {
     const matching = `($8::text IS NULL OR s.title ILIKE $8 OR s.professional_name ILIKE $8) AND ($9::text IS NULL OR $9=ANY(s.categories)) AND ($10::date IS NULL OR (s.occurred_at AT TIME ZONE 'America/Fortaleza')::date >= $10::date) AND ($11::date IS NULL OR (s.occurred_at AT TIME ZONE 'America/Fortaleza')::date <= $11::date) AND ($12::uuid IS NULL OR s.professional_id=$12) AND ($13::text IS NULL OR s.source_kind=$13) AND ($17::text IS NULL OR s.categories&&ARRAY['EXAM_REQUEST','LAB_RESULT','IMAGE_REPORT'])`;
     const rows = (
       await getPool().query(
-        `WITH sources AS (${union}), matching AS(SELECT s.* FROM sources s WHERE ${matching}) SELECT s.*,u.name unit_name,(SELECT q.appointment_id FROM inventory_encounter_quotes q WHERE s.source_kind='LEGACY_QUOTE' AND q.id=s.source_id AND q.organization_id=$2) origin_appointment,count(*) OVER()::int total FROM matching s JOIN inventory_units u ON u.id=s.unit_id AND u.organization_id=$2 ORDER BY CASE WHEN $16='relevance' THEN CASE WHEN lower(s.title)=lower($18) THEN 0 WHEN lower(left(s.title,length($18)))=lower($18) THEN 1 ELSE 2 END ELSE 0 END,s.occurred_at DESC,s.source_kind,s.source_id DESC,s.revision DESC LIMIT $14 OFFSET $15`,
+        `WITH sources AS (${union}), matching AS(SELECT s.* FROM sources s WHERE ${matching}) SELECT s.*,l.status laboratory_status,u.name unit_name,(SELECT q.appointment_id FROM inventory_encounter_quotes q WHERE s.source_kind='LEGACY_QUOTE' AND q.id=s.source_id AND q.organization_id=$2) origin_appointment,count(*) OVER()::int total FROM matching s JOIN inventory_units u ON u.id=s.unit_id AND u.organization_id=$2 LEFT JOIN inventory_laboratory_imports l ON l.document_id=s.source_id AND l.organization_id=$2 AND s.source_kind='GENERAL_DOCUMENT' ORDER BY CASE WHEN $16='relevance' THEN CASE WHEN lower(s.title)=lower($18) THEN 0 WHEN lower(left(s.title,length($18)))=lower($18) THEN 1 ELSE 2 END ELSE 0 END,s.occurred_at DESC,s.source_kind,s.source_id DESC,s.revision DESC LIMIT $14 OFFSET $15`,
         params,
       )
     ).rows;
@@ -229,6 +229,7 @@ export async function patientDocumentsResponse(request: Request) {
           professionalName: r.professional_name,
           unitName: r.unit_name,
           status: r.status,
+          laboratoryStatus: r.laboratory_status ?? null,
           contentType: r.content_type,
           sizeBytes: r.size_bytes,
           previewUrl: preview ? fileUrl : null,

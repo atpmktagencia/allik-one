@@ -3103,3 +3103,124 @@ export const patientDocumentEvents = pgTable(
   },
   (t) => [index("patient_document_event_history").on(t.documentId, t.createdAt)],
 );
+
+export const laboratoryImports = pgTable(
+  "inventory_laboratory_imports",
+  {
+    id: uuid("id").primaryKey(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id),
+    unitId: uuid("unit_id")
+      .notNull()
+      .references(() => units.id),
+    patientId: uuid("patient_id")
+      .notNull()
+      .references(() => patients.id),
+    documentId: uuid("document_id")
+      .notNull()
+      .unique()
+      .references(() => patientDocuments.id),
+    sourceSha256: text("source_sha256").notNull(),
+    extractedPayload: jsonb("extracted_payload"),
+    status: text("status").notNull().default("WAITING"),
+    version: integer("version").notNull().default(0),
+    draft: jsonb("draft").notNull(),
+    attemptId: uuid("attempt_id"),
+    processingStartedAt: timestamp("processing_started_at", { withTimezone: true }),
+    failureCode: text("failure_code"),
+    model: text("model"),
+    latestReviewId: uuid("latest_review_id"),
+    createdByUserId: uuid("created_by_user_id")
+      .notNull()
+      .references(() => users.id),
+    updatedByUserId: uuid("updated_by_user_id")
+      .notNull()
+      .references(() => users.id),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("laboratory_import_patient").on(t.organizationId, t.patientId, t.createdAt)],
+);
+
+export const laboratoryReviewVersions = pgTable(
+  "inventory_laboratory_review_versions",
+  {
+    id: uuid("id").primaryKey(),
+    importId: uuid("import_id")
+      .notNull()
+      .references(() => laboratoryImports.id),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id),
+    unitId: uuid("unit_id")
+      .notNull()
+      .references(() => units.id),
+    patientId: uuid("patient_id")
+      .notNull()
+      .references(() => patients.id),
+    version: integer("version").notNull(),
+    sourceSha256: text("source_sha256").notNull(),
+    snapshot: jsonb("snapshot").notNull(),
+    reviewedByUserId: uuid("reviewed_by_user_id")
+      .notNull()
+      .references(() => users.id),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("laboratory_review_version").on(t.importId, t.version)],
+);
+
+export const laboratoryResults = pgTable(
+  "inventory_laboratory_results",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    reviewId: uuid("review_id")
+      .notNull()
+      .references(() => laboratoryReviewVersions.id),
+    importId: uuid("import_id")
+      .notNull()
+      .references(() => laboratoryImports.id),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id),
+    unitId: uuid("unit_id")
+      .notNull()
+      .references(() => units.id),
+    patientId: uuid("patient_id")
+      .notNull()
+      .references(() => patients.id),
+    ordinal: integer("ordinal").notNull(),
+    payload: jsonb("payload").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("laboratory_result_ordinal").on(t.reviewId, t.ordinal),
+    index("laboratory_result_patient").on(t.organizationId, t.patientId),
+  ],
+);
+
+export const laboratoryImportEvents = pgTable(
+  "inventory_laboratory_import_events",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    importId: uuid("import_id")
+      .notNull()
+      .references(() => laboratoryImports.id),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id),
+    unitId: uuid("unit_id")
+      .notNull()
+      .references(() => units.id),
+    patientId: uuid("patient_id")
+      .notNull()
+      .references(() => patients.id),
+    actorUserId: uuid("actor_user_id")
+      .notNull()
+      .references(() => users.id),
+    action: text("action").notNull(),
+    metadata: jsonb("metadata").notNull().default({}),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("laboratory_event_import").on(t.importId, t.createdAt)],
+);

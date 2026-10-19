@@ -65,6 +65,11 @@ export const Route = createFileRoute("/api/v1/inventory/$")({
       GET: ({ request }) => {
         if (
           new URL(request.url).pathname.replace(/\/$/, "") ===
+          "/api/v1/inventory/laboratory-results"
+        )
+          return laboratoryResultsResponse(request);
+        if (
+          new URL(request.url).pathname.replace(/\/$/, "") ===
           "/api/v1/inventory/composer-plan-options"
         )
           return composerPlanOptionsResponse(request);
@@ -190,6 +195,11 @@ export const Route = createFileRoute("/api/v1/inventory/$")({
           : inventoryResponse(request);
       },
       POST: ({ request }) => {
+        if (
+          new URL(request.url).pathname.replace(/\/$/, "") ===
+          "/api/v1/inventory/laboratory-results"
+        )
+          return laboratoryResultsResponse(request);
         if (
           new URL(request.url).pathname.replace(/\/$/, "") ===
           "/api/v1/inventory/composer-plan-options"
@@ -324,3 +334,4 @@ export const Route = createFileRoute("/api/v1/inventory/$")({
     },
   },
 });
+import { laboratoryResultsResponse } from "@/server/laboratory-results";
