@@ -67,6 +67,7 @@ test("individual clinician saves an independent plan with explicit schedule and 
       { name: "allik_inventory_session", value: tokens[0]!, url: baseURL! },
     ]);
     await page.goto(`/pacientes/${patient}`);
+    await page.getByRole("button", { name: "Tratamentos", exact: true }).click();
     const panel = page.getByRole("region", { name: "Plano clínico estruturado", exact: true });
     await panel.getByRole("button", { name: "Abrir plano clínico", exact: true }).click();
     await panel.getByRole("button", { name: "Novo plano clínico", exact: true }).click();
@@ -100,6 +101,7 @@ test("individual clinician saves an independent plan with explicit schedule and 
       panel.getByRole("heading", { name: "Plano clínico sintético independente", exact: true }),
     ).toBeVisible();
     await page.reload({ waitUntil: "networkidle" });
+    await page.getByRole("button", { name: "Tratamentos", exact: true }).click();
     await panel.getByRole("button", { name: "Abrir plano clínico", exact: true }).click();
     await panel
       .getByRole("button", { name: /Plano clínico sintético independente · Ativo · v1/ })
@@ -122,6 +124,7 @@ test("individual clinician saves an independent plan with explicit schedule and 
       ]);
       const other = await colleague.newPage();
       await other.goto(`${baseURL}/pacientes/${patient}`);
+      await other.getByRole("button", { name: "Tratamentos", exact: true }).click();
       const otherPanel = other.getByRole("region", {
         name: "Plano clínico estruturado",
         exact: true,

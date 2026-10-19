@@ -3033,3 +3033,73 @@ export const integrationEventAudit = pgTable(
   },
   (t) => [index("integration_audit_event").on(t.eventId)],
 );
+
+export const patientDocumentCategories = pgTable(
+  "inventory_patient_document_categories",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id),
+    name: text("name").notNull(),
+    createdByUserId: uuid("created_by_user_id")
+      .notNull()
+      .references(() => users.id),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("patient_document_category_name_unique").on(
+      t.organizationId,
+      sql`lower(${t.name})`,
+    ),
+  ],
+);
+export const patientDocuments = pgTable(
+  "inventory_patient_documents",
+  {
+    id: uuid("id").primaryKey(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id),
+    unitId: uuid("unit_id")
+      .notNull()
+      .references(() => units.id),
+    patientId: uuid("patient_id")
+      .notNull()
+      .references(() => patients.id),
+    title: text("title").notNull(),
+    categories: text("categories").array().notNull(),
+    issuedOn: date("issued_on"),
+    blobPathname: text("blob_pathname").notNull().unique(),
+    originalFilename: text("original_filename").notNull(),
+    contentType: text("content_type").notNull(),
+    sizeBytes: integer("size_bytes").notNull(),
+    sha256: text("sha256").notNull(),
+    uploadedByUserId: uuid("uploaded_by_user_id")
+      .notNull()
+      .references(() => users.id),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("patient_documents_patient_date").on(t.organizationId, t.patientId, t.createdAt)],
+);
+export const patientDocumentEvents = pgTable(
+  "inventory_patient_document_events",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id),
+    unitId: uuid("unit_id")
+      .notNull()
+      .references(() => units.id),
+    documentId: uuid("document_id")
+      .notNull()
+      .references(() => patientDocuments.id),
+    actorUserId: uuid("actor_user_id")
+      .notNull()
+      .references(() => users.id),
+    action: text("action").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("patient_document_event_history").on(t.documentId, t.createdAt)],
+);

@@ -111,6 +111,7 @@ describe("Patient application UI", () => {
         <PatientTreatmentPage patientId={patientId} />
       </QueryClientProvider>,
     );
+    fireEvent.click(await screen.findByRole("button", { name: "Tratamentos" }));
     expect(await screen.findByText(/Disponível para reservar:/)).toHaveTextContent("5 MG");
     expect(screen.getByText(/Livre após reservas:/)).toHaveTextContent("25 MG");
     fireEvent.click(await screen.findByRole("button", { name: "Registrar aplicação" }));

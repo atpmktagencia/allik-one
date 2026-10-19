@@ -59,16 +59,20 @@ export async function encounterDocumentsResponse(request: Request) {
     if (url.searchParams.get("print") === "true") {
       if (!uuid.safeParse(documentId).success) return fail("Documento inválido.", 400);
       const result = await getPool().query(
-        `SELECT d.*,p.full_name,p.internal_code,u.name AS unit_name,
+        `SELECT d.*,p.full_name,p.internal_code,p.primary_unit_id AS patient_current_unit_id,u.name AS unit_name,
         (SELECT jsonb_build_object('parentDocumentId',a.parent_document_id,'kind',a.kind,'reason',a.reason,'parentSha256',a.parent_sha256) FROM inventory_clinical_document_amendments a WHERE a.document_id=d.id) AS amendment,
         (SELECT 'A1-'||upper(rchild.id::text) FROM inventory_clinical_document_amendments ra JOIN inventory_encounter_documents rchild ON rchild.id=ra.document_id
           WHERE ra.parent_document_id=d.id AND ra.kind='RECTIFICATION' AND rchild.status='FINAL' ORDER BY rchild.finalized_at,rchild.id LIMIT 1) AS rectified_by
-        FROM inventory_encounter_documents d JOIN inventory_patients p ON p.id=d.patient_id
+        FROM inventory_encounter_documents d JOIN inventory_patients p ON p.id=d.patient_id AND p.organization_id=d.organization_id
         JOIN inventory_units u ON u.id=d.unit_id WHERE d.id=$1 AND d.organization_id=$2`,
         [documentId, auth.organizationId],
       );
       const doc = result.rows[0];
-      if (!doc || !can(auth, "patients.private.read", doc.unit_id))
+      if (
+        !doc ||
+        !can(auth, "patients.private.read", doc.unit_id) ||
+        !can(auth, "patients.private.read", doc.patient_current_unit_id)
+      )
         return fail("Documento não encontrado.", 404);
       if (
         doc.status !== "FINAL" &&

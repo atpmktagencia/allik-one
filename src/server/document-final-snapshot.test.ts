@@ -89,7 +89,7 @@ async function fixture() {
         headers: { cookie: `allik_inventory_session=${token}` },
       }),
     );
-  return { organizationId, unitId, patientId, userId, appointmentId, post, get };
+  return { organizationId, unitId, patientId, userId, appointmentId, membershipId, post, get };
 }
 
 describe("final document snapshots", () => {
@@ -451,6 +451,31 @@ describe("final document snapshots", () => {
     );
     expect(otherAuthorPreview.status).toBe(409);
     await getPool().query("DELETE FROM inventory_unit_access WHERE unit_id=$1", [f.unitId]);
+    expect((await f.get(`documentId=${draft.id}&print=true&preview=true`)).status).toBe(404);
+  });
+
+  it("requires both original and current patient units for print and preview after transfer", async () => {
+    const f = await fixture();
+    const draft = (await (await f.post()).json()).data;
+    const otherUnit = randomUUID();
+    await getPool().query(
+      "INSERT INTO inventory_units(id,organization_id,name) VALUES($1,$2,'Transferred unit')",
+      [otherUnit, f.organizationId],
+    );
+    await getPool().query("UPDATE inventory_patients SET primary_unit_id=$1 WHERE id=$2", [
+      otherUnit,
+      f.patientId,
+    ]);
+    expect((await f.get(`documentId=${draft.id}&print=true&preview=true`)).status).toBe(404);
+    await getPool().query(
+      "INSERT INTO inventory_unit_access(membership_id,unit_id) VALUES($1,$2)",
+      [f.membershipId, otherUnit],
+    );
+    expect((await f.get(`documentId=${draft.id}&print=true&preview=true`)).status).toBe(200);
+    await getPool().query(
+      "DELETE FROM inventory_unit_access WHERE membership_id=$1 AND unit_id=$2",
+      [f.membershipId, f.unitId],
+    );
     expect((await f.get(`documentId=${draft.id}&print=true&preview=true`)).status).toBe(404);
   });
 

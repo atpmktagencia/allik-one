@@ -1,3 +1,7 @@
+import {
+  patientDocumentsResponse,
+  patientDocumentFileResponse,
+} from "@/server/patient-document-center";
 import { composerPlanOptionsResponse } from "@/server/composer-plan-options";
 import { planQuotesResponse } from "@/server/plan-quotes";
 import { patientTreatmentPlansResponse } from "@/server/patient-treatment-plans";
@@ -64,6 +68,15 @@ export const Route = createFileRoute("/api/v1/inventory/$")({
           "/api/v1/inventory/composer-plan-options"
         )
           return composerPlanOptionsResponse(request);
+        if (
+          new URL(request.url).pathname.replace(/\/$/, "") === "/api/v1/inventory/patient-documents"
+        )
+          return patientDocumentsResponse(request);
+        if (
+          new URL(request.url).pathname.replace(/\/$/, "") ===
+          "/api/v1/inventory/patient-document-file"
+        )
+          return patientDocumentFileResponse(request);
         if (new URL(request.url).pathname.replace(/\/$/, "") === "/api/v1/inventory/plan-quotes")
           return planQuotesResponse(request);
         if (
@@ -182,6 +195,15 @@ export const Route = createFileRoute("/api/v1/inventory/$")({
           "/api/v1/inventory/composer-plan-options"
         )
           return composerPlanOptionsResponse(request);
+        if (
+          new URL(request.url).pathname.replace(/\/$/, "") === "/api/v1/inventory/patient-documents"
+        )
+          return patientDocumentsResponse(request);
+        if (
+          new URL(request.url).pathname.replace(/\/$/, "") ===
+          "/api/v1/inventory/patient-document-file"
+        )
+          return patientDocumentFileResponse(request);
         if (new URL(request.url).pathname.replace(/\/$/, "") === "/api/v1/inventory/plan-quotes")
           return planQuotesResponse(request);
         if (

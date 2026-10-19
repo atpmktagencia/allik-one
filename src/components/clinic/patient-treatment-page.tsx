@@ -1,3 +1,8 @@
+import { PatientDocumentCenter } from "./patient-document-center";
+import {
+  PatientWorkspaceNavigation,
+  type PatientWorkspaceSection,
+} from "./patient-workspace-navigation";
 import { PatientClinicalPlans } from "./patient-clinical-plans";
 import { PatientEncounterHistory, type PatientEncounterSummary } from "./patient-encounter-history";
 import { useQueryClient } from "@tanstack/react-query";
@@ -263,6 +268,8 @@ const blankAlert = {
 export function PatientTreatmentPage({ patientId }: { patientId: string }) {
   const queryClient = useQueryClient();
   const query = useInventory<Payload>(`patient-detail?patientId=${patientId}`);
+  const [workspaceSection, setWorkspaceSection] = useState<PatientWorkspaceSection>("overview");
+  const [documentsOpened, setDocumentsOpened] = useState(false);
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState(blank);
   const [pending, setPending] = useState(false);
@@ -605,6 +612,7 @@ export function PatientTreatmentPage({ patientId }: { patientId: string }) {
                 <Button
                   onClick={() => {
                     setError("");
+                    setWorkspaceSection("treatments");
                     setForm({
                       ...blank,
                       firstScheduledOn: new Intl.DateTimeFormat("en-CA", {
@@ -636,1092 +644,1199 @@ export function PatientTreatmentPage({ patientId }: { patientId: string }) {
       {data.allergySummary && (
         <PatientAllergySummary patientId={patientId} summary={data.allergySummary} />
       )}
-      <PatientEncounterHistory encounters={data.encounterHistory ?? []} />
-      <PatientClinicalPlans key={patientId} patientId={patientId} />
-      <section className="space-y-4 rounded-xl border border-warning bg-warning-soft p-5">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <h2 className="flex items-center gap-2 font-semibold text-warning-foreground">
-              <AlertTriangle className="size-5" /> Alergias e alertas clínicos
-            </h2>
-            <p className="mt-1 text-xs text-muted-foreground">
-              Alertas ativos ficam destacados também durante o atendimento.
-            </p>
-          </div>
-          {data.canManageClinicalProblems ? (
-            <Button
-              variant="outline"
-              onClick={() => {
-                setClinicalAlert(blankAlert);
-                setAlertFormOpen(true);
-              }}
+      <div className="grid min-w-0 gap-5 lg:grid-cols-[180px_minmax(0,1fr)]">
+        <PatientWorkspaceNavigation
+          patient={data.patient}
+          section={workspaceSection}
+          onSelect={(section) => {
+            setWorkspaceSection(section);
+            if (section === "documents" || section === "exams") setDocumentsOpened(true);
+          }}
+        />
+        <main className="min-w-0" aria-label="Área do paciente">
+          <div hidden={workspaceSection !== "overview"} className="space-y-5">
+            <section
+              className="space-y-3 border-b border-slate-200 pb-5"
+              aria-label="Visão geral do paciente"
             >
-              <Plus /> Adicionar alerta
-            </Button>
-          ) : null}
-        </div>
-        {alertFormOpen && data.canManageClinicalProblems ? (
-          <form onSubmit={saveClinicalAlert} className="space-y-4 rounded-lg border bg-card p-4">
-            <div className="grid gap-4 md:grid-cols-2">
-              <label className="space-y-1 text-sm font-medium">
-                Tipo
-                <select
-                  className="h-10 w-full rounded-md border bg-background px-3"
-                  value={clinicalAlert.type}
-                  onChange={(event) =>
-                    setClinicalAlert({
-                      ...clinicalAlert,
-                      type: event.target.value as typeof clinicalAlert.type,
-                    })
-                  }
+              <h2 className="text-xl font-semibold">Visão geral</h2>
+              <p className="text-sm text-muted-foreground">
+                Informações clínicas e acesso ao histórico deste paciente.
+              </p>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setWorkspaceSection("encounters")}
                 >
-                  <option value="ALLERGY">Alergia</option>
-                  <option value="WARNING">Alerta</option>
-                  <option value="PRECAUTION">Precaução</option>
-                </select>
-              </label>
-              <label className="space-y-1 text-sm font-medium">
-                Gravidade
-                <select
-                  className="h-10 w-full rounded-md border bg-background px-3"
-                  value={clinicalAlert.severity}
-                  onChange={(event) =>
-                    setClinicalAlert({
-                      ...clinicalAlert,
-                      severity: event.target.value as typeof clinicalAlert.severity,
-                    })
-                  }
-                >
-                  <option value="UNKNOWN">Não informada</option>
-                  <option value="MILD">Leve</option>
-                  <option value="MODERATE">Moderada</option>
-                  <option value="SEVERE">Grave</option>
-                </select>
-              </label>
-              <label className="space-y-1 text-sm font-medium md:col-span-2">
-                Agente, alergia ou título do alerta
-                <Input
-                  required
-                  minLength={2}
-                  maxLength={200}
-                  value={clinicalAlert.title}
-                  onChange={(event) =>
-                    setClinicalAlert({ ...clinicalAlert, title: event.target.value })
-                  }
-                />
-              </label>
-              <label className="space-y-1 text-sm font-medium">
-                Reação conhecida (opcional)
-                <Input
-                  maxLength={500}
-                  value={clinicalAlert.reaction}
-                  onChange={(event) =>
-                    setClinicalAlert({ ...clinicalAlert, reaction: event.target.value })
-                  }
-                />
-              </label>
-              <label className="space-y-1 text-sm font-medium">
-                Situação
-                <select
-                  className="h-10 w-full rounded-md border bg-background px-3"
-                  value={clinicalAlert.status}
-                  onChange={(event) =>
-                    setClinicalAlert({
-                      ...clinicalAlert,
-                      status: event.target.value as typeof clinicalAlert.status,
-                    })
-                  }
-                >
-                  <option value="ACTIVE">Ativo</option>
-                  <option value="INACTIVE">Inativo</option>
-                </select>
-              </label>
-              <label className="space-y-1 text-sm font-medium md:col-span-2">
-                Observações
-                <Textarea
-                  maxLength={2000}
-                  rows={3}
-                  value={clinicalAlert.notes}
-                  onChange={(event) =>
-                    setClinicalAlert({ ...clinicalAlert, notes: event.target.value })
-                  }
-                />
-              </label>
-              <label className="space-y-1 text-sm font-medium md:col-span-2">
-                Motivo da inclusão ou alteração
-                <Input
-                  required
-                  minLength={10}
-                  maxLength={500}
-                  value={clinicalAlert.reason}
-                  onChange={(event) =>
-                    setClinicalAlert({ ...clinicalAlert, reason: event.target.value })
-                  }
-                />
-              </label>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              <Button disabled={pending}>{pending ? "Salvando…" : "Salvar alerta"}</Button>
-              <Button
-                type="button"
-                variant="ghost"
-                disabled={pending}
-                onClick={() => setAlertFormOpen(false)}
-              >
-                Cancelar
-              </Button>
-            </div>
-          </form>
-        ) : null}
-        {clinicalAlerts.length ? (
-          <div className="grid gap-3 lg:grid-cols-2">
-            {clinicalAlerts.map((item) => (
-              <article
-                key={item.id}
-                className={`rounded-lg border p-4 ${item.status === "ACTIVE" ? "bg-card" : "opacity-60"}`}
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <div className="flex flex-wrap items-center gap-2">
-                      <p className="font-medium">{item.title}</p>
-                      <Badge variant={item.severity === "SEVERE" ? "destructive" : "outline"}>
-                        {alertSeverityLabels[item.severity]}
-                      </Badge>
-                      <Badge variant="secondary">{alertTypeLabels[item.type]}</Badge>
-                      {item.status === "INACTIVE" ? <Badge variant="outline">Inativo</Badge> : null}
-                    </div>
-                    {item.reaction ? <p className="mt-2 text-sm">Reação: {item.reaction}</p> : null}
-                    {item.notes ? (
-                      <p className="mt-2 whitespace-pre-wrap text-sm text-muted-foreground">
-                        {item.notes}
-                      </p>
-                    ) : null}
-                    <p className="mt-2 text-xs text-muted-foreground">
-                      {item.authorName} · {item.professionalCouncil} {item.councilNumber}/
-                      {item.councilRegion}
-                    </p>
-                  </div>
-                  {data.canManageClinicalProblems ? (
-                    <Button variant="ghost" size="sm" onClick={() => editClinicalAlert(item)}>
-                      Editar
-                    </Button>
-                  ) : null}
-                </div>
-              </article>
-            ))}
-          </div>
-        ) : (
-          <p className="rounded-lg bg-card p-4 text-sm text-muted-foreground">
-            Nenhuma alergia ou alerta clínico registrado.
-          </p>
-        )}
-      </section>
-      <section className="space-y-4 rounded-xl border bg-card p-5">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <h2 className="font-semibold">Problemas e antecedentes clínicos</h2>
-            <p className="mt-1 text-xs text-muted-foreground">
-              Registros estruturados com CID-10 opcional, situação e autoria profissional.
-            </p>
-          </div>
-          {data.canManageClinicalProblems ? (
-            <Button
-              variant="outline"
-              onClick={() => {
-                setProblem(blankProblem);
-                setProblemFormOpen(true);
-              }}
-            >
-              <Plus /> Adicionar registro
-            </Button>
-          ) : null}
-        </div>
-        {problemFormOpen && data.canManageClinicalProblems ? (
-          <form onSubmit={saveClinicalProblem} className="space-y-4 rounded-lg border p-4">
-            <div className="grid gap-4 md:grid-cols-2">
-              <label className="space-y-1 text-sm font-medium md:col-span-2">
-                Problema ou antecedente
-                <Input
-                  required
-                  minLength={3}
-                  maxLength={300}
-                  value={problem.description}
-                  onChange={(event) => setProblem({ ...problem, description: event.target.value })}
-                />
-              </label>
-              <label className="space-y-1 text-sm font-medium">
-                CID-10 (opcional)
-                <Input
-                  maxLength={8}
-                  placeholder="Ex.: E11.9"
-                  value={problem.icd10Code}
-                  onChange={(event) =>
-                    setProblem({ ...problem, icd10Code: event.target.value.toUpperCase() })
-                  }
-                />
-              </label>
-              <label className="space-y-1 text-sm font-medium">
-                Situação
-                <select
-                  className="h-10 w-full rounded-md border bg-background px-3"
-                  value={problem.status}
-                  onChange={(event) =>
-                    setProblem({ ...problem, status: event.target.value as typeof problem.status })
-                  }
-                >
-                  <option value="ACTIVE">Ativo</option>
-                  <option value="RESOLVED">Resolvido</option>
-                  <option value="INACTIVE">Inativo/Histórico</option>
-                </select>
-              </label>
-              <label className="space-y-1 text-sm font-medium">
-                Início conhecido (opcional)
-                <Input
-                  type="date"
-                  value={problem.onsetOn}
-                  onChange={(event) => setProblem({ ...problem, onsetOn: event.target.value })}
-                />
-              </label>
-              <label className="space-y-1 text-sm font-medium">
-                Data de resolução {problem.status === "RESOLVED" ? "(obrigatória)" : "(opcional)"}
-                <Input
-                  type="date"
-                  required={problem.status === "RESOLVED"}
-                  value={problem.resolvedOn}
-                  onChange={(event) => setProblem({ ...problem, resolvedOn: event.target.value })}
-                />
-              </label>
-              <label className="space-y-1 text-sm font-medium md:col-span-2">
-                Observações clínicas limitadas
-                <Textarea
-                  maxLength={2000}
-                  rows={3}
-                  value={problem.notes}
-                  onChange={(event) => setProblem({ ...problem, notes: event.target.value })}
-                />
-              </label>
-              <label className="space-y-1 text-sm font-medium md:col-span-2">
-                Motivo da inclusão ou alteração
-                <Input
-                  required
-                  minLength={10}
-                  maxLength={500}
-                  value={problem.reason}
-                  onChange={(event) => setProblem({ ...problem, reason: event.target.value })}
-                />
-              </label>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              <Button disabled={pending}>{pending ? "Salvando…" : "Salvar registro"}</Button>
-              <Button
-                type="button"
-                variant="ghost"
-                disabled={pending}
-                onClick={() => setProblemFormOpen(false)}
-              >
-                Cancelar
-              </Button>
-            </div>
-          </form>
-        ) : null}
-        {clinicalProblems.length ? (
-          <div className="grid gap-3 lg:grid-cols-2">
-            {clinicalProblems.map((item) => (
-              <article key={item.id} className="rounded-lg border p-4">
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <div className="flex flex-wrap items-center gap-2">
-                      <p className="font-medium">{item.description}</p>
-                      <Badge variant={item.status === "ACTIVE" ? "default" : "secondary"}>
-                        {item.status === "ACTIVE"
-                          ? "Ativo"
-                          : item.status === "RESOLVED"
-                            ? "Resolvido"
-                            : "Histórico"}
-                      </Badge>
-                      {item.icd10Code ? (
-                        <Badge variant="outline">CID-10 {item.icd10Code}</Badge>
-                      ) : null}
-                    </div>
-                    <p className="mt-2 text-xs text-muted-foreground">
-                      {item.authorName} · {item.professionalCouncil} {item.councilNumber}/
-                      {item.councilRegion}
-                    </p>
-                    {item.notes ? (
-                      <p className="mt-3 whitespace-pre-wrap text-sm">{item.notes}</p>
-                    ) : null}
-                  </div>
-                  {data.canManageClinicalProblems ? (
-                    <Button variant="ghost" size="sm" onClick={() => editClinicalProblem(item)}>
-                      Editar
-                    </Button>
-                  ) : null}
-                </div>
-              </article>
-            ))}
-          </div>
-        ) : (
-          <p className="rounded-lg bg-muted p-4 text-sm text-muted-foreground">
-            Nenhum problema ou antecedente clínico registrado.
-          </p>
-        )}
-      </section>
-      <section className="space-y-4 rounded-xl border bg-card p-5">
-        <div>
-          <h2 className="flex items-center gap-2 font-semibold">
-            <Stethoscope className="size-4" /> Prontuário longitudinal
-          </h2>
-          <p className="mt-1 text-xs text-muted-foreground">
-            Evoluções finalizadas, com autoria registrada, da mais recente para a mais antiga.
-          </p>
-        </div>
-        {clinicalHistory.length ? (
-          <div className="space-y-4">
-            {clinicalHistory.map((note) => (
-              <article key={note.id} className="rounded-lg border p-4">
-                <div className="flex flex-wrap items-start justify-between gap-3">
-                  <div>
-                    <p className="font-medium">{note.careTypeName}</p>
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      {new Intl.DateTimeFormat("pt-BR", {
-                        dateStyle: "medium",
-                        timeStyle: "short",
-                        timeZone: "America/Fortaleza",
-                      }).format(new Date(note.finalizedAt))}
-                      {" · "}
-                      {note.authorName} · {note.professionalCouncil} {note.councilNumber}/
-                      {note.councilRegion}
-                    </p>
-                  </div>
-                  <Button asChild variant="outline" size="sm">
-                    <Link
-                      to="/atendimentos/$appointmentId"
-                      params={{ appointmentId: note.appointmentId }}
-                    >
-                      Abrir atendimento
-                    </Link>
-                  </Button>
-                </div>
-                <div className="mt-4 grid gap-4 md:grid-cols-2">
-                  <div>
-                    <p className="text-xs font-medium text-muted-foreground">Evolução</p>
-                    <p className="mt-1 whitespace-pre-wrap text-sm">{note.evolution}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs font-medium text-muted-foreground">Conduta</p>
-                    <p className="mt-1 whitespace-pre-wrap text-sm">
-                      {note.conduct || "Não informada."}
-                    </p>
-                  </div>
-                </div>
-                {(note.diagnosticHypotheses ||
-                  note.clinicalPlan ||
-                  note.returnRecommendation ||
-                  note.returnOn) && (
-                  <div className="mt-4 grid gap-4 rounded-lg bg-muted p-4 md:grid-cols-2">
-                    <ClinicalText
-                      label="Hipóteses ou diagnósticos"
-                      value={note.diagnosticHypotheses}
-                    />
-                    <ClinicalText label="Plano clínico" value={note.clinicalPlan} />
-                    <ClinicalText label="Retorno recomendado" value={note.returnRecommendation} />
-                    <ClinicalText
-                      label="Data sugerida para retorno"
-                      value={note.returnOn ? note.returnOn.split("-").reverse().join("/") : ""}
-                    />
-                  </div>
-                )}
-                <ClinicalAnamnesis note={note} />
-                <ClinicalPhysicalExam note={note} />
-                <VitalsSummary note={note} />
-              </article>
-            ))}
-          </div>
-        ) : (
-          <p className="rounded-lg bg-muted p-4 text-sm text-muted-foreground">
-            Ainda não há evoluções clínicas finalizadas para este paciente.
-          </p>
-        )}
-      </section>
-      <Dialog
-        open={open && data.canManage}
-        onOpenChange={(value) => {
-          if (!pending) setOpen(value);
-        }}
-      >
-        <DialogContent className="clinical-workspace max-h-[90dvh] overflow-y-auto rounded-2xl sm:max-w-3xl">
-          <DialogHeader>
-            <DialogTitle>Novo tratamento</DialogTitle>
-            <DialogDescription>
-              Cadastre o tratamento prescrito e sua programação de aplicações. O cadastro não altera
-              o estoque físico.
-            </DialogDescription>
-          </DialogHeader>
-          {error && (
-            <p role="alert" className="text-sm text-destructive">
-              {error}
-            </p>
-          )}
-          {!data.products.length && (
-            <p className="text-sm text-muted-foreground">
-              Cadastre um produto ativo em Produtos e sede para criar o tratamento.
-            </p>
-          )}
-          <form onSubmit={save} className="space-y-4">
-            <fieldset disabled={pending} className="space-y-4">
-              <div className="grid gap-4 md:grid-cols-3">
-                <label className="space-y-1 text-sm font-medium md:col-span-2">
-                  Produto
-                  <select
-                    required
-                    className="h-10 w-full rounded-md border bg-background px-3 font-normal"
-                    value={form.productId}
-                    onChange={(e) => setForm({ ...form, productId: e.target.value })}
-                  >
-                    <option value="">Selecione</option>
-                    {data.products.map((p) => (
-                      <option key={p.id} value={p.id}>
-                        {p.name} · {p.sku}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label className="space-y-1 text-sm font-medium">
-                  Via
-                  <Input
-                    required
-                    value={form.route}
-                    onChange={(e) => setForm({ ...form, route: e.target.value })}
-                  />
-                </label>
-                <label className="space-y-1 text-sm font-medium">
-                  Dose
-                  <Input
-                    required
-                    type="number"
-                    min="0.000001"
-                    step="0.000001"
-                    value={form.doseQuantity}
-                    onChange={(e) => setForm({ ...form, doseQuantity: e.target.value })}
-                  />
-                </label>
-                <label className="space-y-1 text-sm font-medium">
-                  Unidade da dose
-                  <select
-                    className="h-10 w-full rounded-md border bg-background px-3"
-                    value={form.doseUnit}
-                    onChange={(e) => setForm({ ...form, doseUnit: e.target.value })}
-                  >
-                    <option>MG</option>
-                    <option>ML</option>
-                    <option>UI</option>
-                    <option>UNIT</option>
-                  </select>
-                </label>
-                <label className="space-y-1 text-sm font-medium">
-                  Aplicar a cada (dias)
-                  <Input
-                    required
-                    type="number"
-                    min="0.01"
-                    step="0.01"
-                    value={form.frequencyEveryDays}
-                    onChange={(e) => setForm({ ...form, frequencyEveryDays: e.target.value })}
-                  />
-                </label>
-                <label className="space-y-1 text-sm font-medium">
-                  Primeira aplicação
-                  <Input
-                    required
-                    type="date"
-                    value={form.firstScheduledOn}
-                    onChange={(e) => setForm({ ...form, firstScheduledOn: e.target.value })}
-                  />
-                </label>
-                <label className="space-y-1 text-sm font-medium">
-                  Aplicações previstas
-                  <Input
-                    type="number"
-                    min="1"
-                    value={form.plannedAdministrations}
-                    onChange={(e) => setForm({ ...form, plannedAdministrations: e.target.value })}
-                  />
-                </label>
-                <label className="space-y-1 text-sm font-medium">
-                  Situação
-                  <select
-                    className="h-10 w-full rounded-md border bg-background px-3"
-                    value={form.status}
-                    onChange={(e) => setForm({ ...form, status: e.target.value })}
-                  >
-                    {Object.entries(statusLabels).map(([v, l]) => (
-                      <option key={v} value={v}>
-                        {l}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label className="space-y-1 text-sm font-medium md:col-span-3">
-                  Motivo
-                  <Input
-                    required
-                    minLength={10}
-                    value={form.reason}
-                    onChange={(e) => setForm({ ...form, reason: e.target.value })}
-                  />
-                </label>
-              </div>
-              <div className="flex gap-3">
-                <Button disabled={pending || !data.products.length}>
-                  {pending ? "Salvando…" : "Salvar tratamento"}
+                  Ver consultas
                 </Button>
                 <Button
                   type="button"
                   variant="outline"
-                  disabled={pending}
-                  onClick={() => setOpen(false)}
+                  onClick={() => {
+                    setWorkspaceSection("documents");
+                    setDocumentsOpened(true);
+                  }}
                 >
-                  Cancelar
+                  Abrir documentos
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setWorkspaceSection("treatments")}
+                >
+                  Ver tratamentos
                 </Button>
               </div>
-            </fieldset>
-          </form>
-        </DialogContent>
-      </Dialog>
-      <section className="rounded-xl border bg-card">
-        <div className="border-b p-5">
-          <h2 className="font-semibold">Tratamentos</h2>
-        </div>
-        {data.treatments.length ? (
-          <div className="divide-y">
-            {data.treatments.map((t) => (
-              <div key={t.id} className="grid gap-3 p-5 md:grid-cols-[1fr_auto]">
+            </section>
+            <section className="space-y-4 rounded-xl border border-warning bg-warning-soft p-5">
+              <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
-                  <p className="font-medium">{t.productName}</p>
-                  <p className="text-sm text-muted-foreground">
-                    {t.doseQuantity} {t.doseUnit} · {t.route} · {treatmentCadenceLabel(t)} · início{" "}
-                    {String(t.firstScheduledOn).slice(0, 10).split("-").reverse().join("/")}
+                  <h2 className="flex items-center gap-2 font-semibold text-warning-foreground">
+                    <AlertTriangle className="size-5" /> Alergias e alertas clínicos
+                  </h2>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Alertas ativos ficam destacados também durante o atendimento.
                   </p>
-                  {data.supplySummaries
-                    .filter((s) => s.treatmentId === t.id)
-                    .map((s) => (
-                      <div
-                        key={s.treatmentId}
-                        className="mt-3 grid gap-2 text-xs text-muted-foreground sm:grid-cols-4"
-                      >
-                        <span>
-                          Comprado:{" "}
-                          <strong className="text-foreground">
-                            {s.purchasedQuantity} {t.doseUnit}
-                          </strong>
-                        </span>
-                        <span>
-                          Reservado:{" "}
-                          <strong className="text-foreground">
-                            {s.reservedQuantity} {t.doseUnit}
-                          </strong>
-                        </span>
-                        <span>
-                          Consumido:{" "}
-                          <strong className="text-foreground">
-                            {s.consumedQuantity} {t.doseUnit}
-                          </strong>
-                        </span>
-                        <span>
-                          Saldo comprado total:{" "}
-                          <strong className="text-foreground">
-                            {s.purchasedRemaining} {t.doseUnit}
-                          </strong>
-                        </span>
-                        <span>
-                          Disponível para reservar:{" "}
-                          <strong className="text-foreground">
-                            {s.purchasedAvailableToReserve} {t.doseUnit}
-                          </strong>
-                        </span>
-                        <span>
-                          Estoque físico:{" "}
-                          <strong className="text-foreground">{s.availableStockUnits} un.</strong>
-                        </span>
-                        <span>
-                          Saldo aberto:{" "}
-                          <strong className="text-foreground">
-                            {s.openQuantity} {t.doseUnit}
-                          </strong>
-                        </span>
-                        <span>
-                          Livre após reservas:{" "}
-                          <strong className="text-foreground">
-                            {s.physicalUnreservedDose === null
-                              ? "não calculado"
-                              : `${s.physicalUnreservedDose} ${t.doseUnit}`}
-                          </strong>
-                        </span>
-                        <span>
-                          {s.unitShortageUnits === null ? (
-                            "Apresentação/concentração ainda não vinculada"
-                          ) : s.unitShortageUnits > 0 ? (
-                            <strong className="text-destructive">
-                              Faltam {s.unitShortageUnits} un. para a demanda da unidade
-                            </strong>
-                          ) : (
-                            <strong className="text-success-foreground">
-                              Cobertura física suficiente
-                            </strong>
-                          )}
-                        </span>
-                      </div>
-                    ))}
                 </div>
-                <Badge>{statusLabels[t.status] ?? t.status}</Badge>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <p className="p-8 text-center text-sm text-muted-foreground">
-            Nenhum tratamento cadastrado.
-          </p>
-        )}
-      </section>
-      {data.canManage && data.treatments.length > 0 && (
-        <form onSubmit={savePurchase} className="space-y-4 rounded-xl border bg-card p-5">
-          <div>
-            <h2 className="font-semibold">Registrar compra do paciente</h2>
-            <p className="text-sm text-muted-foreground">
-              Registra o direito adquirido pelo paciente. Não altera o estoque físico.
-            </p>
-          </div>
-          <div className="grid gap-4 md:grid-cols-3">
-            <label className="space-y-1 text-sm font-medium">
-              Tratamento
-              <select
-                required
-                className="h-10 w-full rounded-md border bg-background px-3"
-                value={purchase.treatmentId}
-                onChange={(e) => setPurchase({ ...purchase, treatmentId: e.target.value })}
-              >
-                <option value="">Selecione</option>
-                {data.treatments.map((t) => (
-                  <option key={t.id} value={t.id}>
-                    {t.productName} · {t.doseQuantity} {t.doseUnit}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="space-y-1 text-sm font-medium">
-              Quantidade comprada
-              <Input
-                required
-                type="number"
-                min="0.000001"
-                step="0.000001"
-                value={purchase.purchasedQuantity}
-                onChange={(e) => setPurchase({ ...purchase, purchasedQuantity: e.target.value })}
-              />
-            </label>
-            <label className="space-y-1 text-sm font-medium">
-              Valor total (opcional)
-              <Input
-                type="number"
-                min="0"
-                step="0.01"
-                value={purchase.totalValue}
-                onChange={(e) => setPurchase({ ...purchase, totalValue: e.target.value })}
-              />
-            </label>
-            <label className="space-y-1 text-sm font-medium">
-              Referência da venda
-              <Input
-                required
-                minLength={3}
-                value={purchase.reference}
-                onChange={(e) => setPurchase({ ...purchase, reference: e.target.value })}
-              />
-            </label>
-            <label className="space-y-1 text-sm font-medium">
-              Data da compra
-              <Input
-                required
-                type="date"
-                value={purchase.purchasedOn}
-                onChange={(e) => setPurchase({ ...purchase, purchasedOn: e.target.value })}
-              />
-            </label>
-            <label className="space-y-1 text-sm font-medium">
-              Motivo
-              <Input
-                required
-                minLength={10}
-                value={purchase.reason}
-                onChange={(e) => setPurchase({ ...purchase, reason: e.target.value })}
-              />
-            </label>
-          </div>
-          <Button disabled={pending}>{pending ? "Salvando…" : "Registrar compra"}</Button>
-        </form>
-      )}
-      <section className="rounded-xl border bg-card">
-        <div className="border-b p-5">
-          <h2 className="font-semibold">Agenda e reservas</h2>
-          <p className="text-sm text-muted-foreground">
-            Reservar sinaliza compromisso futuro; a baixa física acontecerá somente na aplicação.
-          </p>
-        </div>
-        {data.schedule.length ? (
-          <div className="divide-y">
-            {data.schedule.map((item) => {
-              const treatment = data.treatments.find((t) => t.id === item.treatmentId);
-              return (
-                <div
-                  key={item.id}
-                  className="flex flex-col justify-between gap-3 p-5 sm:flex-row sm:items-center"
-                >
-                  <div>
-                    <p className="font-medium">
-                      {String(item.scheduledOn).slice(0, 10).split("-").reverse().join("/")} ·{" "}
-                      {treatment?.productName}
-                    </p>
-                    <p className="text-sm text-muted-foreground">
-                      {item.doseQuantity} {item.doseUnit} ·{" "}
-                      {scheduleLabels[item.status] ?? item.status}
-                    </p>
-                    {item.applicationId ? (
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        {item.applicationReference} · {item.applicationProfessional} · baixa de{" "}
-                        {item.physicalQuantity} un. físicas · {item.applicationRoute}
-                        {item.applicationDoseVolumeMl
-                          ? ` · ${Number(item.applicationDoseVolumeMl).toLocaleString("pt-BR", { maximumFractionDigits: 3 })} mL`
-                          : ""}
-                      </p>
-                    ) : null}
-                    {!item.hasValidPrescription && item.status !== "CONSUMED" ? (
-                      <p className="mt-1 text-xs text-destructive">
-                        Sem prescrição válida para esta data
-                      </p>
-                    ) : null}
-                  </div>
-                  {(data.canManage || data.canConsume) && item.status !== "CONSUMED" && (
-                    <div className="flex flex-wrap gap-2">
-                      {data.canManage &&
-                        item.status !== "RESERVED" &&
-                        item.status !== "CANCELED" && (
-                          <Button
-                            type="button"
-                            size="sm"
-                            disabled={pending}
-                            onClick={() => updateSchedule(item, "RESERVED")}
-                          >
-                            Reservar
-                          </Button>
-                        )}
-                      {data.canManage && item.status === "RESERVED" && (
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant="outline"
-                          disabled={pending}
-                          onClick={() => updateSchedule(item, "PLANNED")}
-                        >
-                          Liberar reserva
-                        </Button>
-                      )}
-                      {data.canManage && item.status !== "CANCELED" && (
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant="outline"
-                          disabled={pending}
-                          onClick={() => updateSchedule(item, "CANCELED")}
-                        >
-                          Cancelar
-                        </Button>
-                      )}
-                      {data.canConsume && item.status !== "CANCELED" && (
-                        <Button
-                          type="button"
-                          size="sm"
-                          disabled={pending || !item.hasValidPrescription}
-                          onClick={() => startApplication(item)}
-                        >
-                          Registrar aplicação
-                        </Button>
-                      )}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        ) : (
-          <p className="p-8 text-center text-sm text-muted-foreground">
-            Informe a quantidade de aplicações ao criar o tratamento para gerar a agenda.
-          </p>
-        )}
-      </section>
-      {application.scheduleId && data.canConsume && (
-        <form onSubmit={consumeSchedule} className="space-y-4 rounded-xl border bg-card p-5">
-          <div>
-            <h2 className="font-semibold">Confirmar aplicação e baixa física</h2>
-            <p className="text-sm text-muted-foreground">
-              O servidor escolherá os lotes disponíveis por FEFO. A confirmação cria uma saída
-              imutável no ledger e não poderá ser simplesmente apagada.
-            </p>
-          </div>
-          <div className="grid gap-4 md:grid-cols-2">
-            <label className="space-y-1 text-sm font-medium">
-              Dose efetivamente administrada
-              <Input
-                required
-                type="number"
-                min="0.000001"
-                step="0.000001"
-                value={application.administeredDoseQuantity}
-                onChange={(event) =>
-                  setApplication({
-                    ...application,
-                    administeredDoseQuantity: Number(event.target.value),
-                    confirmed: false,
-                  })
-                }
-              />
-              <span className="block text-xs text-muted-foreground">
-                {application.doseUnit}
-                {application.doseVolumeMl !== null
-                  ? ` · volume calculado: ${application.doseVolumeMl.toLocaleString("pt-BR", { maximumFractionDigits: 3 })} mL`
-                  : ""}
-              </span>
-            </label>
-            <label className="space-y-1 text-sm font-medium">
-              Via de administração
-              <Input required readOnly value={application.route} />
-            </label>
-            <label className="space-y-1 text-sm font-medium">
-              Local do consumo
-              <select
-                required
-                className="h-10 w-full rounded-md border bg-background px-3"
-                value={application.locationId}
-                onChange={(event) =>
-                  setApplication({ ...application, locationId: event.target.value })
-                }
-              >
-                <option value="">Selecione</option>
-                {data.locations.map((location) => (
-                  <option key={location.id} value={location.id}>
-                    {location.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="space-y-1 text-sm font-medium md:col-span-2">
-              Intercorrência operacional (opcional)
-              <Input
-                maxLength={1000}
-                placeholder="Sem intercorrências"
-                value={application.occurrenceNotes}
-                onChange={(event) =>
-                  setApplication({ ...application, occurrenceNotes: event.target.value })
-                }
-              />
-            </label>
-            <label className="space-y-1 text-sm font-medium">
-              Profissional executor
-              <Input
-                required
-                minLength={3}
-                maxLength={100}
-                value={application.professional}
-                onChange={(event) =>
-                  setApplication({ ...application, professional: event.target.value })
-                }
-              />
-            </label>
-            <label className="space-y-1 text-sm font-medium">
-              Referência
-              <Input
-                required
-                minLength={3}
-                maxLength={100}
-                value={application.reference}
-                onChange={(event) =>
-                  setApplication({ ...application, reference: event.target.value })
-                }
-              />
-            </label>
-            <label className="space-y-1 text-sm font-medium">
-              Justificativa operacional
-              <Input
-                required
-                minLength={10}
-                maxLength={500}
-                value={application.reason}
-                onChange={(event) => setApplication({ ...application, reason: event.target.value })}
-              />
-            </label>
-          </div>
-          <label className="flex items-start gap-2 text-sm">
-            <input
-              type="checkbox"
-              className="mt-1"
-              checked={application.confirmed}
-              onChange={(event) =>
-                setApplication({ ...application, confirmed: event.target.checked })
-              }
-            />
-            Conferi paciente, prescrição válida, dose, via, produto, profissional e local. Confirmo
-            a aplicação e a baixa física.
-          </label>
-          <div className="flex flex-wrap gap-3">
-            <Button disabled={pending || !application.confirmed}>
-              {pending ? "Confirmando…" : "Confirmar aplicação"}
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              disabled={pending}
-              onClick={() =>
-                setApplication((current) => ({ ...current, operationId: "", scheduleId: "" }))
-              }
-            >
-              Voltar sem registrar
-            </Button>
-          </div>
-        </form>
-      )}
-      {data.canManage && data.treatments.length > 0 && (
-        <form onSubmit={upload} className="space-y-4 rounded-xl border bg-card p-5">
-          <div>
-            <h2 className="font-semibold">Anexar prescrição</h2>
-            <p className="text-sm text-muted-foreground">
-              PDF ou foto, até 10 MB. O arquivo será privado e baixado somente após autorização.
-            </p>
-          </div>
-          <div className="grid gap-4 md:grid-cols-2">
-            <label className="space-y-1 text-sm font-medium">
-              Tratamento
-              <select
-                name="treatmentId"
-                required
-                className="h-10 w-full rounded-md border bg-background px-3"
-              >
-                {data.treatments.map((t) => (
-                  <option key={t.id} value={t.id}>
-                    {t.productName}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="space-y-1 text-sm font-medium">
-              Arquivo
-              <Input
-                name="file"
-                required
-                type="file"
-                accept="application/pdf,image/jpeg,image/png,image/heic,image/heif"
-              />
-            </label>
-            <label className="space-y-1 text-sm font-medium">
-              Nome do prescritor
-              <Input name="prescriberName" required minLength={2} maxLength={150} />
-            </label>
-            <label className="space-y-1 text-sm font-medium">
-              Conselho e número
-              <Input
-                name="councilNumber"
-                required
-                minLength={3}
-                maxLength={30}
-                placeholder="CRM 12345"
-              />
-            </label>
-            <label className="space-y-1 text-sm font-medium">
-              UF do conselho
-              <Input name="councilRegion" required minLength={2} maxLength={10} placeholder="CE" />
-            </label>
-            <label className="space-y-1 text-sm font-medium">
-              Data de emissão
-              <Input name="issuedOn" required type="date" />
-            </label>
-            <label className="space-y-1 text-sm font-medium">
-              Válida até
-              <Input name="validUntil" required type="date" />
-            </label>
-            <label className="space-y-1 text-sm font-medium">
-              Substitui uma prescrição? (opcional)
-              <select
-                name="supersedesId"
-                className="h-10 w-full rounded-md border bg-background px-3"
-              >
-                <option value="">Não, novo documento</option>
-                {data.prescriptions
-                  .filter((prescription) => prescription.documentStatus === "ACTIVE")
-                  .map((prescription) => (
-                    <option key={prescription.id} value={prescription.id}>
-                      {prescription.originalFilename} · versão {prescription.version}
-                    </option>
-                  ))}
-              </select>
-            </label>
-            <label className="space-y-1 text-sm font-medium md:col-span-2">
-              Motivo
-              <Input
-                name="reason"
-                required
-                minLength={10}
-                defaultValue="Prescrição conferida e anexada ao tratamento."
-              />
-            </label>
-          </div>
-          <Button disabled={pending}>{pending ? "Enviando…" : "Guardar prescrição"}</Button>
-        </form>
-      )}
-      <section className="rounded-xl border bg-card">
-        <div className="border-b p-5">
-          <h2 className="font-semibold">Prescrições protegidas</h2>
-        </div>
-        {data.prescriptions.length ? (
-          <div className="divide-y">
-            {data.prescriptions.map((p) => (
-              <div key={p.id} className="flex items-center justify-between gap-4 p-5">
-                <div className="flex items-center gap-3">
-                  <FileText className="size-5 text-primary" />
-                  <div>
-                    <p className="font-medium">{p.originalFilename}</p>
-                    <p className="text-xs text-muted-foreground">
-                      Versão {p.version} · {Math.ceil(p.sizeBytes / 1024)} KB ·{" "}
-                      {prescriptionLabels[p.effectiveStatus] ?? p.effectiveStatus}
-                    </p>
-                    {p.prescriberName ? (
-                      <p className="text-xs text-muted-foreground">
-                        {p.prescriberName} · {p.councilNumber}/{p.councilRegion} · emissão{" "}
-                        {p.issuedOn?.split("-").reverse().join("/")} · validade{" "}
-                        {p.validUntil?.split("-").reverse().join("/")}
-                      </p>
-                    ) : (
-                      <p className="text-xs text-warning-foreground">
-                        Documento legado: metadados clínicos pendentes
-                      </p>
-                    )}
-                  </div>
-                </div>
-                <Button asChild variant="outline" size="sm">
-                  <a
-                    href={`/api/v1/inventory/prescriptions/${p.id}`}
-                    target="_blank"
-                    rel="noreferrer"
+                {data.canManageClinicalProblems ? (
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setClinicalAlert(blankAlert);
+                      setAlertFormOpen(true);
+                    }}
                   >
-                    Abrir
-                  </a>
-                </Button>
+                    <Plus /> Adicionar alerta
+                  </Button>
+                ) : null}
               </div>
-            ))}
+              {alertFormOpen && data.canManageClinicalProblems ? (
+                <form
+                  onSubmit={saveClinicalAlert}
+                  className="space-y-4 rounded-lg border bg-card p-4"
+                >
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <label className="space-y-1 text-sm font-medium">
+                      Tipo
+                      <select
+                        className="h-10 w-full rounded-md border bg-background px-3"
+                        value={clinicalAlert.type}
+                        onChange={(event) =>
+                          setClinicalAlert({
+                            ...clinicalAlert,
+                            type: event.target.value as typeof clinicalAlert.type,
+                          })
+                        }
+                      >
+                        <option value="ALLERGY">Alergia</option>
+                        <option value="WARNING">Alerta</option>
+                        <option value="PRECAUTION">Precaução</option>
+                      </select>
+                    </label>
+                    <label className="space-y-1 text-sm font-medium">
+                      Gravidade
+                      <select
+                        className="h-10 w-full rounded-md border bg-background px-3"
+                        value={clinicalAlert.severity}
+                        onChange={(event) =>
+                          setClinicalAlert({
+                            ...clinicalAlert,
+                            severity: event.target.value as typeof clinicalAlert.severity,
+                          })
+                        }
+                      >
+                        <option value="UNKNOWN">Não informada</option>
+                        <option value="MILD">Leve</option>
+                        <option value="MODERATE">Moderada</option>
+                        <option value="SEVERE">Grave</option>
+                      </select>
+                    </label>
+                    <label className="space-y-1 text-sm font-medium md:col-span-2">
+                      Agente, alergia ou título do alerta
+                      <Input
+                        required
+                        minLength={2}
+                        maxLength={200}
+                        value={clinicalAlert.title}
+                        onChange={(event) =>
+                          setClinicalAlert({ ...clinicalAlert, title: event.target.value })
+                        }
+                      />
+                    </label>
+                    <label className="space-y-1 text-sm font-medium">
+                      Reação conhecida (opcional)
+                      <Input
+                        maxLength={500}
+                        value={clinicalAlert.reaction}
+                        onChange={(event) =>
+                          setClinicalAlert({ ...clinicalAlert, reaction: event.target.value })
+                        }
+                      />
+                    </label>
+                    <label className="space-y-1 text-sm font-medium">
+                      Situação
+                      <select
+                        className="h-10 w-full rounded-md border bg-background px-3"
+                        value={clinicalAlert.status}
+                        onChange={(event) =>
+                          setClinicalAlert({
+                            ...clinicalAlert,
+                            status: event.target.value as typeof clinicalAlert.status,
+                          })
+                        }
+                      >
+                        <option value="ACTIVE">Ativo</option>
+                        <option value="INACTIVE">Inativo</option>
+                      </select>
+                    </label>
+                    <label className="space-y-1 text-sm font-medium md:col-span-2">
+                      Observações
+                      <Textarea
+                        maxLength={2000}
+                        rows={3}
+                        value={clinicalAlert.notes}
+                        onChange={(event) =>
+                          setClinicalAlert({ ...clinicalAlert, notes: event.target.value })
+                        }
+                      />
+                    </label>
+                    <label className="space-y-1 text-sm font-medium md:col-span-2">
+                      Motivo da inclusão ou alteração
+                      <Input
+                        required
+                        minLength={10}
+                        maxLength={500}
+                        value={clinicalAlert.reason}
+                        onChange={(event) =>
+                          setClinicalAlert({ ...clinicalAlert, reason: event.target.value })
+                        }
+                      />
+                    </label>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <Button disabled={pending}>{pending ? "Salvando…" : "Salvar alerta"}</Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      disabled={pending}
+                      onClick={() => setAlertFormOpen(false)}
+                    >
+                      Cancelar
+                    </Button>
+                  </div>
+                </form>
+              ) : null}
+              {clinicalAlerts.length ? (
+                <div className="grid gap-3 lg:grid-cols-2">
+                  {clinicalAlerts.map((item) => (
+                    <article
+                      key={item.id}
+                      className={`rounded-lg border p-4 ${item.status === "ACTIVE" ? "bg-card" : "opacity-60"}`}
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <p className="font-medium">{item.title}</p>
+                            <Badge variant={item.severity === "SEVERE" ? "destructive" : "outline"}>
+                              {alertSeverityLabels[item.severity]}
+                            </Badge>
+                            <Badge variant="secondary">{alertTypeLabels[item.type]}</Badge>
+                            {item.status === "INACTIVE" ? (
+                              <Badge variant="outline">Inativo</Badge>
+                            ) : null}
+                          </div>
+                          {item.reaction ? (
+                            <p className="mt-2 text-sm">Reação: {item.reaction}</p>
+                          ) : null}
+                          {item.notes ? (
+                            <p className="mt-2 whitespace-pre-wrap text-sm text-muted-foreground">
+                              {item.notes}
+                            </p>
+                          ) : null}
+                          <p className="mt-2 text-xs text-muted-foreground">
+                            {item.authorName} · {item.professionalCouncil} {item.councilNumber}/
+                            {item.councilRegion}
+                          </p>
+                        </div>
+                        {data.canManageClinicalProblems ? (
+                          <Button variant="ghost" size="sm" onClick={() => editClinicalAlert(item)}>
+                            Editar
+                          </Button>
+                        ) : null}
+                      </div>
+                    </article>
+                  ))}
+                </div>
+              ) : (
+                <p className="rounded-lg bg-card p-4 text-sm text-muted-foreground">
+                  Nenhuma alergia ou alerta clínico registrado.
+                </p>
+              )}
+            </section>
+            <section className="space-y-4 rounded-xl border bg-card p-5">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <h2 className="font-semibold">Problemas e antecedentes clínicos</h2>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Registros estruturados com CID-10 opcional, situação e autoria profissional.
+                  </p>
+                </div>
+                {data.canManageClinicalProblems ? (
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setProblem(blankProblem);
+                      setProblemFormOpen(true);
+                    }}
+                  >
+                    <Plus /> Adicionar registro
+                  </Button>
+                ) : null}
+              </div>
+              {problemFormOpen && data.canManageClinicalProblems ? (
+                <form onSubmit={saveClinicalProblem} className="space-y-4 rounded-lg border p-4">
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <label className="space-y-1 text-sm font-medium md:col-span-2">
+                      Problema ou antecedente
+                      <Input
+                        required
+                        minLength={3}
+                        maxLength={300}
+                        value={problem.description}
+                        onChange={(event) =>
+                          setProblem({ ...problem, description: event.target.value })
+                        }
+                      />
+                    </label>
+                    <label className="space-y-1 text-sm font-medium">
+                      CID-10 (opcional)
+                      <Input
+                        maxLength={8}
+                        placeholder="Ex.: E11.9"
+                        value={problem.icd10Code}
+                        onChange={(event) =>
+                          setProblem({ ...problem, icd10Code: event.target.value.toUpperCase() })
+                        }
+                      />
+                    </label>
+                    <label className="space-y-1 text-sm font-medium">
+                      Situação
+                      <select
+                        className="h-10 w-full rounded-md border bg-background px-3"
+                        value={problem.status}
+                        onChange={(event) =>
+                          setProblem({
+                            ...problem,
+                            status: event.target.value as typeof problem.status,
+                          })
+                        }
+                      >
+                        <option value="ACTIVE">Ativo</option>
+                        <option value="RESOLVED">Resolvido</option>
+                        <option value="INACTIVE">Inativo/Histórico</option>
+                      </select>
+                    </label>
+                    <label className="space-y-1 text-sm font-medium">
+                      Início conhecido (opcional)
+                      <Input
+                        type="date"
+                        value={problem.onsetOn}
+                        onChange={(event) =>
+                          setProblem({ ...problem, onsetOn: event.target.value })
+                        }
+                      />
+                    </label>
+                    <label className="space-y-1 text-sm font-medium">
+                      Data de resolução{" "}
+                      {problem.status === "RESOLVED" ? "(obrigatória)" : "(opcional)"}
+                      <Input
+                        type="date"
+                        required={problem.status === "RESOLVED"}
+                        value={problem.resolvedOn}
+                        onChange={(event) =>
+                          setProblem({ ...problem, resolvedOn: event.target.value })
+                        }
+                      />
+                    </label>
+                    <label className="space-y-1 text-sm font-medium md:col-span-2">
+                      Observações clínicas limitadas
+                      <Textarea
+                        maxLength={2000}
+                        rows={3}
+                        value={problem.notes}
+                        onChange={(event) => setProblem({ ...problem, notes: event.target.value })}
+                      />
+                    </label>
+                    <label className="space-y-1 text-sm font-medium md:col-span-2">
+                      Motivo da inclusão ou alteração
+                      <Input
+                        required
+                        minLength={10}
+                        maxLength={500}
+                        value={problem.reason}
+                        onChange={(event) => setProblem({ ...problem, reason: event.target.value })}
+                      />
+                    </label>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <Button disabled={pending}>{pending ? "Salvando…" : "Salvar registro"}</Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      disabled={pending}
+                      onClick={() => setProblemFormOpen(false)}
+                    >
+                      Cancelar
+                    </Button>
+                  </div>
+                </form>
+              ) : null}
+              {clinicalProblems.length ? (
+                <div className="grid gap-3 lg:grid-cols-2">
+                  {clinicalProblems.map((item) => (
+                    <article key={item.id} className="rounded-lg border p-4">
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <p className="font-medium">{item.description}</p>
+                            <Badge variant={item.status === "ACTIVE" ? "default" : "secondary"}>
+                              {item.status === "ACTIVE"
+                                ? "Ativo"
+                                : item.status === "RESOLVED"
+                                  ? "Resolvido"
+                                  : "Histórico"}
+                            </Badge>
+                            {item.icd10Code ? (
+                              <Badge variant="outline">CID-10 {item.icd10Code}</Badge>
+                            ) : null}
+                          </div>
+                          <p className="mt-2 text-xs text-muted-foreground">
+                            {item.authorName} · {item.professionalCouncil} {item.councilNumber}/
+                            {item.councilRegion}
+                          </p>
+                          {item.notes ? (
+                            <p className="mt-3 whitespace-pre-wrap text-sm">{item.notes}</p>
+                          ) : null}
+                        </div>
+                        {data.canManageClinicalProblems ? (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => editClinicalProblem(item)}
+                          >
+                            Editar
+                          </Button>
+                        ) : null}
+                      </div>
+                    </article>
+                  ))}
+                </div>
+              ) : (
+                <p className="rounded-lg bg-muted p-4 text-sm text-muted-foreground">
+                  Nenhum problema ou antecedente clínico registrado.
+                </p>
+              )}
+            </section>
           </div>
-        ) : (
-          <p className="p-8 text-center text-sm text-muted-foreground">
-            Nenhuma prescrição anexada.
-          </p>
-        )}
-      </section>
+          <div hidden={workspaceSection !== "encounters"} className="space-y-5">
+            <PatientEncounterHistory encounters={data.encounterHistory ?? []} />
+            <section className="space-y-4 rounded-xl border bg-card p-5">
+              <div>
+                <h2 className="flex items-center gap-2 font-semibold">
+                  <Stethoscope className="size-4" /> Prontuário longitudinal
+                </h2>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Evoluções finalizadas, com autoria registrada, da mais recente para a mais antiga.
+                </p>
+              </div>
+              {clinicalHistory.length ? (
+                <div className="space-y-4">
+                  {clinicalHistory.map((note) => (
+                    <article key={note.id} className="rounded-lg border p-4">
+                      <div className="flex flex-wrap items-start justify-between gap-3">
+                        <div>
+                          <p className="font-medium">{note.careTypeName}</p>
+                          <p className="mt-1 text-xs text-muted-foreground">
+                            {new Intl.DateTimeFormat("pt-BR", {
+                              dateStyle: "medium",
+                              timeStyle: "short",
+                              timeZone: "America/Fortaleza",
+                            }).format(new Date(note.finalizedAt))}
+                            {" · "}
+                            {note.authorName} · {note.professionalCouncil} {note.councilNumber}/
+                            {note.councilRegion}
+                          </p>
+                        </div>
+                        <Button asChild variant="outline" size="sm">
+                          <Link
+                            to="/atendimentos/$appointmentId"
+                            params={{ appointmentId: note.appointmentId }}
+                          >
+                            Abrir atendimento
+                          </Link>
+                        </Button>
+                      </div>
+                      <div className="mt-4 grid gap-4 md:grid-cols-2">
+                        <div>
+                          <p className="text-xs font-medium text-muted-foreground">Evolução</p>
+                          <p className="mt-1 whitespace-pre-wrap text-sm">{note.evolution}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs font-medium text-muted-foreground">Conduta</p>
+                          <p className="mt-1 whitespace-pre-wrap text-sm">
+                            {note.conduct || "Não informada."}
+                          </p>
+                        </div>
+                      </div>
+                      {(note.diagnosticHypotheses ||
+                        note.clinicalPlan ||
+                        note.returnRecommendation ||
+                        note.returnOn) && (
+                        <div className="mt-4 grid gap-4 rounded-lg bg-muted p-4 md:grid-cols-2">
+                          <ClinicalText
+                            label="Hipóteses ou diagnósticos"
+                            value={note.diagnosticHypotheses}
+                          />
+                          <ClinicalText label="Plano clínico" value={note.clinicalPlan} />
+                          <ClinicalText
+                            label="Retorno recomendado"
+                            value={note.returnRecommendation}
+                          />
+                          <ClinicalText
+                            label="Data sugerida para retorno"
+                            value={
+                              note.returnOn ? note.returnOn.split("-").reverse().join("/") : ""
+                            }
+                          />
+                        </div>
+                      )}
+                      <ClinicalAnamnesis note={note} />
+                      <ClinicalPhysicalExam note={note} />
+                      <VitalsSummary note={note} />
+                    </article>
+                  ))}
+                </div>
+              ) : (
+                <p className="rounded-lg bg-muted p-4 text-sm text-muted-foreground">
+                  Ainda não há evoluções clínicas finalizadas para este paciente.
+                </p>
+              )}
+            </section>
+          </div>
+          <div
+            hidden={workspaceSection !== "documents" && workspaceSection !== "exams"}
+            className="min-w-0"
+          >
+            {documentsOpened && (
+              <PatientDocumentCenter
+                patientId={patientId}
+                examsOnly={workspaceSection === "exams"}
+              />
+            )}
+          </div>
+          <div hidden={workspaceSection !== "treatments"} className="space-y-5">
+            <PatientClinicalPlans key={patientId} patientId={patientId} />
+            <Dialog
+              open={open && data.canManage}
+              onOpenChange={(value) => {
+                if (!pending) setOpen(value);
+              }}
+            >
+              <DialogContent className="clinical-workspace max-h-[90dvh] overflow-y-auto rounded-2xl sm:max-w-3xl">
+                <DialogHeader>
+                  <DialogTitle>Novo tratamento</DialogTitle>
+                  <DialogDescription>
+                    Cadastre o tratamento prescrito e sua programação de aplicações. O cadastro não
+                    altera o estoque físico.
+                  </DialogDescription>
+                </DialogHeader>
+                {error && (
+                  <p role="alert" className="text-sm text-destructive">
+                    {error}
+                  </p>
+                )}
+                {!data.products.length && (
+                  <p className="text-sm text-muted-foreground">
+                    Cadastre um produto ativo em Produtos e sede para criar o tratamento.
+                  </p>
+                )}
+                <form onSubmit={save} className="space-y-4">
+                  <fieldset disabled={pending} className="space-y-4">
+                    <div className="grid gap-4 md:grid-cols-3">
+                      <label className="space-y-1 text-sm font-medium md:col-span-2">
+                        Produto
+                        <select
+                          required
+                          className="h-10 w-full rounded-md border bg-background px-3 font-normal"
+                          value={form.productId}
+                          onChange={(e) => setForm({ ...form, productId: e.target.value })}
+                        >
+                          <option value="">Selecione</option>
+                          {data.products.map((p) => (
+                            <option key={p.id} value={p.id}>
+                              {p.name} · {p.sku}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                      <label className="space-y-1 text-sm font-medium">
+                        Via
+                        <Input
+                          required
+                          value={form.route}
+                          onChange={(e) => setForm({ ...form, route: e.target.value })}
+                        />
+                      </label>
+                      <label className="space-y-1 text-sm font-medium">
+                        Dose
+                        <Input
+                          required
+                          type="number"
+                          min="0.000001"
+                          step="0.000001"
+                          value={form.doseQuantity}
+                          onChange={(e) => setForm({ ...form, doseQuantity: e.target.value })}
+                        />
+                      </label>
+                      <label className="space-y-1 text-sm font-medium">
+                        Unidade da dose
+                        <select
+                          className="h-10 w-full rounded-md border bg-background px-3"
+                          value={form.doseUnit}
+                          onChange={(e) => setForm({ ...form, doseUnit: e.target.value })}
+                        >
+                          <option>MG</option>
+                          <option>ML</option>
+                          <option>UI</option>
+                          <option>UNIT</option>
+                        </select>
+                      </label>
+                      <label className="space-y-1 text-sm font-medium">
+                        Aplicar a cada (dias)
+                        <Input
+                          required
+                          type="number"
+                          min="0.01"
+                          step="0.01"
+                          value={form.frequencyEveryDays}
+                          onChange={(e) => setForm({ ...form, frequencyEveryDays: e.target.value })}
+                        />
+                      </label>
+                      <label className="space-y-1 text-sm font-medium">
+                        Primeira aplicação
+                        <Input
+                          required
+                          type="date"
+                          value={form.firstScheduledOn}
+                          onChange={(e) => setForm({ ...form, firstScheduledOn: e.target.value })}
+                        />
+                      </label>
+                      <label className="space-y-1 text-sm font-medium">
+                        Aplicações previstas
+                        <Input
+                          type="number"
+                          min="1"
+                          value={form.plannedAdministrations}
+                          onChange={(e) =>
+                            setForm({ ...form, plannedAdministrations: e.target.value })
+                          }
+                        />
+                      </label>
+                      <label className="space-y-1 text-sm font-medium">
+                        Situação
+                        <select
+                          className="h-10 w-full rounded-md border bg-background px-3"
+                          value={form.status}
+                          onChange={(e) => setForm({ ...form, status: e.target.value })}
+                        >
+                          {Object.entries(statusLabels).map(([v, l]) => (
+                            <option key={v} value={v}>
+                              {l}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                      <label className="space-y-1 text-sm font-medium md:col-span-3">
+                        Motivo
+                        <Input
+                          required
+                          minLength={10}
+                          value={form.reason}
+                          onChange={(e) => setForm({ ...form, reason: e.target.value })}
+                        />
+                      </label>
+                    </div>
+                    <div className="flex gap-3">
+                      <Button disabled={pending || !data.products.length}>
+                        {pending ? "Salvando…" : "Salvar tratamento"}
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        disabled={pending}
+                        onClick={() => setOpen(false)}
+                      >
+                        Cancelar
+                      </Button>
+                    </div>
+                  </fieldset>
+                </form>
+              </DialogContent>
+            </Dialog>
+            <section className="rounded-xl border bg-card">
+              <div className="border-b p-5">
+                <h2 className="font-semibold">Tratamentos</h2>
+              </div>
+              {data.treatments.length ? (
+                <div className="divide-y">
+                  {data.treatments.map((t) => (
+                    <div key={t.id} className="grid gap-3 p-5 md:grid-cols-[1fr_auto]">
+                      <div>
+                        <p className="font-medium">{t.productName}</p>
+                        <p className="text-sm text-muted-foreground">
+                          {t.doseQuantity} {t.doseUnit} · {t.route} · {treatmentCadenceLabel(t)} ·
+                          início{" "}
+                          {String(t.firstScheduledOn).slice(0, 10).split("-").reverse().join("/")}
+                        </p>
+                        {data.supplySummaries
+                          .filter((s) => s.treatmentId === t.id)
+                          .map((s) => (
+                            <div
+                              key={s.treatmentId}
+                              className="mt-3 grid gap-2 text-xs text-muted-foreground sm:grid-cols-4"
+                            >
+                              <span>
+                                Comprado:{" "}
+                                <strong className="text-foreground">
+                                  {s.purchasedQuantity} {t.doseUnit}
+                                </strong>
+                              </span>
+                              <span>
+                                Reservado:{" "}
+                                <strong className="text-foreground">
+                                  {s.reservedQuantity} {t.doseUnit}
+                                </strong>
+                              </span>
+                              <span>
+                                Consumido:{" "}
+                                <strong className="text-foreground">
+                                  {s.consumedQuantity} {t.doseUnit}
+                                </strong>
+                              </span>
+                              <span>
+                                Saldo comprado total:{" "}
+                                <strong className="text-foreground">
+                                  {s.purchasedRemaining} {t.doseUnit}
+                                </strong>
+                              </span>
+                              <span>
+                                Disponível para reservar:{" "}
+                                <strong className="text-foreground">
+                                  {s.purchasedAvailableToReserve} {t.doseUnit}
+                                </strong>
+                              </span>
+                              <span>
+                                Estoque físico:{" "}
+                                <strong className="text-foreground">
+                                  {s.availableStockUnits} un.
+                                </strong>
+                              </span>
+                              <span>
+                                Saldo aberto:{" "}
+                                <strong className="text-foreground">
+                                  {s.openQuantity} {t.doseUnit}
+                                </strong>
+                              </span>
+                              <span>
+                                Livre após reservas:{" "}
+                                <strong className="text-foreground">
+                                  {s.physicalUnreservedDose === null
+                                    ? "não calculado"
+                                    : `${s.physicalUnreservedDose} ${t.doseUnit}`}
+                                </strong>
+                              </span>
+                              <span>
+                                {s.unitShortageUnits === null ? (
+                                  "Apresentação/concentração ainda não vinculada"
+                                ) : s.unitShortageUnits > 0 ? (
+                                  <strong className="text-destructive">
+                                    Faltam {s.unitShortageUnits} un. para a demanda da unidade
+                                  </strong>
+                                ) : (
+                                  <strong className="text-success-foreground">
+                                    Cobertura física suficiente
+                                  </strong>
+                                )}
+                              </span>
+                            </div>
+                          ))}
+                      </div>
+                      <Badge>{statusLabels[t.status] ?? t.status}</Badge>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="p-8 text-center text-sm text-muted-foreground">
+                  Nenhum tratamento cadastrado.
+                </p>
+              )}
+            </section>
+            {data.canManage && data.treatments.length > 0 && (
+              <form onSubmit={savePurchase} className="space-y-4 rounded-xl border bg-card p-5">
+                <div>
+                  <h2 className="font-semibold">Registrar compra do paciente</h2>
+                  <p className="text-sm text-muted-foreground">
+                    Registra o direito adquirido pelo paciente. Não altera o estoque físico.
+                  </p>
+                </div>
+                <div className="grid gap-4 md:grid-cols-3">
+                  <label className="space-y-1 text-sm font-medium">
+                    Tratamento
+                    <select
+                      required
+                      className="h-10 w-full rounded-md border bg-background px-3"
+                      value={purchase.treatmentId}
+                      onChange={(e) => setPurchase({ ...purchase, treatmentId: e.target.value })}
+                    >
+                      <option value="">Selecione</option>
+                      {data.treatments.map((t) => (
+                        <option key={t.id} value={t.id}>
+                          {t.productName} · {t.doseQuantity} {t.doseUnit}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="space-y-1 text-sm font-medium">
+                    Quantidade comprada
+                    <Input
+                      required
+                      type="number"
+                      min="0.000001"
+                      step="0.000001"
+                      value={purchase.purchasedQuantity}
+                      onChange={(e) =>
+                        setPurchase({ ...purchase, purchasedQuantity: e.target.value })
+                      }
+                    />
+                  </label>
+                  <label className="space-y-1 text-sm font-medium">
+                    Valor total (opcional)
+                    <Input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={purchase.totalValue}
+                      onChange={(e) => setPurchase({ ...purchase, totalValue: e.target.value })}
+                    />
+                  </label>
+                  <label className="space-y-1 text-sm font-medium">
+                    Referência da venda
+                    <Input
+                      required
+                      minLength={3}
+                      value={purchase.reference}
+                      onChange={(e) => setPurchase({ ...purchase, reference: e.target.value })}
+                    />
+                  </label>
+                  <label className="space-y-1 text-sm font-medium">
+                    Data da compra
+                    <Input
+                      required
+                      type="date"
+                      value={purchase.purchasedOn}
+                      onChange={(e) => setPurchase({ ...purchase, purchasedOn: e.target.value })}
+                    />
+                  </label>
+                  <label className="space-y-1 text-sm font-medium">
+                    Motivo
+                    <Input
+                      required
+                      minLength={10}
+                      value={purchase.reason}
+                      onChange={(e) => setPurchase({ ...purchase, reason: e.target.value })}
+                    />
+                  </label>
+                </div>
+                <Button disabled={pending}>{pending ? "Salvando…" : "Registrar compra"}</Button>
+              </form>
+            )}
+            <section className="rounded-xl border bg-card">
+              <div className="border-b p-5">
+                <h2 className="font-semibold">Agenda e reservas</h2>
+                <p className="text-sm text-muted-foreground">
+                  Reservar sinaliza compromisso futuro; a baixa física acontecerá somente na
+                  aplicação.
+                </p>
+              </div>
+              {data.schedule.length ? (
+                <div className="divide-y">
+                  {data.schedule.map((item) => {
+                    const treatment = data.treatments.find((t) => t.id === item.treatmentId);
+                    return (
+                      <div
+                        key={item.id}
+                        className="flex flex-col justify-between gap-3 p-5 sm:flex-row sm:items-center"
+                      >
+                        <div>
+                          <p className="font-medium">
+                            {String(item.scheduledOn).slice(0, 10).split("-").reverse().join("/")} ·{" "}
+                            {treatment?.productName}
+                          </p>
+                          <p className="text-sm text-muted-foreground">
+                            {item.doseQuantity} {item.doseUnit} ·{" "}
+                            {scheduleLabels[item.status] ?? item.status}
+                          </p>
+                          {item.applicationId ? (
+                            <p className="mt-1 text-xs text-muted-foreground">
+                              {item.applicationReference} · {item.applicationProfessional} · baixa
+                              de {item.physicalQuantity} un. físicas · {item.applicationRoute}
+                              {item.applicationDoseVolumeMl
+                                ? ` · ${Number(item.applicationDoseVolumeMl).toLocaleString("pt-BR", { maximumFractionDigits: 3 })} mL`
+                                : ""}
+                            </p>
+                          ) : null}
+                          {!item.hasValidPrescription && item.status !== "CONSUMED" ? (
+                            <p className="mt-1 text-xs text-destructive">
+                              Sem prescrição válida para esta data
+                            </p>
+                          ) : null}
+                        </div>
+                        {(data.canManage || data.canConsume) && item.status !== "CONSUMED" && (
+                          <div className="flex flex-wrap gap-2">
+                            {data.canManage &&
+                              item.status !== "RESERVED" &&
+                              item.status !== "CANCELED" && (
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  disabled={pending}
+                                  onClick={() => updateSchedule(item, "RESERVED")}
+                                >
+                                  Reservar
+                                </Button>
+                              )}
+                            {data.canManage && item.status === "RESERVED" && (
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="outline"
+                                disabled={pending}
+                                onClick={() => updateSchedule(item, "PLANNED")}
+                              >
+                                Liberar reserva
+                              </Button>
+                            )}
+                            {data.canManage && item.status !== "CANCELED" && (
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="outline"
+                                disabled={pending}
+                                onClick={() => updateSchedule(item, "CANCELED")}
+                              >
+                                Cancelar
+                              </Button>
+                            )}
+                            {data.canConsume && item.status !== "CANCELED" && (
+                              <Button
+                                type="button"
+                                size="sm"
+                                disabled={pending || !item.hasValidPrescription}
+                                onClick={() => startApplication(item)}
+                              >
+                                Registrar aplicação
+                              </Button>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <p className="p-8 text-center text-sm text-muted-foreground">
+                  Informe a quantidade de aplicações ao criar o tratamento para gerar a agenda.
+                </p>
+              )}
+            </section>
+            {application.scheduleId && data.canConsume && (
+              <form onSubmit={consumeSchedule} className="space-y-4 rounded-xl border bg-card p-5">
+                <div>
+                  <h2 className="font-semibold">Confirmar aplicação e baixa física</h2>
+                  <p className="text-sm text-muted-foreground">
+                    O servidor escolherá os lotes disponíveis por FEFO. A confirmação cria uma saída
+                    imutável no ledger e não poderá ser simplesmente apagada.
+                  </p>
+                </div>
+                <div className="grid gap-4 md:grid-cols-2">
+                  <label className="space-y-1 text-sm font-medium">
+                    Dose efetivamente administrada
+                    <Input
+                      required
+                      type="number"
+                      min="0.000001"
+                      step="0.000001"
+                      value={application.administeredDoseQuantity}
+                      onChange={(event) =>
+                        setApplication({
+                          ...application,
+                          administeredDoseQuantity: Number(event.target.value),
+                          confirmed: false,
+                        })
+                      }
+                    />
+                    <span className="block text-xs text-muted-foreground">
+                      {application.doseUnit}
+                      {application.doseVolumeMl !== null
+                        ? ` · volume calculado: ${application.doseVolumeMl.toLocaleString("pt-BR", { maximumFractionDigits: 3 })} mL`
+                        : ""}
+                    </span>
+                  </label>
+                  <label className="space-y-1 text-sm font-medium">
+                    Via de administração
+                    <Input required readOnly value={application.route} />
+                  </label>
+                  <label className="space-y-1 text-sm font-medium">
+                    Local do consumo
+                    <select
+                      required
+                      className="h-10 w-full rounded-md border bg-background px-3"
+                      value={application.locationId}
+                      onChange={(event) =>
+                        setApplication({ ...application, locationId: event.target.value })
+                      }
+                    >
+                      <option value="">Selecione</option>
+                      {data.locations.map((location) => (
+                        <option key={location.id} value={location.id}>
+                          {location.name}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="space-y-1 text-sm font-medium md:col-span-2">
+                    Intercorrência operacional (opcional)
+                    <Input
+                      maxLength={1000}
+                      placeholder="Sem intercorrências"
+                      value={application.occurrenceNotes}
+                      onChange={(event) =>
+                        setApplication({ ...application, occurrenceNotes: event.target.value })
+                      }
+                    />
+                  </label>
+                  <label className="space-y-1 text-sm font-medium">
+                    Profissional executor
+                    <Input
+                      required
+                      minLength={3}
+                      maxLength={100}
+                      value={application.professional}
+                      onChange={(event) =>
+                        setApplication({ ...application, professional: event.target.value })
+                      }
+                    />
+                  </label>
+                  <label className="space-y-1 text-sm font-medium">
+                    Referência
+                    <Input
+                      required
+                      minLength={3}
+                      maxLength={100}
+                      value={application.reference}
+                      onChange={(event) =>
+                        setApplication({ ...application, reference: event.target.value })
+                      }
+                    />
+                  </label>
+                  <label className="space-y-1 text-sm font-medium">
+                    Justificativa operacional
+                    <Input
+                      required
+                      minLength={10}
+                      maxLength={500}
+                      value={application.reason}
+                      onChange={(event) =>
+                        setApplication({ ...application, reason: event.target.value })
+                      }
+                    />
+                  </label>
+                </div>
+                <label className="flex items-start gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    className="mt-1"
+                    checked={application.confirmed}
+                    onChange={(event) =>
+                      setApplication({ ...application, confirmed: event.target.checked })
+                    }
+                  />
+                  Conferi paciente, prescrição válida, dose, via, produto, profissional e local.
+                  Confirmo a aplicação e a baixa física.
+                </label>
+                <div className="flex flex-wrap gap-3">
+                  <Button disabled={pending || !application.confirmed}>
+                    {pending ? "Confirmando…" : "Confirmar aplicação"}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    disabled={pending}
+                    onClick={() =>
+                      setApplication((current) => ({ ...current, operationId: "", scheduleId: "" }))
+                    }
+                  >
+                    Voltar sem registrar
+                  </Button>
+                </div>
+              </form>
+            )}
+            {data.canManage && data.treatments.length > 0 && (
+              <form onSubmit={upload} className="space-y-4 rounded-xl border bg-card p-5">
+                <div>
+                  <h2 className="font-semibold">Anexar prescrição</h2>
+                  <p className="text-sm text-muted-foreground">
+                    PDF ou foto, até 10 MB. O arquivo será privado e baixado somente após
+                    autorização.
+                  </p>
+                </div>
+                <div className="grid gap-4 md:grid-cols-2">
+                  <label className="space-y-1 text-sm font-medium">
+                    Tratamento
+                    <select
+                      name="treatmentId"
+                      required
+                      className="h-10 w-full rounded-md border bg-background px-3"
+                    >
+                      {data.treatments.map((t) => (
+                        <option key={t.id} value={t.id}>
+                          {t.productName}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="space-y-1 text-sm font-medium">
+                    Arquivo
+                    <Input
+                      name="file"
+                      required
+                      type="file"
+                      accept="application/pdf,image/jpeg,image/png,image/heic,image/heif"
+                    />
+                  </label>
+                  <label className="space-y-1 text-sm font-medium">
+                    Nome do prescritor
+                    <Input name="prescriberName" required minLength={2} maxLength={150} />
+                  </label>
+                  <label className="space-y-1 text-sm font-medium">
+                    Conselho e número
+                    <Input
+                      name="councilNumber"
+                      required
+                      minLength={3}
+                      maxLength={30}
+                      placeholder="CRM 12345"
+                    />
+                  </label>
+                  <label className="space-y-1 text-sm font-medium">
+                    UF do conselho
+                    <Input
+                      name="councilRegion"
+                      required
+                      minLength={2}
+                      maxLength={10}
+                      placeholder="CE"
+                    />
+                  </label>
+                  <label className="space-y-1 text-sm font-medium">
+                    Data de emissão
+                    <Input name="issuedOn" required type="date" />
+                  </label>
+                  <label className="space-y-1 text-sm font-medium">
+                    Válida até
+                    <Input name="validUntil" required type="date" />
+                  </label>
+                  <label className="space-y-1 text-sm font-medium">
+                    Substitui uma prescrição? (opcional)
+                    <select
+                      name="supersedesId"
+                      className="h-10 w-full rounded-md border bg-background px-3"
+                    >
+                      <option value="">Não, novo documento</option>
+                      {data.prescriptions
+                        .filter((prescription) => prescription.documentStatus === "ACTIVE")
+                        .map((prescription) => (
+                          <option key={prescription.id} value={prescription.id}>
+                            {prescription.originalFilename} · versão {prescription.version}
+                          </option>
+                        ))}
+                    </select>
+                  </label>
+                  <label className="space-y-1 text-sm font-medium md:col-span-2">
+                    Motivo
+                    <Input
+                      name="reason"
+                      required
+                      minLength={10}
+                      defaultValue="Prescrição conferida e anexada ao tratamento."
+                    />
+                  </label>
+                </div>
+                <Button disabled={pending}>{pending ? "Enviando…" : "Guardar prescrição"}</Button>
+              </form>
+            )}
+            <section className="rounded-xl border bg-card">
+              <div className="border-b p-5">
+                <h2 className="font-semibold">Prescrições protegidas</h2>
+              </div>
+              {data.prescriptions.length ? (
+                <div className="divide-y">
+                  {data.prescriptions.map((p) => (
+                    <div key={p.id} className="flex items-center justify-between gap-4 p-5">
+                      <div className="flex items-center gap-3">
+                        <FileText className="size-5 text-primary" />
+                        <div>
+                          <p className="font-medium">{p.originalFilename}</p>
+                          <p className="text-xs text-muted-foreground">
+                            Versão {p.version} · {Math.ceil(p.sizeBytes / 1024)} KB ·{" "}
+                            {prescriptionLabels[p.effectiveStatus] ?? p.effectiveStatus}
+                          </p>
+                          {p.prescriberName ? (
+                            <p className="text-xs text-muted-foreground">
+                              {p.prescriberName} · {p.councilNumber}/{p.councilRegion} · emissão{" "}
+                              {p.issuedOn?.split("-").reverse().join("/")} · validade{" "}
+                              {p.validUntil?.split("-").reverse().join("/")}
+                            </p>
+                          ) : (
+                            <p className="text-xs text-warning-foreground">
+                              Documento legado: metadados clínicos pendentes
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                      <Button asChild variant="outline" size="sm">
+                        <a
+                          href={`/api/v1/inventory/prescriptions/${p.id}`}
+                          target="_blank"
+                          rel="noreferrer"
+                        >
+                          Abrir
+                        </a>
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="p-8 text-center text-sm text-muted-foreground">
+                  Nenhuma prescrição anexada.
+                </p>
+              )}
+            </section>
+          </div>
+        </main>
+      </div>
     </div>
   );
 }

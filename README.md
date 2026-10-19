@@ -505,3 +505,9 @@ O M21 encerra seu roteiro na letra G. A finalização de receita, a primeira est
 Recibos por consumidor e auditoria permitem processamento interno explícito sem duplicação; falhas desfazem os efeitos executados na mesma transação. Não há worker, envio externo, criação automática de venda ou novo consumo de estoque. Aprovação de orçamento, venda concluída e sessão agendada possuem contratos reservados, com emissão bloqueada até seus fluxos específicos serem implementados.
 
 Receitas criadas diretamente como finais preservam sua revisão histórica `0`; as demais fontes mantêm suas próprias versões. Consulte [desenho, limites e validação do M21G](docs/m21g-integration-contracts.md). Migração aditiva `0069_integration_outbox`, exclusivamente no Preview nesta entrega. A conclusão do M21 não representa liberação automática para produção nem conclusão dos módulos comerciais futuros.
+
+### Patient Workspace — Fase 1: central de documentos (Preview)
+
+O paciente passa a ter navegação contextual por Visão geral, Consultas, Documentos, Exames e Tratamentos. A central reúne oito fontes existentes sem duplicar seus registros, com busca, categorias múltiplas, filtros, paginação e prévia privada. Novos anexos PDF/JPEG/PNG preservam o original e recebem hash calculado no servidor, com validação de acesso por organização, paciente e unidades.
+
+Os fluxos atuais de consulta e tratamento permanecem disponíveis. Nesta fase, Exames reúne pedidos e arquivos; extração por IA, validação de resultados, comparação longitudinal e evolução dos questionários seguem nas próximas fases, nessa ordem. Consulte [desenho, segurança e validação da Fase 1](docs/patient-workspace-phase1.md). Migração aditiva `0070_patient_documents`, com publicação restrita ao Preview.

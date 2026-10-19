@@ -156,6 +156,7 @@ test("clinical estimate persists pending amounts and finance adjusts a safe comm
       ).rows[0].counts;
     const before = await counts();
     await page.goto(`/pacientes/${patient}`);
+    await page.getByRole("button", { name: "Tratamentos", exact: true }).click();
     const clinicalPanel = page.getByRole("region", {
       name: "Plano clínico estruturado",
       exact: true,
