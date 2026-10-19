@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { readInventoryResponse, useInventory } from "@/data/inventory-api";
 import { selectedUnitId, withSelectedUnit } from "@/data/unit-context";
+import { PATIENT_DOCUMENT_MAX_BYTES } from "@/data/patient-document-upload";
 import { InventoryState } from "./inventory-state";
 
 type Category = { id: string; name: string; builtin: boolean };
@@ -273,10 +274,10 @@ export function PatientDocumentCenter({
     if (
       !(file instanceof File) ||
       !file.size ||
-      file.size > 10 * 1024 * 1024 ||
+      file.size > PATIENT_DOCUMENT_MAX_BYTES ||
       !["application/pdf", "image/jpeg", "image/png"].includes(file.type)
     ) {
-      setError("Selecione PDF, JPEG ou PNG de até 10 MB.");
+      setError("Selecione PDF, JPEG ou PNG de até 4 MB.");
       return;
     }
     const operationKey = JSON.stringify({
@@ -400,7 +401,7 @@ export function PatientDocumentCenter({
                 aria-describedby={`${id}-file-help`}
               />
               <p id={`${id}-file-help`} className="text-xs text-muted-foreground">
-                PDF, JPEG ou PNG de até 10 MB. Não substitui avaliação profissional.
+                PDF, JPEG ou PNG de até 4 MB. Não substitui avaliação profissional.
               </p>
             </div>
             <div className="flex gap-2">

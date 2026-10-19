@@ -1,5 +1,6 @@
 import "@tanstack/react-start/server-only";
 import { createHash, randomUUID } from "node:crypto";
+import { PATIENT_DOCUMENT_MAX_BYTES } from "../data/patient-document-upload";
 import { z } from "zod";
 import { get, put, del } from "@vercel/blob";
 import { authenticate, can, type AuthContext } from "./auth";
@@ -285,9 +286,9 @@ export async function patientDocumentsResponse(request: Request) {
   }
 }
 async function upload(request: Request, auth: AuthContext) {
-  const max = 10 * 1024 * 1024;
+  const max = PATIENT_DOCUMENT_MAX_BYTES;
   if (Number(request.headers.get("content-length") ?? 0) > max + 65536)
-    return fail("Envie arquivo de até 10 MB.", 400);
+    return fail("Envie arquivo de até 4 MB.", 400);
   const reader = request.body?.getReader();
   if (!reader) return fail("Arquivo ausente.", 400);
   const chunks: Uint8Array[] = [];
@@ -299,7 +300,7 @@ async function upload(request: Request, auth: AuthContext) {
       size += value.length;
       if (size > max + 65536) {
         await reader.cancel();
-        return fail("Envie arquivo de até 10 MB.", 400);
+        return fail("Envie arquivo de até 4 MB.", 400);
       }
       chunks.push(value);
     }
@@ -332,7 +333,7 @@ async function upload(request: Request, auth: AuthContext) {
     }),
     file = form.get("file");
   if (!parsed.success || !(file instanceof File) || file.size < 1 || file.size > max)
-    return fail("Confira o arquivo e seus dados (até 10 MB).", 400);
+    return fail("Confira o arquivo e seus dados (até 4 MB).", 400);
   const d = parsed.data,
     c = await context(auth, d.patientId);
   if (!c || !c.clinical) return fail("Paciente não autorizado para envio.", 403);

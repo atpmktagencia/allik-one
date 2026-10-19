@@ -330,12 +330,38 @@ describe("Patient document center independent security", () => {
     expect(storage.get).not.toHaveBeenCalled();
     expect(await (await own.read()).text()).not.toContain(category);
   });
+  it("accepts 4 MiB originals and rejects larger files before private storage", async () => {
+    const f = await fixture();
+    const send = (size: number) => {
+      const bytes = new Uint8Array(size);
+      bytes.set(new TextEncoder().encode("%PDF-1.7"));
+      const form = new FormData();
+      form.set("id", randomUUID());
+      form.set("patientId", f.patient);
+      form.set("title", "Synthetic size boundary");
+      form.set("categories", JSON.stringify(["OTHER"]));
+      form.set("file", new File([bytes], "boundary.pdf", { type: "application/pdf" }));
+      return patientDocumentsResponse(
+        new Request(`${origin}/api/v1/inventory/patient-documents`, {
+          method: "POST",
+          headers: f.headers,
+          body: form,
+        }),
+      );
+    };
+    storage.put.mockReset();
+    expect((await send(4 * 1024 * 1024 + 1)).status).toBe(400);
+    expect(storage.put).not.toHaveBeenCalled();
+    storage.put.mockImplementation(async (pathname: string) => ({ pathname }));
+    expect((await send(4 * 1024 * 1024)).status).toBe(201);
+    expect(storage.put).toHaveBeenCalledTimes(1);
+  });
   it("bounds chunked multipart bytes even without a Content-Length header", async () => {
     const f = await fixture();
     let emitted = 0;
     const stream = new ReadableStream<Uint8Array>({
       pull(controller) {
-        if (emitted++ < 11) controller.enqueue(new Uint8Array(1024 * 1024));
+        if (emitted++ < 5) controller.enqueue(new Uint8Array(1024 * 1024));
         else controller.close();
       },
     });

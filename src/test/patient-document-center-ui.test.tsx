@@ -159,6 +159,13 @@ describe("Patient private document center", () => {
     });
     fireEvent.click(screen.getByRole("checkbox", { name: "Solicitação de exames" }));
     fireEvent.click(screen.getByRole("checkbox", { name: "Resultado laboratorial" }));
+    const oversized = new File([new Uint8Array(4 * 1024 * 1024 + 1)], "large.pdf", {
+      type: "application/pdf",
+    });
+    fireEvent.change(screen.getByLabelText("Arquivo original"), { target: { files: [oversized] } });
+    fireEvent.submit(screen.getByRole("form", { name: "Anexar documento do paciente" }));
+    await waitFor(() => expect(screen.getByRole("alert")).toHaveTextContent("até 4 MB"));
+    expect(fetch).not.toHaveBeenCalled();
     const file = new File(["%PDF-1.7 synthetic"], "laudo.pdf", { type: "application/pdf" });
     fireEvent.change(screen.getByLabelText("Arquivo original"), { target: { files: [file] } });
     fireEvent.submit(screen.getByRole("form", { name: "Anexar documento do paciente" }));
