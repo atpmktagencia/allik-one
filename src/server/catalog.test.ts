@@ -18,6 +18,7 @@ beforeAll(async () => {
   if (!url.pathname.endsWith("_test"))
     throw new Error("Catalog tests require a dedicated *_test database.");
   process.env["INVENTORY_ENVIRONMENT"] = "test";
+  process.env["INVENTORY_PREVIEW_DATA_CLASSIFICATION"] = "synthetic";
   process.env["INVENTORY_PREVIEW_PASSWORD"] = "synthetic-test-password";
   process.env["INVENTORY_SESSION_SECRET"] = "synthetic-test-session-secret-32-characters";
   await migrate(getDb(), { migrationsFolder: "./drizzle" });
@@ -28,6 +29,7 @@ beforeAll(async () => {
       body: JSON.stringify({ password: "synthetic-test-password" }),
     }),
   );
+  expect(response.status).toBe(200);
   cookie = response.headers.get("set-cookie")!.split(";")[0]!;
 });
 afterAll(async () => {

@@ -7,12 +7,30 @@ export const previewOperatorIdentity = {
   councilNumber: "999999999",
 } as const;
 
-/** Every shared identity, including the legacy password-only actor, uses this boundary. */
-export function sharedPreviewBoundaryEnabled(env: Record<string, string | undefined>) {
-  if (env["INVENTORY_PREVIEW_DATA_CLASSIFICATION"] !== "synthetic") return false;
+export type SharedPreviewBoundaryProblem =
+  | "PREVIEW_BOUNDARY_CLASSIFICATION"
+  | "PREVIEW_BOUNDARY_URL_PARSE"
+  | "PREVIEW_BOUNDARY_URL_PROTOCOL"
+  | "PREVIEW_BOUNDARY_PARAMETERS"
+  | "PREVIEW_BOUNDARY_LOCAL"
+  | "PREVIEW_BOUNDARY_DEPLOYMENT_ENV"
+  | "PREVIEW_BOUNDARY_APPLICATION_ENV"
+  | "PREVIEW_BOUNDARY_BRANCH"
+  | "PREVIEW_BOUNDARY_RUNTIME_USER"
+  | "PREVIEW_BOUNDARY_HOST"
+  | "PREVIEW_BOUNDARY_PORT"
+  | "PREVIEW_BOUNDARY_DATABASE";
+
+/** Fixed diagnostic codes only: never return connection details or environment values. */
+export function sharedPreviewBoundaryProblem(
+  env: Record<string, string | undefined>,
+): SharedPreviewBoundaryProblem | null {
+  if (env["INVENTORY_PREVIEW_DATA_CLASSIFICATION"] !== "synthetic")
+    return "PREVIEW_BOUNDARY_CLASSIFICATION";
   try {
     const database = new URL(env["DATABASE_URL"] ?? "");
-    if (!["postgres:", "postgresql:"].includes(database.protocol)) return false;
+    if (!["postgres:", "postgresql:"].includes(database.protocol))
+      return "PREVIEW_BOUNDARY_URL_PROTOCOL";
     // node-postgres lets query parameters override URL host/user/options. Do not
     // validate one endpoint and then connect to another (including Neon options).
     const connectionParameters = new Set([
@@ -22,29 +40,39 @@ export function sharedPreviewBoundaryEnabled(env: Record<string, string | undefi
       "connect_timeout",
     ]);
     if ([...database.searchParams.keys()].some((key) => !connectionParameters.has(key)))
-      return false;
+      return "PREVIEW_BOUNDARY_PARAMETERS";
     // Local disposable databases are a separate boundary, never a deployment bypass.
     if (!env["VERCEL_ENV"] && env["VERCEL"] !== "1")
-      return (
-        ["test", "development"].includes(env["NODE_ENV"] ?? "") &&
+      return ["test", "development"].includes(env["NODE_ENV"] ?? "") &&
         ["test", "development"].includes(env["INVENTORY_ENVIRONMENT"] ?? "") &&
         ["localhost", "127.0.0.1", "[::1]"].includes(database.hostname) &&
         database.pathname.endsWith("_test")
-      );
-    return (
-      env["VERCEL_ENV"] === "preview" &&
-      env["INVENTORY_ENVIRONMENT"] === "preview" &&
-      env["VERCEL_GIT_COMMIT_REF"] === "feature/allik-patients" &&
-      decodeURIComponent(database.username) ===
-        (env["INVENTORY_RUNTIME_ROLE"]?.trim() || "allik_runtime") &&
-      database.hostname.replace("-pooler.", ".") ===
-        "ep-hidden-cloud-b6hskjjt.c-2.sa-east-1.aws.neon.tech" &&
-      (!database.port || database.port === "5432") &&
-      database.pathname === "/neondb"
-    );
+        ? null
+        : "PREVIEW_BOUNDARY_LOCAL";
+    if (env["VERCEL_ENV"] !== "preview") return "PREVIEW_BOUNDARY_DEPLOYMENT_ENV";
+    if (env["INVENTORY_ENVIRONMENT"] !== "preview") return "PREVIEW_BOUNDARY_APPLICATION_ENV";
+    if (env["VERCEL_GIT_COMMIT_REF"] !== "feature/allik-patients") return "PREVIEW_BOUNDARY_BRANCH";
+    if (
+      decodeURIComponent(database.username) !==
+      (env["INVENTORY_RUNTIME_ROLE"]?.trim() || "allik_runtime")
+    )
+      return "PREVIEW_BOUNDARY_RUNTIME_USER";
+    if (
+      database.hostname.replace("-pooler.", ".") !==
+      "ep-hidden-cloud-b6hskjjt.c-2.sa-east-1.aws.neon.tech"
+    )
+      return "PREVIEW_BOUNDARY_HOST";
+    if (database.port && database.port !== "5432") return "PREVIEW_BOUNDARY_PORT";
+    if (database.pathname !== "/neondb") return "PREVIEW_BOUNDARY_DATABASE";
+    return null;
   } catch {
-    return false;
+    return "PREVIEW_BOUNDARY_URL_PARSE";
   }
+}
+
+/** Every shared identity, including the legacy password-only actor, uses this boundary. */
+export function sharedPreviewBoundaryEnabled(env: Record<string, string | undefined>) {
+  return sharedPreviewBoundaryProblem(env) === null;
 }
 
 /** Never activate shared clinical access outside the explicitly authorized synthetic branch. */

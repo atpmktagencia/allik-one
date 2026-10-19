@@ -11,6 +11,7 @@ import { consumeAuthRateLimit, releaseAuthRateLimit } from "./auth-rate-limit";
 import {
   fullPreviewOperatorEnabled,
   sharedPreviewBoundaryEnabled,
+  sharedPreviewBoundaryProblem,
   previewOperatorIdentity,
 } from "../lib/preview-operator-policy";
 
@@ -18,6 +19,7 @@ const cookieName = "allik_inventory_session";
 const previewOptOutCookieName = "allik_inventory_preview_opt_out";
 const previewLifetimeSeconds = 60 * 60 * 8;
 const pilotLifetimeSeconds = 60 * 60 * 12;
+let previewBoundaryWarningRecorded = false;
 function derivePassword(
   password: string,
   salt: Buffer,
@@ -573,7 +575,20 @@ export async function sessionResponse(request: Request) {
   if (request.method === "DELETE") return logout(request);
   if (request.method === "GET") {
     const context = await authenticate(request);
-    if (!context) return Response.json({ error: "Sessão inválida ou expirada." }, { status: 401 });
+    if (!context) {
+      if (
+        !previewBoundaryWarningRecorded &&
+        process.env["INVENTORY_PREVIEW_OPERATOR_FULL_ACCESS"] === "true" &&
+        process.env["VERCEL_ENV"] === "preview"
+      ) {
+        previewBoundaryWarningRecorded = true;
+        console.warn(
+          "SHARED_PREVIEW_ACCESS_DENIED",
+          sharedPreviewBoundaryProblem(process.env) ?? "PREVIEW_SHARED_SESSION_UNAVAILABLE",
+        );
+      }
+      return Response.json({ error: "Sessão inválida ou expirada." }, { status: 401 });
+    }
     const allowedUnits = context.preview || context.role === "SUPER_ADMIN" ? null : context.unitIds;
     const unitsResult = await getPool().query(
       `SELECT id,name FROM inventory_units WHERE organization_id=$1 AND active

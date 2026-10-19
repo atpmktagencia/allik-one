@@ -3,6 +3,7 @@ import {
   fullPreviewOperatorEnabled,
   previewOperatorIdentity,
   sharedPreviewBoundaryEnabled,
+  sharedPreviewBoundaryProblem,
 } from "@/lib/preview-operator-policy";
 import { authenticate, can, hasPreviewSession, previewLogin, sessionResponse } from "@/server/auth";
 
@@ -27,6 +28,93 @@ afterEach(() => {
   query.mockReset();
 });
 describe("synthetic shared Preview operator", () => {
+  it("returns only fixed boundary reason codes without connection credentials, parameter keys or values", () => {
+    const cases = [
+      [
+        { INVENTORY_PREVIEW_DATA_CLASSIFICATION: "secret-classification" },
+        "PREVIEW_BOUNDARY_CLASSIFICATION",
+      ],
+      [{ DATABASE_URL: "invalid-secret-url" }, "PREVIEW_BOUNDARY_URL_PARSE"],
+      [
+        { DATABASE_URL: "https://secret-user:secret-password@secret-host/neondb" },
+        "PREVIEW_BOUNDARY_URL_PROTOCOL",
+      ],
+      [
+        { DATABASE_URL: allowed.DATABASE_URL + "?secret-param-key=secret-param-value" },
+        "PREVIEW_BOUNDARY_PARAMETERS",
+      ],
+      [{ VERCEL_ENV: "production" }, "PREVIEW_BOUNDARY_DEPLOYMENT_ENV"],
+      [{ INVENTORY_ENVIRONMENT: "production" }, "PREVIEW_BOUNDARY_APPLICATION_ENV"],
+      [{ VERCEL_GIT_COMMIT_REF: "secret-branch" }, "PREVIEW_BOUNDARY_BRANCH"],
+      [
+        {
+          DATABASE_URL: allowed.DATABASE_URL.replace(
+            "allik_runtime@",
+            "secret-user:secret-password@",
+          ),
+        },
+        "PREVIEW_BOUNDARY_RUNTIME_USER",
+      ],
+      [
+        { DATABASE_URL: "postgres://allik_runtime:secret-password@secret-host/neondb" },
+        "PREVIEW_BOUNDARY_HOST",
+      ],
+      [
+        { DATABASE_URL: allowed.DATABASE_URL.replace("/neondb", ":5433/neondb") },
+        "PREVIEW_BOUNDARY_PORT",
+      ],
+      [
+        { DATABASE_URL: allowed.DATABASE_URL.replace("/neondb", "/secret-database") },
+        "PREVIEW_BOUNDARY_DATABASE",
+      ],
+    ] as const;
+    expect(sharedPreviewBoundaryProblem(allowed)).toBeNull();
+    for (const [override, code] of cases) {
+      const env = { ...allowed, ...override };
+      const problem = sharedPreviewBoundaryProblem(env);
+      expect(problem).toBe(code);
+      expect(problem).not.toMatch(/secret|postgres|neon\.tech/);
+      expect(sharedPreviewBoundaryEnabled(env)).toBe(false);
+    }
+    const local = {
+      NODE_ENV: "test",
+      INVENTORY_ENVIRONMENT: "test",
+      INVENTORY_PREVIEW_DATA_CLASSIFICATION: "synthetic",
+      DATABASE_URL: "postgres://local@127.0.0.1/allik_test",
+    };
+    expect(sharedPreviewBoundaryProblem(local)).toBeNull();
+    expect(sharedPreviewBoundaryProblem({ ...local, NODE_ENV: "production" })).toBe(
+      "PREVIEW_BOUNDARY_LOCAL",
+    );
+    expect(sharedPreviewBoundaryEnabled(allowed)).toBe(true);
+  });
+  it("logs a fixed boundary reason once for denied full-operator Preview sessions and keeps the response generic", async () => {
+    environment();
+    vi.stubEnv("INVENTORY_PREVIEW_DATA_CLASSIFICATION", "secret-classification");
+    vi.stubEnv(
+      "DATABASE_URL",
+      "postgres://secret-user:secret-password@secret-host/secret-database?secret-param=secret-value",
+    );
+    const warning = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      for (let index = 0; index < 2; index++) {
+        const response = await sessionResponse(
+          new Request("https://preview.example.test/api/inventory-session"),
+        );
+        expect(response.status).toBe(401);
+        expect(await response.json()).toEqual({ error: "Sessão inválida ou expirada." });
+      }
+      expect(warning).toHaveBeenCalledTimes(1);
+      expect(warning.mock.calls[0]).toEqual([
+        "SHARED_PREVIEW_ACCESS_DENIED",
+        "PREVIEW_BOUNDARY_CLASSIFICATION",
+      ]);
+      expect(JSON.stringify(warning.mock.calls)).not.toMatch(/secret|postgres|neon\.tech/);
+      expect(query).not.toHaveBeenCalled();
+    } finally {
+      warning.mockRestore();
+    }
+  });
   it("requires every explicit deployment, data classification, branch and database boundary", () => {
     expect(fullPreviewOperatorEnabled(allowed)).toBe(true);
     expect(
