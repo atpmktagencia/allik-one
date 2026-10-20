@@ -1,7 +1,14 @@
 import type { ReactElement } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { afterEach, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, render as renderView, screen, waitFor } from "@testing-library/react";
+import {
+  act,
+  cleanup,
+  fireEvent,
+  render as renderView,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import { LaboratoryReview } from "@/components/clinic/laboratory-review";
 import { emptyLaboratoryDraft, emptyLaboratoryRow } from "@/lib/laboratory-results";
 function render(ui: ReactElement) {
@@ -235,4 +242,135 @@ it("publishes keyed clinical review draft state and clears its navigation guard 
   } finally {
     window.removeEventListener("allik:clinical-file-draft-state", listener);
   }
+});
+
+function extractionState(status = "WAITING", version = 0) {
+  return {
+    source: { id: "doc", title: "Exame sintético", sha256: "hash", previewUrl: "/private.pdf" },
+    import: {
+      id: "job",
+      status,
+      version,
+      draft:
+        status === "READY_REVIEW"
+          ? {
+              patientConfirmed: false,
+              notes: "",
+              rows: [{ ...emptyLaboratoryRow(), name: "TSH", result: "0,2" }],
+            }
+          : emptyLaboratoryDraft(),
+      processing_started_at: status === "PROCESSING" ? new Date().toISOString() : null,
+      failure_code: null,
+    },
+    versions: [],
+    events: [],
+    extractionAvailable: true,
+    extractionMessage: null,
+  };
+}
+it.each(["network", "invalid-json"])(
+  "recovers the completed job after %s without another extraction or implicit confirmation",
+  async (failure) => {
+    const actions: string[] = [];
+    let current = extractionState();
+    let reads = 0;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (_url: unknown, init: RequestInit) => {
+        const action = init.body ? JSON.parse(String(init.body)).action : null;
+        if (action) actions.push(action);
+        else reads++;
+        if (action === "EXTRACT") {
+          current = extractionState("READY_REVIEW", 2);
+          if (failure === "network") throw new TypeError("Network lost");
+          return new Response("<!doctype html>", {
+            status: 200,
+            headers: { "content-type": "text/html" },
+          });
+        }
+        return Response.json({ data: current });
+      }),
+    );
+    render(<LaboratoryReview patientId="patient" documentId="doc" />);
+    fireEvent.click(screen.getByRole("button", { name: "Conferir resultados laboratoriais" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Extrair resultados com IA" }));
+    expect(await screen.findByDisplayValue("0,2")).toBeEnabled();
+    expect(
+      screen.getByText("Extração concluída. Confira os resultados antes de confirmar."),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    expect(screen.getByLabelText("Conferir linha 1")).not.toBeChecked();
+    expect(actions).toEqual(["OPEN", "EXTRACT"]);
+    expect(reads).toBe(1);
+  },
+);
+it("reconciles a running job and ignores delayed polling after the professional edits the completed draft", async () => {
+  let poll: (() => void) | undefined;
+  const native = window.setInterval.bind(window);
+  const interval = vi.spyOn(window, "setInterval").mockImplementation((handler, ms, ...args) => {
+    if (ms === 3000) {
+      if (typeof handler === "function") poll = () => handler(...args);
+      return 987 as unknown as ReturnType<typeof window.setInterval>;
+    }
+    return native(handler, ms, ...args) as unknown as ReturnType<typeof window.setInterval>;
+  });
+  const pending: Array<(response: Response) => void> = [];
+  const actions: string[] = [];
+  let reads = 0;
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (_url: unknown, init: RequestInit) => {
+      const action = init.body ? JSON.parse(String(init.body)).action : null;
+      if (action) actions.push(action);
+      if (action === "EXTRACT") throw new TypeError("Network lost");
+      if (!action) {
+        if (reads++ === 0) return Response.json({ data: extractionState("PROCESSING", 1) });
+        return new Promise<Response>((resolve) => pending.push(resolve));
+      }
+      return Response.json({ data: extractionState() });
+    }),
+  );
+  try {
+    render(<LaboratoryReview patientId="patient" documentId="doc" />);
+    fireEvent.click(screen.getByRole("button", { name: "Conferir resultados laboratoriais" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Extrair resultados com IA" }));
+    await screen.findByText(/A extração continua no servidor/);
+    await waitFor(() => expect(poll).toBeDefined());
+    act(() => {
+      poll!();
+      poll!();
+    });
+    expect(pending).toHaveLength(2);
+    await act(async () => {
+      pending[1]!(Response.json({ data: extractionState("READY_REVIEW", 2) }));
+    });
+    const value = await screen.findByDisplayValue("0,2");
+    fireEvent.change(value, { target: { value: "5,5" } });
+    await act(async () => {
+      pending[0]!(Response.json({ data: extractionState("PROCESSING", 1) }));
+    });
+    expect(value).toHaveValue("5,5");
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    expect(actions).toEqual(["OPEN", "EXTRACT"]);
+  } finally {
+    interval.mockRestore();
+  }
+});
+it("does not reconcile a forbidden extraction as a transport failure", async () => {
+  let reads = 0;
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (_url: unknown, init: RequestInit) => {
+      const action = init.body ? JSON.parse(String(init.body)).action : null;
+      if (!action) reads++;
+      return action === "EXTRACT"
+        ? Response.json({ error: "Acesso revogado" }, { status: 403 })
+        : Response.json({ data: extractionState() });
+    }),
+  );
+  render(<LaboratoryReview patientId="patient" documentId="doc" />);
+  fireEvent.click(screen.getByRole("button", { name: "Conferir resultados laboratoriais" }));
+  fireEvent.click(await screen.findByRole("button", { name: "Extrair resultados com IA" }));
+  expect(await screen.findByRole("alert")).toHaveTextContent("Acesso revogado");
+  expect(reads).toBe(0);
 });

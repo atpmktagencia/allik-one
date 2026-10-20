@@ -18,7 +18,7 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { withSelectedUnit } from "@/data/unit-context";
-import { readInventoryResponse } from "@/data/inventory-api";
+import { InventoryError, readInventoryResponse } from "@/data/inventory-api";
 import {
   emptyLaboratoryDraft,
   emptyLaboratoryRow,
@@ -90,6 +90,10 @@ export function LaboratoryReview({
   const [historical, setHistorical] = useState<HistoricalReview | null>(null);
   const changed = useRef(onChanged);
   changed.current = onChanged;
+  const currentData = useRef(data);
+  currentData.current = data;
+  const currentDirty = useRef(dirty);
+  currentDirty.current = dirty;
   const lock = useRef(false),
     generation = useRef(0),
     requests = useRef(new Set<AbortController>()),
@@ -144,6 +148,8 @@ export function LaboratoryReview({
     [endpoint, patientId, documentId, unitQuery],
   );
   const apply = useCallback((next: Data) => {
+    currentData.current = next;
+    currentDirty.current = false;
     setData(next);
     setDraft(next.import?.draft ?? emptyLaboratoryDraft());
     setDirty(false);
@@ -185,12 +191,33 @@ export function LaboratoryReview({
     const timer = window.setInterval(() => {
       void send()
         .then((next) => {
-          if (current === generation.current) apply(next);
+          if (current !== generation.current || currentDirty.current) return;
+          const previous = currentData.current?.import;
+          if (previous && next.import) {
+            if (next.import.version < previous.version) return;
+            if (next.import.version === previous.version) {
+              // Refresh the processing clock without resetting the editor. Late,
+              // unchanged polls must never replace a terminal or edited draft.
+              if (previous.status === "PROCESSING") setData(next);
+              return;
+            }
+          }
+          apply(next);
+          if (next.import?.status !== "PROCESSING") {
+            setError("");
+            setMessage(
+              next.import?.status === "READY_REVIEW"
+                ? "Extração concluída. Confira os resultados antes de confirmar."
+                : "Processamento encerrado. Consulte o estado da extração.",
+            );
+            void invalidatePatientLaboratoryQueries(queryClient, patientId);
+            changed.current?.();
+          }
         })
         .catch(() => {});
     }, 3000);
     return () => window.clearInterval(timer);
-  }, [open, data?.import?.status, pendingAction, patientId, documentId, send, apply]);
+  }, [open, data?.import?.status, pendingAction, patientId, documentId, send, apply, queryClient]);
   async function run(action: string) {
     if (lock.current || !data?.import) return;
     const current = generation.current;
@@ -228,6 +255,38 @@ export function LaboratoryReview({
               : "Processamento atualizado.",
       );
     } catch (e) {
+      if (
+        action === "EXTRACT" &&
+        current === generation.current &&
+        (!(e instanceof InventoryError) || e.status >= 500 || e.status < 400)
+      ) {
+        // A lost HTTP response is not permission to launch a second paid call.
+        // Reconcile against the versioned job and continue polling if necessary.
+        try {
+          const recovered = await send();
+          if (current !== generation.current) return;
+          if (
+            recovered.import &&
+            recovered.import.version > data.import.version &&
+            ["PROCESSING", "READY_REVIEW", "FAILED"].includes(recovered.import.status)
+          ) {
+            apply(recovered);
+            setError("");
+            setMessage(
+              recovered.import.status === "PROCESSING"
+                ? "A extração continua no servidor. Acompanhando o processamento sem repetir o envio."
+                : recovered.import.status === "READY_REVIEW"
+                  ? "Extração concluída. Confira os resultados antes de confirmar."
+                  : "Processamento encerrado. Consulte o estado da extração.",
+            );
+            void invalidatePatientLaboratoryQueries(queryClient, patientId);
+            changed.current?.();
+            return;
+          }
+        } catch {
+          // Keep the original error and draft if status recovery also fails.
+        }
+      }
       if (current === generation.current)
         setError(e instanceof Error ? e.message : "Não foi possível concluir.");
     } finally {
@@ -247,6 +306,7 @@ export function LaboratoryReview({
           : row,
       ),
     }));
+    currentDirty.current = true;
     setDirty(true);
   }
   const status = data?.import?.status,
@@ -541,6 +601,7 @@ export function LaboratoryReview({
                     variant="outline"
                     onClick={() => {
                       setDraft((p) => ({ ...p, rows: [...p.rows, emptyLaboratoryRow()] }));
+                      currentDirty.current = true;
                       setDirty(true);
                     }}
                   >
@@ -559,6 +620,7 @@ export function LaboratoryReview({
                           verified: r.verified || eligible(r, index),
                         })),
                       }));
+                      currentDirty.current = true;
                       setDirty(true);
                     }}
                   >
@@ -573,6 +635,7 @@ export function LaboratoryReview({
                   disabled={!editable}
                   onChange={(e) => {
                     setDraft((p) => ({ ...p, patientConfirmed: e.target.checked }));
+                    currentDirty.current = true;
                     setDirty(true);
                   }}
                 />
@@ -713,6 +776,7 @@ export function LaboratoryReview({
                                   ...p,
                                   rows: p.rows.filter((_, i) => i !== index),
                                 }));
+                                currentDirty.current = true;
                                 setDirty(true);
                               }}
                             >
@@ -759,6 +823,7 @@ export function LaboratoryReview({
                   value={shownDraft.notes}
                   onChange={(e) => {
                     setDraft((p) => ({ ...p, notes: e.target.value }));
+                    currentDirty.current = true;
                     setDirty(true);
                   }}
                 />

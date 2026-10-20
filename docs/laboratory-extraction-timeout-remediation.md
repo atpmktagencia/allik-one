@@ -42,4 +42,14 @@ Logs registram estratégia, duração, quantidade de páginas/trechos/linhas e c
 - Interface laboratorial: 18/18.
 - E2E do Paciente360º com conta restrita: aprovado, incluindo revisão de exames, prescrição, salvamento e descarte de rascunhos.
 
-O resultado do reprocessamento do PDF reportado será registrado após a publicação no Preview.
+## Reprocessamento do arquivo reportado
+
+No Preview, o candidato `28364c53994020cae2f8b1ab9f5246906e5e2af7` processou o arquivo de seis páginas em três trechos. A inferência terminou em 35.670 ms; o rascunho foi persistido em cerca de 39 segundos. Estado final: `READY_REVIEW`, falha removida, 52 linhas, todas não confirmadas, identificação do paciente ainda pendente de confirmação.
+
+O SHA-256 do original permaneceu `b3f8b01876acd9139f4879e1797eb70aba79b59a3a9e810ceb7e2955687d295c`. Os 37 resultados e a única versão clínica anteriormente confirmados permaneceram intactos. Não foi executada validação clínica nem substituído rascunho editado.
+
+A checagem independente marcou 6 evidências como correspondência literal e 46 com pendências, sobretudo nome não contido no trecho citado. As 52 linhas são candidatas para revisão, não resultados clinicamente validados. Os alertas foram preservados; a correção de timeout não os remove nem amplia a confirmação em lote.
+
+Também foi observada perda da resposta HTTP, embora o servidor tenha persistido a conclusão. A interface agora consulta o estado versionado depois de falha de transporte/JSON, sem reenviar a extração. Se ainda estiver processando, continua acompanhando; se concluída, apresenta o rascunho. Erros 4xx de autorização/conflito não são tratados como sucesso. Consultas atrasadas não sobrescrevem edição local ou uma versão mais nova.
+
+Após essa recuperação de interface: 504 testes unitários/interface aprovados em 76 arquivos. Incluem resposta perdida, JSON inválido, processo ainda ativo, consulta atrasada após edição e acesso negado. Nenhuma chamada adicional paga foi necessária para esses testes.
