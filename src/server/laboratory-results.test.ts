@@ -334,6 +334,14 @@ describe("laboratory import, review and isolation", () => {
       await f.post({ action: "EXTRACT", version: d.import.version, operationId: attempt }),
     );
     expect(d.import.status).toBe("READY_REVIEW");
+    expect(ai.extract).toHaveBeenCalledWith(
+      new TextEncoder().encode(f.bytes),
+      expect.any(String),
+      expect.objectContaining({ status: "available", pages: [{ page: 1, text: sourceText }] }),
+    );
+    expect(pdfText.extract.mock.invocationCallOrder[0]).toBeLessThan(
+      ai.extract.mock.invocationCallOrder[0]!,
+    );
     expect(d.import.draft.patientConfirmed).toBe(false);
     expect(d.import.draft.rows[0].verified).toBe(false);
     expect(d.import.extracted_payload.rows[0].result).toBe("<0,1");
@@ -392,6 +400,70 @@ describe("laboratory import, review and isolation", () => {
     expect(failed.import.status).toBe("FAILED");
     expect(failed.import.failure_code).toBe("SOURCE_INTEGRITY");
     expect(ai.extract).toHaveBeenCalledTimes(1);
+  });
+  it("does not restart an active attempt at the old 90-second deadline and rejects a late replaced response", async () => {
+    const f = await fixture();
+    const opened = await data(await f.post({ action: "OPEN" }));
+    storage.get.mockImplementation(async () => ({
+      statusCode: 200,
+      stream: new Blob([f.bytes]).stream(),
+    }));
+    let finishFirst: (value: ReturnType<typeof confirmed>) => void = () => {};
+    ai.extract.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          finishFirst = resolve;
+        }),
+    );
+    const newer = confirmed();
+    newer.rows[0]!.result = "0,2";
+    ai.extract.mockResolvedValueOnce(newer);
+    const first = f.post({
+      action: "EXTRACT",
+      version: opened.import.version,
+      operationId: randomUUID(),
+    });
+    await vi.waitFor(() => expect(ai.extract).toHaveBeenCalledTimes(1));
+    const processing = await data(await f.read());
+    const clock = vi.spyOn(Date, "now");
+    try {
+      clock.mockReturnValue(new Date(processing.import.processing_started_at).getTime() + 100000);
+      expect(
+        (
+          await f.post({
+            action: "EXTRACT",
+            version: processing.import.version,
+            operationId: randomUUID(),
+          })
+        ).status,
+      ).toBe(409);
+      expect(ai.extract).toHaveBeenCalledTimes(1);
+      clock.mockReturnValue(new Date(processing.import.processing_started_at).getTime() + 241000);
+      const replacement = await data(
+        await f.post({
+          action: "EXTRACT",
+          version: processing.import.version,
+          operationId: randomUUID(),
+        }),
+      );
+      expect(replacement.import.status).toBe("READY_REVIEW");
+      finishFirst(confirmed());
+      expect((await first).status).toBe(409);
+      const retained = await data(await f.read());
+      expect(retained.import.draft.rows[0].result).toBe("0,2");
+      expect(retained.import.draft.rows[0].verified).toBe(false);
+      expect(
+        (
+          await f.db.query(
+            "SELECT count(*)::int n FROM inventory_laboratory_results WHERE patient_id=$1",
+            [f.patient],
+          )
+        ).rows[0].n,
+      ).toBe(0);
+    } finally {
+      finishFirst(confirmed());
+      clock.mockRestore();
+    }
   });
   it("fails closed when read auditing fails and enforces the extraction quota before a provider call", async () => {
     const f = await fixture();

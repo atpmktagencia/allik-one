@@ -3,6 +3,7 @@ import {
   laboratoryEvidenceIssueLabels,
   type LaboratorySourceChecks,
 } from "@/lib/laboratory-review-checks";
+import { LABORATORY_EXTRACTION_POLICY } from "@/lib/laboratory-extraction-policy";
 import { laboratoryFailureMessages } from "@/lib/laboratory-results";
 import { Fragment, useCallback, useEffect, useId, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
@@ -102,7 +103,7 @@ export function LaboratoryReview({
       const controller = new AbortController();
       const timeout = window.setTimeout(
         () => controller.abort(),
-        body?.["action"] === "EXTRACT" ? 75000 : 15000,
+        body?.["action"] === "EXTRACT" ? LABORATORY_EXTRACTION_POLICY.requestMilliseconds : 15000,
       );
       requests.current.add(controller);
       try {
@@ -254,7 +255,8 @@ export function LaboratoryReview({
   const stale =
     processing &&
     data?.import?.processing_started_at &&
-    Date.now() - new Date(data.import.processing_started_at).getTime() > 90000;
+    Date.now() - new Date(data.import.processing_started_at).getTime() >
+      LABORATORY_EXTRACTION_POLICY.staleMilliseconds;
   const editable = !!data?.import && !busy && !validated && !processing && !historical;
   useEffect(() => {
     const publish = (dirty: boolean, pending: boolean) =>
@@ -513,7 +515,7 @@ export function LaboratoryReview({
                 <p role="status" className="text-sm">
                   {stale
                     ? "A tentativa anterior não terminou. Você pode tentar novamente."
-                    : "Processando o PDF. Os resultados ainda não fazem parte do histórico clínico."}
+                    : "Processando as páginas do PDF. Pode levar até 3 minutos. Os resultados ainda não fazem parte do histórico clínico."}
                 </p>
               )}
               <div className="flex flex-wrap gap-2">

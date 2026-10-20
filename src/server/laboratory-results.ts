@@ -22,6 +22,7 @@ import {
 } from "./laboratory-extraction";
 
 import { extractLaboratoryPdfText } from "./laboratory-pdf-text";
+import { LABORATORY_EXTRACTION_POLICY } from "../lib/laboratory-extraction-policy";
 import { checkLaboratoryEvidence } from "../lib/laboratory-evidence";
 import {
   laboratorySourceChecksSchema,
@@ -310,10 +311,10 @@ async function finishExtraction(
     )
       throw Error("SOURCE_INTEGRITY");
     stage = "PROVIDER";
-    draft = laboratoryDraft.parse(await extractLaboratoryPdf(bytes, model));
+    const text = await extractLaboratoryPdfText(bytes);
+    draft = laboratoryDraft.parse(await extractLaboratoryPdf(bytes, model, text));
     draft.patientConfirmed = false;
     draft.rows = draft.rows.map((r) => ({ ...r, verified: false }));
-    const text = await extractLaboratoryPdfText(bytes);
     sourceChecks = {
       version: 1,
       parserStatus: text.status,
@@ -580,7 +581,8 @@ export async function laboratoryResultsResponse(request: Request) {
           }
           const stale =
             j.status === "PROCESSING" &&
-            Date.now() - new Date(j.processing_started_at ?? 0).getTime() > 90000;
+            Date.now() - new Date(j.processing_started_at ?? 0).getTime() >
+              LABORATORY_EXTRACTION_POLICY.staleMilliseconds;
           if (
             (!["WAITING", "FAILED"].includes(j.status) && !stale) ||
             j.draft.rows.length ||

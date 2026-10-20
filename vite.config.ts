@@ -6,6 +6,13 @@
 // You can pass additional config via defineConfig({ vite: { ... }, etc... }) if needed.
 import { fileURLToPath } from "node:url";
 import { defineConfig } from "@lovable.dev/vite-tanstack-config";
+import type { NitroConfig } from "nitro/types";
+
+// The Lovable wrapper forwards Nitro options but exposes only a subset in its type.
+const nitroOptions = {
+  preset: "vercel",
+  vercel: { functions: { maxDuration: 240 } },
+} satisfies NitroConfig;
 
 export default defineConfig({
   vite: {
@@ -28,7 +35,7 @@ export default defineConfig({
       },
     ],
   },
-  nitro: { preset: "vercel" },
+  nitro: nitroOptions,
   tanstackStart: {
     // Redirect TanStack Start's bundled server entry to src/server.ts (our SSR error wrapper).
     // nitro/vite builds from this
