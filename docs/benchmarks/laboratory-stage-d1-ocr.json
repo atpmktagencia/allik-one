@@ -1,0 +1,2710 @@
+{
+  "purpose": "SYNTHETIC_ONLY_OFFLINE_OCR_EXPERIMENT_NOT_CLINICAL_EVIDENCE",
+  "source": "versioned_PDF_not_model_transcription",
+  "scriptSha256": "eac5eb508399194f8dd263e690d166827366426238dd3b657b0dbab515d0f44b",
+  "tesseractVersion": "tesseract 5.5.0",
+  "languagesAvailable": [
+    "List of available languages in \"/usr/share/tesseract-ocr/5/tessdata/\" (2):",
+    "eng",
+    "osd"
+  ],
+  "languageUsed": "eng",
+  "dpi": 150,
+  "providerCalls": 0,
+  "productionIntegration": false,
+  "limitations": [
+    "Only three synthetic scans, one degradation and one rotation.",
+    "No Portuguese language data installed; accent errors must remain errors.",
+    "Word confidence is not clinical correctness or a calibrated probability.",
+    "Oracle rotation is known from the fixture, not inferred from the document.",
+    "Literal same-line diagnostics are not structured extraction accuracy.",
+    "Boxes refer to each transformed raster; no original-region mapping is claimed."
+  ],
+  "records": [
+    {
+      "caseId": "scan-degraded",
+      "page": 1,
+      "pdfSha256": "7bfd8067d9a8411847577aef967936f49ea07a21810e3ed7b5a66ee99033c436",
+      "rasterSha256": "00fba6def804ceb70649406244d4088db8f37ee6f369c23a180378dadf8e131b",
+      "rasterDimensions": [1241, 1754],
+      "variant": "automatic-layout",
+      "psm": 3,
+      "rotationDegrees": 0,
+      "rotationSource": "none",
+      "rasterMilliseconds": 1265,
+      "ocrMilliseconds": 300,
+      "exitCode": 0,
+      "diagnostics": "",
+      "lines": [
+        {
+          "text": "DOCUMENTO SINTETICO — SOMENTE TESTE",
+          "words": [
+            {
+              "text": "DOCUMENTO",
+              "confidence": 92.270157,
+              "box": [118, 114, 152, 18]
+            },
+            {
+              "text": "SINTETICO",
+              "confidence": 91.93161,
+              "box": [279, 110, 122, 22]
+            },
+            {
+              "text": "—",
+              "confidence": 92.79998,
+              "box": [410, 123, 22, 4]
+            },
+            {
+              "text": "SOMENTE",
+              "confidence": 92.291985,
+              "box": [440, 114, 113, 18]
+            },
+            {
+              "text": "TESTE",
+              "confidence": 96.787834,
+              "box": [561, 113, 72, 19]
+            }
+          ]
+        },
+        {
+          "text": "SEM PACIENTE REAL — SEM CAMADA TEXTUAL",
+          "words": [
+            {
+              "text": "SEM",
+              "confidence": 93.300369,
+              "box": [117, 154, 32, 12]
+            },
+            {
+              "text": "PACIENTE",
+              "confidence": 92.909706,
+              "box": [156, 153, 73, 13]
+            },
+            {
+              "text": "REAL",
+              "confidence": 93.283226,
+              "box": [236, 153, 40, 13]
+            },
+            {
+              "text": "—",
+              "confidence": 92.890953,
+              "box": [282, 160, 14, 3]
+            },
+            {
+              "text": "SEM",
+              "confidence": 92.668327,
+              "box": [303, 153, 31, 13]
+            },
+            {
+              "text": "CAMADA",
+              "confidence": 92.668327,
+              "box": [341, 154, 68, 12]
+            },
+            {
+              "text": "TEXTUAL",
+              "confidence": 90.607147,
+              "box": [414, 153, 71, 13]
+            }
+          ]
+        },
+        {
+          "text": "TSH: 0,55 mUI/L; Referéncia: 0,4 - 4,0",
+          "words": [
+            {
+              "text": "TSH:",
+              "confidence": 96.592911,
+              "box": [116, 247, 52, 18]
+            },
+            {
+              "text": "0,55",
+              "confidence": 92.88726,
+              "box": [179, 247, 49, 21]
+            },
+            {
+              "text": "mUI/L;",
+              "confidence": 88.015076,
+              "box": [239, 247, 71, 21]
+            },
+            {
+              "text": "Referéncia:",
+              "confidence": 92.561417,
+              "box": [321, 246, 128, 20]
+            },
+            {
+              "text": "0,4",
+              "confidence": 92.432274,
+              "box": [459, 247, 36, 21]
+            },
+            {
+              "text": "-",
+              "confidence": 92.432274,
+              "box": [504, 257, 7, 3]
+            },
+            {
+              "text": "4,0",
+              "confidence": 96.794106,
+              "box": [519, 247, 36, 21]
+            }
+          ]
+        },
+        {
+          "text": "Anti-HCV: Nao reagente",
+          "words": [
+            {
+              "text": "Anti-HCV:",
+              "confidence": 88.377541,
+              "box": [117, 318, 108, 20]
+            },
+            {
+              "text": "Nao",
+              "confidence": 89.284027,
+              "box": [236, 318, 43, 19]
+            },
+            {
+              "text": "reagente",
+              "confidence": 91.330215,
+              "box": [289, 320, 102, 22]
+            }
+          ]
+        },
+        {
+          "text": "Referéncia: Nao reagente",
+          "words": [
+            {
+              "text": "Referéncia:",
+              "confidence": 91.728271,
+              "box": [118, 359, 128, 20]
+            },
+            {
+              "text": "Nao",
+              "confidence": 73.317856,
+              "box": [257, 360, 43, 19]
+            },
+            {
+              "text": "reagente",
+              "confidence": 90.735504,
+              "box": [310, 361, 103, 22]
+            }
+          ]
+        },
+        {
+          "text": "Arquivo sintético gerado por cédigo; proibide uso clinico.",
+          "words": [
+            {
+              "text": "Arquivo",
+              "confidence": 93.305084,
+              "box": [117, 725, 59, 15]
+            },
+            {
+              "text": "sintético",
+              "confidence": 84.079468,
+              "box": [182, 725, 67, 13]
+            },
+            {
+              "text": "gerado",
+              "confidence": 91.575363,
+              "box": [254, 726, 55, 15]
+            },
+            {
+              "text": "por",
+              "confidence": 93.273041,
+              "box": [315, 728, 25, 12]
+            },
+            {
+              "text": "cédigo;",
+              "confidence": 86.678253,
+              "box": [346, 726, 56, 15]
+            },
+            {
+              "text": "proibide",
+              "confidence": 67.399216,
+              "box": [409, 725, 62, 16]
+            },
+            {
+              "text": "uso",
+              "confidence": 93.17865,
+              "box": [478, 728, 27, 9]
+            },
+            {
+              "text": "clinico.",
+              "confidence": 82.729614,
+              "box": [510, 726, 53, 11]
+            }
+          ]
+        }
+      ],
+      "literalDiagnostics": {
+        "tshNameFound": true,
+        "tshResultOnSameLine": true,
+        "tshUnitOnSameLine": true,
+        "tshReferenceOnSameLine": true,
+        "antiHcvNameFound": true,
+        "antiHcvAccentedResultOnSameLine": false,
+        "ferritinaMentionFound": null,
+        "maskedLineNumericTokenObserved": null
+      }
+    },
+    {
+      "caseId": "scan-degraded",
+      "page": 1,
+      "pdfSha256": "7bfd8067d9a8411847577aef967936f49ea07a21810e3ed7b5a66ee99033c436",
+      "rasterSha256": "00fba6def804ceb70649406244d4088db8f37ee6f369c23a180378dadf8e131b",
+      "rasterDimensions": [1241, 1754],
+      "variant": "automatic-orientation",
+      "psm": 1,
+      "rotationDegrees": 0,
+      "rotationSource": "none",
+      "rasterMilliseconds": 1265,
+      "ocrMilliseconds": 472,
+      "exitCode": 0,
+      "diagnostics": "",
+      "lines": [
+        {
+          "text": "DOCUMENTO SINTETICO — SOMENTE TESTE",
+          "words": [
+            {
+              "text": "DOCUMENTO",
+              "confidence": 92.270157,
+              "box": [118, 114, 152, 18]
+            },
+            {
+              "text": "SINTETICO",
+              "confidence": 91.93161,
+              "box": [279, 110, 122, 22]
+            },
+            {
+              "text": "—",
+              "confidence": 92.79998,
+              "box": [410, 123, 22, 4]
+            },
+            {
+              "text": "SOMENTE",
+              "confidence": 92.291985,
+              "box": [440, 114, 113, 18]
+            },
+            {
+              "text": "TESTE",
+              "confidence": 96.787834,
+              "box": [561, 113, 72, 19]
+            }
+          ]
+        },
+        {
+          "text": "SEM PACIENTE REAL — SEM CAMADA TEXTUAL",
+          "words": [
+            {
+              "text": "SEM",
+              "confidence": 93.300369,
+              "box": [117, 154, 32, 12]
+            },
+            {
+              "text": "PACIENTE",
+              "confidence": 92.909706,
+              "box": [156, 153, 73, 13]
+            },
+            {
+              "text": "REAL",
+              "confidence": 93.283226,
+              "box": [236, 153, 40, 13]
+            },
+            {
+              "text": "—",
+              "confidence": 92.890953,
+              "box": [282, 160, 14, 3]
+            },
+            {
+              "text": "SEM",
+              "confidence": 92.668327,
+              "box": [303, 153, 31, 13]
+            },
+            {
+              "text": "CAMADA",
+              "confidence": 92.668327,
+              "box": [341, 154, 68, 12]
+            },
+            {
+              "text": "TEXTUAL",
+              "confidence": 90.607147,
+              "box": [414, 153, 71, 13]
+            }
+          ]
+        },
+        {
+          "text": "TSH: 0,55 mUI/L; Referéncia: 0,4 - 4,0",
+          "words": [
+            {
+              "text": "TSH:",
+              "confidence": 96.592911,
+              "box": [116, 247, 52, 18]
+            },
+            {
+              "text": "0,55",
+              "confidence": 92.88726,
+              "box": [179, 247, 49, 21]
+            },
+            {
+              "text": "mUI/L;",
+              "confidence": 88.015076,
+              "box": [239, 247, 71, 21]
+            },
+            {
+              "text": "Referéncia:",
+              "confidence": 92.561417,
+              "box": [321, 246, 128, 20]
+            },
+            {
+              "text": "0,4",
+              "confidence": 92.432274,
+              "box": [459, 247, 36, 21]
+            },
+            {
+              "text": "-",
+              "confidence": 92.432274,
+              "box": [504, 257, 7, 3]
+            },
+            {
+              "text": "4,0",
+              "confidence": 96.794106,
+              "box": [519, 247, 36, 21]
+            }
+          ]
+        },
+        {
+          "text": "Anti-HCV: Nao reagente",
+          "words": [
+            {
+              "text": "Anti-HCV:",
+              "confidence": 88.377541,
+              "box": [117, 318, 108, 20]
+            },
+            {
+              "text": "Nao",
+              "confidence": 89.284027,
+              "box": [236, 318, 43, 19]
+            },
+            {
+              "text": "reagente",
+              "confidence": 91.330215,
+              "box": [289, 320, 102, 22]
+            }
+          ]
+        },
+        {
+          "text": "Referéncia: Nao reagente",
+          "words": [
+            {
+              "text": "Referéncia:",
+              "confidence": 91.728271,
+              "box": [118, 359, 128, 20]
+            },
+            {
+              "text": "Nao",
+              "confidence": 73.317856,
+              "box": [257, 360, 43, 19]
+            },
+            {
+              "text": "reagente",
+              "confidence": 90.735504,
+              "box": [310, 361, 103, 22]
+            }
+          ]
+        },
+        {
+          "text": "Arquivo sintético gerado por cédigo; proibide uso clinico.",
+          "words": [
+            {
+              "text": "Arquivo",
+              "confidence": 93.305084,
+              "box": [117, 725, 59, 15]
+            },
+            {
+              "text": "sintético",
+              "confidence": 84.079468,
+              "box": [182, 725, 67, 13]
+            },
+            {
+              "text": "gerado",
+              "confidence": 91.575363,
+              "box": [254, 726, 55, 15]
+            },
+            {
+              "text": "por",
+              "confidence": 93.273041,
+              "box": [315, 728, 25, 12]
+            },
+            {
+              "text": "cédigo;",
+              "confidence": 86.678253,
+              "box": [346, 726, 56, 15]
+            },
+            {
+              "text": "proibide",
+              "confidence": 67.399216,
+              "box": [409, 725, 62, 16]
+            },
+            {
+              "text": "uso",
+              "confidence": 93.17865,
+              "box": [478, 728, 27, 9]
+            },
+            {
+              "text": "clinico.",
+              "confidence": 82.729614,
+              "box": [510, 726, 53, 11]
+            }
+          ]
+        }
+      ],
+      "literalDiagnostics": {
+        "tshNameFound": true,
+        "tshResultOnSameLine": true,
+        "tshUnitOnSameLine": true,
+        "tshReferenceOnSameLine": true,
+        "antiHcvNameFound": true,
+        "antiHcvAccentedResultOnSameLine": false,
+        "ferritinaMentionFound": null,
+        "maskedLineNumericTokenObserved": null
+      }
+    },
+    {
+      "caseId": "scan-degraded",
+      "page": 1,
+      "pdfSha256": "7bfd8067d9a8411847577aef967936f49ea07a21810e3ed7b5a66ee99033c436",
+      "rasterSha256": "00fba6def804ceb70649406244d4088db8f37ee6f369c23a180378dadf8e131b",
+      "rasterDimensions": [1241, 1754],
+      "variant": "single-block",
+      "psm": 6,
+      "rotationDegrees": 0,
+      "rotationSource": "none",
+      "rasterMilliseconds": 1265,
+      "ocrMilliseconds": 316,
+      "exitCode": 0,
+      "diagnostics": "",
+      "lines": [
+        {
+          "text": "DOCUMENTO SINTETICO — SOMENTE TESTE",
+          "words": [
+            {
+              "text": "DOCUMENTO",
+              "confidence": 93.182671,
+              "box": [118, 114, 152, 18]
+            },
+            {
+              "text": "SINTETICO",
+              "confidence": 91.8825,
+              "box": [279, 110, 122, 22]
+            },
+            {
+              "text": "—",
+              "confidence": 91.405937,
+              "box": [410, 123, 22, 4]
+            },
+            {
+              "text": "SOMENTE",
+              "confidence": 91.405937,
+              "box": [440, 114, 113, 18]
+            },
+            {
+              "text": "TESTE",
+              "confidence": 95.729065,
+              "box": [561, 113, 72, 19]
+            }
+          ]
+        },
+        {
+          "text": "SEM PACIENTE REAL — SEM CAMADA TEXTUAL",
+          "words": [
+            {
+              "text": "SEM",
+              "confidence": 79.609489,
+              "box": [117, 154, 32, 12]
+            },
+            {
+              "text": "PACIENTE",
+              "confidence": 91.960007,
+              "box": [156, 153, 73, 13]
+            },
+            {
+              "text": "REAL",
+              "confidence": 93.212769,
+              "box": [236, 153, 40, 13]
+            },
+            {
+              "text": "—",
+              "confidence": 92.830139,
+              "box": [282, 160, 14, 3]
+            },
+            {
+              "text": "SEM",
+              "confidence": 93.083168,
+              "box": [303, 153, 31, 13]
+            },
+            {
+              "text": "CAMADA",
+              "confidence": 91.698486,
+              "box": [341, 154, 68, 12]
+            },
+            {
+              "text": "TEXTUAL",
+              "confidence": 91.393867,
+              "box": [414, 153, 71, 13]
+            }
+          ]
+        },
+        {
+          "text": "TSH: 0,55 mUI/L; Referéncia: 0,4 - 4,0",
+          "words": [
+            {
+              "text": "TSH:",
+              "confidence": 96.592911,
+              "box": [116, 247, 52, 18]
+            },
+            {
+              "text": "0,55",
+              "confidence": 92.88726,
+              "box": [179, 247, 49, 21]
+            },
+            {
+              "text": "mUI/L;",
+              "confidence": 88.015076,
+              "box": [239, 247, 71, 21]
+            },
+            {
+              "text": "Referéncia:",
+              "confidence": 92.561417,
+              "box": [321, 246, 128, 20]
+            },
+            {
+              "text": "0,4",
+              "confidence": 92.432274,
+              "box": [459, 247, 36, 21]
+            },
+            {
+              "text": "-",
+              "confidence": 92.432274,
+              "box": [504, 257, 7, 3]
+            },
+            {
+              "text": "4,0",
+              "confidence": 96.794106,
+              "box": [519, 247, 36, 21]
+            }
+          ]
+        },
+        {
+          "text": "Anti-HCV: Nao reagente",
+          "words": [
+            {
+              "text": "Anti-HCV:",
+              "confidence": 88.377541,
+              "box": [117, 318, 108, 20]
+            },
+            {
+              "text": "Nao",
+              "confidence": 89.284027,
+              "box": [236, 318, 43, 19]
+            },
+            {
+              "text": "reagente",
+              "confidence": 91.330215,
+              "box": [289, 320, 102, 22]
+            }
+          ]
+        },
+        {
+          "text": "Referéncia: Nao reagente",
+          "words": [
+            {
+              "text": "Referéncia:",
+              "confidence": 91.728271,
+              "box": [118, 359, 128, 20]
+            },
+            {
+              "text": "Nao",
+              "confidence": 73.317856,
+              "box": [257, 360, 43, 19]
+            },
+            {
+              "text": "reagente",
+              "confidence": 90.735504,
+              "box": [310, 361, 103, 22]
+            }
+          ]
+        },
+        {
+          "text": "Arquivo sintético gerado por cédigo; proibido uso clinico.",
+          "words": [
+            {
+              "text": "Arquivo",
+              "confidence": 93.253967,
+              "box": [117, 725, 59, 15]
+            },
+            {
+              "text": "sintético",
+              "confidence": 78.19104,
+              "box": [182, 725, 67, 13]
+            },
+            {
+              "text": "gerado",
+              "confidence": 92.273895,
+              "box": [254, 726, 55, 15]
+            },
+            {
+              "text": "por",
+              "confidence": 92.991798,
+              "box": [315, 728, 25, 12]
+            },
+            {
+              "text": "cédigo;",
+              "confidence": 88.533127,
+              "box": [346, 726, 56, 15]
+            },
+            {
+              "text": "proibido",
+              "confidence": 86.959396,
+              "box": [409, 725, 62, 16]
+            },
+            {
+              "text": "uso",
+              "confidence": 93.179749,
+              "box": [478, 728, 27, 9]
+            },
+            {
+              "text": "clinico.",
+              "confidence": 80.533661,
+              "box": [510, 726, 53, 11]
+            }
+          ]
+        }
+      ],
+      "literalDiagnostics": {
+        "tshNameFound": true,
+        "tshResultOnSameLine": true,
+        "tshUnitOnSameLine": true,
+        "tshReferenceOnSameLine": true,
+        "antiHcvNameFound": true,
+        "antiHcvAccentedResultOnSameLine": false,
+        "ferritinaMentionFound": null,
+        "maskedLineNumericTokenObserved": null
+      }
+    },
+    {
+      "caseId": "scan-rotated",
+      "page": 1,
+      "pdfSha256": "4a28be6d344c59d69e661bdf32a6fbe96de5c830163620785fa8db038009cead",
+      "rasterSha256": "0e2bb7304ff0404234855d140276121f975e7516078229035da0dc60311f1027",
+      "rasterDimensions": [1241, 1754],
+      "variant": "automatic-layout",
+      "psm": 3,
+      "rotationDegrees": 0,
+      "rotationSource": "none",
+      "rasterMilliseconds": 2687,
+      "ocrMilliseconds": 355,
+      "exitCode": 0,
+      "diagnostics": "",
+      "lines": [
+        {
+          "text": "\"OUND OSN OPiqroid ‘oBipo> sod opeieb osnaquss Oninbiy",
+          "words": [
+            {
+              "text": "\"OUND",
+              "confidence": 31.856438,
+              "box": [994, 922, 15, 74]
+            },
+            {
+              "text": "OSN",
+              "confidence": 77.770966,
+              "box": [996, 1005, 13, 37]
+            },
+            {
+              "text": "OPiqroid",
+              "confidence": 0.0,
+              "box": [993, 1051, 21, 89]
+            },
+            {
+              "text": "‘oBipo>",
+              "confidence": 0.0,
+              "box": [993, 1150, 22, 78]
+            },
+            {
+              "text": "sod",
+              "confidence": 72.341461,
+              "box": [996, 1237, 18, 35]
+            },
+            {
+              "text": "opeieb",
+              "confidence": 48.736412,
+              "box": [994, 1281, 20, 76]
+            },
+            {
+              "text": "osnaquss",
+              "confidence": 0.0,
+              "box": [993, 1365, 17, 95]
+            },
+            {
+              "text": "Oninbiy",
+              "confidence": 31.395523,
+              "box": [992, 1468, 21, 83]
+            }
+          ]
+        },
+        {
+          "text": "ajuabea oeN :eluauajey",
+          "words": [
+            {
+              "text": "ajuabea",
+              "confidence": 35.380547,
+              "box": [479, 1134, 31, 145]
+            },
+            {
+              "text": "oeN",
+              "confidence": 65.886703,
+              "box": [477, 1292, 27, 62]
+            },
+            {
+              "text": ":eluauajey",
+              "confidence": 0.0,
+              "box": [476, 1369, 28, 181]
+            }
+          ]
+        },
+        {
+          "text": "ajuabea OPN ‘ADH-HUY",
+          "words": [
+            {
+              "text": "ajuabea",
+              "confidence": 22.537445,
+              "box": [421, 1164, 32, 145]
+            },
+            {
+              "text": "OPN",
+              "confidence": 71.98716,
+              "box": [419, 1323, 27, 61]
+            },
+            {
+              "text": "‘ADH-HUY",
+              "confidence": 0.0,
+              "box": [419, 1399, 27, 152]
+            }
+          ]
+        },
+        {
+          "text": "O'P - b'0 -B12ugsasay “/INW SS‘0 *HSL",
+          "words": [
+            {
+              "text": "O'P",
+              "confidence": 0.0,
+              "box": [318, 933, 30, 51]
+            },
+            {
+              "text": "-",
+              "confidence": 85.049179,
+              "box": [332, 996, 5, 10]
+            },
+            {
+              "text": "b'0",
+              "confidence": 5.140411,
+              "box": [318, 1018, 30, 51]
+            },
+            {
+              "text": "-B12ugsasay",
+              "confidence": 0.0,
+              "box": [317, 1083, 27, 181]
+            },
+            {
+              "text": "“/INW",
+              "confidence": 0.0,
+              "box": [319, 1278, 29, 102]
+            },
+            {
+              "text": "SS‘0",
+              "confidence": 73.142349,
+              "box": [318, 1394, 30, 70]
+            },
+            {
+              "text": "*HSL",
+              "confidence": 0.0,
+              "box": [318, 1478, 26, 75]
+            }
+          ]
+        },
+        {
+          "text": "WWALXSL VOWS W3S — TW3Y SLN3IDWd Was",
+          "words": [
+            {
+              "text": "WWALXSL",
+              "confidence": 16.752663,
+              "box": [187, 1033, 18, 99]
+            },
+            {
+              "text": "VOWS",
+              "confidence": 7.208389,
+              "box": [187, 1140, 18, 96]
+            },
+            {
+              "text": "W3S",
+              "confidence": 86.855995,
+              "box": [187, 1245, 18, 44]
+            },
+            {
+              "text": "—",
+              "confidence": 88.676834,
+              "box": [196, 1299, 4, 19]
+            },
+            {
+              "text": "TW3Y",
+              "confidence": 0.0,
+              "box": [187, 1327, 18, 56]
+            },
+            {
+              "text": "SLN3IDWd",
+              "confidence": 0.0,
+              "box": [187, 1393, 18, 104]
+            },
+            {
+              "text": "Was",
+              "confidence": 70.354614,
+              "box": [187, 1506, 18, 45]
+            }
+          ]
+        },
+        {
+          "text": "JLS3L ILNAWOS — ODILALNIS OLNAWND0G",
+          "words": [
+            {
+              "text": "JLS3L",
+              "confidence": 42.350277,
+              "box": [130, 824, 27, 102]
+            },
+            {
+              "text": "ILNAWOS",
+              "confidence": 77.627411,
+              "box": [130, 937, 27, 158]
+            },
+            {
+              "text": "—",
+              "confidence": 92.481689,
+              "box": [144, 1107, 5, 31]
+            },
+            {
+              "text": "ODILALNIS",
+              "confidence": 89.185486,
+              "box": [125, 1151, 32, 172]
+            },
+            {
+              "text": "OLNAWND0G",
+              "confidence": 53.017254,
+              "box": [130, 1335, 27, 215]
+            }
+          ]
+        }
+      ],
+      "literalDiagnostics": {
+        "tshNameFound": false,
+        "tshResultOnSameLine": false,
+        "tshUnitOnSameLine": false,
+        "tshReferenceOnSameLine": false,
+        "antiHcvNameFound": false,
+        "antiHcvAccentedResultOnSameLine": false,
+        "ferritinaMentionFound": null,
+        "maskedLineNumericTokenObserved": null
+      }
+    },
+    {
+      "caseId": "scan-rotated",
+      "page": 1,
+      "pdfSha256": "4a28be6d344c59d69e661bdf32a6fbe96de5c830163620785fa8db038009cead",
+      "rasterSha256": "0e2bb7304ff0404234855d140276121f975e7516078229035da0dc60311f1027",
+      "rasterDimensions": [1241, 1754],
+      "variant": "automatic-orientation",
+      "psm": 1,
+      "rotationDegrees": 0,
+      "rotationSource": "none",
+      "rasterMilliseconds": 2687,
+      "ocrMilliseconds": 449,
+      "exitCode": 0,
+      "diagnostics": "",
+      "lines": [
+        {
+          "text": "DOCUMENTO SINTETICO — SOMENTE TESTE",
+          "words": [
+            {
+              "text": "DOCUMENTO",
+              "confidence": 92.782524,
+              "box": [130, 1335, 27, 215]
+            },
+            {
+              "text": "SINTETICO",
+              "confidence": 88.051697,
+              "box": [125, 1151, 32, 172]
+            },
+            {
+              "text": "—",
+              "confidence": 88.051697,
+              "box": [144, 1107, 5, 31]
+            },
+            {
+              "text": "SOMENTE",
+              "confidence": 92.395912,
+              "box": [130, 937, 27, 158]
+            },
+            {
+              "text": "TESTE",
+              "confidence": 96.600037,
+              "box": [130, 824, 27, 102]
+            }
+          ]
+        },
+        {
+          "text": "SEM PACIENTE REAL — SEM CAMADA TEXTUAL",
+          "words": [
+            {
+              "text": "SEM",
+              "confidence": 93.240448,
+              "box": [187, 1506, 18, 45]
+            },
+            {
+              "text": "PACIENTE",
+              "confidence": 92.934265,
+              "box": [187, 1393, 18, 104]
+            },
+            {
+              "text": "REAL",
+              "confidence": 90.739563,
+              "box": [187, 1327, 18, 56]
+            },
+            {
+              "text": "—",
+              "confidence": 90.739563,
+              "box": [196, 1299, 4, 19]
+            },
+            {
+              "text": "SEM",
+              "confidence": 93.302422,
+              "box": [187, 1245, 18, 44]
+            },
+            {
+              "text": "CAMADA",
+              "confidence": 91.751205,
+              "box": [187, 1140, 18, 96]
+            },
+            {
+              "text": "TEXTUAL",
+              "confidence": 91.751205,
+              "box": [187, 1033, 18, 99]
+            }
+          ]
+        },
+        {
+          "text": "TSH: 0,55 mUlI/L; Referéncia: 0,4 - 4,0",
+          "words": [
+            {
+              "text": "TSH:",
+              "confidence": 95.72834,
+              "box": [318, 1478, 26, 75]
+            },
+            {
+              "text": "0,55",
+              "confidence": 93.301315,
+              "box": [318, 1394, 30, 70]
+            },
+            {
+              "text": "mUlI/L;",
+              "confidence": 41.281719,
+              "box": [319, 1278, 29, 102]
+            },
+            {
+              "text": "Referéncia:",
+              "confidence": 92.362526,
+              "box": [317, 1083, 27, 181]
+            },
+            {
+              "text": "0,4",
+              "confidence": 90.622536,
+              "box": [318, 1018, 30, 51]
+            },
+            {
+              "text": "-",
+              "confidence": 90.622536,
+              "box": [332, 996, 5, 10]
+            },
+            {
+              "text": "4,0",
+              "confidence": 96.719429,
+              "box": [318, 933, 30, 51]
+            }
+          ]
+        },
+        {
+          "text": "Anti-HCV: Nao reagente",
+          "words": [
+            {
+              "text": "Anti-HCV:",
+              "confidence": 90.981491,
+              "box": [419, 1399, 27, 152]
+            },
+            {
+              "text": "Nao",
+              "confidence": 89.80661,
+              "box": [419, 1323, 27, 61]
+            },
+            {
+              "text": "reagente",
+              "confidence": 91.713051,
+              "box": [421, 1164, 32, 145]
+            }
+          ]
+        },
+        {
+          "text": "Referéncia: Nao reagente",
+          "words": [
+            {
+              "text": "Referéncia:",
+              "confidence": 91.861107,
+              "box": [476, 1369, 28, 181]
+            },
+            {
+              "text": "Nao",
+              "confidence": 92.862389,
+              "box": [477, 1292, 27, 62]
+            },
+            {
+              "text": "reagente",
+              "confidence": 91.410423,
+              "box": [479, 1134, 31, 145]
+            }
+          ]
+        },
+        {
+          "text": "Arquivo sintético gerado por cédigo; proibido uso clinico.",
+          "words": [
+            {
+              "text": "Arquivo",
+              "confidence": 93.278221,
+              "box": [992, 1468, 21, 83]
+            },
+            {
+              "text": "sintético",
+              "confidence": 91.092255,
+              "box": [993, 1365, 17, 95]
+            },
+            {
+              "text": "gerado",
+              "confidence": 93.047279,
+              "box": [994, 1281, 20, 76]
+            },
+            {
+              "text": "por",
+              "confidence": 93.233994,
+              "box": [996, 1237, 18, 35]
+            },
+            {
+              "text": "cédigo;",
+              "confidence": 84.371819,
+              "box": [993, 1150, 22, 78]
+            },
+            {
+              "text": "proibido",
+              "confidence": 56.662846,
+              "box": [993, 1051, 21, 89]
+            },
+            {
+              "text": "uso",
+              "confidence": 92.7146,
+              "box": [996, 1005, 13, 37]
+            },
+            {
+              "text": "clinico.",
+              "confidence": 88.84613,
+              "box": [994, 922, 15, 74]
+            }
+          ]
+        }
+      ],
+      "literalDiagnostics": {
+        "tshNameFound": true,
+        "tshResultOnSameLine": true,
+        "tshUnitOnSameLine": false,
+        "tshReferenceOnSameLine": true,
+        "antiHcvNameFound": true,
+        "antiHcvAccentedResultOnSameLine": false,
+        "ferritinaMentionFound": null,
+        "maskedLineNumericTokenObserved": null
+      }
+    },
+    {
+      "caseId": "scan-rotated",
+      "page": 1,
+      "pdfSha256": "4a28be6d344c59d69e661bdf32a6fbe96de5c830163620785fa8db038009cead",
+      "rasterSha256": "0e2bb7304ff0404234855d140276121f975e7516078229035da0dc60311f1027",
+      "rasterDimensions": [1241, 1754],
+      "variant": "single-block",
+      "psm": 6,
+      "rotationDegrees": 0,
+      "rotationSource": "none",
+      "rasterMilliseconds": 2687,
+      "ocrMilliseconds": 408,
+      "exitCode": 0,
+      "diagnostics": "",
+      "lines": [
+        {
+          "text": "w",
+          "words": [
+            {
+              "text": "w",
+              "confidence": 83.977242,
+              "box": [130, 824, 27, 17]
+            }
+          ]
+        },
+        {
+          "text": "io",
+          "words": [
+            {
+              "text": "io",
+              "confidence": 13.324295,
+              "box": [130, 842, 26, 22]
+            }
+          ]
+        },
+        {
+          "text": "val",
+          "words": [
+            {
+              "text": "val",
+              "confidence": 51.909874,
+              "box": [131, 865, 26, 19]
+            }
+          ]
+        },
+        {
+          "text": "ve)",
+          "words": [
+            {
+              "text": "ve)",
+              "confidence": 43.582863,
+              "box": [130, 886, 27, 17]
+            }
+          ]
+        },
+        {
+          "text": "te 6",
+          "words": [
+            {
+              "text": "te",
+              "confidence": 0.0,
+              "box": [126, 900, 30, 51]
+            },
+            {
+              "text": "6",
+              "confidence": 40.222378,
+              "box": [996, 922, 13, 17]
+            }
+          ]
+        },
+        {
+          "text": "Ww o ¥",
+          "words": [
+            {
+              "text": "Ww",
+              "confidence": 55.536392,
+              "box": [126, 928, 31, 36]
+            },
+            {
+              "text": "o",
+              "confidence": 67.330399,
+              "box": [318, 933, 30, 28]
+            },
+            {
+              "text": "¥",
+              "confidence": 59.63261,
+              "box": [994, 942, 15, 15]
+            }
+          ]
+        },
+        {
+          "text": "E “ :",
+          "words": [
+            {
+              "text": "E",
+              "confidence": 55.485359,
+              "box": [130, 955, 26, 43]
+            },
+            {
+              "text": "“",
+              "confidence": 0.0,
+              "box": [319, 965, 25, 19]
+            },
+            {
+              "text": ":",
+              "confidence": 43.899239,
+              "box": [994, 961, 15, 35]
+            }
+          ]
+        },
+        {
+          "text": "uw ¢ °",
+          "words": [
+            {
+              "text": "uw",
+              "confidence": 67.674828,
+              "box": [126, 998, 31, 31]
+            },
+            {
+              "text": "¢",
+              "confidence": 0.0,
+              "box": [332, 996, 5, 10]
+            },
+            {
+              "text": "°",
+              "confidence": 81.031601,
+              "box": [996, 1005, 13, 12]
+            }
+          ]
+        },
+        {
+          "text": "0 5 ° o",
+          "words": [
+            {
+              "text": "0",
+              "confidence": 54.388733,
+              "box": [131, 1051, 25, 24]
+            },
+            {
+              "text": "5",
+              "confidence": 75.505722,
+              "box": [187, 1045, 17, 30]
+            },
+            {
+              "text": "°",
+              "confidence": 74.380753,
+              "box": [319, 1050, 25, 19]
+            },
+            {
+              "text": "o",
+              "confidence": 0.0,
+              "box": [993, 1051, 16, 32]
+            }
+          ]
+        },
+        {
+          "text": "wk o 2",
+          "words": [
+            {
+              "text": "wk",
+              "confidence": 59.628796,
+              "box": [131, 1076, 73, 27]
+            },
+            {
+              "text": "o",
+              "confidence": 58.121719,
+              "box": [324, 1083, 20, 27]
+            },
+            {
+              "text": "2",
+              "confidence": 60.414371,
+              "box": [994, 1086, 15, 17]
+            }
+          ]
+        },
+        {
+          "text": "1 re) €",
+          "words": [
+            {
+              "text": "1",
+              "confidence": 5.129089,
+              "box": [144, 1107, 5, 31]
+            },
+            {
+              "text": "re)",
+              "confidence": 22.968323,
+              "box": [318, 1102, 26, 50]
+            },
+            {
+              "text": "€",
+              "confidence": 0.0,
+              "box": [996, 1105, 18, 35]
+            }
+          ]
+        },
+        {
+          "text": "< wv Pe",
+          "words": [
+            {
+              "text": "<",
+              "confidence": 92.63002,
+              "box": [187, 1140, 17, 14]
+            },
+            {
+              "text": "wv",
+              "confidence": 23.422104,
+              "box": [480, 1130, 24, 33]
+            },
+            {
+              "text": "Pe",
+              "confidence": 42.129154,
+              "box": [998, 1150, 13, 4]
+            }
+          ]
+        },
+        {
+          "text": "Se © oc &",
+          "words": [
+            {
+              "text": "Se",
+              "confidence": 21.425507,
+              "box": [131, 1147, 57, 52]
+            },
+            {
+              "text": "©",
+              "confidence": 43.913345,
+              "box": [317, 1140, 27, 37]
+            },
+            {
+              "text": "oc",
+              "confidence": 57.124496,
+              "box": [426, 1154, 78, 31]
+            },
+            {
+              "text": "&",
+              "confidence": 2.461967,
+              "box": [996, 1156, 19, 27]
+            }
+          ]
+        },
+        {
+          "text": "Us + oO A",
+          "words": [
+            {
+              "text": "Us",
+              "confidence": 89.333176,
+              "box": [131, 1177, 73, 27]
+            },
+            {
+              "text": "+",
+              "confidence": 67.210541,
+              "box": [421, 1184, 25, 12]
+            },
+            {
+              "text": "oO",
+              "confidence": 7.295906,
+              "box": [478, 1173, 26, 37]
+            },
+            {
+              "text": "A",
+              "confidence": 14.282372,
+              "box": [991, 1167, 8, 31]
+            }
+          ]
+        },
+        {
+          "text": "= = o c $",
+          "words": [
+            {
+              "text": "=",
+              "confidence": 91.844765,
+              "box": [131, 1201, 25, 5]
+            },
+            {
+              "text": "=",
+              "confidence": 64.314659,
+              "box": [187, 1205, 17, 15]
+            },
+            {
+              "text": "o",
+              "confidence": 65.079941,
+              "box": [324, 1193, 20, 18]
+            },
+            {
+              "text": "c",
+              "confidence": 59.664688,
+              "box": [426, 1198, 20, 17]
+            },
+            {
+              "text": "$",
+              "confidence": 16.389633,
+              "box": [993, 1191, 16, 25]
+            }
+          ]
+        },
+        {
+          "text": "Ge oe &os ;",
+          "words": [
+            {
+              "text": "Ge",
+              "confidence": 35.493729,
+              "box": [125, 1208, 79, 39]
+            },
+            {
+              "text": "oe",
+              "confidence": 1.419205,
+              "box": [318, 1211, 26, 32]
+            },
+            {
+              "text": "&os",
+              "confidence": 0.0,
+              "box": [426, 1209, 84, 48]
+            },
+            {
+              "text": ";",
+              "confidence": 26.953156,
+              "box": [996, 1219, 13, 25]
+            }
+          ]
+        },
+        {
+          "text": "Pa ee a",
+          "words": [
+            {
+              "text": "Pa",
+              "confidence": 20.98127,
+              "box": [130, 1245, 75, 46]
+            },
+            {
+              "text": "ee",
+              "confidence": 28.457558,
+              "box": [318, 1244, 186, 41]
+            },
+            {
+              "text": "a",
+              "confidence": 65.788544,
+              "box": [996, 1246, 18, 47]
+            }
+          ]
+        },
+        {
+          "text": "a | s &¢ $",
+          "words": [
+            {
+              "text": "a",
+              "confidence": 43.900238,
+              "box": [130, 1295, 24, 28]
+            },
+            {
+              "text": "|",
+              "confidence": 64.047935,
+              "box": [196, 1299, 4, 19]
+            },
+            {
+              "text": "s",
+              "confidence": 83.651604,
+              "box": [319, 1286, 28, 37]
+            },
+            {
+              "text": "&¢",
+              "confidence": 0.0,
+              "box": [426, 1279, 78, 32]
+            },
+            {
+              "text": "$",
+              "confidence": 0.0,
+              "box": [994, 1295, 15, 25]
+            }
+          ]
+        },
+        {
+          "text": "o 2 * o 3 7",
+          "words": [
+            {
+              "text": "o",
+              "confidence": 75.716934,
+              "box": [131, 1335, 25, 24]
+            },
+            {
+              "text": "2",
+              "confidence": 82.934601,
+              "box": [187, 1327, 18, 27]
+            },
+            {
+              "text": "*",
+              "confidence": 16.243332,
+              "box": [319, 1327, 25, 20]
+            },
+            {
+              "text": "o",
+              "confidence": 24.110291,
+              "box": [426, 1323, 20, 18]
+            },
+            {
+              "text": "3",
+              "confidence": 82.193375,
+              "box": [478, 1314, 26, 40]
+            },
+            {
+              "text": "7",
+              "confidence": 35.906097,
+              "box": [996, 1322, 13, 21]
+            }
+          ]
+        },
+        {
+          "text": "re Y — ety °",
+          "words": [
+            {
+              "text": "re",
+              "confidence": 54.227303,
+              "box": [130, 1347, 31, 38]
+            },
+            {
+              "text": "Y",
+              "confidence": 37.441769,
+              "box": [187, 1356, 17, 12]
+            },
+            {
+              "text": "—",
+              "confidence": 8.61676,
+              "box": [324, 1351, 20, 29]
+            },
+            {
+              "text": "ety",
+              "confidence": 21.569855,
+              "box": [419, 1344, 84, 30]
+            },
+            {
+              "text": "°",
+              "confidence": 61.113838,
+              "box": [996, 1345, 18, 32]
+            }
+          ]
+        },
+        {
+          "text": "C4 2s 8",
+          "words": [
+            {
+              "text": "C4",
+              "confidence": 3.318863,
+              "box": [183, 1358, 21, 36]
+            },
+            {
+              "text": "2s",
+              "confidence": 58.102779,
+              "box": [420, 1363, 84, 34]
+            },
+            {
+              "text": "8",
+              "confidence": 82.14341,
+              "box": [996, 1381, 13, 9]
+            }
+          ]
+        },
+        {
+          "text": "ee w rh =",
+          "words": [
+            {
+              "text": "ee",
+              "confidence": 27.729706,
+              "box": [130, 1383, 74, 41]
+            },
+            {
+              "text": "w",
+              "confidence": 73.097382,
+              "box": [318, 1394, 26, 17]
+            },
+            {
+              "text": "rh",
+              "confidence": 25.174728,
+              "box": [426, 1399, 56, 6]
+            },
+            {
+              "text": "=",
+              "confidence": 61.792065,
+              "box": [993, 1393, 17, 26]
+            }
+          ]
+        },
+        {
+          "text": "s ¢ bit Ge 5",
+          "words": [
+            {
+              "text": "s",
+              "confidence": 76.41964,
+              "box": [131, 1427, 25, 24]
+            },
+            {
+              "text": "¢",
+              "confidence": 72.004517,
+              "box": [187, 1420, 18, 27]
+            },
+            {
+              "text": "bit",
+              "confidence": 27.560844,
+              "box": [314, 1410, 38, 45]
+            },
+            {
+              "text": "Ge",
+              "confidence": 41.507652,
+              "box": [420, 1405, 84, 44]
+            },
+            {
+              "text": "5",
+              "confidence": 20.990379,
+              "box": [993, 1420, 16, 21]
+            }
+          ]
+        },
+        {
+          "text": "4 Oo O a",
+          "words": [
+            {
+              "text": "4",
+              "confidence": 22.517761,
+              "box": [188, 1450, 15, 4]
+            },
+            {
+              "text": "Oo",
+              "confidence": 28.31147,
+              "box": [314, 1436, 30, 32]
+            },
+            {
+              "text": "O",
+              "confidence": 41.481697,
+              "box": [476, 1447, 28, 18]
+            },
+            {
+              "text": "a",
+              "confidence": 53.648796,
+              "box": [993, 1444, 16, 16]
+            }
+          ]
+        },
+        {
+          "text": "oz + -S $",
+          "words": [
+            {
+              "text": "oz",
+              "confidence": 51.00843,
+              "box": [131, 1455, 73, 45]
+            },
+            {
+              "text": "+",
+              "confidence": 86.056839,
+              "box": [319, 1478, 25, 31]
+            },
+            {
+              "text": "-S",
+              "confidence": 0.0,
+              "box": [419, 1452, 85, 46]
+            },
+            {
+              "text": "$",
+              "confidence": 88.243629,
+              "box": [996, 1468, 13, 25]
+            }
+          ]
+        },
+        {
+          "text": "Oz Hw © oO é",
+          "words": [
+            {
+              "text": "Oz",
+              "confidence": 30.576614,
+              "box": [131, 1502, 74, 34]
+            },
+            {
+              "text": "Hw",
+              "confidence": 27.445053,
+              "box": [318, 1498, 29, 44]
+            },
+            {
+              "text": "©",
+              "confidence": 50.606438,
+              "box": [421, 1495, 25, 33]
+            },
+            {
+              "text": "oO",
+              "confidence": 35.773712,
+              "box": [479, 1491, 30, 50]
+            },
+            {
+              "text": "é",
+              "confidence": 9.89827,
+              "box": [996, 1502, 17, 33]
+            }
+          ]
+        },
+        {
+          "text": "Ou e te at",
+          "words": [
+            {
+              "text": "Ou",
+              "confidence": 67.788338,
+              "box": [130, 1527, 74, 24]
+            },
+            {
+              "text": "e",
+              "confidence": 19.9739,
+              "box": [318, 1531, 26, 22]
+            },
+            {
+              "text": "te",
+              "confidence": 0.0,
+              "box": [420, 1529, 84, 22]
+            },
+            {
+              "text": "at",
+              "confidence": 19.748192,
+              "box": [992, 1533, 21, 27]
+            }
+          ]
+        }
+      ],
+      "literalDiagnostics": {
+        "tshNameFound": false,
+        "tshResultOnSameLine": false,
+        "tshUnitOnSameLine": false,
+        "tshReferenceOnSameLine": false,
+        "antiHcvNameFound": false,
+        "antiHcvAccentedResultOnSameLine": false,
+        "ferritinaMentionFound": null,
+        "maskedLineNumericTokenObserved": null
+      }
+    },
+    {
+      "caseId": "scan-rotated",
+      "page": 1,
+      "pdfSha256": "4a28be6d344c59d69e661bdf32a6fbe96de5c830163620785fa8db038009cead",
+      "rasterSha256": "693f51eb4d358d057b62c80a27a22ccf72aa09deb4324f953956472d80407eb3",
+      "rasterDimensions": [1754, 1241],
+      "variant": "oracle-unrotate",
+      "psm": 6,
+      "rotationDegrees": -90,
+      "rotationSource": "fixture_oracle",
+      "rasterMilliseconds": 2687,
+      "ocrMilliseconds": 363,
+      "exitCode": 0,
+      "diagnostics": "",
+      "lines": [
+        {
+          "text": "DOCUMENTO SINTETICO — SOMENTE TESTE",
+          "words": [
+            {
+              "text": "DOCUMENTO",
+              "confidence": 92.361389,
+              "box": [204, 130, 215, 27]
+            },
+            {
+              "text": "SINTETICO",
+              "confidence": 89.919632,
+              "box": [431, 125, 172, 32]
+            },
+            {
+              "text": "—",
+              "confidence": 89.919632,
+              "box": [616, 144, 31, 5]
+            },
+            {
+              "text": "SOMENTE",
+              "confidence": 90.843758,
+              "box": [659, 130, 158, 27]
+            },
+            {
+              "text": "TESTE",
+              "confidence": 96.737411,
+              "box": [828, 130, 102, 27]
+            }
+          ]
+        },
+        {
+          "text": "SEM PACIENTE REAL — SEM CAMADA TEXTUAL",
+          "words": [
+            {
+              "text": "SEM",
+              "confidence": 92.959343,
+              "box": [203, 187, 45, 18]
+            },
+            {
+              "text": "PACIENTE",
+              "confidence": 92.159927,
+              "box": [257, 187, 104, 18]
+            },
+            {
+              "text": "REAL",
+              "confidence": 92.548874,
+              "box": [371, 187, 56, 18]
+            },
+            {
+              "text": "—",
+              "confidence": 92.941284,
+              "box": [436, 196, 19, 4]
+            },
+            {
+              "text": "SEM",
+              "confidence": 93.248108,
+              "box": [465, 187, 44, 18]
+            },
+            {
+              "text": "CAMADA",
+              "confidence": 91.418716,
+              "box": [518, 187, 96, 18]
+            },
+            {
+              "text": "TEXTUAL",
+              "confidence": 91.140091,
+              "box": [622, 187, 99, 18]
+            }
+          ]
+        },
+        {
+          "text": "TSH: 0,55 mUI/L; Referéncia: 0,4 - 4,0",
+          "words": [
+            {
+              "text": "TSH:",
+              "confidence": 95.695541,
+              "box": [201, 318, 75, 26]
+            },
+            {
+              "text": "0,55",
+              "confidence": 93.284058,
+              "box": [290, 318, 70, 30]
+            },
+            {
+              "text": "mUI/L;",
+              "confidence": 87.075226,
+              "box": [374, 319, 102, 29]
+            },
+            {
+              "text": "Referéncia:",
+              "confidence": 90.713806,
+              "box": [490, 317, 181, 27]
+            },
+            {
+              "text": "0,4",
+              "confidence": 92.701736,
+              "box": [685, 318, 51, 30]
+            },
+            {
+              "text": "-",
+              "confidence": 92.701736,
+              "box": [748, 332, 10, 5]
+            },
+            {
+              "text": "4,0",
+              "confidence": 96.767982,
+              "box": [770, 318, 51, 30]
+            }
+          ]
+        },
+        {
+          "text": "Anti-HCV: Nao reagente",
+          "words": [
+            {
+              "text": "Anti-HCV:",
+              "confidence": 91.094238,
+              "box": [203, 419, 152, 27]
+            },
+            {
+              "text": "Nao",
+              "confidence": 86.605286,
+              "box": [370, 419, 61, 27]
+            },
+            {
+              "text": "reagente",
+              "confidence": 91.750702,
+              "box": [445, 421, 145, 32]
+            }
+          ]
+        },
+        {
+          "text": "Referéncia: Nao reagente",
+          "words": [
+            {
+              "text": "Referéncia:",
+              "confidence": 92.096054,
+              "box": [204, 476, 181, 28]
+            },
+            {
+              "text": "Nao",
+              "confidence": 81.165169,
+              "box": [400, 477, 62, 27]
+            },
+            {
+              "text": "reagente",
+              "confidence": 91.841293,
+              "box": [475, 479, 145, 31]
+            }
+          ]
+        },
+        {
+          "text": "Arquivo sintético gerado por codigo; proibida uso clinico.",
+          "words": [
+            {
+              "text": "Arquivo",
+              "confidence": 93.285393,
+              "box": [203, 992, 83, 21]
+            },
+            {
+              "text": "sintético",
+              "confidence": 89.690765,
+              "box": [294, 993, 95, 17]
+            },
+            {
+              "text": "gerado",
+              "confidence": 92.064392,
+              "box": [397, 994, 76, 20]
+            },
+            {
+              "text": "por",
+              "confidence": 96.287025,
+              "box": [482, 996, 35, 18]
+            },
+            {
+              "text": "codigo;",
+              "confidence": 39.019798,
+              "box": [526, 993, 78, 22]
+            },
+            {
+              "text": "proibida",
+              "confidence": 17.871399,
+              "box": [614, 993, 89, 21]
+            },
+            {
+              "text": "uso",
+              "confidence": 93.073395,
+              "box": [712, 996, 37, 13]
+            },
+            {
+              "text": "clinico.",
+              "confidence": 40.512905,
+              "box": [758, 994, 74, 15]
+            }
+          ]
+        }
+      ],
+      "literalDiagnostics": {
+        "tshNameFound": true,
+        "tshResultOnSameLine": true,
+        "tshUnitOnSameLine": true,
+        "tshReferenceOnSameLine": true,
+        "antiHcvNameFound": true,
+        "antiHcvAccentedResultOnSameLine": false,
+        "ferritinaMentionFound": null,
+        "maskedLineNumericTokenObserved": null
+      }
+    },
+    {
+      "caseId": "scan-partially-masked",
+      "page": 1,
+      "pdfSha256": "5b82d8f3d95b810407f71cad86ed6ca8cfb629e3272631c7f2320a1bb68d4713",
+      "rasterSha256": "283392bcb3990ca9df5f6fc951a26e980277c4749eb560588c59209304b3c9cf",
+      "rasterDimensions": [1241, 1754],
+      "variant": "automatic-layout",
+      "psm": 3,
+      "rotationDegrees": 0,
+      "rotationSource": "none",
+      "rasterMilliseconds": 125,
+      "ocrMilliseconds": 271,
+      "exitCode": 0,
+      "diagnostics": "",
+      "lines": [
+        {
+          "text": "DOCUMENTO SINTETICO — SOMENTE TESTE",
+          "words": [
+            {
+              "text": "DOCUMENTO",
+              "confidence": 92.234756,
+              "box": [119, 115, 151, 17]
+            },
+            {
+              "text": "SINTETICO",
+              "confidence": 90.157013,
+              "box": [280, 111, 121, 21]
+            },
+            {
+              "text": "—",
+              "confidence": 90.157013,
+              "box": [411, 124, 21, 3]
+            },
+            {
+              "text": "SOMENTE",
+              "confidence": 92.260803,
+              "box": [441, 115, 112, 17]
+            },
+            {
+              "text": "TESTE",
+              "confidence": 96.892761,
+              "box": [562, 115, 71, 17]
+            }
+          ]
+        },
+        {
+          "text": "SEM PACIENTE REAL — SEM CAMADA TEXTUAL",
+          "words": [
+            {
+              "text": "SEM",
+              "confidence": 93.304871,
+              "box": [118, 155, 31, 11]
+            },
+            {
+              "text": "PACIENTE",
+              "confidence": 92.601295,
+              "box": [157, 155, 74, 11]
+            },
+            {
+              "text": "REAL",
+              "confidence": 92.904037,
+              "box": [237, 155, 40, 11]
+            },
+            {
+              "text": "—",
+              "confidence": 92.904037,
+              "box": [283, 161, 14, 2]
+            },
+            {
+              "text": "SEM",
+              "confidence": 92.337151,
+              "box": [304, 155, 30, 11]
+            },
+            {
+              "text": "CAMADA",
+              "confidence": 92.337151,
+              "box": [341, 155, 68, 11]
+            },
+            {
+              "text": "TEXTUAL",
+              "confidence": 92.347397,
+              "box": [414, 155, 72, 11]
+            }
+          ]
+        },
+        {
+          "text": "TSH: 0,55 mUI/L; Referéncia: 0,4 - 4,0",
+          "words": [
+            {
+              "text": "TSH:",
+              "confidence": 95.848885,
+              "box": [117, 248, 52, 18]
+            },
+            {
+              "text": "0,55",
+              "confidence": 93.132149,
+              "box": [180, 248, 48, 20]
+            },
+            {
+              "text": "mUI/L;",
+              "confidence": 72.369865,
+              "box": [240, 248, 70, 20]
+            },
+            {
+              "text": "Referéncia:",
+              "confidence": 92.650963,
+              "box": [322, 247, 127, 19]
+            },
+            {
+              "text": "0,4",
+              "confidence": 92.569199,
+              "box": [461, 248, 34, 20]
+            },
+            {
+              "text": "-",
+              "confidence": 92.569199,
+              "box": [505, 258, 6, 2]
+            },
+            {
+              "text": "4,0",
+              "confidence": 96.944908,
+              "box": [520, 248, 35, 20]
+            }
+          ]
+        },
+        {
+          "text": "Ferritina: || ng/mL",
+          "words": [
+            {
+              "text": "Ferritina:",
+              "confidence": 93.076157,
+              "box": [119, 315, 100, 31]
+            },
+            {
+              "text": "||",
+              "confidence": 17.085716,
+              "box": [243, 308, 104, 46]
+            },
+            {
+              "text": "ng/mL",
+              "confidence": 95.967667,
+              "box": [369, 320, 71, 22]
+            }
+          ]
+        },
+        {
+          "text": "Valor coberto no documento; nao inferir numero.",
+          "words": [
+            {
+              "text": "Valor",
+              "confidence": 93.198151,
+              "box": [113, 394, 44, 28]
+            },
+            {
+              "text": "coberto",
+              "confidence": 92.842232,
+              "box": [164, 394, 57, 28]
+            },
+            {
+              "text": "no",
+              "confidence": 96.986038,
+              "box": [229, 404, 16, 8]
+            },
+            {
+              "text": "documento;",
+              "confidence": 96.706047,
+              "box": [252, 401, 92, 13]
+            },
+            {
+              "text": "nao",
+              "confidence": 92.364975,
+              "box": [352, 400, 27, 12]
+            },
+            {
+              "text": "inferir",
+              "confidence": 92.851448,
+              "box": [387, 401, 45, 11]
+            },
+            {
+              "text": "numero.",
+              "confidence": 55.380165,
+              "box": [439, 400, 57, 12]
+            }
+          ]
+        },
+        {
+          "text": "Arquivo sintético gerado por cédigo; proibido uso clinico.",
+          "words": [
+            {
+              "text": "Arquivo",
+              "confidence": 93.306129,
+              "box": [117, 726, 59, 15]
+            },
+            {
+              "text": "sintético",
+              "confidence": 90.053322,
+              "box": [183, 726, 66, 12]
+            },
+            {
+              "text": "gerado",
+              "confidence": 91.834755,
+              "box": [255, 726, 54, 15]
+            },
+            {
+              "text": "por",
+              "confidence": 93.266762,
+              "box": [316, 729, 25, 12]
+            },
+            {
+              "text": "cédigo;",
+              "confidence": 80.583397,
+              "box": [347, 726, 54, 15]
+            },
+            {
+              "text": "proibido",
+              "confidence": 92.854851,
+              "box": [410, 726, 62, 15]
+            },
+            {
+              "text": "uso",
+              "confidence": 93.304596,
+              "box": [479, 729, 26, 9]
+            },
+            {
+              "text": "clinico.",
+              "confidence": 91.848732,
+              "box": [511, 726, 53, 12]
+            }
+          ]
+        }
+      ],
+      "literalDiagnostics": {
+        "tshNameFound": true,
+        "tshResultOnSameLine": true,
+        "tshUnitOnSameLine": true,
+        "tshReferenceOnSameLine": true,
+        "antiHcvNameFound": null,
+        "antiHcvAccentedResultOnSameLine": null,
+        "ferritinaMentionFound": true,
+        "maskedLineNumericTokenObserved": false
+      }
+    },
+    {
+      "caseId": "scan-partially-masked",
+      "page": 1,
+      "pdfSha256": "5b82d8f3d95b810407f71cad86ed6ca8cfb629e3272631c7f2320a1bb68d4713",
+      "rasterSha256": "283392bcb3990ca9df5f6fc951a26e980277c4749eb560588c59209304b3c9cf",
+      "rasterDimensions": [1241, 1754],
+      "variant": "automatic-orientation",
+      "psm": 1,
+      "rotationDegrees": 0,
+      "rotationSource": "none",
+      "rasterMilliseconds": 125,
+      "ocrMilliseconds": 516,
+      "exitCode": 0,
+      "diagnostics": "",
+      "lines": [
+        {
+          "text": "DOCUMENTO SINTETICO — SOMENTE TESTE",
+          "words": [
+            {
+              "text": "DOCUMENTO",
+              "confidence": 92.234756,
+              "box": [119, 115, 151, 17]
+            },
+            {
+              "text": "SINTETICO",
+              "confidence": 90.157013,
+              "box": [280, 111, 121, 21]
+            },
+            {
+              "text": "—",
+              "confidence": 90.157013,
+              "box": [411, 124, 21, 3]
+            },
+            {
+              "text": "SOMENTE",
+              "confidence": 92.260803,
+              "box": [441, 115, 112, 17]
+            },
+            {
+              "text": "TESTE",
+              "confidence": 96.892761,
+              "box": [562, 115, 71, 17]
+            }
+          ]
+        },
+        {
+          "text": "SEM PACIENTE REAL — SEM CAMADA TEXTUAL",
+          "words": [
+            {
+              "text": "SEM",
+              "confidence": 93.304871,
+              "box": [118, 155, 31, 11]
+            },
+            {
+              "text": "PACIENTE",
+              "confidence": 92.601295,
+              "box": [157, 155, 74, 11]
+            },
+            {
+              "text": "REAL",
+              "confidence": 92.904037,
+              "box": [237, 155, 40, 11]
+            },
+            {
+              "text": "—",
+              "confidence": 92.904037,
+              "box": [283, 161, 14, 2]
+            },
+            {
+              "text": "SEM",
+              "confidence": 92.337151,
+              "box": [304, 155, 30, 11]
+            },
+            {
+              "text": "CAMADA",
+              "confidence": 92.337151,
+              "box": [341, 155, 68, 11]
+            },
+            {
+              "text": "TEXTUAL",
+              "confidence": 92.347397,
+              "box": [414, 155, 72, 11]
+            }
+          ]
+        },
+        {
+          "text": "TSH: 0,55 mUI/L; Referéncia: 0,4 - 4,0",
+          "words": [
+            {
+              "text": "TSH:",
+              "confidence": 95.848885,
+              "box": [117, 248, 52, 18]
+            },
+            {
+              "text": "0,55",
+              "confidence": 93.132149,
+              "box": [180, 248, 48, 20]
+            },
+            {
+              "text": "mUI/L;",
+              "confidence": 72.369865,
+              "box": [240, 248, 70, 20]
+            },
+            {
+              "text": "Referéncia:",
+              "confidence": 92.650963,
+              "box": [322, 247, 127, 19]
+            },
+            {
+              "text": "0,4",
+              "confidence": 92.569199,
+              "box": [461, 248, 34, 20]
+            },
+            {
+              "text": "-",
+              "confidence": 92.569199,
+              "box": [505, 258, 6, 2]
+            },
+            {
+              "text": "4,0",
+              "confidence": 96.944908,
+              "box": [520, 248, 35, 20]
+            }
+          ]
+        },
+        {
+          "text": "Ferritina: || ng/mL",
+          "words": [
+            {
+              "text": "Ferritina:",
+              "confidence": 93.076157,
+              "box": [119, 315, 100, 31]
+            },
+            {
+              "text": "||",
+              "confidence": 17.085716,
+              "box": [243, 308, 104, 46]
+            },
+            {
+              "text": "ng/mL",
+              "confidence": 95.967667,
+              "box": [369, 320, 71, 22]
+            }
+          ]
+        },
+        {
+          "text": "Valor coberto no documento; nao inferir numero.",
+          "words": [
+            {
+              "text": "Valor",
+              "confidence": 93.198151,
+              "box": [113, 394, 44, 28]
+            },
+            {
+              "text": "coberto",
+              "confidence": 92.842232,
+              "box": [164, 394, 57, 28]
+            },
+            {
+              "text": "no",
+              "confidence": 96.986038,
+              "box": [229, 404, 16, 8]
+            },
+            {
+              "text": "documento;",
+              "confidence": 96.706047,
+              "box": [252, 401, 92, 13]
+            },
+            {
+              "text": "nao",
+              "confidence": 92.364975,
+              "box": [352, 400, 27, 12]
+            },
+            {
+              "text": "inferir",
+              "confidence": 92.851448,
+              "box": [387, 401, 45, 11]
+            },
+            {
+              "text": "numero.",
+              "confidence": 55.380165,
+              "box": [439, 400, 57, 12]
+            }
+          ]
+        },
+        {
+          "text": "Arquivo sintético gerado por cédigo; proibido uso clinico.",
+          "words": [
+            {
+              "text": "Arquivo",
+              "confidence": 93.306129,
+              "box": [117, 726, 59, 15]
+            },
+            {
+              "text": "sintético",
+              "confidence": 90.053322,
+              "box": [183, 726, 66, 12]
+            },
+            {
+              "text": "gerado",
+              "confidence": 91.834755,
+              "box": [255, 726, 54, 15]
+            },
+            {
+              "text": "por",
+              "confidence": 93.266762,
+              "box": [316, 729, 25, 12]
+            },
+            {
+              "text": "cédigo;",
+              "confidence": 80.583397,
+              "box": [347, 726, 54, 15]
+            },
+            {
+              "text": "proibido",
+              "confidence": 92.854851,
+              "box": [410, 726, 62, 15]
+            },
+            {
+              "text": "uso",
+              "confidence": 93.304596,
+              "box": [479, 729, 26, 9]
+            },
+            {
+              "text": "clinico.",
+              "confidence": 91.848732,
+              "box": [511, 726, 53, 12]
+            }
+          ]
+        }
+      ],
+      "literalDiagnostics": {
+        "tshNameFound": true,
+        "tshResultOnSameLine": true,
+        "tshUnitOnSameLine": true,
+        "tshReferenceOnSameLine": true,
+        "antiHcvNameFound": null,
+        "antiHcvAccentedResultOnSameLine": null,
+        "ferritinaMentionFound": true,
+        "maskedLineNumericTokenObserved": false
+      }
+    },
+    {
+      "caseId": "scan-partially-masked",
+      "page": 1,
+      "pdfSha256": "5b82d8f3d95b810407f71cad86ed6ca8cfb629e3272631c7f2320a1bb68d4713",
+      "rasterSha256": "283392bcb3990ca9df5f6fc951a26e980277c4749eb560588c59209304b3c9cf",
+      "rasterDimensions": [1241, 1754],
+      "variant": "single-block",
+      "psm": 6,
+      "rotationDegrees": 0,
+      "rotationSource": "none",
+      "rasterMilliseconds": 125,
+      "ocrMilliseconds": 260,
+      "exitCode": 0,
+      "diagnostics": "",
+      "lines": [
+        {
+          "text": "DOCUMENTO SINTETICO — SOMENTE TESTE",
+          "words": [
+            {
+              "text": "DOCUMENTO",
+              "confidence": 92.514206,
+              "box": [119, 115, 151, 17]
+            },
+            {
+              "text": "SINTETICO",
+              "confidence": 90.490738,
+              "box": [280, 111, 121, 21]
+            },
+            {
+              "text": "—",
+              "confidence": 91.412292,
+              "box": [411, 124, 21, 3]
+            },
+            {
+              "text": "SOMENTE",
+              "confidence": 91.586807,
+              "box": [441, 115, 112, 17]
+            },
+            {
+              "text": "TESTE",
+              "confidence": 95.955803,
+              "box": [562, 115, 71, 17]
+            }
+          ]
+        },
+        {
+          "text": "SEM PACIENTE REAL — SEM CAMADA TEXTUAL",
+          "words": [
+            {
+              "text": "SEM",
+              "confidence": 92.537209,
+              "box": [118, 155, 31, 11]
+            },
+            {
+              "text": "PACIENTE",
+              "confidence": 92.537209,
+              "box": [157, 155, 74, 11]
+            },
+            {
+              "text": "REAL",
+              "confidence": 93.170845,
+              "box": [237, 155, 40, 11]
+            },
+            {
+              "text": "—",
+              "confidence": 92.95948,
+              "box": [283, 161, 14, 2]
+            },
+            {
+              "text": "SEM",
+              "confidence": 93.157646,
+              "box": [304, 155, 30, 11]
+            },
+            {
+              "text": "CAMADA",
+              "confidence": 89.662659,
+              "box": [341, 155, 68, 11]
+            },
+            {
+              "text": "TEXTUAL",
+              "confidence": 91.920097,
+              "box": [414, 155, 72, 11]
+            }
+          ]
+        },
+        {
+          "text": "TSH: 0,55 mUI/L; Referéncia: 0,4 - 4,0",
+          "words": [
+            {
+              "text": "TSH:",
+              "confidence": 95.848885,
+              "box": [117, 248, 52, 18]
+            },
+            {
+              "text": "0,55",
+              "confidence": 93.132149,
+              "box": [180, 248, 48, 20]
+            },
+            {
+              "text": "mUI/L;",
+              "confidence": 72.369865,
+              "box": [240, 248, 70, 20]
+            },
+            {
+              "text": "Referéncia:",
+              "confidence": 92.650963,
+              "box": [322, 247, 127, 19]
+            },
+            {
+              "text": "0,4",
+              "confidence": 92.569199,
+              "box": [461, 248, 34, 20]
+            },
+            {
+              "text": "-",
+              "confidence": 92.569199,
+              "box": [505, 258, 6, 2]
+            },
+            {
+              "text": "4,0",
+              "confidence": 96.944908,
+              "box": [520, 248, 35, 20]
+            }
+          ]
+        },
+        {
+          "text": "Ferritina: || ng/mL",
+          "words": [
+            {
+              "text": "Ferritina:",
+              "confidence": 93.076157,
+              "box": [119, 315, 100, 31]
+            },
+            {
+              "text": "||",
+              "confidence": 17.085716,
+              "box": [243, 308, 104, 46]
+            },
+            {
+              "text": "ng/mL",
+              "confidence": 95.967667,
+              "box": [369, 320, 71, 22]
+            }
+          ]
+        },
+        {
+          "text": "Valor coberto no documento; nao inferir namero",
+          "words": [
+            {
+              "text": "Valor",
+              "confidence": 93.163116,
+              "box": [117, 401, 40, 11]
+            },
+            {
+              "text": "coberto",
+              "confidence": 93.087303,
+              "box": [165, 396, 56, 24]
+            },
+            {
+              "text": "no",
+              "confidence": 96.858849,
+              "box": [229, 404, 16, 8]
+            },
+            {
+              "text": "documento;",
+              "confidence": 96.378693,
+              "box": [252, 401, 92, 13]
+            },
+            {
+              "text": "nao",
+              "confidence": 93.238434,
+              "box": [352, 400, 27, 12]
+            },
+            {
+              "text": "inferir",
+              "confidence": 91.558884,
+              "box": [387, 401, 45, 11]
+            },
+            {
+              "text": "namero",
+              "confidence": 29.277718,
+              "box": [439, 400, 57, 12]
+            }
+          ]
+        },
+        {
+          "text": "Arquivo sintético gerado por codigo; proibido uso clinico.",
+          "words": [
+            {
+              "text": "Arquivo",
+              "confidence": 93.261978,
+              "box": [117, 726, 59, 15]
+            },
+            {
+              "text": "sintético",
+              "confidence": 93.058823,
+              "box": [183, 726, 66, 12]
+            },
+            {
+              "text": "gerado",
+              "confidence": 92.399933,
+              "box": [255, 726, 54, 15]
+            },
+            {
+              "text": "por",
+              "confidence": 96.912483,
+              "box": [316, 729, 25, 12]
+            },
+            {
+              "text": "codigo;",
+              "confidence": 0.0,
+              "box": [347, 726, 54, 15]
+            },
+            {
+              "text": "proibido",
+              "confidence": 92.807426,
+              "box": [410, 726, 62, 15]
+            },
+            {
+              "text": "uso",
+              "confidence": 93.231804,
+              "box": [479, 729, 26, 9]
+            },
+            {
+              "text": "clinico.",
+              "confidence": 88.190475,
+              "box": [511, 726, 53, 12]
+            }
+          ]
+        }
+      ],
+      "literalDiagnostics": {
+        "tshNameFound": true,
+        "tshResultOnSameLine": true,
+        "tshUnitOnSameLine": true,
+        "tshReferenceOnSameLine": true,
+        "antiHcvNameFound": null,
+        "antiHcvAccentedResultOnSameLine": null,
+        "ferritinaMentionFound": true,
+        "maskedLineNumericTokenObserved": false
+      }
+    }
+  ]
+}

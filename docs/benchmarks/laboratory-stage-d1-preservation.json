@@ -1,0 +1,34 @@
+{
+  "checkedAt": "2026-10-20 05:02:49 UTC",
+  "historyAfter": [
+    {
+      "results": "88",
+      "digest": "713f44bd5c8fa62783847475c61a3525",
+      "reviews": "2",
+      "new_unconfirmed_imports": "5"
+    }
+  ],
+  "quotaAfter": [
+    {
+      "utc_now": "2026-10-20T05:02:39.016Z",
+      "bucket": "2026-10-20T00:00:00.000Z",
+      "attempts": 20
+    },
+    {
+      "utc_now": "2026-10-20T05:02:39.016Z",
+      "bucket": "2026-10-20T05:00:00.000Z",
+      "attempts": 5
+    }
+  ],
+  "productionAfter": {
+    "id": "dpl_4ag81mHUxsDZ7VaKqnrKKHqKrFkp",
+    "sha": "091612549723e484d41bd3c984e877ddd19365e6",
+    "url": "allik-cz2dk6vej-atp-mkt.vercel.app"
+  },
+  "appCodeChanged": false,
+  "validatedHistoryChanged": false,
+  "newUnconfirmedImports": 5,
+  "saveValidateReopenCalls": 0,
+  "providerCalls": 5,
+  "otherProviders": 0
+}

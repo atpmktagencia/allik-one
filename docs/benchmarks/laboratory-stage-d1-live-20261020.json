@@ -1,0 +1,840 @@
+{
+  "phase": "after",
+  "startedAt": "2026-10-20T05:00:03.328Z",
+  "provenance": {
+    "immutableUrl": "https://allik-dkwdbf14o-atp-mkt.vercel.app",
+    "codeCommit": "2b16b12c7f6417ae3e9df6042a4e01f793379b07",
+    "deploymentId": "dpl_9FxbUKdHHaKS1YLsiN7Rg5dGgfyt",
+    "dataClassification": "synthetic",
+    "pipeline": "lab-pipeline-3",
+    "maximumImports": 5,
+    "provider": "openai",
+    "configuredModel": "openai/gpt-6-luna",
+    "resolvedModelRevision": null,
+    "neonProject": "little-dust-61663559",
+    "neonBranch": "br-winter-hill-b69uz195",
+    "sourceSha256": {
+      "src/lib/laboratory-evidence.ts": "cded726c69a7ae881e477b75c3245d9046aec52e60d00befe942af5e66e6d83f",
+      "src/lib/laboratory-date-evidence.ts": "1e7a858834a135508d90d80e568cb5b9338d5de43d7bcd11106b98d09bdf47e4",
+      "src/lib/laboratory-source-association.ts": "14818a5e84c665d55fc54688d905d8f6063f8d14a1a7d5733166e5ee506a3072",
+      "src/lib/laboratory-completeness-experiment.ts": "046a9d02463705e461ce87706497eb8baa94a2c3cb81fadadf374d2a3ea783d5",
+      "src/server/laboratory-extraction.ts": "b109a1fb1286b16f095359d86b88a78e89616dcd7c1c8b90bd8bd452f4759c5f",
+      "src/server/laboratory-pdf-text.ts": "42d0fd421b3aad19d0efb5ac1e2b867db48611e8678aafab99c562e0ee2d6eec",
+      "src/server/laboratory-results.ts": "1d465e01a3534377eadb571f42e1e18955fd2af1134fbcb09997abe60b61efe9",
+      "src/test/fixtures/laboratory-robustness.ts": "9bb8bead7b73ea3c456b01428aa8ed3512692ea3995132ade62100c596de7d9f"
+    },
+    "captureTransport": "sanitized_api_draft_plus_persisted_import_event_telemetry"
+  },
+  "records": [
+    {
+      "phase": "after",
+      "caseId": "dates-explicit-ddmm",
+      "sha256": "c02cd0c5584a344b0806997a1d571c6ac23167de7e3f56ecfe8b8dbb25290c49",
+      "documentId": "31cf11ad-6211-4c5c-a635-62ae3f4bbc0f",
+      "operationId": "68af14e8-2724-4309-bc99-90d6195e9638",
+      "startedAt": "2026-10-20T05:00:08.030Z",
+      "uploadStatus": 201,
+      "openStatus": 200,
+      "httpStatus": 200,
+      "import": {
+        "id": "dcb13ae1-963d-42e9-bbec-0967e87e6d1b",
+        "status": "READY_REVIEW",
+        "version": 2,
+        "draft": {
+          "rows": [
+            {
+              "name": "Ferritina",
+              "unit": "ng/mL",
+              "method": "Quimioluminescência",
+              "result": "45.5",
+              "evidence": "Ferritina: 45.5 ng/mL",
+              "issuedOn": "2026-01-05",
+              "material": "Soro",
+              "verified": false,
+              "reference": null,
+              "laboratory": "Laboratório Sintético Beta",
+              "reportedOn": "2026-01-04",
+              "sourcePage": 1,
+              "collectedOn": "2026-01-02",
+              "uncertainty": null
+            }
+          ],
+          "notes": "",
+          "patientConfirmed": false
+        },
+        "failure_code": null,
+        "model": "openai/gpt-6-luna"
+      },
+      "evidenceChecks": {
+        "version": 3,
+        "parserStatus": "available",
+        "totalPages": 1,
+        "rows": [
+          {
+            "status": "literal_match",
+            "basis": "source_text",
+            "issues": [],
+            "fields": {
+              "name": {
+                "status": "supported",
+                "page": 1,
+                "line": 9
+              },
+              "unit": {
+                "status": "supported",
+                "page": 1,
+                "line": 9
+              },
+              "method": {
+                "status": "supported",
+                "page": 1,
+                "line": 7
+              },
+              "result": {
+                "status": "supported",
+                "page": 1,
+                "line": 9
+              },
+              "issuedOn": {
+                "status": "supported",
+                "page": 1,
+                "line": 6
+              },
+              "material": {
+                "status": "supported",
+                "page": 1,
+                "line": 8
+              },
+              "reference": {
+                "status": "absent",
+                "page": 1,
+                "line": 9
+              },
+              "laboratory": {
+                "status": "supported",
+                "page": 1,
+                "line": 2
+              },
+              "reportedOn": {
+                "status": "supported",
+                "page": 1,
+                "line": 5
+              },
+              "collectedOn": {
+                "status": "supported",
+                "page": 1,
+                "line": 4
+              }
+            }
+          }
+        ]
+      },
+      "wallMilliseconds": 9485,
+      "finishedAt": "2026-10-20T05:00:21.149Z",
+      "telemetry": {
+        "model": "openai/gpt-6-luna",
+        "failures": 0,
+        "provider": "openai",
+        "costBasis": "unavailable",
+        "durationMs": 5017,
+        "inputTokens": 816,
+        "pricingAsOf": null,
+        "outputTokens": 165,
+        "extractedRows": 1,
+        "promptVersion": "lab-transcription-3",
+        "usageComplete": true,
+        "divergenceRows": 0,
+        "pipelineVersion": "lab-pipeline-3",
+        "reasoningTokens": 46,
+        "startedRequests": 1,
+        "verifierVersion": 3,
+        "divergenceFields": 0,
+        "estimatedCostUsd": null,
+        "cachedInputTokens": 0,
+        "completedRequests": 1,
+        "processingMilliseconds": 6646
+      }
+    },
+    {
+      "phase": "after",
+      "caseId": "dates-ambiguous-no-format",
+      "sha256": "e51c1b65eb10791dd6368b5c96d3bf67c059ec442d0e8b4e61f378ecc28d7f77",
+      "documentId": "6cf7ca78-22df-48e5-9d23-4f01abdd6578",
+      "operationId": "7f4dc796-df59-469f-a234-bacd8a90acfe",
+      "startedAt": "2026-10-20T05:00:21.149Z",
+      "uploadStatus": 201,
+      "openStatus": 200,
+      "httpStatus": 200,
+      "import": {
+        "id": "98147f91-79dc-4e6d-8b63-e705349b072f",
+        "status": "READY_REVIEW",
+        "version": 2,
+        "draft": {
+          "rows": [
+            {
+              "name": "Ferritina",
+              "unit": "ng/mL",
+              "method": null,
+              "result": "47",
+              "evidence": "Ferritina: 47 ng/mL",
+              "issuedOn": null,
+              "material": null,
+              "verified": false,
+              "reference": null,
+              "laboratory": null,
+              "reportedOn": null,
+              "sourcePage": 1,
+              "collectedOn": null,
+              "uncertainty": "As datas de Coleta (02/03/2026), Data do resultado (04/03/2026) e Emissão (05/03/2026) têm formatos numéricos ambíguos; a fonte declara que não há convenção de formato."
+            }
+          ],
+          "notes": "",
+          "patientConfirmed": false
+        },
+        "failure_code": null,
+        "model": "openai/gpt-6-luna"
+      },
+      "evidenceChecks": {
+        "version": 3,
+        "parserStatus": "available",
+        "totalPages": 1,
+        "rows": [
+          {
+            "status": "attention",
+            "basis": "source_text",
+            "issues": ["MODEL_UNCERTAINTY", "DATE_AMBIGUOUS", "FIELD_OMITTED"],
+            "fields": {
+              "name": {
+                "status": "supported",
+                "page": 1,
+                "line": 6
+              },
+              "unit": {
+                "status": "supported",
+                "page": 1,
+                "line": 6
+              },
+              "method": {
+                "status": "absent"
+              },
+              "result": {
+                "status": "supported",
+                "page": 1,
+                "line": 6
+              },
+              "issuedOn": {
+                "status": "insufficient"
+              },
+              "material": {
+                "status": "absent"
+              },
+              "reference": {
+                "status": "absent",
+                "page": 1,
+                "line": 6
+              },
+              "laboratory": {
+                "status": "absent"
+              },
+              "reportedOn": {
+                "status": "insufficient"
+              },
+              "collectedOn": {
+                "status": "insufficient"
+              }
+            }
+          }
+        ]
+      },
+      "wallMilliseconds": 8291,
+      "finishedAt": "2026-10-20T05:00:33.106Z",
+      "telemetry": {
+        "model": "openai/gpt-6-luna",
+        "failures": 0,
+        "provider": "openai",
+        "costBasis": "unavailable",
+        "durationMs": 4898,
+        "inputTokens": 791,
+        "pricingAsOf": null,
+        "outputTokens": 209,
+        "extractedRows": 1,
+        "promptVersion": "lab-transcription-3",
+        "usageComplete": true,
+        "divergenceRows": 1,
+        "pipelineVersion": "lab-pipeline-3",
+        "reasoningTokens": 65,
+        "startedRequests": 1,
+        "verifierVersion": 3,
+        "divergenceFields": 3,
+        "estimatedCostUsd": null,
+        "cachedInputTokens": 0,
+        "completedRequests": 1,
+        "processingMilliseconds": 6208
+      }
+    },
+    {
+      "phase": "after",
+      "caseId": "geometric-current-previous",
+      "sha256": "639ba299b70d691af2c551532c453d237760f77c04891da723fa1dafbd3b64c4",
+      "documentId": "b91054e2-aad3-4c58-b868-5b7b54b3e968",
+      "operationId": "4c4480ee-432f-4982-a969-2c1fe91176cd",
+      "startedAt": "2026-10-20T05:00:33.107Z",
+      "uploadStatus": 201,
+      "openStatus": 200,
+      "httpStatus": 200,
+      "import": {
+        "id": "61d8f016-9547-411f-b967-49ca5636c2c5",
+        "status": "READY_REVIEW",
+        "version": 2,
+        "draft": {
+          "rows": [
+            {
+              "name": "Glicose",
+              "unit": "mg/dL",
+              "method": null,
+              "result": "91",
+              "evidence": "Glicose   91   109   mg/dL   70 - 99",
+              "issuedOn": null,
+              "material": null,
+              "verified": false,
+              "reference": "70 - 99",
+              "laboratory": null,
+              "reportedOn": null,
+              "sourcePage": 1,
+              "collectedOn": null,
+              "uncertainty": null
+            },
+            {
+              "name": "Ureia",
+              "unit": "mg/dL",
+              "method": null,
+              "result": "32",
+              "evidence": "Ureia   32   41   mg/dL   10 - 50",
+              "issuedOn": null,
+              "material": null,
+              "verified": false,
+              "reference": "10 - 50",
+              "laboratory": null,
+              "reportedOn": null,
+              "sourcePage": 1,
+              "collectedOn": null,
+              "uncertainty": null
+            },
+            {
+              "name": "T4 livre",
+              "unit": "ng/dL",
+              "method": null,
+              "result": "1,3",
+              "evidence": "T4 livre   1,3   1,1   ng/dL   0,8 - 1,8",
+              "issuedOn": null,
+              "material": null,
+              "verified": false,
+              "reference": "0,8 - 1,8",
+              "laboratory": null,
+              "reportedOn": null,
+              "sourcePage": 1,
+              "collectedOn": null,
+              "uncertainty": null
+            }
+          ],
+          "notes": "",
+          "patientConfirmed": false
+        },
+        "failure_code": null,
+        "model": "openai/gpt-6-luna"
+      },
+      "evidenceChecks": {
+        "version": 3,
+        "parserStatus": "available",
+        "totalPages": 1,
+        "rows": [
+          {
+            "status": "attention",
+            "basis": "source_text",
+            "issues": ["ASSOCIATION_UNPROVEN"],
+            "fields": {
+              "name": {
+                "status": "insufficient"
+              },
+              "unit": {
+                "status": "insufficient"
+              },
+              "method": {
+                "status": "absent"
+              },
+              "result": {
+                "status": "insufficient"
+              },
+              "issuedOn": {
+                "status": "absent"
+              },
+              "material": {
+                "status": "absent"
+              },
+              "reference": {
+                "status": "insufficient"
+              },
+              "laboratory": {
+                "status": "absent"
+              },
+              "reportedOn": {
+                "status": "absent"
+              },
+              "collectedOn": {
+                "status": "absent"
+              }
+            }
+          },
+          {
+            "status": "attention",
+            "basis": "source_text",
+            "issues": ["ASSOCIATION_UNPROVEN"],
+            "fields": {
+              "name": {
+                "status": "insufficient"
+              },
+              "unit": {
+                "status": "insufficient"
+              },
+              "method": {
+                "status": "absent"
+              },
+              "result": {
+                "status": "insufficient"
+              },
+              "issuedOn": {
+                "status": "absent"
+              },
+              "material": {
+                "status": "absent"
+              },
+              "reference": {
+                "status": "insufficient"
+              },
+              "laboratory": {
+                "status": "absent"
+              },
+              "reportedOn": {
+                "status": "absent"
+              },
+              "collectedOn": {
+                "status": "absent"
+              }
+            }
+          },
+          {
+            "status": "attention",
+            "basis": "source_text",
+            "issues": ["ASSOCIATION_UNPROVEN"],
+            "fields": {
+              "name": {
+                "status": "insufficient"
+              },
+              "unit": {
+                "status": "insufficient"
+              },
+              "method": {
+                "status": "absent"
+              },
+              "result": {
+                "status": "insufficient"
+              },
+              "issuedOn": {
+                "status": "absent"
+              },
+              "material": {
+                "status": "absent"
+              },
+              "reference": {
+                "status": "insufficient"
+              },
+              "laboratory": {
+                "status": "absent"
+              },
+              "reportedOn": {
+                "status": "absent"
+              },
+              "collectedOn": {
+                "status": "absent"
+              }
+            }
+          }
+        ]
+      },
+      "wallMilliseconds": 8819,
+      "finishedAt": "2026-10-20T05:00:45.394Z",
+      "telemetry": {
+        "model": "openai/gpt-6-luna",
+        "failures": 0,
+        "provider": "openai",
+        "costBasis": "unavailable",
+        "durationMs": 5188,
+        "inputTokens": 828,
+        "pricingAsOf": null,
+        "outputTokens": 286,
+        "extractedRows": 3,
+        "promptVersion": "lab-transcription-3",
+        "usageComplete": true,
+        "divergenceRows": 3,
+        "pipelineVersion": "lab-pipeline-3",
+        "reasoningTokens": 0,
+        "startedRequests": 1,
+        "verifierVersion": 3,
+        "divergenceFields": 12,
+        "estimatedCostUsd": null,
+        "cachedInputTokens": 0,
+        "completedRequests": 1,
+        "processingMilliseconds": 6728
+      }
+    },
+    {
+      "phase": "after",
+      "caseId": "scan-rotated",
+      "sha256": "4a28be6d344c59d69e661bdf32a6fbe96de5c830163620785fa8db038009cead",
+      "documentId": "2098b3e4-6bbf-4c1a-839b-e77ad31e3ca5",
+      "operationId": "65356282-33c0-4981-8191-d9e2ac4c9811",
+      "startedAt": "2026-10-20T05:00:45.395Z",
+      "uploadStatus": 201,
+      "openStatus": 200,
+      "httpStatus": 200,
+      "import": {
+        "id": "a3fbd039-4015-40c6-886f-818081b8068a",
+        "status": "READY_REVIEW",
+        "version": 2,
+        "draft": {
+          "rows": [
+            {
+              "name": "TSH",
+              "unit": "mUI/L",
+              "method": null,
+              "result": "0,55",
+              "evidence": "TSH: 0,55 mUI/L. Referência: 0,4 - 4,0",
+              "issuedOn": null,
+              "material": null,
+              "verified": false,
+              "reference": "0,4 - 4,0",
+              "laboratory": null,
+              "reportedOn": null,
+              "sourcePage": 1,
+              "collectedOn": null,
+              "uncertainty": null
+            },
+            {
+              "name": "Anti-HCV",
+              "unit": null,
+              "method": null,
+              "result": "Não reagente",
+              "evidence": "Anti-HCV: Não reagente Referência: Não reagente",
+              "issuedOn": null,
+              "material": null,
+              "verified": false,
+              "reference": "Não reagente",
+              "laboratory": null,
+              "reportedOn": null,
+              "sourcePage": 1,
+              "collectedOn": null,
+              "uncertainty": null
+            }
+          ],
+          "notes": "",
+          "patientConfirmed": false
+        },
+        "failure_code": null,
+        "model": "openai/gpt-6-luna"
+      },
+      "evidenceChecks": {
+        "version": 3,
+        "parserStatus": "unavailable",
+        "totalPages": 1,
+        "rows": [
+          {
+            "status": "attention",
+            "basis": "model_evidence",
+            "issues": ["INDEPENDENT_SOURCE_UNAVAILABLE"],
+            "fields": {
+              "name": {
+                "status": "insufficient"
+              },
+              "unit": {
+                "status": "insufficient"
+              },
+              "method": {
+                "status": "absent"
+              },
+              "result": {
+                "status": "insufficient"
+              },
+              "issuedOn": {
+                "status": "absent"
+              },
+              "material": {
+                "status": "absent"
+              },
+              "reference": {
+                "status": "insufficient"
+              },
+              "laboratory": {
+                "status": "absent"
+              },
+              "reportedOn": {
+                "status": "absent"
+              },
+              "collectedOn": {
+                "status": "absent"
+              }
+            }
+          },
+          {
+            "status": "attention",
+            "basis": "model_evidence",
+            "issues": ["INDEPENDENT_SOURCE_UNAVAILABLE"],
+            "fields": {
+              "name": {
+                "status": "insufficient"
+              },
+              "unit": {
+                "status": "absent"
+              },
+              "method": {
+                "status": "absent"
+              },
+              "result": {
+                "status": "insufficient"
+              },
+              "issuedOn": {
+                "status": "absent"
+              },
+              "material": {
+                "status": "absent"
+              },
+              "reference": {
+                "status": "insufficient"
+              },
+              "laboratory": {
+                "status": "absent"
+              },
+              "reportedOn": {
+                "status": "absent"
+              },
+              "collectedOn": {
+                "status": "absent"
+              }
+            }
+          }
+        ]
+      },
+      "wallMilliseconds": 10100,
+      "finishedAt": "2026-10-20T05:01:00.290Z",
+      "telemetry": {
+        "model": "openai/gpt-6-luna",
+        "failures": 0,
+        "provider": "openai",
+        "costBasis": "unavailable",
+        "durationMs": 6360,
+        "inputTokens": 3076,
+        "pricingAsOf": null,
+        "outputTokens": 257,
+        "extractedRows": 2,
+        "promptVersion": "lab-transcription-3",
+        "usageComplete": true,
+        "divergenceRows": 2,
+        "pipelineVersion": "lab-pipeline-3",
+        "reasoningTokens": 67,
+        "startedRequests": 1,
+        "verifierVersion": 3,
+        "divergenceFields": 7,
+        "estimatedCostUsd": null,
+        "cachedInputTokens": 0,
+        "completedRequests": 1,
+        "processingMilliseconds": 7988
+      }
+    },
+    {
+      "phase": "after",
+      "caseId": "scan-partially-masked",
+      "sha256": "5b82d8f3d95b810407f71cad86ed6ca8cfb629e3272631c7f2320a1bb68d4713",
+      "documentId": "45314afc-862a-430b-b557-2c93d541198c",
+      "operationId": "94bd9cdb-4aa8-45cc-8332-f83738fe366e",
+      "startedAt": "2026-10-20T05:01:00.291Z",
+      "uploadStatus": 201,
+      "openStatus": 200,
+      "httpStatus": 200,
+      "import": {
+        "id": "ac45a867-f371-4f54-a1bb-35a5c32bd9bf",
+        "status": "READY_REVIEW",
+        "version": 2,
+        "draft": {
+          "rows": [
+            {
+              "name": "TSH",
+              "unit": "mUI/L",
+              "method": null,
+              "result": "0,55",
+              "evidence": "TSH: 0,55 mUI/L; Referência: 0,4 - 4,0",
+              "issuedOn": null,
+              "material": null,
+              "verified": false,
+              "reference": "0,4 - 4,0",
+              "laboratory": null,
+              "reportedOn": null,
+              "sourcePage": 1,
+              "collectedOn": null,
+              "uncertainty": null
+            },
+            {
+              "name": "Ferritina",
+              "unit": "ng/mL",
+              "method": null,
+              "result": "coberto",
+              "evidence": "Ferritina: [valor coberto] ng/mL",
+              "issuedOn": null,
+              "material": null,
+              "verified": false,
+              "reference": null,
+              "laboratory": null,
+              "reportedOn": null,
+              "sourcePage": 1,
+              "collectedOn": null,
+              "uncertainty": "O resultado está coberto no documento; não é possível determinar o valor."
+            }
+          ],
+          "notes": "Documento sintético de teste. O valor da ferritina está coberto e não pode ser transcrito numericamente.",
+          "patientConfirmed": false
+        },
+        "failure_code": null,
+        "model": "openai/gpt-6-luna"
+      },
+      "evidenceChecks": {
+        "version": 3,
+        "parserStatus": "unavailable",
+        "totalPages": 1,
+        "rows": [
+          {
+            "status": "attention",
+            "basis": "model_evidence",
+            "issues": ["INDEPENDENT_SOURCE_UNAVAILABLE"],
+            "fields": {
+              "name": {
+                "status": "insufficient"
+              },
+              "unit": {
+                "status": "insufficient"
+              },
+              "method": {
+                "status": "absent"
+              },
+              "result": {
+                "status": "insufficient"
+              },
+              "issuedOn": {
+                "status": "absent"
+              },
+              "material": {
+                "status": "absent"
+              },
+              "reference": {
+                "status": "insufficient"
+              },
+              "laboratory": {
+                "status": "absent"
+              },
+              "reportedOn": {
+                "status": "absent"
+              },
+              "collectedOn": {
+                "status": "absent"
+              }
+            }
+          },
+          {
+            "status": "attention",
+            "basis": "model_evidence",
+            "issues": ["MODEL_UNCERTAINTY", "INDEPENDENT_SOURCE_UNAVAILABLE"],
+            "fields": {
+              "name": {
+                "status": "insufficient"
+              },
+              "unit": {
+                "status": "insufficient"
+              },
+              "method": {
+                "status": "absent"
+              },
+              "result": {
+                "status": "insufficient"
+              },
+              "issuedOn": {
+                "status": "absent"
+              },
+              "material": {
+                "status": "absent"
+              },
+              "reference": {
+                "status": "absent"
+              },
+              "laboratory": {
+                "status": "absent"
+              },
+              "reportedOn": {
+                "status": "absent"
+              },
+              "collectedOn": {
+                "status": "absent"
+              }
+            }
+          }
+        ]
+      },
+      "wallMilliseconds": 13413,
+      "finishedAt": "2026-10-20T05:01:17.508Z",
+      "telemetry": {
+        "model": "openai/gpt-6-luna",
+        "failures": 0,
+        "provider": "openai",
+        "costBasis": "unavailable",
+        "durationMs": 9688,
+        "inputTokens": 1954,
+        "pricingAsOf": null,
+        "outputTokens": 428,
+        "extractedRows": 2,
+        "promptVersion": "lab-transcription-3",
+        "usageComplete": true,
+        "divergenceRows": 2,
+        "pipelineVersion": "lab-pipeline-3",
+        "reasoningTokens": 201,
+        "startedRequests": 1,
+        "verifierVersion": 3,
+        "divergenceFields": 7,
+        "estimatedCostUsd": null,
+        "cachedInputTokens": 0,
+        "completedRequests": 1,
+        "processingMilliseconds": 11326
+      }
+    }
+  ],
+  "preflight": {
+    "at": "2026-10-20T05:00:08.029Z",
+    "immutableUrl": "https://allik-dkwdbf14o-atp-mkt.vercel.app",
+    "sessionStatus": 200,
+    "actorEmail": "preview-operator@allik.invalid",
+    "sharedPreviewOperator": true,
+    "scopedImportId": "000e9544-a584-4a7e-8f68-ef52d6ec92d9",
+    "verifierVersion": 3,
+    "evidenceOrigin": "previous_v3_import_read_only_plus_verified_deployment_sha"
+  },
+  "schemaVersion": 1,
+  "purpose": "SYNTHETIC_ONLY_REAL_OPENAI_STAGE_D1_NOT_CLINICAL_VALIDATION",
+  "limits": {
+    "maximumImportsThisRound": 5,
+    "hourly": 6,
+    "daily": 20,
+    "overridden": false
+  },
+  "safety": {
+    "existingDocumentsModified": false,
+    "clinicalResultsPublished": false,
+    "patientIdentityConfirmed": false,
+    "otherProvidersUsed": false,
+    "productionPromoted": false
+  }
+}

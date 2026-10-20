@@ -1,0 +1,77 @@
+{
+  "stage": "D.1",
+  "checkedAt": "2026-10-20 04:40:41 UTC",
+  "deployment": {
+    "id": "dpl_9FxbUKdHHaKS1YLsiN7Rg5dGgfyt",
+    "sha": "2b16b12c7f6417ae3e9df6042a4e01f793379b07",
+    "url": "allik-dkwdbf14o-atp-mkt.vercel.app",
+    "state": "READY",
+    "target": null,
+    "branch": "feature/allik-patients"
+  },
+  "repositoryHead": "87cdd5e",
+  "immutableUrl": "https://allik-dkwdbf14o-atp-mkt.vercel.app",
+  "nonSecretPreviewConfiguration": [
+    {
+      "key": "LAB_EXTRACTION_PROVIDER",
+      "value": "openai",
+      "target": ["preview"],
+      "gitBranch": "feature/allik-patients"
+    },
+    {
+      "key": "LAB_EXTRACTION_MODEL",
+      "value": "openai/gpt-6-luna",
+      "target": ["preview"],
+      "gitBranch": "feature/allik-patients"
+    },
+    {
+      "key": "INVENTORY_PREPARE_PREVIEW",
+      "value": "false",
+      "target": ["preview"],
+      "gitBranch": "feature/allik-patients"
+    },
+    {
+      "key": "INVENTORY_ENVIRONMENT",
+      "value": "preview",
+      "target": ["preview"],
+      "gitBranch": "feature/allik-patients"
+    },
+    {
+      "key": "INVENTORY_DATA_CLASSIFICATION",
+      "value": "synthetic",
+      "target": ["preview"],
+      "gitBranch": "feature/allik-patients"
+    }
+  ],
+  "syntheticScope": {
+    "neonProject": "little-dust-61663559",
+    "neonBranch": "br-winter-hill-b69uz195",
+    "organizationId": "a1100000-0000-4000-8000-000000000001",
+    "unitId": "a1100000-0000-4000-8000-000000000101",
+    "patientId": "90319847-c7a6-4adc-a08a-47cf5e2aef21"
+  },
+  "historyBefore": [
+    {
+      "results": "88",
+      "digest": "713f44bd5c8fa62783847475c61a3525",
+      "reviews": "2"
+    }
+  ],
+  "quotaBefore": {
+    "checkedAt": "2026-10-20T04:28:19Z",
+    "hourLimit": 6,
+    "hourUsed": 6,
+    "dayLimit": 20,
+    "dayUsed": 15,
+    "maximumNewImports": 5,
+    "notBefore": "2026-10-20T05:00:03Z",
+    "changed": false
+  },
+  "credentials": {
+    "openaiKey": "existing_authorized_runtime_only_not_read_back",
+    "databaseAdminUrl": "not_displayed_or_exported",
+    "executorOpenaiKeyPresent": false
+  },
+  "appChanges": 0,
+  "productionDeploymentBefore": "dpl_4ag81mHUxsDZ7VaKqnrKKHqKrFkp"
+}
