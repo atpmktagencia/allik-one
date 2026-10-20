@@ -616,3 +616,32 @@ it("keeps uploaded-prescription hashes immutable and leaves legacy identity expl
     ).resolves.toMatchObject({ rowCount: 1 });
   }
 });
+
+it("receives neutral originals without creating laboratory imports and reopens the same scoped identity", async () => {
+  storage.put.mockImplementation(async (pathname: string) => ({ pathname }));
+  const f = await fixture();
+  const form = uploadForm(f.patient, undefined, {
+    intent: "RECEIPT",
+    categories: JSON.stringify(["OTHER"]),
+  });
+  const response = await postUpload(f, form);
+  expect(response.status).toBe(201);
+  const { data } = await response.json();
+  const reopened = await f.read("&documentId=" + data.id);
+  expect(reopened.status).toBe(200);
+  const documents = (await reopened.json()).data.documents;
+  expect(documents).toHaveLength(1);
+  expect(documents[0]).toMatchObject({
+    sourceId: data.id,
+    classificationPending: true,
+    categories: ["OTHER"],
+    laboratoryStatus: null,
+  });
+  expect(documents[0].receivedAt).toBeTruthy();
+  const exams = await f.read("&categoryGroup=EXAMS&documentId=" + data.id);
+  expect((await exams.json()).data.documents).toHaveLength(0);
+  expect((await f.read("&documentId=" + randomUUID())).status).toBe(200);
+  const repeated = await postUpload(f, form);
+  expect(repeated.status).toBe(200);
+  expect((await repeated.json()).data.id).toBe(data.id);
+});

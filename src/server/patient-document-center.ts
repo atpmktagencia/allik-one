@@ -51,6 +51,7 @@ const date = z
 const filters = z
   .object({
     patientId: uuid,
+    documentId: uuid.optional(),
     search: z.string().trim().max(150).optional(),
     category: z.string().max(64).optional(),
     categoryGroup: z.literal("EXAMS").optional(),
@@ -76,7 +77,7 @@ const uploadInput = z
       .max(8)
       .refine((a) => new Set(a).size === a.length),
     issuedOn: date.nullable(),
-    intent: z.enum(["DOCUMENT", "EXAM"]).default("DOCUMENT"),
+    intent: z.enum(["DOCUMENT", "EXAM", "RECEIPT"]).default("DOCUMENT"),
     duplicateOf: uuid.optional(),
     duplicateReason: z.string().trim().min(10).max(500).optional(),
   })
@@ -203,11 +204,12 @@ export async function patientDocumentsResponse(request: Request) {
       f.sort,
       f.categoryGroup ?? null,
       f.search ?? "",
+      f.documentId ?? null,
     ];
-    const matching = `($8::text IS NULL OR s.title ILIKE $8 OR s.professional_name ILIKE $8) AND ($9::text IS NULL OR $9=ANY(s.categories)) AND ($10::date IS NULL OR (s.occurred_at AT TIME ZONE 'America/Fortaleza')::date >= $10::date) AND ($11::date IS NULL OR (s.occurred_at AT TIME ZONE 'America/Fortaleza')::date <= $11::date) AND ($12::uuid IS NULL OR s.professional_id=$12) AND ($13::text IS NULL OR s.source_kind=$13) AND ($17::text IS NULL OR s.categories&&ARRAY['EXAM_REQUEST','LAB_RESULT','IMAGE_REPORT'])`;
+    const matching = `($8::text IS NULL OR s.title ILIKE $8 OR s.professional_name ILIKE $8) AND ($9::text IS NULL OR $9=ANY(s.categories)) AND ($10::date IS NULL OR (s.occurred_at AT TIME ZONE 'America/Fortaleza')::date >= $10::date) AND ($11::date IS NULL OR (s.occurred_at AT TIME ZONE 'America/Fortaleza')::date <= $11::date) AND ($12::uuid IS NULL OR s.professional_id=$12) AND ($13::text IS NULL OR s.source_kind=$13) AND ($17::text IS NULL OR s.categories&&ARRAY['EXAM_REQUEST','LAB_RESULT','IMAGE_REPORT']) AND ($19::uuid IS NULL OR (s.source_kind='GENERAL_DOCUMENT' AND s.source_id=$19))`;
     const rows = (
       await getPool().query(
-        `WITH sources AS (${union}), matching AS(SELECT s.* FROM sources s WHERE ${matching}) SELECT s.*,l.status laboratory_status,u.name unit_name,(SELECT q.appointment_id FROM inventory_encounter_quotes q WHERE s.source_kind='LEGACY_QUOTE' AND q.id=s.source_id AND q.organization_id=$2) origin_appointment,count(*) OVER()::int total FROM matching s JOIN inventory_units u ON u.id=s.unit_id AND u.organization_id=$2 LEFT JOIN inventory_laboratory_imports l ON l.document_id=s.source_id AND l.organization_id=$2 AND s.source_kind='GENERAL_DOCUMENT' ORDER BY CASE WHEN $16='relevance' THEN CASE WHEN lower(s.title)=lower($18) THEN 0 WHEN lower(left(s.title,length($18)))=lower($18) THEN 1 ELSE 2 END ELSE 0 END,s.occurred_at DESC,s.source_kind,s.source_id DESC,s.revision DESC LIMIT $14 OFFSET $15`,
+        `WITH sources AS (${union}), matching AS(SELECT s.* FROM sources s WHERE ${matching}) SELECT s.*,l.status laboratory_status,(SELECT d.created_at FROM inventory_patient_documents d WHERE d.id=s.source_id AND d.organization_id=$2 AND s.source_kind='GENERAL_DOCUMENT') received_at,(SELECT e.metadata->>'intent'='RECEIPT' FROM inventory_patient_document_events e WHERE e.document_id=s.source_id AND e.organization_id=$2 AND e.action='UPLOADED' AND s.source_kind='GENERAL_DOCUMENT' LIMIT 1) classification_pending,u.name unit_name,(SELECT q.appointment_id FROM inventory_encounter_quotes q WHERE s.source_kind='LEGACY_QUOTE' AND q.id=s.source_id AND q.organization_id=$2) origin_appointment,count(*) OVER()::int total FROM matching s JOIN inventory_units u ON u.id=s.unit_id AND u.organization_id=$2 LEFT JOIN inventory_laboratory_imports l ON l.document_id=s.source_id AND l.organization_id=$2 AND s.source_kind='GENERAL_DOCUMENT' ORDER BY CASE WHEN $16='relevance' THEN CASE WHEN lower(s.title)=lower($18) THEN 0 WHEN lower(left(s.title,length($18)))=lower($18) THEN 1 ELSE 2 END ELSE 0 END,s.occurred_at DESC,s.source_kind,s.source_id DESC,s.revision DESC LIMIT $14 OFFSET $15`,
         params,
       )
     ).rows;
@@ -229,6 +231,8 @@ export async function patientDocumentsResponse(request: Request) {
           title: r.title,
           categories: r.categories,
           occurredAt: r.occurred_at,
+          receivedAt: r.received_at ?? null,
+          classificationPending: r.classification_pending === true,
           professionalId: r.professional_id,
           professionalName: r.professional_name,
           unitId: r.unit_id,
@@ -356,6 +360,8 @@ async function upload(request: Request, auth: AuthContext) {
       "Importações de exames exigem categoria de exame laboratorial, imagem ou solicitação.",
       400,
     );
+  if (d.intent === "RECEIPT" && (d.categories.length !== 1 || d.categories[0] !== "OTHER"))
+    return fail("O recebimento neutro utiliza somente a categoria técnica OTHER.", 400);
   if (!!d.duplicateOf !== !!d.duplicateReason)
     return fail(
       "Confirme o arquivo repetido e informe uma justificativa de pelo menos 10 caracteres.",
@@ -414,6 +420,8 @@ async function upload(request: Request, auth: AuthContext) {
         previous.sha256 === sha256 &&
         previous.content_type === type &&
         previous.size_bytes === bytes.length &&
+        (previous.upload_metadata?.intent ?? "DOCUMENT") ===
+          (d.intent === "RECEIPT" ? "RECEIPT" : "DOCUMENT") &&
         (previous.upload_metadata?.duplicateOf ?? undefined) === d.duplicateOf &&
         (previous.upload_metadata?.duplicateReason ?? undefined) === d.duplicateReason;
       if (!equal) {
@@ -491,7 +499,10 @@ async function upload(request: Request, auth: AuthContext) {
         c.patient.primary_unit_id,
         id,
         auth.user.id,
-        duplicate ? { duplicateOf: duplicate.id, duplicateReason: d.duplicateReason } : {},
+        {
+          ...(d.intent === "RECEIPT" ? { intent: "RECEIPT", receiptVersion: 1 } : {}),
+          ...(duplicate ? { duplicateOf: duplicate.id, duplicateReason: d.duplicateReason } : {}),
+        },
       ],
     );
     commitAttempted = true;

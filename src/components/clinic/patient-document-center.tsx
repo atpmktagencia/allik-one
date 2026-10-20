@@ -1,13 +1,14 @@
+import { useQueryClient } from "@tanstack/react-query";
 import { LaboratoryHistory, type LaboratoryHistoryViewState } from "./laboratory-history";
 import { PrivateDocumentPreview } from "./private-document-preview";
 import { LaboratoryReview } from "./laboratory-review";
-import { useEffect, useId, useRef, useState, type FormEvent, type MutableRefObject } from "react";
-import { Files, Upload } from "lucide-react";
+import { useEffect, useId, useMemo, useRef, useState, type MutableRefObject } from "react";
+import { Files } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { readInventoryResponse, useInventory } from "@/data/inventory-api";
 import { selectedUnitId, withSelectedUnit } from "@/data/unit-context";
-import { PATIENT_DOCUMENT_MAX_BYTES } from "@/data/patient-document-upload";
+import { PatientDocumentUpload, type DocumentUploadState } from "./patient-document-upload";
 import { InventoryState } from "./inventory-state";
 
 type Category = { id: string; name: string; builtin: boolean };
@@ -19,6 +20,8 @@ export type PatientDocument = {
   title: string;
   categories: string[];
   occurredAt: string;
+  receivedAt?: string | null;
+  classificationPending?: boolean;
   professionalId: string | null;
   professionalName: string;
   unitId?: string;
@@ -59,6 +62,7 @@ export type PatientDocumentCenterViewState = {
   selected: PatientDocument | null;
   examPane: "files" | "history";
   laboratoryHistory: MutableRefObject<LaboratoryHistoryViewState | null>;
+  uploadState?: MutableRefObject<DocumentUploadState>;
 };
 const sourceNames: Record<string, string> = {
   CLINICAL_DOCUMENT: "Documento do atendimento",
@@ -110,6 +114,8 @@ export function PatientDocumentCenter({
   active?: boolean;
   viewState?: MutableRefObject<PatientDocumentCenterViewState | null>;
 }) {
+  const client = useQueryClient();
+  const uploadScope = `${patientId}:${requestedUnitId ?? selectedUnitId()}`;
   const scope = `${patientId}:${requestedUnitId ?? selectedUnitId()}:${examsOnly}`;
   const remembered = viewState?.current?.scope === scope ? viewState.current : null;
   const historyViewState = useRef<LaboratoryHistoryViewState | null>(
@@ -122,8 +128,14 @@ export function PatientDocumentCenter({
   const [mode, setMode] = useState<"list" | "table">(remembered?.mode ?? "list");
   const [selected, setSelected] = useState<PatientDocument | null>(remembered?.selected ?? null);
   const detailRef = useRef<HTMLElement>(null);
-  const [uploadOpen, setUploadOpen] = useState(false);
-  const [duplicate, setDuplicate] = useState<string | null>(null);
+  const uploadState = useMemo(
+    () => ({
+      current: viewState?.current?.scope.startsWith(uploadScope + ":")
+        ? (viewState.current.uploadState?.current ?? { items: [] })
+        : { items: [] },
+    }),
+    [uploadScope, viewState],
+  );
   const [categoryName, setCategoryName] = useState("");
   const [pending, setPending] = useState(false);
   const [message, setMessage] = useState("");
@@ -131,7 +143,6 @@ export function PatientDocumentCenter({
   const [unitId, setUnitId] = useState(selectedUnitId);
   const generation = useRef(0);
   const lock = useRef(false);
-  const uploadOperation = useRef<{ key: string; id: string } | null>(null);
   const id = useId();
   const mountedScope = useRef(scope);
   useEffect(() => {
@@ -145,8 +156,9 @@ export function PatientDocumentCenter({
         selected,
         examPane,
         laboratoryHistory: historyViewState,
+        uploadState,
       };
-  }, [viewState, scope, filters, search, offset, mode, selected, examPane]);
+  }, [viewState, scope, filters, search, offset, mode, selected, examPane, uploadState]);
   useEffect(() => {
     const timer = window.setTimeout(() => {
       setFilters((previous) => (previous.search === search ? previous : { ...previous, search }));
@@ -166,13 +178,10 @@ export function PatientDocumentCenter({
       setFilters(initialFilters);
       setSearch("");
       setOffset(0);
-      setUploadOpen(false);
       setMessage("");
       setError("");
       setPending(false);
       lock.current = false;
-      uploadOperation.current = null;
-      setDuplicate(null);
       historyViewState.current = null;
     };
     if (mountedScope.current !== scope) reset();
@@ -216,70 +225,30 @@ export function PatientDocumentCenter({
     setFilters((previous) => ({ ...previous, [key]: value }));
     setOffset(0);
   }
-  async function upload(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (lock.current || data?.canUpload !== true) return;
-    const form = event.currentTarget;
-    const body = new FormData(form);
-    const categories = body.getAll("category").map(String);
-    if (categories.length > 8) {
-      setError("Selecione no máximo 8 categorias.");
-      return;
+  async function openReceived(documentId: string) {
+    const current = generation.current;
+    try {
+      const response = await fetch(
+        withSelectedUnit(
+          "/api/v1/inventory/patient-documents?patientId=" +
+            encodeURIComponent(patientId) +
+            "&documentId=" +
+            encodeURIComponent(documentId) +
+            (requestedUnitId !== undefined ? "&unitId=" + encodeURIComponent(requestedUnitId) : ""),
+        ),
+        { credentials: "same-origin" },
+      );
+      const result = await readInventoryResponse<PatientDocumentsPayload>(
+        response,
+        "Não foi possível abrir o documento.",
+      );
+      if (current === generation.current && result.data?.documents[0])
+        setSelected(result.data.documents[0]);
+      else if (current === generation.current) setError("Documento não disponível neste contexto.");
+    } catch (cause) {
+      if (current === generation.current)
+        setError(cause instanceof Error ? cause.message : "Não foi possível abrir.");
     }
-    if (!categories.length) {
-      setError("Selecione pelo menos uma categoria.");
-      return;
-    }
-    if (
-      examsOnly &&
-      !categories.some((category) =>
-        ["EXAM_REQUEST", "LAB_RESULT", "IMAGE_REPORT"].includes(category),
-      )
-    ) {
-      setError("Selecione uma categoria de exame laboratorial, imagem ou solicitação.");
-      return;
-    }
-    body.set("intent", examsOnly ? "EXAM" : "DOCUMENT");
-    if (duplicate && body.get("confirmDuplicate") === "on") {
-      const reason = String(body.get("duplicateReason") ?? "").trim();
-      if (reason.length < 10) {
-        setError("Justifique a repetição com pelo menos 10 caracteres.");
-        return;
-      }
-      body.set("duplicateOf", duplicate);
-    } else body.delete("duplicateReason");
-    body.delete("confirmDuplicate");
-    body.delete("category");
-    body.set("categories", JSON.stringify(categories));
-    body.set("patientId", patientId);
-    const file = body.get("file");
-    if (
-      !(file instanceof File) ||
-      !file.size ||
-      file.size > PATIENT_DOCUMENT_MAX_BYTES ||
-      !["application/pdf", "image/jpeg", "image/png"].includes(file.type)
-    ) {
-      setError("Selecione PDF, JPEG ou PNG de até 4 MB.");
-      return;
-    }
-    const operationKey = JSON.stringify({
-      title: body.get("title"),
-      issuedOn: body.get("issuedOn"),
-      categories,
-      duplicateOf: body.get("duplicateOf"),
-      duplicateReason: body.get("duplicateReason"),
-      file: { name: file.name, size: file.size, type: file.type, lastModified: file.lastModified },
-    });
-    if (uploadOperation.current?.key !== operationKey)
-      uploadOperation.current = { key: operationKey, id: crypto.randomUUID() };
-    body.set("id", uploadOperation.current.id);
-    await mutate(body, () => {
-      uploadOperation.current = null;
-      setDuplicate(null);
-      form.reset();
-      setUploadOpen(false);
-      setMessage("Original armazenado de forma privada.");
-    });
   }
   async function mutate(body: FormData | Record<string, unknown>, done: () => void) {
     if (lock.current) return;
@@ -302,14 +271,6 @@ export function PatientDocumentCenter({
             : { headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }),
         },
       );
-      if (response.status === 409) {
-        const problem = await response
-          .clone()
-          .json()
-          .catch(() => null);
-        if (problem?.code === "DUPLICATE_DOCUMENT" && current === generation.current)
-          setDuplicate(typeof problem.duplicateId === "string" ? problem.duplicateId : null);
-      }
       await readInventoryResponse(response, "Não foi possível salvar o documento.");
       if (current !== generation.current) return;
       done();
@@ -344,19 +305,6 @@ export function PatientDocumentCenter({
               : "Registros e arquivos deste paciente, preservados em suas fontes de origem."}
           </p>
         </div>
-        {data.canUpload === true && (
-          <Button
-            type="button"
-            disabled={pending}
-            onClick={() => {
-              setExamPane("files");
-              setUploadOpen((value) => !value);
-            }}
-          >
-            <Upload className="mr-2 size-4" />
-            Anexar arquivo
-          </Button>
-        )}
       </div>
       {examsOnly && data.canUpload === true && (
         <nav aria-label="Visualizações de exames" className="mb-4 flex flex-wrap gap-2">
@@ -396,90 +344,31 @@ export function PatientDocumentCenter({
             {error}
           </p>
         )}
-        {uploadOpen && data.canUpload === true && (
-          <form
-            onSubmit={(event) => void upload(event)}
-            className="mb-5 space-y-4 rounded-lg border bg-slate-50 p-4"
-            aria-label="Anexar documento do paciente"
-          >
-            <fieldset disabled={pending} className="space-y-4">
-              <legend className="font-semibold">Preservar arquivo original</legend>
-              <div className="grid gap-3 sm:grid-cols-2">
-                <label className="space-y-1 text-sm">
-                  Nome do documento
-                  <Input name="title" required minLength={2} maxLength={200} />
-                </label>
-                <label className="space-y-1 text-sm">
-                  Data do documento
-                  <Input name="issuedOn" type="date" />
-                </label>
-              </div>
-              <fieldset>
-                <legend className="mb-2 text-sm font-medium">Categorias do arquivo (até 8)</legend>
-                <div className="flex max-h-40 flex-wrap gap-3 overflow-y-auto">
-                  {data.categories
-                    .filter(
-                      (category) =>
-                        !examsOnly ||
-                        ["EXAM_REQUEST", "LAB_RESULT", "IMAGE_REPORT"].includes(category.id),
-                    )
-                    .map((category) => (
-                      <label key={category.id} className="flex items-center gap-2 text-sm">
-                        <input
-                          type="checkbox"
-                          name="category"
-                          value={category.id}
-                          defaultChecked={examsOnly && category.id === "LAB_RESULT"}
-                        />
-                        {category.name}
-                      </label>
-                    ))}
-                </div>
-              </fieldset>
-              <div className="space-y-1 text-sm">
-                <label htmlFor={`${id}-file`}>Arquivo original</label>
-                <Input
-                  id={`${id}-file`}
-                  name="file"
-                  type="file"
-                  accept="application/pdf,image/jpeg,image/png"
-                  required
-                  aria-describedby={`${id}-file-help`}
-                />
-                <p id={`${id}-file-help`} className="text-xs text-muted-foreground">
-                  PDF, JPEG ou PNG de até 4 MB. Não substitui avaliação profissional.
-                </p>
-              </div>
-              {duplicate && (
-                <div className="space-y-2 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm">
-                  <p>
-                    Este arquivo já existe para este paciente. Uma repetição pode duplicar
-                    resultados no histórico.
-                  </p>
-                  <label className="flex items-center gap-2">
-                    <input type="checkbox" name="confirmDuplicate" /> Registrar repetição
-                    intencional
-                  </label>
-                  <label className="block">
-                    Justificativa da repetição
-                    <Input
-                      name="duplicateReason"
-                      minLength={10}
-                      maxLength={500}
-                      placeholder="Explique por que é necessário anexar novamente"
-                    />
-                  </label>
-                </div>
-              )}
-              <div className="flex gap-2">
-                <Button type="submit">{pending ? "Enviando…" : "Guardar arquivo original"}</Button>
-                <Button type="button" variant="outline" onClick={() => setUploadOpen(false)}>
-                  Cancelar anexo
-                </Button>
-              </div>
-            </fieldset>
-          </form>
+        {data.canUpload === true && (
+          <PatientDocumentUpload
+            key={uploadScope}
+            patientId={patientId}
+            state={uploadState}
+            categories={data.categories}
+            url={withSelectedUnit(
+              "/api/v1/inventory/patient-documents" +
+                (requestedUnitId !== undefined
+                  ? "?unitId=" + encodeURIComponent(requestedUnitId)
+                  : ""),
+            )}
+            onStored={() => {
+              void client.invalidateQueries({
+                predicate: (q) =>
+                  q.queryKey[0] === "inventory" &&
+                  typeof q.queryKey[1] === "string" &&
+                  q.queryKey[1].includes("patient-documents?") &&
+                  q.queryKey[1].includes("patientId=" + encodeURIComponent(patientId)),
+              });
+            }}
+            onOpen={(id) => void openReceived(id)}
+          />
         )}
+
         <div
           className={`grid min-w-0 items-start gap-5 ${selected ? "xl:grid-cols-[minmax(0,1fr)_minmax(280px,350px)]" : ""}`}
         >
@@ -610,14 +499,16 @@ export function PatientDocumentCenter({
                     >
                       <span className="block font-medium">{document.title}</span>
                       <span className="block text-xs text-muted-foreground">
-                        {dateLabel(document.occurredAt)} ·{" "}
+                        {dateLabel(document.receivedAt ?? document.occurredAt)} ·{" "}
                         {document.professionalName || "Profissional não informado"}
                       </span>
                       <span className="block text-xs text-slate-600">
-                        {document.categories
-                          .map((category) => categories.get(category) ?? "Categoria")
-                          .join(" · ")}{" "}
-                        ·{" "}
+                        {document.classificationPending
+                          ? "Sem classificação"
+                          : document.categories
+                              .map((category) => categories.get(category) ?? "Categoria")
+                              .join(" · ")}{" "}
+                        · {sourceNames[document.sourceKind]} ·{" "}
                         {statusNames[document.laboratoryStatus ?? document.status] ??
                           document.status}
                       </span>
@@ -644,6 +535,9 @@ export function PatientDocumentCenter({
                         Categoria
                       </th>
                       <th scope="col" className="p-2">
+                        Origem
+                      </th>
+                      <th scope="col" className="p-2">
                         Situação
                       </th>
                     </tr>
@@ -663,12 +557,19 @@ export function PatientDocumentCenter({
                             {document.title}
                           </button>
                         </th>
-                        <td className="whitespace-nowrap p-2">{dateLabel(document.occurredAt)}</td>
+                        <td className="whitespace-nowrap p-2">
+                          {dateLabel(document.receivedAt ?? document.occurredAt)}
+                        </td>
                         <td className="p-2">{document.professionalName || "Não informado"}</td>
                         <td className="p-2">
-                          {document.categories
-                            .map((category) => categories.get(category) ?? "Categoria")
-                            .join(" · ")}
+                          {document.classificationPending
+                            ? "Sem classificação"
+                            : document.categories
+                                .map((category) => categories.get(category) ?? "Categoria")
+                                .join(" · ")}
+                        </td>
+                        <td className="p-2">
+                          {sourceNames[document.sourceKind] ?? "Registro do paciente"}
                         </td>
                         <td className="p-2">
                           {statusNames[document.laboratoryStatus ?? document.status] ??
@@ -755,11 +656,17 @@ export function PatientDocumentCenter({
                     {selected.unitName}
                   </p>
                   <div className="flex flex-wrap gap-1">
-                    {selected.categories.map((category) => (
-                      <span key={category} className="rounded bg-slate-100 px-2 py-1 text-xs">
-                        {categories.get(category) ?? "Categoria"}
+                    {selected.classificationPending ? (
+                      <span className="rounded bg-slate-100 px-2 py-1 text-xs">
+                        Sem classificação
                       </span>
-                    ))}
+                    ) : (
+                      selected.categories.map((category) => (
+                        <span key={category} className="rounded bg-slate-100 px-2 py-1 text-xs">
+                          {categories.get(category) ?? "Categoria"}
+                        </span>
+                      ))
+                    )}
                   </div>
                   {selected.sizeBytes !== null && (
                     <p className="text-xs text-muted-foreground">
@@ -770,7 +677,8 @@ export function PatientDocumentCenter({
                 <PrivateDocumentPreview key={selected.id} document={selected} />
                 {data.canUpload &&
                   selected.sourceKind === "GENERAL_DOCUMENT" &&
-                  selected.contentType === "application/pdf" && (
+                  selected.contentType === "application/pdf" &&
+                  !selected.classificationPending && (
                     <LaboratoryReview
                       key={patientId + selected.id}
                       patientId={patientId}

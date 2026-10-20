@@ -1,3 +1,4 @@
+import { DocumentTransferError } from "@/data/patient-document-transfer";
 import { createRef, type ReactElement } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
@@ -25,6 +26,7 @@ const state = vi.hoisted(() => ({
   data: {} as Record<string, unknown>,
   resources: [] as string[],
   refetch: vi.fn(async () => ({ data: {} })),
+  transfer: vi.fn(),
 }));
 vi.mock("@/data/inventory-api", async (original) => ({
   ...(await original<typeof import("@/data/inventory-api")>()),
@@ -32,6 +34,10 @@ vi.mock("@/data/inventory-api", async (original) => ({
     state.resources.push(resource);
     return { data: state.data, isPending: false, error: null, refetch: state.refetch };
   },
+}));
+vi.mock("@/data/patient-document-transfer", async (original) => ({
+  ...(await original<typeof import("@/data/patient-document-transfer")>()),
+  transferPatientDocument: (...args: unknown[]) => state.transfer(...args),
 }));
 const document = {
   id: "CLINICAL_DOCUMENT:doc",
@@ -52,6 +58,8 @@ const document = {
   originUrl: "/atendimentos/appointment",
 };
 function setup(overrides: Record<string, unknown> = {}) {
+  state.transfer.mockReset();
+  state.transfer.mockResolvedValue("uploaded");
   state.data = {
     documents: [document],
     categories: [
@@ -155,57 +163,31 @@ describe("Patient private document center", () => {
       expect.objectContaining({ credentials: "same-origin", signal: expect.any(AbortSignal) }),
     );
   });
-  it("uploads original with multiple categories and reuses operation ID after ambiguous failure", async () => {
+  it("receives multiple originals neutrally and reuses the operation ID after a network failure", async () => {
     setup();
-    const NativeFormData = FormData;
-    vi.stubGlobal(
-      "FormData",
-      class extends NativeFormData {
-        constructor(form?: HTMLFormElement) {
-          super(form);
-          if (form) {
-            const input = form.elements.namedItem("file") as HTMLInputElement;
-            const file = input.files?.[0];
-            if (file) this.set("file", file);
-          }
-        }
-      },
-    );
     const bodies: FormData[] = [];
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(async (_url: unknown, init: RequestInit) => {
-        bodies.push(init.body as FormData);
-        if (bodies.length === 1) throw new Error("Falha de rede");
-        return Response.json({ data: { id: "uploaded" } });
-      }),
-    );
+    state.transfer.mockImplementation(async (_url: string, body: FormData) => {
+      bodies.push(body);
+      if (bodies.length === 1) throw new Error("Falha de rede");
+      return "uploaded";
+    });
     render(<PatientDocumentCenter patientId="patient" />);
-    fireEvent.click(screen.getByRole("button", { name: "Anexar arquivo" }));
-    fireEvent.change(screen.getByLabelText("Nome do documento"), {
-      target: { value: "Laudo sintético" },
+    const first = new File(["%PDF-1.7 synthetic A"], "primeiro.pdf", { type: "application/pdf" });
+    const second = new File(["%PDF-1.7 synthetic B"], "segundo.pdf", { type: "application/pdf" });
+    fireEvent.change(screen.getByLabelText("Selecionar documentos"), {
+      target: { files: [first, second] },
     });
-    fireEvent.click(screen.getByRole("checkbox", { name: "Solicitação de exames" }));
-    fireEvent.click(screen.getByRole("checkbox", { name: "Resultado laboratorial" }));
-    const oversized = new File([new Uint8Array(4 * 1024 * 1024 + 1)], "large.pdf", {
-      type: "application/pdf",
-    });
-    fireEvent.change(screen.getByLabelText("Arquivo original"), { target: { files: [oversized] } });
-    fireEvent.submit(screen.getByRole("form", { name: "Anexar documento do paciente" }));
-    await waitFor(() => expect(screen.getByRole("alert")).toHaveTextContent("até 4 MB"));
-    expect(fetch).not.toHaveBeenCalled();
-    const file = new File(["%PDF-1.7 synthetic"], "laudo.pdf", { type: "application/pdf" });
-    fireEvent.change(screen.getByLabelText("Arquivo original"), { target: { files: [file] } });
-    fireEvent.submit(screen.getByRole("form", { name: "Anexar documento do paciente" }));
-    await waitFor(() => expect(screen.getByRole("alert")).toHaveTextContent("Falha de rede"));
-    fireEvent.submit(screen.getByRole("form", { name: "Anexar documento do paciente" }));
-    await waitFor(() =>
-      expect(screen.getByRole("status")).toHaveTextContent("Original armazenado"),
-    );
-    expect(bodies[0]!.get("categories")).toBe(JSON.stringify(["EXAM_REQUEST", "LAB_RESULT"]));
-    expect(bodies[0]!.get("id")).toBe(bodies[1]!.get("id"));
+    await waitFor(() => expect(state.transfer).toHaveBeenCalledTimes(2));
+    expect(screen.getByRole("alert")).toHaveTextContent("Falha de rede");
+    fireEvent.click(screen.getByRole("button", { name: "Tentar novamente" }));
+    await waitFor(() => expect(screen.getByRole("status")).toHaveTextContent("2 de 2"));
+    expect(bodies[0]!.get("intent")).toBe("RECEIPT");
+    expect(bodies[0]!.get("categories")).toBe('["OTHER"]');
+    expect(bodies[0]!.get("id")).toBe(bodies[2]!.get("id"));
+    expect(bodies[0]!.get("file")).toBe(first);
+    expect(bodies[1]!.get("file")).toBe(second);
     expect(bodies[0]!.get("patientId")).toBe("patient");
-    expect(bodies[0]!.get("file")).toBe(file);
+    expect(fetch).not.toHaveBeenCalled();
   });
 });
 
@@ -235,18 +217,87 @@ it("keeps document filters, selection and view mode across modal unmounts within
   expect(screen.getByLabelText("Buscar documentos")).toHaveValue("");
   expect(screen.queryByRole("link", { name: "Abrir registro de origem" })).not.toBeInTheDocument();
 });
-it("defaults exam imports to laboratory results and never offers unrelated categories", () => {
-  setup({
-    categories: [
-      { id: "LAB_RESULT", name: "Resultado laboratorial", builtin: true },
-      { id: "IMAGE_REPORT", name: "Laudo de imagem", builtin: true },
-      { id: "OTHER", name: "Outro", builtin: true },
-    ],
-  });
+it("does not classify new exam-screen uploads as laboratory results by default", async () => {
+  setup();
   render(<PatientDocumentCenter patientId="patient" unitId="unit-a" examsOnly />);
-  fireEvent.click(screen.getByRole("button", { name: "Anexar arquivo" }));
-  expect(screen.getByRole("checkbox", { name: "Resultado laboratorial" })).toBeChecked();
-  expect(screen.getByRole("checkbox", { name: "Laudo de imagem" })).not.toBeChecked();
-  expect(screen.queryByRole("checkbox", { name: "Outro" })).not.toBeInTheDocument();
+  expect(screen.getByRole("checkbox", { name: "Resultado laboratorial" })).not.toBeChecked();
+  fireEvent.change(screen.getByLabelText("Selecionar documentos"), {
+    target: {
+      files: [new File(["%PDF-1.7 synthetic"], "arquivo.pdf", { type: "application/pdf" })],
+    },
+  });
+  await waitFor(() => expect(state.transfer).toHaveBeenCalledTimes(1));
+  expect((state.transfer.mock.calls[0]![1] as FormData).get("intent")).toBe("RECEIPT");
   expect(state.resources.at(-1)).toContain("unitId=unit-a");
+});
+
+it("accepts a drop, rejects oversized originals individually and never defaults to a clinical category", async () => {
+  setup();
+  render(<PatientDocumentCenter patientId="patient" />);
+  const file = new File(["%PDF-1.7 synthetic"], "drop.pdf", { type: "application/pdf" });
+  const large = new File([new Uint8Array(4 * 1024 * 1024 + 1)], "grande.pdf", {
+    type: "application/pdf",
+  });
+  fireEvent.drop(screen.getByText("Arraste os documentos para cá").parentElement!.parentElement!, {
+    dataTransfer: { files: [file, large] },
+  });
+  await waitFor(() => expect(state.transfer).toHaveBeenCalledTimes(1));
+  expect(screen.getByRole("alert")).toHaveTextContent("até 4 MB");
+  expect((state.transfer.mock.calls[0]![1] as FormData).get("categories")).toBe('["OTHER"]');
+});
+it("preserves an interrupted upload operation across closing and reopening the document panel", async () => {
+  setup();
+  const ref = createRef<PatientDocumentCenterViewState | null>();
+  state.transfer.mockImplementationOnce(
+    (_url: string, _body: FormData, signal: AbortSignal) =>
+      new Promise((_resolve, reject) =>
+        signal.addEventListener("abort", () =>
+          reject(new DOMException("Interrompido", "AbortError")),
+        ),
+      ),
+  );
+  const first = render(<PatientDocumentCenter patientId="patient" viewState={ref} />);
+  fireEvent.change(screen.getByLabelText("Selecionar documentos"), {
+    target: {
+      files: [new File(["%PDF-1.7 synthetic"], "interrompido.pdf", { type: "application/pdf" })],
+    },
+  });
+  await waitFor(() => expect(state.transfer).toHaveBeenCalledTimes(1));
+  const op = (state.transfer.mock.calls[0]![1] as FormData).get("id");
+  first.unmount();
+  render(<PatientDocumentCenter patientId="patient" viewState={ref} />);
+  expect(screen.getByText("Envio interrompido")).toBeInTheDocument();
+  expect(state.transfer).toHaveBeenCalledTimes(1);
+  fireEvent.click(screen.getByRole("button", { name: "Tentar novamente" }));
+  await waitFor(() => expect(state.transfer).toHaveBeenCalledTimes(2));
+  expect((state.transfer.mock.calls[1]![1] as FormData).get("id")).toBe(op);
+});
+
+it("offers the existing duplicate and only repeats with an explicit reason and a new operation", async () => {
+  setup();
+  state.transfer.mockRejectedValueOnce(
+    new DocumentTransferError("Arquivo já recebido", "existing", "DUPLICATE_DOCUMENT"),
+  );
+  render(<PatientDocumentCenter patientId="patient" />);
+  fireEvent.change(screen.getByLabelText("Selecionar documentos"), {
+    target: {
+      files: [new File(["%PDF-1.7 synthetic"], "duplicado.pdf", { type: "application/pdf" })],
+    },
+  });
+  await waitFor(() =>
+    expect(screen.getByRole("button", { name: "Abrir existente" })).toBeInTheDocument(),
+  );
+  expect(state.transfer).toHaveBeenCalledTimes(1);
+  const op = (state.transfer.mock.calls[0]![1] as FormData).get("id");
+  fireEvent.click(screen.getByText("Registrar repetição intencional"));
+  expect(screen.getByRole("button", { name: "Confirmar repetição justificada" })).toBeDisabled();
+  fireEvent.change(screen.getByLabelText("Justificativa para duplicado.pdf"), {
+    target: { value: "Repetição sintética autorizada" },
+  });
+  fireEvent.click(screen.getByRole("button", { name: "Confirmar repetição justificada" }));
+  await waitFor(() => expect(state.transfer).toHaveBeenCalledTimes(2));
+  const body = state.transfer.mock.calls[1]![1] as FormData;
+  expect(body.get("id")).not.toBe(op);
+  expect(body.get("duplicateOf")).toBe("existing");
+  expect(body.get("duplicateReason")).toBe("Repetição sintética autorizada");
 });
