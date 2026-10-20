@@ -33,15 +33,15 @@ import { renderClinicalDocumentPrint } from "./clinical-document-print";
 const headers = { "Cache-Control": "private, no-store", Vary: "Cookie, Authorization" };
 const uuid = z.string().uuid();
 const input = z.object({
-  action: z.enum(["SAVE_DRAFT", "FINALIZE", "SAVE_TEMPLATE", "CREATE_AMENDMENT"]),
+  action: z.enum(["SAVE_DRAFT", "FINALIZE", "SAVE_TEMPLATE", "CREATE_AMENDMENT", "DISCARD"]),
   amendmentKind: z.enum(["ADDENDUM", "RECTIFICATION"]).nullable().default(null),
   amendmentReason: z.string().trim().max(2000).default(""),
   appointmentId: uuid,
   documentId: uuid.nullable().default(null),
   creationId: uuid.nullable().default(null),
   type: z.enum(documentTypes),
-  title: z.string().trim().min(2).max(200),
-  content: z.string().trim().max(30000),
+  title: z.string().trim().max(200).default(""),
+  content: z.string().trim().max(30000).default(""),
   richContent: richContentSchema.nullable().default(null),
   twoCopies: z.boolean().default(false),
   prescriptionPrintData: prescriptionPrintDataSchema.nullable().default(null),
@@ -54,6 +54,7 @@ const input = z.object({
     .nullable()
     .default(null),
   version: z.number().int().nonnegative().nullable().default(null),
+  reason: z.string().trim().max(500).default(""),
 });
 const fields = `EXISTS(SELECT 1 FROM inventory_clinical_document_artifacts WHERE document_id=inventory_encounter_documents.id) AS "artifactPreserved",CASE WHEN status='FINAL' THEN jsonb_build_object('patientName',final_snapshot->>'patientName','unitName',final_snapshot->>'unitName','title',final_snapshot->>'title','content',final_snapshot->>'content','authorName',final_snapshot->>'authorName','professionalCouncil',final_snapshot->>'professionalCouncil','councilNumber',final_snapshot->>'councilNumber','councilRegion',final_snapshot->>'councilRegion') END AS "finalPreview",${integrityFields},CASE WHEN final_snapshot->>'documentId'=id::text THEN 'A1-'||upper(id::text) END AS "verificationCode",id,type,title,content,rich_content AS "richContent",two_copies AS "twoCopies",prescription_print_data AS "prescriptionPrintData",status,version,
   CASE WHEN final_snapshot IS NOT NULL THEN final_snapshot->>'authorName' ELSE author_name END AS "authorName",
@@ -88,6 +89,7 @@ export async function encounterDocumentsResponse(request: Request) {
         !can(auth, "patients.private.read", doc.patient_current_unit_id)
       )
         return fail("Documento não encontrado.", 404);
+      if (doc.status === "DISCARDED") return fail("Este rascunho foi descartado.", 409);
       if (
         doc.status !== "FINAL" &&
         !(
@@ -170,7 +172,7 @@ export async function encounterDocumentsResponse(request: Request) {
       return fail("Atendimento não encontrado.", 404);
     const [documents, templates] = await Promise.all([
       getPool().query(
-        `SELECT ${fields},author_user_id FROM inventory_encounter_documents WHERE appointment_id=$1 AND organization_id=$2 AND (status='FINAL' OR author_user_id=$3) ORDER BY created_at,id`,
+        `SELECT ${fields},author_user_id FROM inventory_encounter_documents WHERE appointment_id=$1 AND organization_id=$2 AND status IN ('DRAFT','FINAL') AND (status='FINAL' OR author_user_id=$3) ORDER BY created_at,id`,
         [appointmentId, auth.organizationId, auth.user.id],
       ),
       getPool().query(
@@ -232,6 +234,14 @@ export async function encounterDocumentsResponse(request: Request) {
               (appointment.status !== "COMPLETED" || Boolean(document.amendment)) &&
               canWriteClinicalDocument(appointment.professional_council, document.type),
             ),
+            canDiscard: Boolean(
+              canOperate &&
+              author_user_id === auth.user.id &&
+              document.status === "DRAFT" &&
+              document.type !== "PRESCRIPTION" &&
+              (appointment.status !== "COMPLETED" || Boolean(document.amendment)) &&
+              canWriteClinicalDocument(appointment.professional_council, document.type),
+            ),
           })),
           context: {
             patientName: appointment.full_name,
@@ -277,7 +287,11 @@ export async function encounterDocumentsResponse(request: Request) {
   if (data.prescriptionPrintData && data.prescriptionPrintData.kind !== "SIMPLE")
     data.twoCopies = true;
   if (data.richContent) data.content = richContentText(data.richContent).trim();
-  if (!["SAVE_DRAFT", "CREATE_AMENDMENT"].includes(data.action) && !data.content)
+  if (data.action !== "DISCARD" && data.title.length < 2)
+    return fail("Confira o título do documento.", 400);
+  if (data.action === "DISCARD" && data.reason.length < 5)
+    return fail("Informe o motivo do descarte.", 400);
+  if (!["SAVE_DRAFT", "CREATE_AMENDMENT", "DISCARD"].includes(data.action) && !data.content)
     return fail("Informe o conteúdo antes de finalizar ou salvar um modelo.", 400);
   const client = await getPool().connect();
   try {
@@ -312,7 +326,7 @@ export async function encounterDocumentsResponse(request: Request) {
     if (appointment.status === "COMPLETED" && data.action !== "CREATE_AMENDMENT") {
       // A closed encounter accepts only an explicit, independently audited amendment.
       // Ordinary drafts, new documents and template creation stay closed.
-      if (!data.documentId || !["SAVE_DRAFT", "FINALIZE"].includes(data.action))
+      if (!data.documentId || !["SAVE_DRAFT", "FINALIZE", "DISCARD"].includes(data.action))
         throw new Error("TERMINAL");
       const linked = await client.query(
         `SELECT 1 FROM inventory_encounter_documents child
@@ -383,6 +397,7 @@ export async function encounterDocumentsResponse(request: Request) {
           retry.type !== data.type
         )
           throw new Error("NOT_FOUND");
+        if (retry.status === "DISCARDED") throw new Error("DISCARD_STATE");
         if (!retry.same_creation) throw new Error("STALE");
         await client.query("COMMIT");
         return Response.json(
@@ -401,6 +416,33 @@ export async function encounterDocumentsResponse(request: Request) {
       : null;
     if (data.documentId && !previous) throw new Error("NOT_FOUND");
     if (previous && previous.author_user_id !== auth.user.id) throw new Error("NOT_AUTHOR");
+    if (previous?.status === "DISCARDED") throw new Error("DISCARD_STATE");
+    if (data.action === "DISCARD") {
+      if (!previous) throw new Error("NOT_FOUND");
+      if (previous.status !== "DRAFT")
+        throw new Error(previous.status === "FINAL" ? "FINAL" : "DISCARD_STATE");
+      if (previous.type !== data.type) throw new Error("TYPE");
+      if (previous.version !== data.version) throw new Error("STALE");
+      if (previous.type === "PRESCRIPTION") throw new Error("DISCARD_TYPE");
+      const discarded = await client.query(
+        `UPDATE inventory_encounter_documents
+         SET status='DISCARDED',version=version+1,discarded_at=now(),discarded_reason=$2,discarded_by_user_id=$3,updated_at=now()
+         WHERE id=$1 AND status='DRAFT' AND version=$4
+         RETURNING *`,
+        [previous.id, data.reason, auth.user.id, data.version],
+      );
+      const document = discarded.rows[0];
+      if (!document) throw new Error("STALE");
+      await client.query(
+        `INSERT INTO inventory_encounter_document_changes(organization_id,document_id,action,before_data,after_data,actor_user_id) VALUES($1,$2,'DISCARD',$3,$4,$5)`,
+        [auth.organizationId, document.id, previous, document, auth.user.id],
+      );
+      await client.query("COMMIT");
+      return Response.json(
+        { data: { id: document.id, status: document.status, version: document.version } },
+        { headers },
+      );
+    }
     let amendmentSource: { id: string; hash: string } | null = null;
     if (data.action === "CREATE_AMENDMENT") {
       if (
@@ -701,6 +743,8 @@ export async function encounterDocumentsResponse(request: Request) {
       COUNCIL: ["Complete o conselho profissional antes de criar documentos.", 409],
       TERMINAL: ["Este atendimento não aceita documentos.", 409],
       FINAL: ["O documento finalizado é imutável.", 409],
+      DISCARD_STATE: ["Somente rascunhos ativos podem ser descartados.", 409],
+      DISCARD_TYPE: ["Receitas não podem ser descartadas por esta ação.", 409],
       STALE: ["O documento mudou em outra sessão. Atualize a página.", 409],
       TYPE: ["O tipo do documento não pode ser alterado.", 409],
     };

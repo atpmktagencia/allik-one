@@ -1,0 +1,206 @@
+/* The Test B exam workspace extends the existing clinical tokens. */
+.clinical-exams-workspace {
+  min-width: 0;
+}
+.clinical-exams-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 14px;
+  padding: 18px 18px 14px;
+}
+.clinical-exams-emblem {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--accent, #e7f5f5);
+  color: var(--primary, #007d88);
+}
+.clinical-exams-body {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 16px;
+  padding: 0 16px 16px;
+}
+.clinical-exams-original {
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid var(--border, #e4ebf1);
+  border-radius: 10px;
+  background: white;
+}
+.clinical-exams-files {
+  margin: 0 16px 16px;
+  border: 1px solid var(--border, #e4ebf1);
+  border-radius: 10px;
+  background: #fbfcfd;
+}
+.clinical-exams-files details[open] > summary svg:last-child {
+  transform: rotate(180deg);
+}
+.clinical-lab-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding-bottom: 12px;
+}
+.clinical-lab-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1 1 230px;
+  min-width: 150px;
+  padding: 0 10px;
+  border: 1px solid var(--border, #e4ebf1);
+  border-radius: 8px;
+  background: white;
+}
+.clinical-lab-search input {
+  height: 35px;
+  border: 0;
+  border-radius: 0;
+  padding: 0;
+  box-shadow: none;
+}
+.clinical-lab-search:focus-within {
+  outline: 2px solid var(--ring, #007d88);
+  outline-offset: 2px;
+}
+.clinical-lab-search input:focus-visible {
+  outline: none;
+  box-shadow: none;
+}
+.clinical-lab-select {
+  height: 35px;
+  max-width: 185px;
+  padding: 0 10px;
+  border: 1px solid var(--border, #e4ebf1);
+  border-radius: 8px;
+  background: white;
+  font-size: 12px;
+  color: var(--foreground, #142338);
+}
+.clinical-lab-period {
+  position: relative;
+}
+.clinical-lab-period-fields {
+  position: absolute;
+  top: 43px;
+  right: 0;
+  z-index: 35;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  width: min(330px, calc(100vw - 48px));
+  padding: 14px;
+  border: 1px solid var(--border, #e4ebf1);
+  border-radius: 10px;
+  background: white;
+  box-shadow: 0 8px 24px #14233812;
+}
+.clinical-lab-caption {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 7px;
+  padding-bottom: 10px;
+  color: var(--muted-foreground, #52647a);
+  font-size: 10px;
+  line-height: 1.6;
+}
+.clinical-lab-table-scroll {
+  background: white;
+  scrollbar-width: thin;
+  scrollbar-color: #c8d7de transparent;
+}
+.clinical-lab-table-scroll th {
+  font-weight: 500;
+  color: #344158;
+}
+.clinical-lab-table-scroll thead {
+  background: #f8fafc;
+}
+.clinical-lab-table-scroll thead th {
+  background: #f8fafc;
+  padding-top: 12px;
+  padding-bottom: 12px;
+  font-size: 11px;
+}
+.clinical-lab-table-scroll tbody tr:not(.clinical-lab-category):hover > td {
+  background-color: #f7fbfc;
+}
+.clinical-lab-table-scroll tr[hidden] {
+  display: none;
+}
+.clinical-lab-category {
+  background: #edf7f7;
+  color: #006d78;
+}
+.clinical-lab-result {
+  min-height: 24px;
+  padding: 2px 3px;
+  margin-left: -3px;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  font-variant-numeric: tabular-nums;
+  text-align: left;
+}
+.clinical-lab-result:hover {
+  background: #e7f5f5;
+  border-color: #b6dede;
+}
+.clinical-lab-result:focus-visible {
+  outline: 2px solid var(--ring, #007d88);
+  outline-offset: 2px;
+}
+@media (min-width: 1280px) {
+  .clinical-exams-body--original {
+    grid-template-columns: minmax(0, 1fr) minmax(290px, 340px);
+  }
+  .clinical-exams-original {
+    position: sticky;
+    top: 80px;
+  }
+}
+@media (max-width: 639px) {
+  .clinical-exams-heading {
+    padding: 14px 12px;
+    gap: 12px;
+  }
+  .clinical-exams-heading h2 {
+    font-size: 16px;
+  }
+  .clinical-exams-heading > div:last-child {
+    width: 100%;
+  }
+  .clinical-exams-heading > div:last-child button {
+    flex: 1;
+  }
+  .clinical-exams-body {
+    padding: 0 10px 12px;
+    gap: 12px;
+  }
+  .clinical-exams-files {
+    margin: 0 10px 12px;
+  }
+  .clinical-lab-search {
+    flex-basis: 100%;
+  }
+  .clinical-lab-select {
+    max-width: 170px;
+  }
+  .clinical-lab-period-fields {
+    right: auto;
+    left: 0;
+    grid-template-columns: 1fr;
+  }
+  .clinical-lab-caption {
+    font-size: 10px;
+  }
+}

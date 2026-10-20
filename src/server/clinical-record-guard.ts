@@ -6,7 +6,7 @@ export async function hasClinicalRecords(client: PoolClient, appointmentId: stri
   const result = await client.query(
     `SELECT EXISTS(SELECT 1 FROM inventory_clinical_notes WHERE appointment_id=$1)
       OR EXISTS(SELECT 1 FROM inventory_encounter_prescriptions WHERE appointment_id=$1)
-      OR EXISTS(SELECT 1 FROM inventory_encounter_documents WHERE appointment_id=$1) AS present`,
+      OR EXISTS(SELECT 1 FROM inventory_encounter_documents WHERE appointment_id=$1 AND status IN ('DRAFT','FINAL')) AS present`,
     [appointmentId],
   );
   return result.rows[0].present === true;

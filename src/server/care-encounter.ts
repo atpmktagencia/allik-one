@@ -175,7 +175,7 @@ export async function careEncounterResponse(request: Request) {
     clinicalNote.rows[0]?.status !== "FINAL" &&
     (!clinicalNote.rows[0] || clinicalNote.rows[0].authorUserId === auth.user.id);
   const clinicalRecords = await pool.query(
-    `SELECT EXISTS(SELECT 1 FROM inventory_clinical_notes WHERE appointment_id=$1) OR EXISTS(SELECT 1 FROM inventory_encounter_prescriptions WHERE appointment_id=$1) OR EXISTS(SELECT 1 FROM inventory_encounter_documents WHERE appointment_id=$1) AS present`,
+    `SELECT EXISTS(SELECT 1 FROM inventory_clinical_notes WHERE appointment_id=$1) OR EXISTS(SELECT 1 FROM inventory_encounter_prescriptions WHERE appointment_id=$1) OR EXISTS(SELECT 1 FROM inventory_encounter_documents WHERE appointment_id=$1 AND status IN ('DRAFT','FINAL')) AS present`,
     [appointmentId],
   );
   const canClaimClinicalNote =

@@ -43,12 +43,15 @@ const emptyFormula = (): PrescriptionFormula => ({
 export function PrescriptionComposer({
   appointmentId,
   documentId,
+  onEnsureDocument,
   onInsert,
   onDraftStateChange,
 }: {
   appointmentId: string;
-  documentId: string;
-  onInsert: (text: string, instanceId?: string) => boolean | void;
+  /** Existing callers can keep passing a document. Inline callers may wait until insertion. */
+  documentId?: string | null;
+  onEnsureDocument?: () => Promise<string | null>;
+  onInsert: (text: string, instanceId?: string, documentId?: string) => boolean | void;
   onDraftStateChange?: (state: { dirty: boolean; pending: boolean }) => void;
 }) {
   const query = useInventory<{
@@ -75,6 +78,8 @@ export function PrescriptionComposer({
   const grantSelectId = useId();
   const insertion = useRef<{ key: string; id: string } | null>(null);
   const scopeRevision = useRef(0);
+  // Inline composition belongs to the encounter until explicit insertion, not a document tab.
+  const documentResetScope = onEnsureDocument ? null : documentId;
   useEffect(() => {
     function reset() {
       scopeRevision.current += 1;
@@ -98,7 +103,7 @@ export function PrescriptionComposer({
       window.removeEventListener("inventory-unit-change", reset);
       scopeRevision.current += 1;
     };
-  }, [appointmentId, documentId]);
+  }, [appointmentId, documentResetScope]);
   const [preview, setPreview] = useState<PrescriptionComposition | null>(null);
   const [reviewed, setReviewed] = useState(false);
   const [pending, setPending] = useState(false);
@@ -338,20 +343,25 @@ export function PrescriptionComposer({
   }
   async function insertReviewed() {
     if (!preview || !reviewed || lock.current) return;
-    const body = {
-      action: "INSTANTIATE",
-      appointmentId,
-      documentId,
-      formula: selectedFormula,
-      ...(protocol ? { sourceId: protocol.id, sourceVersion: protocol.version } : {}),
-    };
-    const key = JSON.stringify(body);
-    if (insertion.current?.key !== key) insertion.current = { key, id: crypto.randomUUID() };
     const scope = scopeRevision.current;
     lock.current = true;
     setPending(true);
     setError("");
     try {
+      const targetDocumentId = onEnsureDocument ? await onEnsureDocument() : documentId;
+      if (!targetDocumentId)
+        throw new Error(
+          "Insira a composição somente após confirmar a criação explícita de um rascunho de receita.",
+        );
+      const body = {
+        action: "INSTANTIATE",
+        appointmentId,
+        documentId: targetDocumentId,
+        formula: selectedFormula,
+        ...(protocol ? { sourceId: protocol.id, sourceVersion: protocol.version } : {}),
+      };
+      const key = JSON.stringify(body);
+      if (insertion.current?.key !== key) insertion.current = { key, id: crypto.randomUUID() };
       const response = await fetch(withSelectedUnit("/api/v1/inventory/prescription-composer"), {
         method: "POST",
         credentials: "same-origin",
@@ -365,7 +375,11 @@ export function PrescriptionComposer({
       if (scope !== scopeRevision.current) return;
       if (!result.data?.instanceId)
         throw new Error("O servidor não confirmou o registro da composição.");
-      if (onInsert(result.data.text, result.data.instanceId) !== false) setDirty(false);
+      const inserted =
+        onEnsureDocument || !documentId
+          ? onInsert(result.data.text, result.data.instanceId, targetDocumentId)
+          : onInsert(result.data.text, result.data.instanceId);
+      if (inserted !== false) setDirty(false);
     } catch (cause) {
       if (scope !== scopeRevision.current) return;
       setError(cause instanceof Error ? cause.message : "Não foi possível inserir a composição.");
@@ -381,7 +395,7 @@ export function PrescriptionComposer({
   if (!query.data?.canCompose)
     return <p>A composição exige o profissional responsável pelo atendimento.</p>;
   return (
-    <div className="space-y-4 text-sm">
+    <div className="prescription-composer space-y-4 text-sm" data-prescription-composer>
       <p role="status" className="text-xs text-muted-foreground">
         {pending
           ? "Processando composição…"
@@ -1198,7 +1212,9 @@ export function PrescriptionComposer({
                   disabled={pending || !reviewed}
                   onClick={() => void insertReviewed()}
                 >
-                  Inserir no rascunho da receita
+                  {documentId
+                    ? "Inserir no rascunho da receita"
+                    : "Criar rascunho e inserir composição"}
                 </Button>
                 <p className="text-xs text-muted-foreground">
                   O texto será acrescentado ao rascunho selecionado. Salvar, finalizar e imprimir
@@ -1213,9 +1229,14 @@ export function PrescriptionComposer({
             aria-labelledby={`${composerTabsId}-quote-tab`}
             hidden={activeTab !== "quote"}
           >
-            {quoteOpened && (
-              <ComposerQuotePanel appointmentId={appointmentId} documentId={documentId} />
-            )}
+            {quoteOpened &&
+              (documentId ? (
+                <ComposerQuotePanel appointmentId={appointmentId} documentId={documentId} />
+              ) : (
+                <p className="rounded-xl border bg-white p-4 text-sm text-muted-foreground">
+                  Crie o rascunho da receita ao inserir uma composição para habilitar o orçamento.
+                </p>
+              ))}
           </div>
         </aside>
       </div>

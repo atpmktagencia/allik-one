@@ -21,6 +21,7 @@ const patientWorkspaceSections = [
   { id: "treatments", label: "Tratamentos", icon: ClipboardList },
 ] as const;
 export type PatientWorkspaceSection = (typeof patientWorkspaceSections)[number]["id"];
+export type PatientWorkspaceContext = PatientWorkspaceSection | "history";
 
 export function PatientWorkspaceNavigation({
   section,
@@ -29,13 +30,15 @@ export function PatientWorkspaceNavigation({
   patientId,
   activeAppointmentId,
   onPreconsultation,
+  hrefForSection,
 }: {
   patient: { fullName: string; internalCode: string; unitName: string };
-  section: PatientWorkspaceSection;
-  onSelect: (section: PatientWorkspaceSection) => void;
+  section: PatientWorkspaceContext;
+  onSelect?: (section: PatientWorkspaceSection) => void;
   patientId?: string;
   activeAppointmentId?: string | undefined;
   onPreconsultation?: () => void;
+  hrefForSection?: (section: PatientWorkspaceSection) => string;
 }) {
   const [collapsed, setCollapsed] = useState(false);
   const itemClass =
@@ -80,15 +83,26 @@ export function PatientWorkspaceNavigation({
         )}
         {patientWorkspaceSections.map(({ id, label, icon: Icon }) => (
           <li key={id} className="shrink-0">
-            <button
-              type="button"
-              aria-current={section === id ? "page" : undefined}
-              onClick={() => onSelect(id)}
-              className={`${itemClass} ${section === id ? "bg-teal-50 font-semibold !text-teal-800" : ""}`}
-            >
-              <Icon className="size-4 shrink-0" aria-hidden="true" />
-              <span className={collapsed ? "lg:sr-only" : ""}>{label}</span>
-            </button>
+            {hrefForSection ? (
+              <a
+                href={hrefForSection(id)}
+                aria-current={section === id ? "page" : undefined}
+                className={`${itemClass} ${section === id ? "bg-teal-50 font-semibold !text-teal-800" : ""}`}
+              >
+                <Icon className="size-4 shrink-0" aria-hidden="true" />
+                <span className={collapsed ? "lg:sr-only" : ""}>{label}</span>
+              </a>
+            ) : (
+              <button
+                type="button"
+                aria-current={section === id ? "page" : undefined}
+                onClick={() => onSelect?.(id)}
+                className={`${itemClass} ${section === id ? "bg-teal-50 font-semibold !text-teal-800" : ""}`}
+              >
+                <Icon className="size-4 shrink-0" aria-hidden="true" />
+                <span className={collapsed ? "lg:sr-only" : ""}>{label}</span>
+              </button>
+            )}
           </li>
         ))}
         {patientId && (
@@ -97,6 +111,7 @@ export function PatientWorkspaceNavigation({
               to="/pacientes/$patientId/prontuario"
               params={{ patientId }}
               className={itemClass}
+              aria-current={section === "history" ? "page" : undefined}
             >
               <History className="size-4 shrink-0" aria-hidden="true" />
               <span className={collapsed ? "lg:sr-only" : ""}>Histórico</span>

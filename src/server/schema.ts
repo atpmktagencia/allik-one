@@ -881,6 +881,9 @@ export const encounterDocuments = pgTable(
     version: integer("version").notNull().default(0),
     finalSnapshot: jsonb("final_snapshot"),
     finalizedAt: timestamp("finalized_at", { withTimezone: true }),
+    discardedAt: timestamp("discarded_at", { withTimezone: true }),
+    discardedReason: text("discarded_reason"),
+    discardedByUserId: uuid("discarded_by_user_id").references(() => users.id),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
@@ -905,7 +908,7 @@ export const encounterDocuments = pgTable(
     ),
     check(
       "encounter_document_rich_snapshot_valid",
-      sql`${t.status}='DRAFT' OR COALESCE(((${t.finalSnapshot} ?& ARRAY['richContent','twoCopies'] AND ${t.finalSnapshot}->'richContent'=COALESCE(${t.richContent},'null'::jsonb) AND ${t.finalSnapshot}->'twoCopies'=to_jsonb(${t.twoCopies})) OR ((${t.finalSnapshot} IS NULL OR NOT (${t.finalSnapshot} ?| ARRAY['richContent','twoCopies'])) AND ${t.richContent} IS NULL AND NOT ${t.twoCopies})),false)`,
+      sql`${t.status} IN ('DRAFT','DISCARDED') OR COALESCE(((${t.finalSnapshot} ?& ARRAY['richContent','twoCopies'] AND ${t.finalSnapshot}->'richContent'=COALESCE(${t.richContent},'null'::jsonb) AND ${t.finalSnapshot}->'twoCopies'=to_jsonb(${t.twoCopies})) OR ((${t.finalSnapshot} IS NULL OR NOT (${t.finalSnapshot} ?| ARRAY['richContent','twoCopies'])) AND ${t.richContent} IS NULL AND NOT ${t.twoCopies})),false)`,
     ),
     check(
       "encounter_document_print_data_valid",
@@ -913,14 +916,14 @@ export const encounterDocuments = pgTable(
     ),
     check(
       "encounter_document_print_snapshot_valid",
-      sql`${t.status}='DRAFT' OR COALESCE(((${t.finalSnapshot} ? 'prescriptionPrintData' AND ${t.finalSnapshot}->'prescriptionPrintData'=COALESCE(${t.prescriptionPrintData},'null'::jsonb)) OR ((${t.finalSnapshot} IS NULL OR NOT (${t.finalSnapshot} ? 'prescriptionPrintData')) AND ${t.prescriptionPrintData} IS NULL)),false)`,
+      sql`${t.status} IN ('DRAFT','DISCARDED') OR COALESCE(((${t.finalSnapshot} ? 'prescriptionPrintData' AND ${t.finalSnapshot}->'prescriptionPrintData'=COALESCE(${t.prescriptionPrintData},'null'::jsonb)) OR ((${t.finalSnapshot} IS NULL OR NOT (${t.finalSnapshot} ? 'prescriptionPrintData')) AND ${t.prescriptionPrintData} IS NULL)),false)`,
     ),
     index("encounter_document_history").on(t.appointmentId, t.createdAt),
     check(
       "encounter_document_type_valid",
       sql`${t.type} IN ('PRESCRIPTION','EXAM_REQUEST','MEDICAL_CERTIFICATE','REFERRAL','MEDICAL_REPORT','MEDICAL_OPINION','INSTRUCTIONS')`,
     ),
-    check("encounter_document_status_valid", sql`${t.status} IN ('DRAFT','FINAL')`),
+    check("encounter_document_status_valid", sql`${t.status} IN ('DRAFT','FINAL','DISCARDED')`),
     check(
       "encounter_document_snapshot_valid",
       sql`${t.finalSnapshot} IS NULL OR COALESCE((${t.status}='FINAL' AND jsonb_typeof(${t.finalSnapshot})='object'
@@ -944,7 +947,7 @@ export const encounterDocuments = pgTable(
     ),
     check(
       "encounter_document_final_valid",
-      sql`(${t.status}='DRAFT' AND ${t.finalizedAt} IS NULL) OR (${t.status}='FINAL' AND ${t.finalizedAt} IS NOT NULL AND char_length(trim(${t.content}))>0)`,
+      sql`(${t.status}='DRAFT' AND ${t.finalizedAt} IS NULL AND ${t.discardedAt} IS NULL AND ${t.discardedReason} IS NULL AND ${t.discardedByUserId} IS NULL) OR (${t.status}='FINAL' AND ${t.finalizedAt} IS NOT NULL AND ${t.discardedAt} IS NULL AND ${t.discardedReason} IS NULL AND ${t.discardedByUserId} IS NULL AND char_length(trim(${t.content}))>0) OR (${t.status}='DISCARDED' AND ${t.finalizedAt} IS NULL AND ${t.finalSnapshot} IS NULL AND ${t.discardedAt} IS NOT NULL AND char_length(trim(${t.discardedReason})) BETWEEN 5 AND 500 AND ${t.discardedByUserId} IS NOT NULL)`,
     ),
   ],
 );
@@ -1022,7 +1025,7 @@ export const encounterDocumentChanges = pgTable(
     index("encounter_document_change_history").on(t.documentId, t.createdAt),
     check(
       "encounter_document_change_action_valid",
-      sql`${t.action} IN ('CREATE','UPDATE','FINALIZE')`,
+      sql`${t.action} IN ('CREATE','UPDATE','FINALIZE','DISCARD')`,
     ),
   ],
 );

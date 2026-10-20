@@ -1,0 +1,48 @@
+{
+  "variant": "current",
+  "start": "Atendimento carregado em desktop 1536x1024",
+  "results": [
+    {
+      "flow": "Começar anamnese",
+      "interactions": 0,
+      "detail": "Atendimento carregado: editor disponível sem etapa intermediária. Abrir a rota não é contado como clique.",
+      "verification": "executed Playwright"
+    },
+    {
+      "flow": "Consultar exames",
+      "interactions": 1,
+      "detail": "A partir da Anamnese: clique na aba Exames.",
+      "verification": "executed Playwright"
+    },
+    {
+      "flow": "Consultar histórico",
+      "interactions": 1,
+      "detail": "Sidebar Histórico abre consulta somente leitura sem trocar rota.",
+      "verification": "executed Playwright"
+    },
+    {
+      "flow": "Retornar à consulta",
+      "interactions": 1,
+      "detail": "Uma ação Escape fecha o histórico e retorna ao mesmo atendimento.",
+      "verification": "executed Playwright"
+    },
+    {
+      "flow": "Abrir compositor",
+      "interactions": 1,
+      "detail": "Aba Prescrição abre compositor inline; navegação não cria documento.",
+      "verification": "executed Playwright"
+    },
+    {
+      "flow": "Adicionar componente",
+      "interactions": 1,
+      "detail": "Compositor já aberto: botão Adicionar componente; não inclui o preenchimento obrigatório de dose/via. Não é seleção de medicamento do catálogo.",
+      "verification": "executed Playwright"
+    }
+  ],
+  "notMeasured": [
+    "Carregar protocolo com biblioteca populada",
+    "Solicitar exame A/B nesta medição",
+    "Excluir solicitação em rascunho nesta medição"
+  ],
+  "limitations": "Não mede tempo, qualidade clínica ou preenchimento de formulários. Dados e sessão exclusivamente sintéticos."
+}

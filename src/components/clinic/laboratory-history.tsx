@@ -1,4 +1,13 @@
 import { Fragment, memo, useEffect, useMemo, useRef, useState, type MutableRefObject } from "react";
+import { ArrowDownUp, ChevronDown, ChevronRight, Search, SlidersHorizontal } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import "./clinical-exams-workspace.css";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useInventory } from "@/data/inventory-api";
@@ -15,6 +24,40 @@ import { laboratoryDate } from "@/lib/laboratory-results";
 import { InventoryState } from "./inventory-state";
 
 type Payload = { rows: LaboratoryHistoryEntry[]; hasMore: boolean; offset: number };
+// Navigation categories only: this does not normalize results, infer diagnoses or join series.
+function navigationCategory(name: string) {
+  const value = name
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLocaleLowerCase("pt-BR");
+  if (/\b(tsh|t3|t4|tireo|tiro|anti.?tpo|anti.?tireoglobulina)\b/.test(value)) return "Tireoide";
+  if (/glic|insulina|hemoglobina glicada|hba1c|homa/.test(value)) return "Metabolismo glicídico";
+  if (/colesterol|triglicer|hdl|ldl|lipid|apolipoproteina/.test(value)) return "Perfil lipídico";
+  if (/cortisol|dhea|adrenal/.test(value)) return "Adrenal";
+  if (/vitamina|mineral|ferritina|ferro|zinco|magnesio|calcio/.test(value))
+    return "Vitaminas e minerais";
+  return "Outros exames";
+}
+const categoryOrder = [
+  "Tireoide",
+  "Metabolismo glicídico",
+  "Perfil lipídico",
+  "Adrenal",
+  "Vitaminas e minerais",
+  "Outros exames",
+];
+const referenceLabels = {
+  low: "Abaixo da referência",
+  within: "Dentro da referência",
+  high: "Acima da referência",
+  unknown: "Sem referência comparável",
+};
+const referenceDots = {
+  low: "bg-sky-600",
+  within: "bg-emerald-600",
+  high: "bg-amber-500",
+  unknown: "bg-slate-400",
+};
 const labelDate = (date: string) =>
   date === "undated" ? "Sem data de exame" : date.split("-").reverse().join("/");
 function ReferenceStatus({
@@ -179,6 +222,9 @@ export type LaboratoryHistoryViewState = {
   expanded: string | null;
   scrollTop: number;
   scrollLeft: number;
+  category?: string;
+  chronological?: "oldest" | "newest";
+  collapsedCategories?: string[];
 };
 export function LaboratoryHistory({
   patientId,
@@ -216,6 +262,22 @@ export function LaboratoryHistory({
   const [groupLimit, setGroupLimit] = useState(remembered?.groupLimit ?? 50);
   const [dateOffset, setDateOffset] = useState(remembered?.dateOffset ?? 0);
   const [expanded, setExpanded] = useState<string | null>(remembered?.expanded ?? null);
+  const [category, setCategory] = useState(remembered?.category ?? "all");
+  const [chronological, setChronological] = useState<"oldest" | "newest">(
+    remembered?.chronological ?? "oldest",
+  );
+  const [collapsedCategories, setCollapsedCategories] = useState<string[]>(
+    remembered?.collapsedCategories ?? [],
+  );
+  const detailScope = `${patientId}:${unitId ?? ""}`;
+  const [selectedResult, setSelectedResult] = useState<{
+    scope: string;
+    entry: LaboratoryHistoryEntry;
+  } | null>(null);
+  const detail = selectedResult?.scope === detailScope ? selectedResult.entry : null;
+  function setDetail(entry: LaboratoryHistoryEntry | null) {
+    setSelectedResult(entry ? { scope: detailScope, entry } : null);
+  }
   useEffect(() => {
     if (viewState)
       viewState.current = {
@@ -226,10 +288,25 @@ export function LaboratoryHistory({
         groupLimit,
         dateOffset,
         expanded,
+        category,
+        chronological,
+        collapsedCategories,
         scrollTop: position.current.top,
         scrollLeft: position.current.left,
       };
-  }, [viewState, dateFrom, dateTo, offset, search, groupLimit, dateOffset, expanded]);
+  }, [
+    viewState,
+    dateFrom,
+    dateTo,
+    offset,
+    search,
+    groupLimit,
+    dateOffset,
+    expanded,
+    category,
+    chronological,
+    collapsedCategories,
+  ]);
   useEffect(() => {
     if (tableScroll.current) {
       tableScroll.current.scrollTop = position.current.top;
@@ -265,10 +342,12 @@ export function LaboratoryHistory({
   );
   const groups = useMemo(
     () =>
-      history.groups.filter((g) =>
-        g.name.toLocaleLowerCase("pt-BR").includes(search.trim().toLocaleLowerCase("pt-BR")),
+      history.groups.filter(
+        (g) =>
+          (category === "all" || navigationCategory(g.name) === category) &&
+          g.name.toLocaleLowerCase("pt-BR").includes(search.trim().toLocaleLowerCase("pt-BR")),
       ),
-    [history.groups, search],
+    [history.groups, search, category],
   );
   const relevantDates = useMemo(() => {
     const dates = new Set(groups.flatMap((group) => [...indexed.get(group.id)!.byDate.keys()]));
@@ -279,7 +358,22 @@ export function LaboratoryHistory({
     relevantDates.length - Math.min(dateOffset, Math.max(0, relevantDates.length - 1)),
   );
   const startDate = Math.max(0, endDate - 12);
-  const visibleDates = relevantDates.slice(startDate, endDate);
+  const windowDates = relevantDates.slice(startDate, endDate);
+  const datedColumns = windowDates.filter((date) => date !== "undated");
+  const visibleDates = [
+    ...(chronological === "oldest" ? datedColumns : [...datedColumns].reverse()),
+    ...(windowDates.includes("undated") ? ["undated"] : []),
+  ];
+  const navigationCategories = categoryOrder.filter((name) =>
+    history.groups.some((group) => navigationCategory(group.name) === name),
+  );
+  const visibleGroups = useMemo(
+    () =>
+      categoryOrder.flatMap((name) =>
+        groups.slice(0, groupLimit).filter((group) => navigationCategory(group.name) === name),
+      ),
+    [groups, groupLimit],
+  );
   return (
     <section
       className={
@@ -289,59 +383,117 @@ export function LaboratoryHistory({
       }
       aria-label="Histórico longitudinal de exames"
     >
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h3 className={compact ? "sr-only" : "font-semibold"}>
-            {compact ? "Histórico de resultados" : "Resultados laboratoriais"}
-          </h3>
-          <p
-            className={
-              compact ? "max-w-xl text-xs text-muted-foreground" : "text-sm text-muted-foreground"
-            }
-          >
-            Somente resultados confirmados. Unidades, métodos, material e laboratórios diferentes
-            permanecem separados.
-          </p>
-        </div>
-        <Input
-          className="max-w-xs"
-          aria-label="Buscar parâmetro laboratorial"
-          placeholder="Buscar exame…"
-          value={search}
-          onChange={(e) => {
-            setSearch(e.target.value);
-            setGroupLimit(50);
+      <div className="clinical-lab-toolbar">
+        <h3 className={compact ? "sr-only" : "font-semibold"}>Resultados laboratoriais</h3>
+        <label className="clinical-lab-search">
+          <Search className="size-4 shrink-0 text-muted-foreground" />
+          <Input
+            aria-label="Buscar parâmetro laboratorial"
+            placeholder="Buscar parâmetro…"
+            value={search}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setGroupLimit(50);
+              setDateOffset(0);
+            }}
+          />
+        </label>
+        <label className="sr-only" htmlFor={`lab-category-${patientId}`}>
+          Grupo de exames
+        </label>
+        <select
+          id={`lab-category-${patientId}`}
+          className="clinical-lab-select"
+          value={category}
+          onChange={(event) => {
+            setCategory(event.target.value);
             setDateOffset(0);
           }}
-        />
+        >
+          <option value="all">Todos os grupos</option>
+          {navigationCategories.map((name) => (
+            <option key={name} value={name}>
+              {name}
+            </option>
+          ))}
+        </select>
+        <details className="clinical-lab-period">
+          <summary className="flex h-9 cursor-pointer list-none items-center gap-2 rounded-lg border px-3 text-xs">
+            <SlidersHorizontal className="size-3.5" />
+            {dateFrom || dateTo ? "Período selecionado" : "Todo o período"}
+            <ChevronDown className="size-3" />
+          </summary>
+          <div className="clinical-lab-period-fields">
+            <label className="space-y-1 text-xs">
+              Data inicial
+              <Input
+                type="date"
+                aria-label="Data inicial dos exames"
+                value={dateFrom}
+                onChange={(e) => {
+                  setDateFrom(e.target.value);
+                  setOffset(0);
+                  setDateOffset(0);
+                }}
+              />
+            </label>
+            <label className="space-y-1 text-xs">
+              Data final
+              <Input
+                type="date"
+                aria-label="Data final dos exames"
+                value={dateTo}
+                onChange={(e) => {
+                  setDateTo(e.target.value);
+                  setOffset(0);
+                  setDateOffset(0);
+                }}
+              />
+            </label>
+            {(dateFrom || dateTo) && (
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => {
+                  setDateFrom("");
+                  setDateTo("");
+                  setOffset(0);
+                  setDateOffset(0);
+                }}
+              >
+                Limpar período
+              </Button>
+            )}
+          </div>
+        </details>
+        <label className="flex items-center gap-1.5 text-muted-foreground">
+          <ArrowDownUp className="size-3.5" />
+          <select
+            className="clinical-lab-select"
+            aria-label="Ordenação temporal dos exames"
+            value={chronological}
+            onChange={(event) => setChronological(event.target.value as "oldest" | "newest")}
+          >
+            <option value="oldest">Mais antigos primeiro</option>
+            <option value="newest">Mais recentes primeiro</option>
+          </select>
+        </label>
       </div>
-      <div className="flex flex-wrap gap-3">
-        <label className="space-y-1 text-xs">
-          Data inicial
-          <Input
-            type="date"
-            aria-label="Data inicial dos exames"
-            value={dateFrom}
-            onChange={(e) => {
-              setDateFrom(e.target.value);
-              setOffset(0);
-              setDateOffset(0);
-            }}
-          />
-        </label>
-        <label className="space-y-1 text-xs">
-          Data final
-          <Input
-            type="date"
-            aria-label="Data final dos exames"
-            value={dateTo}
-            onChange={(e) => {
-              setDateTo(e.target.value);
-              setOffset(0);
-              setDateOffset(0);
-            }}
-          />
-        </label>
+      <div className="clinical-lab-caption">
+        <p>
+          Somente resultados confirmados. Unidades, métodos, material e laboratórios diferentes
+          permanecem separados.
+        </p>
+        <div className="flex flex-wrap gap-3">
+          {Object.entries(referenceLabels).map(([status, label]) => (
+            <span key={status} className="inline-flex items-center gap-1.5">
+              <span
+                className={`size-1.5 rounded-full ${referenceDots[status as keyof typeof referenceDots]}`}
+              />
+              {label}
+            </span>
+          ))}
+        </div>
       </div>
       {invalidRange ? (
         <p role="alert" className="text-sm text-amber-900">
@@ -447,7 +599,7 @@ export function LaboratoryHistory({
                   viewState.current.scrollLeft = position.current.left;
                 }
               }}
-              className="max-h-[70vh] overflow-auto rounded-xl border"
+              className="clinical-lab-table-scroll max-h-[70vh] overflow-auto rounded-xl border"
             >
               <table
                 className={
@@ -494,9 +646,59 @@ export function LaboratoryHistory({
                   </tr>
                 </thead>
                 <tbody>
-                  {groups.slice(0, groupLimit).map((group) => (
+                  {visibleGroups.map((group, index) => (
                     <Fragment key={group.id}>
-                      <tr className="border-t align-top">
+                      {(index === 0 ||
+                        navigationCategory(visibleGroups[index - 1]!.name) !==
+                          navigationCategory(group.name)) && (
+                        <tr className="clinical-lab-category">
+                          <td colSpan={visibleDates.length + 3}>
+                            <button
+                              type="button"
+                              className="flex w-full items-center gap-2 px-3 py-2.5 text-left text-xs font-semibold"
+                              aria-expanded={
+                                !collapsedCategories.includes(navigationCategory(group.name))
+                              }
+                              aria-label={`Grupo ${navigationCategory(group.name)}`}
+                              onClick={() => {
+                                const name = navigationCategory(group.name);
+                                setCollapsedCategories((current) =>
+                                  current.includes(name)
+                                    ? current.filter((value) => value !== name)
+                                    : [...current, name],
+                                );
+                              }}
+                            >
+                              {collapsedCategories.includes(navigationCategory(group.name)) ? (
+                                <ChevronRight className="size-3.5" />
+                              ) : (
+                                <ChevronDown className="size-3.5" />
+                              )}
+                              {navigationCategory(group.name)}
+                              <span className="ml-auto text-[10px] font-normal">
+                                {
+                                  groups.filter(
+                                    (entry) =>
+                                      navigationCategory(entry.name) ===
+                                      navigationCategory(group.name),
+                                  ).length
+                                }{" "}
+                                {groups.filter(
+                                  (entry) =>
+                                    navigationCategory(entry.name) ===
+                                    navigationCategory(group.name),
+                                ).length === 1
+                                  ? "parâmetro"
+                                  : "parâmetros"}
+                              </span>
+                            </button>
+                          </td>
+                        </tr>
+                      )}
+                      <tr
+                        className="border-t align-top"
+                        hidden={collapsedCategories.includes(navigationCategory(group.name))}
+                      >
                         <th
                           scope="row"
                           className={
@@ -558,12 +760,15 @@ export function LaboratoryHistory({
                             {(indexed.get(group.id)!.byDate.get(date) ?? []).map((entry) => (
                               <div className="mb-3 space-y-1 last:mb-0" key={entry.id}>
                                 {compact ? (
-                                  <div
-                                    className="flex items-center gap-1.5"
+                                  <button
+                                    type="button"
+                                    className="clinical-lab-result flex items-center gap-1.5"
+                                    aria-label={`Detalhes de ${group.name}: ${entry.payload.result}, ${labelDate(date)}`}
+                                    onClick={() => setDetail(entry)}
                                     title={`${entry.payload.collectedOn ? "Coleta" : entry.payload.reportedOn ? "Resultado" : "Sem data"} · Ref.: ${entry.payload.reference ?? "Não informada"}`}
                                   >
                                     <span
-                                      className={`h-1.5 w-1.5 shrink-0 rounded-full ${indexed.get(group.id)!.referenceStatuses.get(entry.id) === "within" ? "bg-emerald-600" : indexed.get(group.id)!.referenceStatuses.get(entry.id) === "unknown" ? "bg-slate-300" : "bg-amber-500"}`}
+                                      className={`h-1.5 w-1.5 shrink-0 rounded-full ${referenceDots[indexed.get(group.id)!.referenceStatuses.get(entry.id) ?? "unknown"]}`}
                                     />
                                     <span className="font-medium">{entry.payload.result}</span>
                                     <div className="sr-only">
@@ -575,7 +780,7 @@ export function LaboratoryHistory({
                                       />{" "}
                                       Ref.: {entry.payload.reference ?? "Não informada"}
                                     </div>
-                                  </div>
+                                  </button>
                                 ) : (
                                   <>
                                     <p className="font-medium">{entry.payload.result}</p>
@@ -607,13 +812,14 @@ export function LaboratoryHistory({
                           </td>
                         ))}
                       </tr>
-                      {expanded === group.id && (
-                        <tr>
-                          <td colSpan={visibleDates.length + 3}>
-                            <HistoryGraph group={group} onOpenOriginal={onOpenOriginal} />
-                          </td>
-                        </tr>
-                      )}
+                      {expanded === group.id &&
+                        !collapsedCategories.includes(navigationCategory(group.name)) && (
+                          <tr>
+                            <td colSpan={visibleDates.length + 3}>
+                              <HistoryGraph group={group} onOpenOriginal={onOpenOriginal} />
+                            </td>
+                          </tr>
+                        )}
                     </Fragment>
                   ))}
                 </tbody>
@@ -627,6 +833,64 @@ export function LaboratoryHistory({
           )}
         </>
       )}
+      <Dialog
+        open={detail !== null}
+        onOpenChange={(open) => {
+          if (!open) setDetail(null);
+        }}
+      >
+        <DialogContent className="clinical-workspace sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>{detail?.payload.name ?? "Resultado laboratorial"}</DialogTitle>
+            <DialogDescription>
+              Resultado confirmado. A referência pertence ao documento de origem.
+            </DialogDescription>
+          </DialogHeader>
+          {detail && (
+            <>
+              <div className="rounded-xl border bg-slate-50 p-4">
+                <p className="mb-1 text-xs text-muted-foreground">
+                  {detail.payload.collectedOn ? "Data de coleta" : "Data do resultado"} ·{" "}
+                  {labelDate(laboratoryHistoryDate(detail) ?? "undated")}
+                </p>
+                <p className="text-2xl font-semibold tracking-tight">
+                  {detail.payload.result}{" "}
+                  <span className="text-sm font-normal text-muted-foreground">
+                    {detail.payload.unit ?? "Unidade não informada"}
+                  </span>
+                </p>
+                <ReferenceStatus entry={detail} />
+              </div>
+              <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-4 gap-y-3 text-xs">
+                <dt className="text-muted-foreground">Referência</dt>
+                <dd>{detail.payload.reference ?? "Não informada"}</dd>
+                <dt className="text-muted-foreground">Laboratório</dt>
+                <dd>{detail.payload.laboratory ?? "Não informado"}</dd>
+                <dt className="text-muted-foreground">Método</dt>
+                <dd>{detail.payload.method ?? "Não informado: comparação limitada"}</dd>
+                <dt className="text-muted-foreground">Material</dt>
+                <dd>{detail.payload.material ?? "Não informado"}</dd>
+                <dt className="text-muted-foreground">Origem</dt>
+                <dd className="break-words">{detail.documentTitle}</dd>
+              </dl>
+              {onOpenOriginal ? (
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    const source = detail;
+                    setDetail(null);
+                    onOpenOriginal(source);
+                  }}
+                >
+                  Abrir documento original
+                </Button>
+              ) : (
+                <Source entry={detail} />
+              )}
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
     </section>
   );
 }

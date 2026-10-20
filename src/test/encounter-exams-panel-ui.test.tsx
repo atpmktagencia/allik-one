@@ -56,6 +56,10 @@ it("shows uploaded exams before confirmation and opens the original and review w
   );
   const files = screen.getByRole("region", { name: "Arquivos de exames do paciente" });
   expect(within(files).getByText("Pronto para revisão")).toBeInTheDocument();
+  expect(
+    screen.queryByRole("complementary", { name: "Documento original do exame" }),
+  ).not.toBeInTheDocument();
+  fireEvent.click(files.querySelector("summary")!);
   expect(screen.getByText("Nenhum resultado confirmado ainda.")).toBeInTheDocument();
   expect(screen.queryByText(/Original privado:/)).not.toBeInTheDocument();
   expect(within(files).getByText(/Exibindo os 1 arquivos mais recentes de 7/)).toBeInTheDocument();
@@ -75,6 +79,11 @@ it("shows uploaded exams before confirmation and opens the original and review w
 it("does not offer review without clinical access and clears an opened source on patient change", () => {
   const view = setup(false);
   fireEvent.click(
+    screen
+      .getByRole("region", { name: "Arquivos de exames do paciente" })
+      .querySelector("summary")!,
+  );
+  fireEvent.click(
     screen.getByRole("button", { name: "Abrir exame: Exame aguardando conferência.pdf" }),
   );
   expect(
@@ -86,4 +95,43 @@ it("does not offer review without clinical access and clears an opened source on
     </QueryClientProvider>,
   );
   expect(screen.queryByText(/Original privado:/)).not.toBeInTheDocument();
+});
+
+it("reclaims table space when closing the original and respects the clinical review close guard", () => {
+  setup();
+  fireEvent.click(
+    screen
+      .getByRole("region", { name: "Arquivos de exames do paciente" })
+      .querySelector("summary")!,
+  );
+  fireEvent.click(
+    screen.getByRole("button", { name: "Abrir exame: Exame aguardando conferência.pdf" }),
+  );
+  const veto = (event: Event) => event.preventDefault();
+  window.addEventListener("allik:before-clinical-file-close", veto);
+  fireEvent.click(screen.getByRole("button", { name: "Fechar documento original" }));
+  expect(
+    screen.getByRole("complementary", { name: "Documento original do exame" }),
+  ).toBeInTheDocument();
+  window.removeEventListener("allik:before-clinical-file-close", veto);
+  fireEvent.click(screen.getByRole("button", { name: "Fechar documento original" }));
+  expect(
+    screen.queryByRole("complementary", { name: "Documento original do exame" }),
+  ).not.toBeInTheDocument();
+  expect(screen.getByText("Nenhum resultado confirmado ainda.")).toBeInTheDocument();
+});
+it("keeps source URLs scoped to the encounter unit, not the global selected unit", () => {
+  window.localStorage.setItem("allik_inventory_unit", "another-unit");
+  setup();
+  fireEvent.click(
+    screen
+      .getByRole("region", { name: "Arquivos de exames do paciente" })
+      .querySelector("summary")!,
+  );
+  fireEvent.click(
+    screen.getByRole("button", { name: "Abrir exame: Exame aguardando conferência.pdf" }),
+  );
+  const href = screen.getByRole("link", { name: "Baixar" }).getAttribute("href")!;
+  expect(href).toContain("unitId=unit");
+  expect(href).not.toContain("another-unit");
 });

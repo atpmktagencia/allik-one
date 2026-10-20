@@ -36,6 +36,7 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { readInventoryResponse, useInventory } from "@/data/inventory-api";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   documentTypes,
   documentTitles,
@@ -68,13 +69,14 @@ type ClinicalDocument = {
   richContent?: RichContentNode | null;
   twoCopies?: boolean;
   prescriptionPrintData?: PrescriptionPrintData | null;
-  status: "DRAFT" | "FINAL";
+  status: "DRAFT" | "FINAL" | "DISCARDED";
   version: number;
   authorName: string;
   professionalCouncil: string;
   councilNumber: string;
   councilRegion: string;
   canEdit?: boolean;
+  canDiscard?: boolean;
   canShare?: boolean;
   canAmend?: boolean;
   verificationCode?: string | null;
@@ -213,6 +215,7 @@ export function EncounterDocumentsCard({
   const query = useInventory<Payload>(
     `encounter-documents?appointmentId=${encodeURIComponent(appointmentId)}`,
   );
+  const queryClient = useQueryClient();
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [buffers, setBuffers] = useState<Record<string, Buffer>>({});
   const [pending, setPending] = useState(false);
@@ -227,19 +230,33 @@ export function EncounterDocumentsCard({
   const [historyOpen, setHistoryOpen] = useState(false);
   const [printDataOpen, setPrintDataOpen] = useState(false);
   const [verificationOpen, setVerificationOpen] = useState(false);
+  const [discarding, setDiscarding] = useState<ClinicalDocument | null>(null);
+  const [discardReason, setDiscardReason] = useState(
+    "Rascunho excluído pelo autor após confirmação",
+  );
   const [deliveryOpen, setDeliveryOpen] = useState(false);
   const [expanded, setExpanded] = useState(false);
   const [composerOpen, setComposerOpen] = useState(false);
-  const [composerState, setComposerState] = useState({ dirty: false, pending: false });
+  const [inlineComposerState, setInlineComposerState] = useState({ dirty: false, pending: false });
+  const [dialogComposerState, setDialogComposerState] = useState({ dirty: false, pending: false });
+  const composerState = {
+    dirty: inlineComposerState.dirty || dialogComposerState.dirty,
+    pending: inlineComposerState.pending || dialogComposerState.pending,
+  };
   const [documentSearch, setDocumentSearch] = useState("");
   const [prescriptionCategory, setPrescriptionCategory] =
     useState<PrescriptionCategory>("medications");
-  const initialShowRecipeEditor = useRef(!medications);
+  const initialShowRecipeEditor = useRef(mode === "prescription" || !medications);
   const [showRecipeEditor, setShowRecipeEditor] = useState(initialShowRecipeEditor.current);
+  const [composerInlineEnabled, setComposerInlineEnabled] = useState(true);
   const [showRequestEditor, setShowRequestEditor] = useState(false);
   const [requestType, setRequestType] = useState<RequestCategory>("EXAM_REQUEST");
   const [contextOpen, setContextOpen] = useState(true);
   const lastSelection = useRef<Partial<Record<typeof mode, string>>>({});
+  const composerDocumentRef = useRef<string | null>(null);
+  const pendingComposerDocumentRef = useRef<string | null>(null);
+  const composerCreatedDocumentRef = useRef<ClinicalDocument | null>(null);
+  const composerCreation = useRef<Promise<string | null> | null>(null);
   useEffect(() => {
     if (!expanded) return;
     const handleEscape = (event: KeyboardEvent) => {
@@ -296,6 +313,26 @@ export function EncounterDocumentsCard({
     (!query.data?.canAuthor && selected?.canEdit !== true) ||
     selected?.status === "FINAL" ||
     selected?.canEdit === false;
+  const persistedComposerTarget = query.data?.documents.find(
+    (item) => item.id === composerDocumentRef.current,
+  );
+  if (
+    composerDocumentRef.current &&
+    !pendingComposerDocumentRef.current &&
+    query.data &&
+    (!persistedComposerTarget ||
+      persistedComposerTarget.status !== "DRAFT" ||
+      persistedComposerTarget.canEdit !== true)
+  )
+    composerDocumentRef.current = null;
+  if (
+    selected?.type === "PRESCRIPTION" &&
+    selected.status === "DRAFT" &&
+    selected.canEdit !== false &&
+    !pendingComposerDocumentRef.current
+  )
+    composerDocumentRef.current = selected.id;
+  const composerDocumentId = composerDocumentRef.current;
   useEffect(() => {
     setSelectedId(null);
     setBuffers({});
@@ -305,12 +342,18 @@ export function EncounterDocumentsCard({
     setDocumentSearch("");
     setPrescriptionCategory("medications");
     setShowRecipeEditor(initialShowRecipeEditor.current);
+    setComposerInlineEnabled(true);
     setShowRequestEditor(false);
     setRequestType("EXAM_REQUEST");
     lastSelection.current = {};
     pendingCreations.current = {};
+    composerDocumentRef.current = null;
+    pendingComposerDocumentRef.current = null;
+    composerCreatedDocumentRef.current = null;
+    composerCreation.current = null;
     setComposerOpen(false);
-    setComposerState({ dirty: false, pending: false });
+    setInlineComposerState({ dirty: false, pending: false });
+    setDialogComposerState({ dirty: false, pending: false });
   }, [appointmentId]);
   useEffect(() => {
     const documents = query.data?.documents.filter((item) =>
@@ -321,6 +364,7 @@ export function EncounterDocumentsCard({
             (requestType === "PROCEDURE" || matchesRequestCategory(item.type, requestType))
           : true,
     );
+    if (pendingComposerDocumentRef.current) return;
     if (!documents?.length) {
       setSelectedId(null);
       return;
@@ -360,7 +404,11 @@ export function EncounterDocumentsCard({
     setMessage("");
   }
   function select(id: string) {
-    if (pending) return;
+    if (pending || composerState.pending) return;
+    if (composerState.dirty && id !== selectedId) {
+      setError("Insira ou descarte a composição atual antes de trocar de documento.");
+      return;
+    }
     setSelectedId(id);
     lastSelection.current[mode] = id;
     setError("");
@@ -377,6 +425,119 @@ export function EncounterDocumentsCard({
       response,
       "Não foi possível salvar o documento.",
     );
+  }
+  async function discardDraft(target: ClinicalDocument) {
+    if (
+      submitting.current ||
+      pending ||
+      target.status !== "DRAFT" ||
+      target.canEdit !== true ||
+      target.canDiscard !== true ||
+      !discardReason.trim()
+    )
+      return;
+    submitting.current = true;
+    setPending(true);
+    setError("");
+    setMessage("");
+    try {
+      const result = await request({
+        action: "DISCARD",
+        documentId: target.id,
+        type: target.type,
+        version: target.version,
+        reason: discardReason.trim(),
+      });
+      if (!result.data) throw new Error("Não foi possível confirmar o descarte.");
+      setSelectedId(null);
+      delete lastSelection.current[mode];
+      setBuffers((previous) => {
+        const next = { ...previous };
+        delete next[target.id];
+        return next;
+      });
+      await query.refetch();
+      await queryClient.invalidateQueries({
+        queryKey: ["inventory"],
+        predicate: (entry) => {
+          const resource = entry.queryKey[1];
+          return (
+            typeof resource === "string" &&
+            (resource.includes("clinical-requests") || resource.includes("review"))
+          );
+        },
+      });
+      setDiscarding(null);
+      setDiscardReason("Rascunho excluído pelo autor após confirmação");
+      setMessage("Rascunho excluído. O histórico de auditoria foi preservado.");
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Não foi possível excluir o rascunho.");
+    } finally {
+      submitting.current = false;
+      setPending(false);
+    }
+  }
+  async function ensurePrescriptionDraft(): Promise<string | null> {
+    if (
+      selected?.type === "PRESCRIPTION" &&
+      selected.status === "DRAFT" &&
+      selected.canEdit !== false &&
+      !readonly
+    )
+      return selected.id;
+    if (composerCreation.current) return composerCreation.current;
+    if (!query.data?.canAuthor || !allowedTypes.includes("PRESCRIPTION")) return null;
+
+    const creationId = pendingCreations.current.PRESCRIPTION ?? crypto.randomUUID();
+    pendingCreations.current.PRESCRIPTION = creationId;
+    pendingComposerDocumentRef.current = creationId;
+    const operation = (async () => {
+      if (submitting.current) return null;
+      submitting.current = true;
+      setPending(true);
+      setError("");
+      try {
+        const result = await request({
+          action: "SAVE_DRAFT",
+          documentId: null,
+          creationId,
+          type: "PRESCRIPTION",
+          title: documentTitles.PRESCRIPTION,
+          content: "",
+          richContent: plainTextRichContent(""),
+          twoCopies: false,
+          version: null,
+        });
+        if (!result.data) throw new Error("Não foi possível confirmar a criação da receita.");
+        const refreshed = await query.refetch();
+        const created = refreshed.data?.documents.find((item) => item.id === result.data!.id);
+        if (
+          !created ||
+          created.status !== "DRAFT" ||
+          created.canEdit !== true ||
+          created.version !== result.data.version
+        )
+          throw new Error(
+            "A receita foi criada, mas sua versão não pôde ser reconferida. Atualize e tente novamente sem criar outra cópia.",
+          );
+        composerCreatedDocumentRef.current = created;
+        delete pendingCreations.current.PRESCRIPTION;
+        return result.data.id;
+      } catch (cause) {
+        setError(cause instanceof Error ? cause.message : "Não foi possível criar a receita.");
+        return null;
+      } finally {
+        submitting.current = false;
+        setPending(false);
+        pendingComposerDocumentRef.current = null;
+      }
+    })();
+    composerCreation.current = operation;
+    try {
+      return await operation;
+    } finally {
+      composerCreation.current = null;
+    }
   }
   async function create(type: DocumentType) {
     if (
@@ -670,6 +831,43 @@ export function EncounterDocumentsCard({
     );
     setShowRecipeEditor(true);
   }
+  function insertPrescriptionComposition(
+    text: string,
+    _instanceId?: string,
+    targetDocumentId?: string,
+  ): boolean {
+    if (!targetDocumentId || pending) return false;
+    const target =
+      data.documents.find((item) => item.id === targetDocumentId) ??
+      (composerCreatedDocumentRef.current?.id === targetDocumentId
+        ? composerCreatedDocumentRef.current
+        : null);
+    if (!target || target.status !== "DRAFT" || target.canEdit !== true) {
+      setError(
+        "Não foi possível reconferir o rascunho de destino. A composição local foi preservada.",
+      );
+      return false;
+    }
+    const existing = buffers[targetDocumentId] ?? initialBuffer(target);
+    const content = [existing.content.trim(), text.trim()].filter(Boolean).join("\n\n");
+    setBuffers((previous) => ({
+      ...previous,
+      [targetDocumentId]: {
+        ...existing,
+        content,
+        richContent: plainTextRichContent(content),
+        dirty: true,
+      },
+    }));
+    composerDocumentRef.current = targetDocumentId;
+    pendingComposerDocumentRef.current = null;
+    setSelectedId(targetDocumentId);
+    lastSelection.current[mode] = targetDocumentId;
+    setPrescriptionCategory("medications");
+    setShowRecipeEditor(true);
+    setMessage("Composição inserida. Revise o texto e salve o rascunho.");
+    return true;
+  }
   if (query.isPending || query.error)
     return (
       <InventoryState pending={query.isPending} error={query.error} retry={() => query.refetch()} />
@@ -710,11 +908,22 @@ export function EncounterDocumentsCard({
       (!normalizedSearch ||
         `${item.title} ${item.content}`.toLocaleLowerCase("pt-BR").includes(normalizedSearch)),
   );
+  const inlineComposer =
+    mode === "prescription" &&
+    prescriptionCategory !== "instructions" &&
+    showRecipeEditor &&
+    composerInlineEnabled;
+  const documentEditorActive =
+    mode === "prescription" &&
+    showRecipeEditor &&
+    !composerInlineEnabled &&
+    prescriptionCategory !== "instructions";
   return (
     <section
       className={`clinical-documents${workspace ? " encounter-document-workspace" : ""}${expanded ? " clinical-documents-expanded" : ""}`}
       data-document-mode={mode}
       data-context-open={contextOpen}
+      data-inline-composer={inlineComposer ? "true" : "false"}
       aria-label="Documentos do atendimento"
     >
       {!workspace && data.context && (
@@ -902,10 +1111,24 @@ export function EncounterDocumentsCard({
             <Button
               size="sm"
               variant="outline"
-              disabled={!selected}
+              disabled={pending || composerState.pending}
               onClick={() => setShowRecipeEditor((value) => !value)}
             >
               {showRecipeEditor ? "Voltar aos medicamentos" : "Editar receita"}
+            </Button>
+          )}
+          {mode === "prescription" && prescriptionCategory !== "instructions" && (
+            <Button
+              size="sm"
+              variant="ghost"
+              disabled={pending || composerState.pending}
+              onClick={() => {
+                setShowRecipeEditor(true);
+                setComposerInlineEnabled((value) => !value);
+              }}
+            >
+              <FileText className="size-3.5" />
+              {composerInlineEnabled ? "Documentos e assinatura" : "Voltar ao compositor"}
             </Button>
           )}
           <div
@@ -969,28 +1192,42 @@ export function EncounterDocumentsCard({
               );
             })}
           </div>
-          {data.canAuthor && modeTypes.length > 0 && (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant="outline"
-                  className={`${buttonStyle} ${workspace ? "!border-teal-700 !bg-teal-700 !text-white hover:!bg-teal-800" : "text-[#007aff]"}`}
-                  disabled={pending}
-                >
-                  <Plus size={16} />
-                  Novo documento
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className={menuStyle}>
-                {modeTypes.map((type) => (
-                  <DropdownMenuItem key={type} onSelect={() => void create(type)}>
-                    <FileText size={16} />
-                    {labels[type]}
-                  </DropdownMenuItem>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
-          )}
+          {data.canAuthor &&
+            modeTypes.length > 0 &&
+            (mode === "requests" && modeTypes.length === 1 ? (
+              <Button
+                className={`${buttonStyle} !border-teal-700 !bg-teal-700 !text-white hover:!bg-teal-800`}
+                disabled={pending || composerState.pending}
+                onClick={() => {
+                  const type = modeTypes[0];
+                  if (type) void create(type);
+                }}
+              >
+                <Plus size={16} />
+                {requestType === "EXAM_REQUEST" ? "Solicitar exame" : "Novo encaminhamento"}
+              </Button>
+            ) : (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={`${buttonStyle} ${workspace ? "!border-teal-700 !bg-teal-700 !text-white hover:!bg-teal-800" : "text-[#007aff]"}`}
+                    disabled={pending}
+                  >
+                    <Plus size={16} />
+                    Novo documento
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className={menuStyle}>
+                  {modeTypes.map((type) => (
+                    <DropdownMenuItem key={type} onSelect={() => void create(type)}>
+                      <FileText size={16} />
+                      {labels[type]}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ))}
         </div>
       </div>
       {(message || error) && (
@@ -1015,6 +1252,21 @@ export function EncounterDocumentsCard({
       )}
       <div className={workspace ? "encounter-document-columns" : "contents"}>
         <div className={workspace ? "encounter-document-main" : "contents"}>
+          {mode !== "all" && (
+            <div
+              className={inlineComposer ? "encounter-document-inline-composer" : "hidden"}
+              hidden={!inlineComposer}
+              aria-label="Compositor de prescrição"
+            >
+              <PrescriptionComposer
+                appointmentId={appointmentId}
+                documentId={composerDocumentId}
+                onEnsureDocument={ensurePrescriptionDraft}
+                onDraftStateChange={setInlineComposerState}
+                onInsert={insertPrescriptionComposition}
+              />
+            </div>
+          )}
           {mode === "requests" && requestType !== "PROCEDURE" && !showRequestEditor && (
             <div className="min-h-0 flex-1 overflow-auto p-4">
               <h3 className="mb-3 text-sm font-semibold">Solicitações deste atendimento</h3>
@@ -1051,19 +1303,39 @@ export function EncounterDocumentsCard({
                             </span>
                           </td>
                           <td className="px-3 py-3">
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              className="h-7 px-2 text-teal-700"
-                              onClick={() => {
-                                select(item.id);
-                                setShowRequestEditor(true);
-                              }}
-                            >
-                              {item.status === "FINAL" || item.canEdit === false
-                                ? "Visualizar"
-                                : "Editar"}
-                            </Button>
+                            <div className="flex flex-wrap gap-1">
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-7 px-2 text-teal-700"
+                                onClick={() => {
+                                  select(item.id);
+                                  setShowRequestEditor(true);
+                                }}
+                              >
+                                {item.status === "FINAL" || item.canEdit === false
+                                  ? "Visualizar"
+                                  : "Editar"}
+                              </Button>
+                              {item.status === "DRAFT" &&
+                                item.canEdit === true &&
+                                item.canDiscard === true && (
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    className="h-7 px-2 text-red-700"
+                                    disabled={pending}
+                                    onClick={() => {
+                                      setDiscardReason(
+                                        "Rascunho excluído pelo autor após confirmação",
+                                      );
+                                      setDiscarding(item);
+                                    }}
+                                  >
+                                    Excluir rascunho
+                                  </Button>
+                                )}
+                            </div>
                           </td>
                         </tr>
                       ))}
@@ -1098,6 +1370,8 @@ export function EncounterDocumentsCard({
             </div>
           )}
           {mode === "prescription" &&
+            !inlineComposer &&
+            !documentEditorActive &&
             ["manipulated", "injectables", "supplements"].includes(prescriptionCategory) && (
               <div className="space-y-4 p-5">
                 <h3 className="font-semibold">
@@ -1130,50 +1404,53 @@ export function EncounterDocumentsCard({
                 )}
               </div>
             )}
-          {mode === "prescription" && prescriptionCategory === "models" && (
-            <div className="min-h-0 flex-1 space-y-4 overflow-auto p-5">
-              <div className="flex items-center justify-between gap-3">
-                <h3 className="font-semibold">Biblioteca de modelos</h3>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  disabled={!selected || readonly || pending}
-                  onClick={() => setComposerOpen(true)}
-                >
-                  Abrir protocolos
-                </Button>
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Modelos de receitas autorizados e protocolos do compositor. Nenhum esquema clínico é
-                selecionado automaticamente.
-              </p>
-              {workspaceTemplates.length ? (
-                workspaceTemplates.map((template) => (
-                  <div
-                    key={template.id}
-                    className="flex items-center justify-between gap-3 rounded-lg border p-3 text-sm"
+          {mode === "prescription" &&
+            prescriptionCategory === "models" &&
+            !inlineComposer &&
+            !documentEditorActive && (
+              <div className="min-h-0 flex-1 space-y-4 overflow-auto p-5">
+                <div className="flex items-center justify-between gap-3">
+                  <h3 className="font-semibold">Biblioteca de modelos</h3>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={!selected || readonly || pending}
+                    onClick={() => setComposerOpen(true)}
                   >
-                    <span>{template.title}</span>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      disabled={readonly || pending || selected?.type !== template.type}
-                      onClick={() =>
-                        buffer?.content.trim() ? setApplying(template) : apply(template, true)
-                      }
-                    >
-                      Usar modelo
-                    </Button>
-                  </div>
-                ))
-              ) : (
-                <p className="rounded-lg bg-muted/40 p-4 text-sm text-muted-foreground">
-                  Nenhum modelo de receita salvo. Os protocolos pessoais e compartilhados estão em
-                  Abrir protocolos.
+                    Abrir protocolos
+                  </Button>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Modelos de receitas autorizados e protocolos do compositor. Nenhum esquema clínico
+                  é selecionado automaticamente.
                 </p>
-              )}
-            </div>
-          )}
+                {workspaceTemplates.length ? (
+                  workspaceTemplates.map((template) => (
+                    <div
+                      key={template.id}
+                      className="flex items-center justify-between gap-3 rounded-lg border p-3 text-sm"
+                    >
+                      <span>{template.title}</span>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        disabled={readonly || pending || selected?.type !== template.type}
+                        onClick={() =>
+                          buffer?.content.trim() ? setApplying(template) : apply(template, true)
+                        }
+                      >
+                        Usar modelo
+                      </Button>
+                    </div>
+                  ))
+                ) : (
+                  <p className="rounded-lg bg-muted/40 p-4 text-sm text-muted-foreground">
+                    Nenhum modelo de receita salvo. Os protocolos pessoais e compartilhados estão em
+                    Abrir protocolos.
+                  </p>
+                )}
+              </div>
+            )}
           {procedures && (
             <div
               hidden={mode !== "requests" || requestType !== "PROCEDURE"}
@@ -1184,14 +1461,19 @@ export function EncounterDocumentsCard({
           )}
           <div
             className={
-              (mode === "requests" && (requestType === "PROCEDURE" || !showRequestEditor)) ||
-              (mode === "prescription" &&
-                ((prescriptionCategory === "medications" && medications && !showRecipeEditor) ||
-                  ["manipulated", "injectables", "supplements", "models"].includes(
-                    prescriptionCategory,
-                  )))
-                ? "hidden"
-                : "contents"
+              documentEditorActive
+                ? "contents"
+                : inlineComposer ||
+                    (mode === "requests" && (requestType === "PROCEDURE" || !showRequestEditor)) ||
+                    (mode === "prescription" &&
+                      ((prescriptionCategory === "medications" &&
+                        medications &&
+                        !showRecipeEditor) ||
+                        ["manipulated", "injectables", "supplements", "models"].includes(
+                          prescriptionCategory,
+                        )))
+                  ? "hidden"
+                  : "contents"
             }
           >
             {!selected || !buffer ? (
@@ -1512,6 +1794,22 @@ export function EncounterDocumentsCard({
                   )}
                   {!readonly && (
                     <div className="flex flex-wrap gap-2">
+                      {mode === "requests" &&
+                        selected.status === "DRAFT" &&
+                        selected.canEdit === true &&
+                        selected.canDiscard === true && (
+                          <Button
+                            variant="outline"
+                            className="rounded-xl border-red-200 text-red-700 hover:bg-red-50"
+                            disabled={pending}
+                            onClick={() => {
+                              setDiscardReason("Rascunho excluído pelo autor após confirmação");
+                              setDiscarding(selected);
+                            }}
+                          >
+                            Excluir rascunho
+                          </Button>
+                        )}
                       <Button
                         variant="outline"
                         className={buttonStyle}
@@ -1660,13 +1958,13 @@ export function EncounterDocumentsCard({
         onOpenChange={(open) => {
           if (
             !open &&
-            (composerState.pending ||
-              (composerState.dirty &&
+            (dialogComposerState.pending ||
+              (dialogComposerState.dirty &&
                 !window.confirm("Descartar a composição ainda não inserida na receita?")))
           )
             return;
           setComposerOpen(open);
-          if (!open) setComposerState({ dirty: false, pending: false });
+          if (!open) setDialogComposerState({ dirty: false, pending: false });
         }}
       >
         <DialogContent
@@ -1685,7 +1983,7 @@ export function EncounterDocumentsCard({
               key={`${appointmentId}:${selected.id}`}
               appointmentId={appointmentId}
               documentId={selected.id}
-              onDraftStateChange={setComposerState}
+              onDraftStateChange={setDialogComposerState}
               onInsert={(text) => {
                 if (!editorRef.current || readonly || pending) return false;
                 editorRef.current
@@ -1697,7 +1995,7 @@ export function EncounterDocumentsCard({
                   )
                   .run();
                 setComposerOpen(false);
-                setComposerState({ dirty: false, pending: false });
+                setDialogComposerState({ dirty: false, pending: false });
                 if (mode === "prescription") {
                   setPrescriptionCategory("medications");
                   setShowRecipeEditor(true);
@@ -1909,6 +2207,62 @@ export function EncounterDocumentsCard({
             <Button onClick={() => applying && apply(applying, false)}>Inserir no cursor</Button>
             <Button variant="outline" onClick={() => applying && apply(applying, true)}>
               Substituir conteúdo
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+      <Dialog
+        open={Boolean(discarding)}
+        onOpenChange={(open) => {
+          if (!open && !pending) setDiscarding(null);
+        }}
+      >
+        <DialogContent className="rounded-2xl">
+          <DialogHeader>
+            <DialogTitle>Excluir rascunho?</DialogTitle>
+            <DialogDescription>
+              Esta ação é lógica e irreversível para o rascunho ativo. O conteúdo, a autoria, o ID,
+              a versão e o histórico de auditoria serão preservados; nada será apagado do histórico.
+            </DialogDescription>
+          </DialogHeader>
+          {discarding && (
+            <div className="space-y-3 rounded-xl border bg-slate-50 p-3 text-sm">
+              <p>
+                <span className="font-medium">Documento:</span> {discarding.title}
+              </p>
+              <p>
+                <span className="font-medium">Tipo:</span> {labels[discarding.type]}
+              </p>
+              <p>
+                <span className="font-medium">Autor:</span> {discarding.authorName}
+              </p>
+              {buffers[discarding.id]?.dirty && (
+                <p className="text-amber-800">
+                  Alterações locais não salvas também serão descartadas desta tela.
+                </p>
+              )}
+            </div>
+          )}
+          <label className="space-y-2 text-sm">
+            Motivo do descarte
+            <Input
+              aria-label="Motivo do descarte"
+              value={discardReason}
+              maxLength={500}
+              disabled={pending}
+              onChange={(event) => setDiscardReason(event.target.value)}
+            />
+          </label>
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" disabled={pending} onClick={() => setDiscarding(null)}>
+              Cancelar
+            </Button>
+            <Button
+              className="bg-red-700 text-white hover:bg-red-800"
+              disabled={pending || discardReason.trim().length < 5 || !discarding}
+              onClick={() => discarding && void discardDraft(discarding)}
+            >
+              Excluir rascunho
             </Button>
           </div>
         </DialogContent>

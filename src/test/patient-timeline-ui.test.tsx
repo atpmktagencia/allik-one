@@ -128,6 +128,61 @@ describe("Patient timeline", () => {
       ),
     );
   });
+  it("keeps date filters in the server query and filters visible origin and author values", async () => {
+    const fetchMock = vi.fn(async (..._args: [string]) =>
+      Response.json({
+        data: {
+          patient,
+          events: [
+            {
+              id: "one",
+              kind: "CLINICAL_NOTE",
+              title: "Registro de origem",
+              occurredAt: "2026-10-12T12:00:00Z",
+              authorName: "Profissional Teste",
+              unitName: "Fortaleza",
+              status: "FINAL",
+              summary: "Evento de Fortaleza",
+            },
+            {
+              id: "two",
+              kind: "DOCUMENT",
+              title: "Outro registro",
+              occurredAt: "2026-10-11T12:00:00Z",
+              authorName: "Outra autoria",
+              unitName: "Sobral",
+              status: "FINAL",
+              summary: "Evento de Sobral",
+            },
+          ],
+          nextCursor: null,
+        },
+      }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    mount();
+    expect(await screen.findByText("Registro de origem")).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText("Data inicial"), { target: { value: "2026-10-01" } });
+    fireEvent.change(await screen.findByLabelText("Data final"), {
+      target: { value: "2026-10-31" },
+    });
+    await waitFor(() =>
+      expect(
+        fetchMock.mock.calls.some(
+          ([url]) =>
+            String(url).includes("from=2026-10-01") && String(url).includes("to=2026-10-31"),
+        ),
+      ).toBe(true),
+    );
+    fireEvent.change(await screen.findByLabelText("Origem do registro"), {
+      target: { value: "Fortaleza" },
+    });
+    fireEvent.change(await screen.findByLabelText("Autoria do registro"), {
+      target: { value: "Profissional" },
+    });
+    expect(screen.getByText("Evento de Fortaleza")).toBeVisible();
+    expect(screen.queryByText("Evento de Sobral")).not.toBeInTheDocument();
+  });
   it("shows retry feedback for a failed service response", async () => {
     vi.stubGlobal(
       "fetch",

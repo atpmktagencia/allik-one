@@ -1,5 +1,5 @@
 import { afterEach, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { LaboratoryHistory } from "@/components/clinic/laboratory-history";
 import { emptyLaboratoryRow } from "@/lib/laboratory-results";
 const mock = vi.hoisted(() => ({ useInventory: vi.fn() }));
@@ -96,7 +96,9 @@ it("opens the selected original in the contextual viewer without changing the co
   render(<LaboratoryHistory patientId="patient" compact onOpenOriginal={onOpenOriginal} />);
   expect(screen.getByRole("table", { name: "Tabela longitudinal de exames" })).toBeInTheDocument();
   fireEvent.click(
-    screen.getAllByRole("button", { name: "Ver original: Original privado.pdf" })[0]!,
+    within(screen.getByRole("button", { name: "Ferritina" }).closest("tr")!).getByRole("button", {
+      name: "Ver original: Original privado.pdf",
+    }),
   );
   expect(onOpenOriginal).toHaveBeenCalledWith(
     expect.objectContaining({
@@ -200,8 +202,13 @@ it("graph labels distinguish result dates and use the primary CSS color directly
   const { container } = render(<LaboratoryHistory patientId="patient" />);
   fireEvent.click(screen.getByRole("button", { name: "TSH" }));
   expect(screen.getByText(/Resultado 01\/02\/2026 ·/)).toBeInTheDocument();
-  expect(container.querySelector("circle")).toHaveAttribute("fill", "var(--primary)");
-  expect(container.querySelector("circle title")).toHaveTextContent("Resultado 01/02/2026");
+  expect(container.querySelector('svg[role="img"] circle')).toHaveAttribute(
+    "fill",
+    "var(--primary)",
+  );
+  expect(container.querySelector('svg[role="img"] circle title')).toHaveTextContent(
+    "Resultado 01/02/2026",
+  );
 });
 
 it("restores laboratory search, dates and expansion after closing and reopening its document view", () => {
@@ -228,4 +235,73 @@ it("restores laboratory search, dates and expansion after closing and reopening 
   expect(screen.getByLabelText("Buscar parâmetro laboratorial")).toHaveValue("TSH");
   expect(screen.getByLabelText("Data inicial dos exames")).toHaveValue("2026-01-01");
   expect(screen.getByRole("button", { name: "TSH" })).toHaveAttribute("aria-expanded", "true");
+});
+
+it("filters navigation categories and collapses groups without dropping confirmed entries", () => {
+  setup();
+  render(<LaboratoryHistory patientId="patient" compact />);
+  fireEvent.change(screen.getByLabelText("Grupo de exames"), { target: { value: "Tireoide" } });
+  expect(screen.getByRole("button", { name: "TSH" })).toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "Ferritina" })).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "Grupo Tireoide" }));
+  expect(screen.queryByRole("button", { name: "TSH" })).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "Grupo Tireoide" }));
+  expect(screen.getByText("0,25")).toBeInTheDocument();
+  expect(screen.getByText("<0,1")).toBeInTheDocument();
+});
+it("opens literal result details and hands the exact entry to the source viewer", () => {
+  setup();
+  const onOpenOriginal = vi.fn();
+  render(<LaboratoryHistory patientId="patient" compact onOpenOriginal={onOpenOriginal} />);
+  expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "Detalhes de TSH: 0,25, 01/01/2026" }));
+  const dialog = screen.getByRole("dialog");
+  expect(within(dialog).getByText("0,2 a 4")).toBeInTheDocument();
+  expect(within(dialog).getByText("Unidade não informada")).toBeInTheDocument();
+  expect(within(dialog).getByText("Método")).toBeInTheDocument();
+  fireEvent.click(within(dialog).getByRole("button", { name: "Abrir documento original" }));
+  expect(onOpenOriginal).toHaveBeenCalledWith(
+    expect.objectContaining({ id: "one", payload: expect.objectContaining({ result: "0,25" }) }),
+  );
+  expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  expect(screen.getByText("<0,1")).toBeInTheDocument();
+});
+it("reverses temporal columns without changing values or joining incompatible series", () => {
+  setup();
+  const initial = mock.useInventory.getMockImplementation()!();
+  mock.useInventory.mockReturnValue({
+    ...initial,
+    data: {
+      ...initial.data,
+      rows: [
+        ...initial.data.rows,
+        {
+          ...initial.data.rows[0],
+          id: "earlier",
+          payload: { ...initial.data.rows[0].payload, result: "0,35", collectedOn: "2025-12-01" },
+        },
+      ],
+    },
+  });
+  render(<LaboratoryHistory patientId="patient" compact />);
+  fireEvent.change(screen.getByLabelText("Ordenação temporal dos exames"), {
+    target: { value: "newest" },
+  });
+  expect(
+    screen
+      .getAllByRole("columnheader")
+      .slice(3)
+      .map((cell) => cell.textContent),
+  ).toEqual(["01/01/2026", "01/12/2025", "Sem data de exame"]);
+  expect(screen.getByText("0,25")).toBeInTheDocument();
+  expect(screen.getByText("<0,1")).toBeInTheDocument();
+});
+
+it("does not carry a selected result dialog across patients or explicit units", () => {
+  setup();
+  const view = render(<LaboratoryHistory patientId="patient" unitId="unit-a" compact />);
+  fireEvent.click(screen.getByRole("button", { name: "Detalhes de TSH: 0,25, 01/01/2026" }));
+  expect(screen.getByRole("dialog")).toBeInTheDocument();
+  view.rerender(<LaboratoryHistory patientId="other-patient" unitId="unit-a" compact />);
+  expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
 });

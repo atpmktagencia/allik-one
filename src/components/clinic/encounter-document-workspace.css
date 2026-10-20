@@ -2,10 +2,11 @@
 .clinical-documents.encounter-document-workspace {
   height: max(660px, calc(100dvh - 308px));
   min-height: 660px;
-  border-color: #e5ebef;
-  border-radius: 12px;
-  background: #fff;
+  border-color: #e4ebf1;
+  border-radius: 10px;
+  background: #f5f8fa;
   color: #142033;
+  font-family: Inter, ui-sans-serif, system-ui, sans-serif;
 }
 .encounter-document-workspace button,
 .encounter-document-workspace a {
@@ -37,6 +38,47 @@
 }
 .encounter-document-workspace[data-context-open="false"] > .encounter-document-columns {
   grid-template-columns: minmax(0, 1fr);
+}
+.encounter-document-workspace[data-inline-composer="true"] > .encounter-document-columns {
+  display: block;
+  border-top: 1px solid #e4ebf1;
+  overflow: auto;
+}
+.encounter-document-workspace[data-inline-composer="true"] .encounter-document-main {
+  min-height: 0;
+}
+.encounter-document-workspace[data-inline-composer="true"] .encounter-document-context {
+  display: none;
+}
+.encounter-document-inline-composer {
+  min-width: 0;
+  padding: 14px;
+  background: #f5f8fa;
+}
+.encounter-document-inline-composer .prescription-composer {
+  min-width: 0;
+  padding: 2px;
+}
+.prescription-composer [data-prescription-composer] {
+  min-width: 0;
+}
+.prescription-composer fieldset,
+.prescription-composer aside {
+  border-color: #e4ebf1;
+  border-radius: 10px;
+  background: #fff;
+}
+.prescription-composer button:not([disabled]) {
+  border-color: #e4ebf1;
+}
+.prescription-composer button:not([disabled]):focus-visible,
+.prescription-composer input:focus-visible,
+.prescription-composer textarea:focus-visible,
+.prescription-composer select:focus-visible {
+  outline-color: #007d88;
+}
+.prescription-composer [aria-selected="true"] {
+  background: #007d88;
 }
 .encounter-document-main {
   display: flex;
@@ -116,5 +158,21 @@
   }
   .encounter-document-workspace .clinical-document-editor-slot {
     min-height: 300px;
+  }
+  .encounter-document-inline-composer {
+    padding: 10px;
+  }
+}
+
+@media (max-width: 640px) {
+  .clinical-documents.encounter-document-workspace {
+    min-height: 0;
+  }
+  .encounter-document-inline-composer {
+    padding: 6px;
+  }
+  .prescription-composer fieldset,
+  .prescription-composer aside {
+    padding: 12px;
   }
 }

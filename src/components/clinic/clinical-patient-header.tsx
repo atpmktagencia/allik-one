@@ -39,7 +39,11 @@ export function ClinicalPatientHeader({
     : birthDate;
   return (
     <section className="clinical-patient-header" aria-label="Resumo clínico do paciente">
-      <div className="clinical-patient-identity">
+      <div
+        className="clinical-patient-identity"
+        role="group"
+        aria-label="Identificação do paciente"
+      >
         <Avatar className="size-14 shrink-0">
           <AvatarFallback className="bg-[#e6f4f5] text-lg font-medium text-primary">
             {initials || "P"}
@@ -62,7 +66,7 @@ export function ClinicalPatientHeader({
           )}
         </div>
       </div>
-      <div className="clinical-header-section">
+      <div className="clinical-header-section" role="group" aria-label="Sinais vitais">
         <HeartPulse className="clinical-header-icon" aria-hidden="true" />
         <div className="min-w-0 flex-1">
           <h2 className="clinical-header-section-title">Sinais vitais</h2>
@@ -73,7 +77,7 @@ export function ClinicalPatientHeader({
           </div>
         </div>
       </div>
-      <div className="clinical-header-section">
+      <div className="clinical-header-section" role="group" aria-label="Alergias">
         <TriangleAlert className="clinical-header-icon clinical-allergy-icon" aria-hidden="true" />
         <div className="min-w-0 flex-1">
           <h2 className="clinical-header-section-title">Alergias</h2>
@@ -84,7 +88,7 @@ export function ClinicalPatientHeader({
           </div>
         </div>
       </div>
-      <div className="clinical-header-section">
+      <div className="clinical-header-section" role="group" aria-label="Diagnósticos e hipóteses">
         <Stethoscope className="clinical-header-icon" aria-hidden="true" />
         <div className="min-w-0 flex-1">
           <h2 className="clinical-header-section-title">Diagnósticos e hipóteses</h2>

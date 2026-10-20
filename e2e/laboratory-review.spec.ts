@@ -394,6 +394,7 @@ test("Paciente360º preserves laboratory review, conditional preconsultation and
     // serves the last confirmed revision. Confirming it refreshes this mounted
     // table without a reload or switching away from the encounter.
     const examFiles = page.getByRole("region", { name: "Arquivos de exames do paciente" });
+    await examFiles.locator("summary").click();
     await expect(examFiles.getByText("Pronto para revisão", { exact: true })).toBeVisible();
     await examFiles
       .getByRole("button", { name: "Abrir exame: Laboratório sintético", exact: true })
@@ -432,15 +433,18 @@ test("Paciente360º preserves laboratory review, conditional preconsultation and
     );
     await steps.getByRole("tab", { name: "Prescrição", exact: true }).click();
     const documents = page.locator("#documentos");
-    await documents.getByRole("button", { name: "Novo documento", exact: true }).click();
-    await page.getByRole("menuitem", { name: "Receita médica", exact: true }).click();
-    await documents
-      .getByRole("button", { name: "Compor receita estruturada", exact: true })
-      .click();
-    const prescription = page.getByRole("dialog", {
-      name: "Composição estruturada e protocolos pessoais",
-    });
-    const component = prescription.getByRole("group", { name: "Componente 1", exact: true });
+    const prescription = documents.locator('[aria-label="Compositor de prescrição"]');
+    await expect(
+      prescription.getByRole("heading", { name: "Montar composição", exact: true }),
+    ).toBeVisible();
+    expect(
+      (
+        await pool.query("SELECT id FROM inventory_encounter_documents WHERE appointment_id=$1", [
+          appointmentId,
+        ])
+      ).rows,
+    ).toHaveLength(0);
+    const component = prescription;
     await component
       .getByLabel("Nome do componente", { exact: true })
       .fill("Componente sintético integrado");
@@ -466,8 +470,9 @@ test("Paciente360º preserves laboratory review, conditional preconsultation and
       })
       .check();
     await prescription
-      .getByRole("button", { name: "Inserir no rascunho da receita", exact: true })
+      .getByRole("button", { name: "Criar rascunho e inserir composição", exact: true })
       .click();
+    await documents.getByRole("button", { name: "Documentos e assinatura", exact: true }).click();
     await documents.getByRole("button", { name: "Salvar rascunho", exact: true }).click();
     await expect(documents.getByText("Rascunho salvo.", { exact: true })).toBeVisible();
     const saved = (
@@ -489,7 +494,7 @@ test("Paciente360º preserves laboratory review, conditional preconsultation and
     await expect(page.getByRole("status").filter({ hasText: /^Rascunho salvo\.$/ })).toBeVisible();
     await page.reload({ waitUntil: "networkidle" });
     await steps.getByRole("tab", { name: "Prescrição", exact: true }).click();
-    await documents.getByRole("button", { name: "Editar receita", exact: true }).click();
+    await documents.getByRole("button", { name: "Documentos e assinatura", exact: true }).click();
     await expect(
       documents.getByRole("textbox", { name: "Conteúdo do documento", exact: true }),
     ).toContainText("Componente sintético integrado: 10 mg");
@@ -516,8 +521,7 @@ test("Paciente360º preserves laboratory review, conditional preconsultation and
     await expect(printPage.locator("body")).toContainText("30 cápsulas");
     await printPage.close();
     await steps.getByRole("tab", { name: "Solicitações", exact: true }).click();
-    await documents.getByRole("button", { name: "Novo documento", exact: true }).click();
-    await page.getByRole("menuitem", { name: "Solicitação de exames", exact: true }).click();
+    await documents.getByRole("button", { name: "Solicitar exame", exact: true }).click();
     await documents
       .getByRole("textbox", { name: "Conteúdo do documento", exact: true })
       .fill("Solicitação sintética: TSH. Conferir conforme avaliação profissional.");

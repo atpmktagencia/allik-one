@@ -131,7 +131,9 @@ describe("Care encounter UI", () => {
           });
         if (init?.method === "POST") {
           writes.push(JSON.parse(String(init.body)) as Record<string, unknown>);
-          return Response.json({ data: { id: "44444444-4444-4444-8444-444444444444" } });
+          return Response.json({
+            data: { id: "initial-note", version: 1 },
+          });
         }
         if (String(_input).includes("encounter-prescriptions"))
           return Response.json({
@@ -171,7 +173,44 @@ describe("Care encounter UI", () => {
             canClaimClinicalNote: false,
             needsProfessionalRegistration: false,
             clinicalAuthorBlockReason: null,
-            clinicalNote: null,
+            clinicalNote: {
+              id: "initial-note",
+              evolution: "",
+              conduct: "",
+              diagnosticHypotheses: "",
+              clinicalPlan: "",
+              returnRecommendation: "",
+              returnOn: null,
+              chiefComplaint: "Histórico motivo preservado",
+              currentHistory: "Histórico atual preservado",
+              personalHistory: "Antecedentes históricos preservados",
+              familyHistory: "Histórico familiar preservado",
+              habits: "Hábitos históricos preservados",
+              systemsReview: "Revisão histórica preservada",
+              generalExam: "Exame geral histórico preservado",
+              cardiovascularExam: "Cardiovascular histórico preservado",
+              respiratoryExam: "Respiratório histórico preservado",
+              abdominalExam: "Abdominal histórico preservado",
+              neurologicalExam: "Neurológico histórico preservado",
+              musculoskeletalExam: "Musculoesquelético histórico preservado",
+              skinExam: "Pele histórica preservada",
+              otherExam: "Outros achados históricos preservados",
+              status: "DRAFT",
+              version: 0,
+              authorName: "Dra. Profissional",
+              professionalCouncil: "CRM",
+              councilNumber: "12345",
+              councilRegion: "CE",
+              systolicPressure: null,
+              diastolicPressure: null,
+              heartRate: null,
+              oxygenSaturation: null,
+              temperatureC: null,
+              weightKg: null,
+              heightCm: null,
+              finalizedAt: null,
+              updatedAt: "2026-10-12T00:30:00.000Z",
+            },
             clinicalAlerts: [],
           },
         });
@@ -237,7 +276,13 @@ describe("Care encounter UI", () => {
     expect(screen.getByRole("button", { name: "Concluir atendimento" })).toBeDisabled();
     expect(writes).toHaveLength(0);
     fireEvent.click(within(steps).getByRole("tab", { name: /^Prescrição$/ }));
-    fireEvent.click(screen.getByRole("button", { name: "Adicionar item" }));
+    if (!screen.queryByRole("button", { name: "Adicionar item" })) {
+      const returnToMedications = await screen.findByRole("button", {
+        name: "Voltar aos medicamentos",
+      });
+      fireEvent.click(returnToMedications);
+    }
+    fireEvent.click(await screen.findByRole("button", { name: "Adicionar item" }));
     const therapeuticBlocker = [...vi.mocked(useBlocker).mock.calls]
       .reverse()
       .find(([options]) => isActiveBlocker(options))?.[0] as unknown as {
@@ -267,7 +312,10 @@ describe("Care encounter UI", () => {
     fireEvent.click(screen.getByRole("button", { name: "Inserir modelo" }));
     const evolution = screen.getByLabelText("Evolução");
     expect((evolution as HTMLTextAreaElement).value).toContain("ANAMNESE LONGEVIDADE SAUDÁVEL");
-    expect(screen.queryByRole("textbox", { name: "Motivo da consulta" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Anamnese estruturada" })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Exame físico estruturado" }),
+    ).not.toBeInTheDocument();
     expect(screen.getByRole("textbox", { name: "Conduta" })).toBeInTheDocument();
     fireEvent.click(screen.getByText(/Hipóteses diagnósticas, plano clínico e retorno/));
     expect(
@@ -275,12 +323,26 @@ describe("Care encounter UI", () => {
     ).toBeInTheDocument();
     expect(screen.getByRole("textbox", { name: "Plano clínico" })).toBeInTheDocument();
     expect(screen.getByLabelText("Data prevista para retorno")).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Anamnese estruturada" }));
-    fireEvent.click(screen.getByRole("button", { name: "Motivo da consulta" }));
-    fireEvent.change(screen.getByRole("textbox", { name: "Motivo da consulta" }), {
-      target: { value: "Motivo preservado" },
+    fireEvent.click(screen.getByRole("button", { name: "Salvar rascunho" }));
+    await screen.findByText("Rascunho salvo.");
+    expect(writes[writes.length - 1]).toEqual(
+      expect.objectContaining({
+        chiefComplaint: "Histórico motivo preservado",
+        currentHistory: "Histórico atual preservado",
+        generalExam: "Exame geral histórico preservado",
+        cardiovascularExam: "Cardiovascular histórico preservado",
+      }),
+    );
+    fireEvent.change(screen.getByRole("textbox", { name: "Conduta" }), {
+      target: { value: "Conduta local não salva" },
     });
     fireEvent.click(within(steps).getByRole("tab", { name: /^Prescrição$/ }));
+    if (!screen.queryByRole("button", { name: "Adicionar item" })) {
+      const returnToMedications = screen.queryByRole("button", {
+        name: "Voltar aos medicamentos",
+      });
+      if (returnToMedications) fireEvent.click(returnToMedications);
+    }
     expect(
       await screen.findByRole("heading", { name: "Registro terapêutico" }),
     ).toBeInTheDocument();
@@ -309,9 +371,10 @@ describe("Care encounter UI", () => {
     fireEvent.click(within(steps).getByRole("tab", { name: /^Anamnese$/ }));
     expect(screen.getByLabelText("Evolução")).toBe(evolution);
     expect((evolution as HTMLTextAreaElement).value).toContain("ANAMNESE LONGEVIDADE SAUDÁVEL");
-    expect(screen.getByRole("textbox", { name: "Motivo da consulta" })).toHaveValue(
-      "Motivo preservado",
-    );
+    expect(screen.queryByRole("textbox", { name: "Motivo da consulta" })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Exame físico estruturado" }),
+    ).not.toBeInTheDocument();
     const blocker = [...vi.mocked(useBlocker).mock.calls]
       .reverse()
       .find(([options]) => isActiveBlocker(options))?.[0] as unknown as {

@@ -98,7 +98,7 @@ export async function clinicalRequestsResponse(request: Request) {
       professional.registry_state === "OK" &&
       a.professional_user_id === auth.user.id &&
       !["CANCELED", "NO_SHOW"].includes(a.status);
-    const sources = `SELECT d.id,d.title,d.type,d.status,d.version,d.author_user_id,'DOCUMENT'::text source_kind FROM inventory_encounter_documents d WHERE d.appointment_id=$1 AND d.organization_id=$2 AND d.type IN ('EXAM_REQUEST','REFERRAL') AND (d.status='FINAL' OR d.author_user_id=$3)
+    const sources = `SELECT d.id,d.title,d.type,d.status,d.version,d.author_user_id,'DOCUMENT'::text source_kind FROM inventory_encounter_documents d WHERE d.appointment_id=$1 AND d.organization_id=$2 AND d.type IN ('EXAM_REQUEST','REFERRAL') AND d.status IN ('DRAFT','FINAL') AND (d.status='FINAL' OR d.author_user_id=$3)
       UNION ALL SELECT p.id,p.title,'PROCEDURE'::text,p.status,p.version,p.author_user_id,'PLAN'::text FROM inventory_clinical_plans p WHERE p.appointment_id=$1 AND p.organization_id=$2 AND p.status<>'ARCHIVED' AND (p.status<>'DRAFT' OR p.author_user_id=$3)`;
     if (!body) {
       const found = (
@@ -142,7 +142,7 @@ export async function clinicalRequestsResponse(request: Request) {
     const source = (
       await c.query(
         body.sourceKind === "DOCUMENT"
-          ? `SELECT id,title,status,version FROM inventory_encounter_documents WHERE id=$1 AND appointment_id=$2 AND organization_id=$3 AND unit_id=$4 AND patient_id=$5 AND type IN ('EXAM_REQUEST','REFERRAL') FOR UPDATE`
+          ? `SELECT id,title,status,version FROM inventory_encounter_documents WHERE id=$1 AND appointment_id=$2 AND organization_id=$3 AND unit_id=$4 AND patient_id=$5 AND type IN ('EXAM_REQUEST','REFERRAL') AND status IN ('DRAFT','FINAL') FOR UPDATE`
           : `SELECT id,title,status,version FROM inventory_clinical_plans WHERE id=$1 AND appointment_id=$2 AND organization_id=$3 AND unit_id=$4 AND patient_id=$5 FOR UPDATE`,
         [body.sourceId, a.id, auth.organizationId, a.unit_id, a.patient_id],
       )

@@ -1,0 +1,50 @@
+{
+  "baseline": "75c416e819afb557f07c8d2ab19d568ddeefe0c8",
+  "branch": "experiment/test-b-atendimento-exames",
+  "environment": "local disposable PostgreSQL; synthetic fixtures; restricted runtime role",
+  "typecheck": "pass",
+  "lint": {
+    "errors": 0,
+    "warnings": 6
+  },
+  "build": "pass with preview preparation disabled; no DB connection",
+  "unit": {
+    "files": 78,
+    "passed": 506,
+    "failed": 0
+  },
+  "integration_fresh": {
+    "files": 38,
+    "passed": 422,
+    "failed": 1,
+    "failure": "patient-allergies.test.ts reason length 500: expected 201, received 500; independently reproduced on frozen baseline"
+  },
+  "e2e": {
+    "passed_flows": [
+      "laboratory-review",
+      "prescription-composer",
+      "patient-documents",
+      "clinical-plans",
+      "preconsultation",
+      "shared-templates"
+    ],
+    "note": "Five passed together; shared-templates passed in focused rerun after selector update; not a single green combined six-test run"
+  },
+  "preview_guard": {
+    "passed": 8,
+    "failed": 0
+  },
+  "remote_preview_B": "not validated; no deployment requested",
+  "comparison": "Qualitative screenshots, identical baseline fixture, 1536x1024 and390x844; no pixel-perfect claim",
+  "runtime": {
+    "verified": true,
+    "tables": 117,
+    "appendOnlyTables": 67,
+    "provisioningRunner": {
+      "passed": 2,
+      "skipped": 1,
+      "failed": 0
+    }
+  },
+  "private_pdf_visual": "panel and close verified; private bytes failed in local capture; render not proven"
+}

@@ -16,7 +16,6 @@ import { Link, useBlocker } from "@tanstack/react-router";
 import "./clinical-workspace.css";
 import {
   AlertTriangle,
-  ArrowLeft,
   CheckCircle2,
   ChevronDown,
   ChevronRight,
@@ -30,14 +29,14 @@ import {
   ClipboardList,
   FileText,
   History,
-  ListTree,
-  Pill,
-  ReceiptText,
-  Stethoscope,
   UserRound,
 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ClinicalPatientHeader } from "./clinical-patient-header";
+import {
+  ClinicalLongitudinalNav,
+  type ClinicalLongitudinalSection,
+} from "./clinical-longitudinal-nav";
 import {
   PatientDocumentCenter,
   type PatientDocumentCenterViewState,
@@ -61,12 +60,6 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@/components/ui/accordion";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { readInventoryResponse, useInventory } from "@/data/inventory-api";
@@ -767,6 +760,32 @@ export function CareEncounterPage({ appointmentId }: { appointmentId: string }) 
     else if (target === "documents") setDocumentsOpen(true);
     else navigateStep("exams");
   }
+  function navigateLongitudinal(section: ClinicalLongitudinalSection) {
+    if (section === "encounter") {
+      navigateStep("anamnesis");
+      return;
+    }
+    if (section === "history") {
+      setHistoryOpen(true);
+      return;
+    }
+    if (section === "documents") {
+      setDocumentsOpen(true);
+      return;
+    }
+    if (section === "treatments") {
+      setDetailsOpen(true);
+      return;
+    }
+    if (section === "questionnaires") {
+      setQuestionnairesOpen(true);
+      return;
+    }
+    navigateStep("review");
+    requestAnimationFrame(() =>
+      document.getElementById("orcamento")?.scrollIntoView({ behavior: "smooth", block: "start" }),
+    );
+  }
   const canComplete = data.canManage && appointment.status === "IN_PROGRESS";
   const anyDirty =
     dirty ||
@@ -823,7 +842,7 @@ export function CareEncounterPage({ appointmentId }: { appointmentId: string }) 
       <p aria-live="polite" className="sr-only">
         Etapa atual: {encounterSteps.find((step) => step.id === activeStep)?.label}
       </p>
-      <div className="flex min-h-12 flex-wrap items-center justify-between gap-2 px-4 py-2 lg:px-5">
+      <div className="encounter-toolbar flex min-h-[54px] flex-wrap items-center justify-between gap-2 px-4 py-2 lg:px-5">
         <div className="flex min-w-0 items-center gap-2 text-xs text-muted-foreground">
           <Button
             variant="ghost"
@@ -964,7 +983,12 @@ export function CareEncounterPage({ appointmentId }: { appointmentId: string }) 
                 )}
               </div>
               {data.allergySummary?.status === "REPORTED" && (
-                <span className="mt-1 block text-amber-800">Relatadas · não verificadas</span>
+                <span className="mt-1 block text-amber-800">
+                  Relatadas · não verificadas
+                  {data.allergySummary.reviewedAt
+                    ? ` · revisão ${dateTime(data.allergySummary.reviewedAt)}`
+                    : ""}
+                </span>
               )}
               {data.clinicalAlerts.some((item) => item.type !== "ALLERGY") && (
                 <span className="mt-1 block text-amber-700">
@@ -1021,873 +1045,674 @@ export function CareEncounterPage({ appointmentId }: { appointmentId: string }) 
           {error || message}
         </div>
       )}
-      <div className="grid min-w-0 gap-3 px-4 py-3 lg:grid-cols-[206px_minmax(0,1fr)] lg:px-5">
-        <aside
-          className={`${sidebarOpen ? "block" : "hidden"} rounded-xl border bg-card p-2.5 lg:block`}
-        >
-          <nav aria-label="Navegação clínica do paciente" className="space-y-1">
-            <button
-              type="button"
-              onClick={() => {
-                navigateStep("anamnesis");
-                setSidebarOpen(false);
-              }}
-              className="flex h-10 w-full items-center gap-3 rounded-lg bg-accent px-3 text-left text-[13px] font-semibold text-primary"
-            >
-              <ClipboardList className="size-4" />
-              Atendimento
-            </button>
-            <Link
-              to="/pacientes/$patientId"
-              params={{ patientId: appointment.patientId }}
-              className="flex h-10 items-center gap-3 rounded-lg px-3 text-[13px] text-muted-foreground hover:bg-accent"
-            >
-              <UserRound className="size-4" />
-              Visão geral
-            </Link>
-            <button
-              type="button"
-              onClick={() => setHistoryOpen(true)}
-              className="flex h-10 w-full items-center gap-3 rounded-lg px-3 text-[13px] text-muted-foreground hover:bg-accent"
-            >
-              <History className="size-4" />
-              Histórico
-            </button>
-            <button
-              type="button"
-              onClick={() => setDocumentsOpen(true)}
-              className="flex h-10 w-full items-center gap-3 rounded-lg px-3 text-left text-[13px] text-muted-foreground hover:bg-accent"
-            >
-              <FileText className="size-4" />
-              Documentos
-            </button>
-            {(
-              [
-                { id: "exams", label: "Exames", icon: Stethoscope },
-                { id: "requests", label: "Solicitações", icon: FileText },
-                { id: "prescription", label: "Prescrições", icon: Pill },
-                { id: "review", label: "Orçamentos", icon: ReceiptText },
-              ] as const
-            ).map((item) => (
+      <div className="encounter-content-grid grid min-w-0 gap-3 px-4 py-3 lg:grid-cols-[205px_minmax(0,1fr)] lg:px-5">
+        <ClinicalLongitudinalNav
+          patientId={appointment.patientId}
+          open={sidebarOpen}
+          onCloseMobile={() => setSidebarOpen(false)}
+          onSelect={navigateLongitudinal}
+        />
+        <div className="min-w-0">
+          <nav
+            aria-label="Etapas do atendimento"
+            className="encounter-step-nav mb-3 flex min-h-10 max-w-full overflow-x-auto border-b"
+            role="tablist"
+          >
+            {encounterSteps.map((step, index) => (
               <button
-                key={item.id}
+                key={step.id}
                 type="button"
-                onClick={() => {
-                  navigateStep(item.id);
-                  setSidebarOpen(false);
+                role="tab"
+                id={`encounter-tab-${step.id}`}
+                aria-selected={activeStep === step.id}
+                aria-controls={`encounter-panel-${step.id === "requests" || step.id === "prescription" ? "documents" : step.id}`}
+                tabIndex={activeStep === step.id ? 0 : -1}
+                onKeyDown={(event) => {
+                  if (event.key === "ArrowRight" || event.key === "ArrowLeft") {
+                    event.preventDefault();
+                    const next =
+                      encounterSteps[
+                        (index + (event.key === "ArrowRight" ? 1 : -1) + encounterSteps.length) %
+                          encounterSteps.length
+                      ]!;
+                    setActiveStep(next.id);
+                    document.getElementById(`encounter-tab-${next.id}`)?.focus();
+                  }
                 }}
-                className="flex min-h-10 w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-[13px] text-muted-foreground hover:bg-accent"
+                onClick={() => setActiveStep(step.id)}
+                className={`encounter-step-tab flex min-w-28 flex-1 items-center justify-center gap-2 border-b-2 px-3 pb-2 text-xs transition-colors ${activeStep === step.id ? "border-primary font-semibold text-primary" : "border-transparent text-muted-foreground hover:text-foreground"}`}
               >
-                <item.icon className="size-4 shrink-0" />
-                {item.label}
+                <span
+                  aria-hidden="true"
+                  className={`flex size-6 shrink-0 items-center justify-center rounded-full text-xs ${activeStep === step.id ? "bg-primary text-primary-foreground" : "bg-muted text-foreground"}`}
+                >
+                  {index + 1}
+                </span>
+                {step.label}
               </button>
             ))}
-            <button
-              type="button"
-              onClick={() => setQuestionnairesOpen(true)}
-              className="flex h-10 w-full items-center gap-3 rounded-lg px-3 text-left text-[13px] text-muted-foreground hover:bg-accent"
-            >
-              <ClipboardList className="size-4" />
-              Questionários e tarefas
-            </button>
-            <button
-              type="button"
-              onClick={() => setDetailsOpen(true)}
-              className="flex h-10 w-full items-center gap-3 rounded-lg px-3 text-left text-[13px] text-muted-foreground hover:bg-accent"
-            >
-              <ListTree className="size-4" />
-              Plano de cuidado
-            </button>
-            <div className="mx-2 my-4 border-t" />
-            <Link
-              to="/agenda"
-              className="flex h-10 items-center gap-3 rounded-lg px-3 text-[13px] text-muted-foreground hover:bg-accent"
-            >
-              <ArrowLeft className="size-4" />
-              Voltar à agenda
-            </Link>
           </nav>
-        </aside>
-        <div
-          className={`grid min-w-0 items-start gap-3 ${activeStep === "anamnesis" ? (contextCollapsed ? "xl:grid-cols-[minmax(0,1fr)_48px]" : "xl:grid-cols-[minmax(0,1fr)_minmax(260px,328px)]") : ""}`}
-        >
-          <main className="min-w-0 rounded-xl border bg-card p-2">
-            <nav
-              aria-label="Etapas do atendimento"
-              className="mb-3 flex min-h-10 overflow-x-auto border-b"
-              role="tablist"
-            >
-              {encounterSteps.map((step, index) => (
-                <button
-                  key={step.id}
-                  type="button"
-                  role="tab"
-                  id={`encounter-tab-${step.id}`}
-                  aria-selected={activeStep === step.id}
-                  aria-controls={`encounter-panel-${step.id === "requests" || step.id === "prescription" ? "documents" : step.id}`}
-                  tabIndex={activeStep === step.id ? 0 : -1}
-                  onKeyDown={(event) => {
-                    if (event.key === "ArrowRight" || event.key === "ArrowLeft") {
-                      event.preventDefault();
-                      const next =
-                        encounterSteps[
-                          (index + (event.key === "ArrowRight" ? 1 : -1) + encounterSteps.length) %
-                            encounterSteps.length
-                        ]!;
-                      setActiveStep(next.id);
-                      document.getElementById(`encounter-tab-${next.id}`)?.focus();
-                    }
-                  }}
-                  onClick={() => setActiveStep(step.id)}
-                  className={`flex min-w-28 flex-1 items-center justify-center gap-2 border-b-2 px-3 pb-2 text-xs transition-colors ${activeStep === step.id ? "border-primary font-semibold text-primary" : "border-transparent text-muted-foreground hover:text-foreground"}`}
-                >
-                  <span
-                    aria-hidden="true"
-                    className={`flex size-6 shrink-0 items-center justify-center rounded-full text-xs ${activeStep === step.id ? "bg-primary text-primary-foreground" : "bg-muted text-foreground"}`}
-                  >
-                    {index + 1}
-                  </span>
-                  {step.label}
-                </button>
-              ))}
-            </nav>
-            <div
-              role="tabpanel"
-              id="encounter-panel-anamnesis"
-              aria-labelledby="encounter-tab-anamnesis"
-              hidden={activeStep !== "anamnesis"}
-            >
-              {data.canManage && ["SCHEDULED", "CONFIRMED"].includes(appointment.status) ? (
-                <section className="flex flex-wrap gap-2 rounded-xl border bg-card p-4">
-                  {appointment.status === "SCHEDULED" ? (
-                    <Button
-                      variant="outline"
-                      disabled={pending}
-                      onClick={() => updateStatus("CONFIRMED")}
-                    >
-                      Confirmar presença
-                    </Button>
-                  ) : null}
-                  {["SCHEDULED", "CONFIRMED"].includes(appointment.status) ? (
-                    <Button disabled={pending} onClick={() => updateStatus("IN_PROGRESS")}>
-                      Iniciar atendimento
-                    </Button>
-                  ) : null}
-                </section>
-              ) : null}
-              <section
-                id="evolucao"
-                className="encounter-editor-surface space-y-3 rounded-xl border bg-card p-3 sm:p-4"
+          <div
+            className={`encounter-panels grid min-w-0 items-start gap-3 ${activeStep === "anamnesis" ? (contextCollapsed ? "xl:grid-cols-[minmax(0,1fr)_48px]" : "xl:grid-cols-[minmax(0,1fr)_minmax(260px,328px)]") : ""}`}
+          >
+            <main className="encounter-main-card min-w-0 rounded-xl border bg-card p-2">
+              <div
+                role="tabpanel"
+                id="encounter-panel-anamnesis"
+                aria-labelledby="encounter-tab-anamnesis"
+                hidden={activeStep !== "anamnesis"}
               >
-                <div className="flex items-center justify-between gap-3 pb-1">
-                  <div className="flex min-w-0 items-center gap-3">
-                    <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-accent text-primary">
-                      <FileText className="size-5" />
-                    </span>
-                    <div>
-                      <h2 className="text-lg font-semibold">Anamnese e evolução</h2>
-                      <p className="mt-0.5 text-xs text-muted-foreground">
-                        História clínica, exame físico, avaliação e plano
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setTemplatesOpen(!templatesOpen)}
-                      aria-expanded={templatesOpen}
-                    >
-                      <FileText className="size-4" /> Modelos
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      aria-label="Informações do atendimento"
-                      onClick={() => setDetailsOpen(true)}
-                    >
-                      <MoreHorizontal className="size-4" />
-                    </Button>
-                  </div>
-                </div>
-                <div
-                  hidden={!templatesOpen}
-                  className="space-y-2 rounded-lg border bg-muted/30 p-3"
-                >
-                  <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
-                    <label className="flex-1 space-y-1 text-sm font-medium">
-                      Escolha um modelo de anamnese
-                      <select
-                        className="h-10 w-full rounded-md border bg-background px-3 font-normal"
-                        value={selectedTemplate}
-                        disabled={
-                          !data.canAuthorClinicalNote || data.clinicalNote?.status === "FINAL"
-                        }
-                        onChange={(event) => setSelectedTemplate(event.target.value)}
+                {data.canManage && ["SCHEDULED", "CONFIRMED"].includes(appointment.status) ? (
+                  <section className="flex flex-wrap gap-2 rounded-xl border bg-card p-4">
+                    {appointment.status === "SCHEDULED" ? (
+                      <Button
+                        variant="outline"
+                        disabled={pending}
+                        onClick={() => updateStatus("CONFIRMED")}
                       >
-                        <option value="">Selecione um modelo de anamnese (opcional)</option>
-                        {Object.entries(anamnesisTemplates).map(([key, template]) => (
-                          <option key={key} value={key}>
-                            {template.label}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      disabled={
-                        !selectedTemplate ||
-                        !data.canAuthorClinicalNote ||
-                        data.clinicalNote?.status === "FINAL"
-                      }
-                      onClick={applyAnamnesisTemplate}
-                    >
-                      Inserir modelo
-                    </Button>
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    O modelo será inserido como texto editável na evolução e não substitui o
-                    julgamento clínico.
-                  </p>
-                </div>
-                <div className="overflow-hidden rounded-lg border">
-                  <div
-                    className="flex h-9 items-center gap-1 border-b bg-muted/30 px-2"
-                    role="toolbar"
-                    aria-label="Ferramentas do texto clínico"
-                  >
-                    <span className="mr-2 border-r pr-3 text-xs text-muted-foreground">
-                      Texto clínico
-                    </span>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      className="h-7 px-2 text-xs"
-                      disabled={
-                        !data.canAuthorClinicalNote || data.clinicalNote?.status === "FINAL"
-                      }
-                      onClick={() => insertClinicalText("\n\nHistória clínica / Anamnese\n")}
-                    >
-                      <Heading2 className="size-3.5" /> Seção
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      className="h-7 px-2 text-xs"
-                      disabled={
-                        !data.canAuthorClinicalNote || data.clinicalNote?.status === "FINAL"
-                      }
-                      onClick={() => insertClinicalText("\n• ")}
-                    >
-                      <List className="size-3.5" /> Lista
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      className="h-7 px-2 text-xs"
-                      disabled={
-                        !data.canAuthorClinicalNote || data.clinicalNote?.status === "FINAL"
-                      }
-                      onClick={() =>
-                        insertClinicalText(
-                          "\n\nExame físico\n\nAvaliação clínica\n\nPlano e conduta\n\nOrientações e retorno\n",
-                        )
-                      }
-                    >
-                      <Plus className="size-3.5" /> Estrutura
-                    </Button>
-                  </div>
-                  <label className="block text-sm font-medium">
-                    <span className="sr-only">Evolução</span>
-                    <Textarea
-                      ref={editorRef}
-                      value={evolution}
-                      onChange={(event) => setEvolution(event.target.value)}
-                      disabled={
-                        !data.canAuthorClinicalNote || data.clinicalNote?.status === "FINAL"
-                      }
-                      rows={12}
-                      maxLength={20000}
-                      placeholder={
-                        "1. História clínica / Anamnese\nRegistre a história clínica deste atendimento.\n\n2. Exame físico\n\n3. Avaliação clínica\n\n4. Plano e conduta\n\n5. Orientações e retorno"
-                      }
-                      className="min-h-[360px] resize-y rounded-none border-0 px-5 py-4 text-[13px] leading-7 shadow-none focus-visible:ring-inset"
-                    />
-                  </label>
-                </div>
-                <Accordion
-                  id="anamnese"
-                  type="multiple"
-                  className="scroll-mt-40 rounded-lg border px-4"
-                >
-                  <AccordionItem value="structured-anamnesis" className="border-b-0">
-                    <AccordionTrigger className="text-base">Anamnese estruturada</AccordionTrigger>
-                    <AccordionContent>
-                      <p className="mb-3 text-xs text-muted-foreground">
-                        Preencha apenas os campos aplicáveis ao atendimento.
-                      </p>
-                      <fieldset
-                        disabled={
-                          !data.canAuthorClinicalNote || data.clinicalNote?.status === "FINAL"
-                        }
-                      >
-                        <Accordion type="multiple" className="rounded-lg border px-4">
-                          <AnamnesisField
-                            label="Motivo da consulta"
-                            field="chiefComplaint"
-                            value={anamnesis.chiefComplaint}
-                            maxLength={2000}
-                            setAnamnesis={setAnamnesis}
-                          />
-                          <AnamnesisField
-                            label="História da condição atual"
-                            field="currentHistory"
-                            value={anamnesis.currentHistory}
-                            maxLength={10000}
-                            setAnamnesis={setAnamnesis}
-                          />
-                          <AnamnesisField
-                            label="Antecedentes pessoais"
-                            field="personalHistory"
-                            value={anamnesis.personalHistory}
-                            maxLength={10000}
-                            setAnamnesis={setAnamnesis}
-                          />
-                          <AnamnesisField
-                            label="Antecedentes familiares"
-                            field="familyHistory"
-                            value={anamnesis.familyHistory}
-                            maxLength={10000}
-                            setAnamnesis={setAnamnesis}
-                          />
-                          <AnamnesisField
-                            label="Hábitos e contexto"
-                            field="habits"
-                            value={anamnesis.habits}
-                            maxLength={5000}
-                            setAnamnesis={setAnamnesis}
-                          />
-                          <AnamnesisField
-                            label="Revisão de sistemas"
-                            field="systemsReview"
-                            value={anamnesis.systemsReview}
-                            maxLength={10000}
-                            setAnamnesis={setAnamnesis}
-                          />
-                        </Accordion>
-                      </fieldset>
-                    </AccordionContent>
-                  </AccordionItem>
-                </Accordion>
-                <Accordion
-                  id="exame-fisico"
-                  type="multiple"
-                  className="scroll-mt-40 rounded-lg border px-4"
-                >
-                  <AccordionItem value="structured-physical-exam" className="border-b-0">
-                    <AccordionTrigger className="text-base">
-                      Exame físico estruturado
-                    </AccordionTrigger>
-                    <AccordionContent>
-                      <p className="mb-3 text-xs text-muted-foreground">
-                        Registre somente os sistemas examinados neste atendimento.
-                      </p>
-                      <fieldset
-                        disabled={
-                          !data.canAuthorClinicalNote || data.clinicalNote?.status === "FINAL"
-                        }
-                      >
-                        <Accordion type="multiple" className="rounded-lg border px-4">
-                          <PhysicalExamField
-                            label="Estado geral"
-                            field="generalExam"
-                            value={physicalExam.generalExam}
-                            setPhysicalExam={setPhysicalExam}
-                          />
-                          <PhysicalExamField
-                            label="Cardiovascular"
-                            field="cardiovascularExam"
-                            value={physicalExam.cardiovascularExam}
-                            setPhysicalExam={setPhysicalExam}
-                          />
-                          <PhysicalExamField
-                            label="Respiratório"
-                            field="respiratoryExam"
-                            value={physicalExam.respiratoryExam}
-                            setPhysicalExam={setPhysicalExam}
-                          />
-                          <PhysicalExamField
-                            label="Abdominal"
-                            field="abdominalExam"
-                            value={physicalExam.abdominalExam}
-                            setPhysicalExam={setPhysicalExam}
-                          />
-                          <PhysicalExamField
-                            label="Neurológico"
-                            field="neurologicalExam"
-                            value={physicalExam.neurologicalExam}
-                            setPhysicalExam={setPhysicalExam}
-                          />
-                          <PhysicalExamField
-                            label="Musculoesquelético"
-                            field="musculoskeletalExam"
-                            value={physicalExam.musculoskeletalExam}
-                            setPhysicalExam={setPhysicalExam}
-                          />
-                          <PhysicalExamField
-                            label="Pele e anexos"
-                            field="skinExam"
-                            value={physicalExam.skinExam}
-                            setPhysicalExam={setPhysicalExam}
-                          />
-                          <PhysicalExamField
-                            label="Outros achados"
-                            field="otherExam"
-                            value={physicalExam.otherExam}
-                            setPhysicalExam={setPhysicalExam}
-                          />
-                        </Accordion>
-                      </fieldset>
-                    </AccordionContent>
-                  </AccordionItem>
-                </Accordion>
-                <details id="avaliacao-plano" className="scroll-mt-40 rounded-lg border px-4">
-                  <summary className="cursor-pointer py-3 text-sm font-semibold">
-                    Hipóteses diagnósticas, plano clínico e retorno{" "}
-                    <span className="ml-2 font-normal text-muted-foreground">
-                      {clinicalClosure.diagnosticHypotheses.trim()
-                        ? "Preenchido"
-                        : "Não registrado"}
-                    </span>
-                  </summary>
-                  <div className="space-y-4 pb-4">
-                    <div>
-                      <h3 className="font-semibold">Avaliação e plano clínico</h3>
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        Registre as hipóteses como avaliação do atendimento; elas não são
-                        convertidas automaticamente em diagnóstico definitivo.
-                      </p>
-                    </div>
-                    <label className="block space-y-2 text-sm font-medium">
-                      Hipóteses diagnósticas e diagnósticos
-                      <Textarea
-                        value={clinicalClosure.diagnosticHypotheses}
-                        onChange={(event) =>
-                          setClinicalClosure((current) => ({
-                            ...current,
-                            diagnosticHypotheses: event.target.value,
-                          }))
-                        }
-                        disabled={
-                          !data.canAuthorClinicalNote || data.clinicalNote?.status === "FINAL"
-                        }
-                        rows={4}
-                        maxLength={10000}
-                        placeholder="Descreva as hipóteses diagnósticas, os diagnósticos estabelecidos e os diagnósticos diferenciais relevantes."
-                      />
-                    </label>
-                    <label className="block space-y-2 text-sm font-medium">
-                      Plano clínico
-                      <Textarea
-                        value={clinicalClosure.clinicalPlan}
-                        onChange={(event) =>
-                          setClinicalClosure((current) => ({
-                            ...current,
-                            clinicalPlan: event.target.value,
-                          }))
-                        }
-                        disabled={
-                          !data.canAuthorClinicalNote || data.clinicalNote?.status === "FINAL"
-                        }
-                        rows={4}
-                        maxLength={10000}
-                        placeholder="Registre o plano diagnóstico, terapêutico, de acompanhamento e as orientações."
-                      />
-                    </label>
-                    <div className="grid gap-4 md:grid-cols-[1fr_220px]">
-                      <label className="block space-y-2 text-sm font-medium">
-                        Orientações para retorno
-                        <Textarea
-                          value={clinicalClosure.returnRecommendation}
-                          onChange={(event) =>
-                            setClinicalClosure((current) => ({
-                              ...current,
-                              returnRecommendation: event.target.value,
-                            }))
-                          }
-                          disabled={
-                            !data.canAuthorClinicalNote || data.clinicalNote?.status === "FINAL"
-                          }
-                          rows={3}
-                          maxLength={2000}
-                          placeholder="Ex.: retornar após os exames ou em quatro semanas."
-                        />
-                      </label>
-                      <label className="block space-y-2 text-sm font-medium">
-                        Data prevista para retorno
-                        <Input
-                          type="date"
-                          value={clinicalClosure.returnOn}
-                          onChange={(event) =>
-                            setClinicalClosure((current) => ({
-                              ...current,
-                              returnOn: event.target.value,
-                            }))
-                          }
-                          disabled={
-                            !data.canAuthorClinicalNote || data.clinicalNote?.status === "FINAL"
-                          }
-                        />
-                      </label>
-                    </div>
-                  </div>
-                </details>
-                {data.clinicalNote ? (
-                  <p className="text-xs text-muted-foreground">
-                    {data.clinicalNote.authorName} · {data.clinicalNote.professionalCouncil}{" "}
-                    {data.clinicalNote.councilNumber}/{data.clinicalNote.councilRegion}
-                    {data.clinicalNote.finalizedAt
-                      ? ` · finalizada em ${dateTime(data.clinicalNote.finalizedAt)}`
-                      : ` · salva em ${dateTime(data.clinicalNote.updatedAt)}`}
-                  </p>
+                        Confirmar presença
+                      </Button>
+                    ) : null}
+                    {["SCHEDULED", "CONFIRMED"].includes(appointment.status) ? (
+                      <Button disabled={pending} onClick={() => updateStatus("IN_PROGRESS")}>
+                        Iniciar atendimento
+                      </Button>
+                    ) : null}
+                  </section>
                 ) : null}
-                {!data.canAuthorClinicalNote ? (
-                  <div className="space-y-3 rounded-lg bg-muted p-3 text-sm text-muted-foreground">
-                    <p>{data.clinicalAuthorBlockReason}</p>
-                    {data.canClaimClinicalNote ? (
+                <section
+                  id="evolucao"
+                  className="encounter-editor-surface space-y-3 rounded-xl border bg-card p-3 sm:p-4"
+                >
+                  <div className="flex items-center justify-between gap-3 pb-1">
+                    <div className="flex min-w-0 items-center gap-3">
+                      <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-accent text-primary">
+                        <FileText className="size-5" />
+                      </span>
+                      <div>
+                        <h2 className="text-lg font-semibold">Anamnese e evolução</h2>
+                        <p className="mt-0.5 text-xs text-muted-foreground">
+                          História clínica, exame físico, avaliação e plano
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setTemplatesOpen(!templatesOpen)}
+                        aria-expanded={templatesOpen}
+                      >
+                        <FileText className="size-4" /> Modelos
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        aria-label="Informações do atendimento"
+                        onClick={() => setDetailsOpen(true)}
+                      >
+                        <MoreHorizontal className="size-4" />
+                      </Button>
+                    </div>
+                  </div>
+                  <div
+                    hidden={!templatesOpen}
+                    className="space-y-2 rounded-lg border bg-muted/30 p-3"
+                  >
+                    <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
+                      <label className="flex-1 space-y-1 text-sm font-medium">
+                        Escolha um modelo de anamnese
+                        <select
+                          className="h-10 w-full rounded-md border bg-background px-3 font-normal"
+                          value={selectedTemplate}
+                          disabled={
+                            !data.canAuthorClinicalNote || data.clinicalNote?.status === "FINAL"
+                          }
+                          onChange={(event) => setSelectedTemplate(event.target.value)}
+                        >
+                          <option value="">Selecione um modelo de anamnese (opcional)</option>
+                          {Object.entries(anamnesisTemplates).map(([key, template]) => (
+                            <option key={key} value={key}>
+                              {template.label}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
                       <Button
                         type="button"
                         variant="outline"
-                        disabled={pending}
-                        onClick={claimClinicalNote}
+                        disabled={
+                          !selectedTemplate ||
+                          !data.canAuthorClinicalNote ||
+                          data.clinicalNote?.status === "FINAL"
+                        }
+                        onClick={applyAnamnesisTemplate}
                       >
-                        Assumir responsabilidade pelo atendimento
+                        Inserir modelo
                       </Button>
-                    ) : null}
-                    {data.needsProfessionalRegistration ? (
-                      <Button asChild type="button" variant="outline">
-                        <Link to="/estoque/usuarios">Completar meu registro profissional</Link>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      O modelo será inserido como texto editável na evolução e não substitui o
+                      julgamento clínico.
+                    </p>
+                  </div>
+                  <div className="overflow-hidden rounded-lg border">
+                    <div
+                      className="flex h-9 items-center gap-1 border-b bg-muted/30 px-2"
+                      role="toolbar"
+                      aria-label="Ferramentas do texto clínico"
+                    >
+                      <span className="mr-2 border-r pr-3 text-xs text-muted-foreground">
+                        Texto clínico
+                      </span>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 px-2 text-xs"
+                        disabled={
+                          !data.canAuthorClinicalNote || data.clinicalNote?.status === "FINAL"
+                        }
+                        onClick={() => insertClinicalText("\n\nHistória clínica / Anamnese\n")}
+                      >
+                        <Heading2 className="size-3.5" /> Seção
                       </Button>
-                    ) : null}
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 px-2 text-xs"
+                        disabled={
+                          !data.canAuthorClinicalNote || data.clinicalNote?.status === "FINAL"
+                        }
+                        onClick={() => insertClinicalText("\n• ")}
+                      >
+                        <List className="size-3.5" /> Lista
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 px-2 text-xs"
+                        disabled={
+                          !data.canAuthorClinicalNote || data.clinicalNote?.status === "FINAL"
+                        }
+                        onClick={() =>
+                          insertClinicalText(
+                            "\n\nExame físico\n\nAvaliação clínica\n\nPlano e conduta\n\nOrientações e retorno\n",
+                          )
+                        }
+                      >
+                        <Plus className="size-3.5" /> Estrutura
+                      </Button>
+                    </div>
+                    <label className="block text-sm font-medium">
+                      <span className="sr-only">Evolução</span>
+                      <Textarea
+                        ref={editorRef}
+                        value={evolution}
+                        onChange={(event) => setEvolution(event.target.value)}
+                        disabled={
+                          !data.canAuthorClinicalNote || data.clinicalNote?.status === "FINAL"
+                        }
+                        rows={12}
+                        maxLength={20000}
+                        placeholder={
+                          "1. História clínica / Anamnese\nRegistre a história clínica deste atendimento.\n\n2. Exame físico\n\n3. Avaliação clínica\n\n4. Plano e conduta\n\n5. Orientações e retorno"
+                        }
+                        className="min-h-[360px] resize-y rounded-none border-0 px-5 py-4 text-[13px] leading-7 shadow-none focus-visible:ring-inset"
+                      />
+                    </label>
                   </div>
-                ) : null}
-                {data.canAuthorClinicalNote && data.clinicalNote?.status !== "FINAL" ? (
-                  <div className="flex flex-wrap gap-2">
-                    <Button
-                      variant="outline"
-                      disabled={pending}
-                      onClick={() => saveClinicalNote("SAVE_DRAFT")}
-                    >
-                      {pending ? "Salvando…" : "Salvar rascunho"}
-                    </Button>
-                    <Button
-                      disabled={pending || evolution.trim().length < 10}
-                      onClick={() => saveClinicalNote("FINALIZE")}
-                    >
-                      {pending ? "Finalizando…" : "Finalizar evolução"}
-                    </Button>
+                  <details
+                    id="avaliacao-plano"
+                    className="encounter-closure-accordion scroll-mt-40 rounded-lg border px-3 sm:px-4"
+                  >
+                    <summary className="cursor-pointer py-3 text-sm font-semibold">
+                      Hipóteses diagnósticas, plano clínico e retorno{" "}
+                      <span className="ml-2 font-normal text-muted-foreground">
+                        {clinicalClosure.diagnosticHypotheses.trim()
+                          ? "Preenchido"
+                          : "Não registrado"}
+                      </span>
+                    </summary>
+                    <div className="space-y-4 pb-4">
+                      <div>
+                        <h3 className="font-semibold">Avaliação e plano clínico</h3>
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          Registre as hipóteses como avaliação do atendimento; elas não são
+                          convertidas automaticamente em diagnóstico definitivo.
+                        </p>
+                      </div>
+                      <label className="block space-y-2 text-sm font-medium">
+                        Hipóteses diagnósticas e diagnósticos
+                        <Textarea
+                          value={clinicalClosure.diagnosticHypotheses}
+                          onChange={(event) =>
+                            setClinicalClosure((current) => ({
+                              ...current,
+                              diagnosticHypotheses: event.target.value,
+                            }))
+                          }
+                          disabled={
+                            !data.canAuthorClinicalNote || data.clinicalNote?.status === "FINAL"
+                          }
+                          rows={4}
+                          maxLength={10000}
+                          placeholder="Descreva as hipóteses diagnósticas, os diagnósticos estabelecidos e os diagnósticos diferenciais relevantes."
+                        />
+                      </label>
+                      <label className="block space-y-2 text-sm font-medium">
+                        Plano clínico
+                        <Textarea
+                          value={clinicalClosure.clinicalPlan}
+                          onChange={(event) =>
+                            setClinicalClosure((current) => ({
+                              ...current,
+                              clinicalPlan: event.target.value,
+                            }))
+                          }
+                          disabled={
+                            !data.canAuthorClinicalNote || data.clinicalNote?.status === "FINAL"
+                          }
+                          rows={4}
+                          maxLength={10000}
+                          placeholder="Registre o plano diagnóstico, terapêutico, de acompanhamento e as orientações."
+                        />
+                      </label>
+                      <div className="grid gap-4 md:grid-cols-[1fr_220px]">
+                        <label className="block space-y-2 text-sm font-medium">
+                          Orientações para retorno
+                          <Textarea
+                            value={clinicalClosure.returnRecommendation}
+                            onChange={(event) =>
+                              setClinicalClosure((current) => ({
+                                ...current,
+                                returnRecommendation: event.target.value,
+                              }))
+                            }
+                            disabled={
+                              !data.canAuthorClinicalNote || data.clinicalNote?.status === "FINAL"
+                            }
+                            rows={3}
+                            maxLength={2000}
+                            placeholder="Ex.: retornar após os exames ou em quatro semanas."
+                          />
+                        </label>
+                        <label className="block space-y-2 text-sm font-medium">
+                          Data prevista para retorno
+                          <Input
+                            type="date"
+                            value={clinicalClosure.returnOn}
+                            onChange={(event) =>
+                              setClinicalClosure((current) => ({
+                                ...current,
+                                returnOn: event.target.value,
+                              }))
+                            }
+                            disabled={
+                              !data.canAuthorClinicalNote || data.clinicalNote?.status === "FINAL"
+                            }
+                          />
+                        </label>
+                      </div>
+                    </div>
+                  </details>
+                  {data.clinicalNote ? (
+                    <p className="text-xs text-muted-foreground">
+                      {data.clinicalNote.authorName} · {data.clinicalNote.professionalCouncil}{" "}
+                      {data.clinicalNote.councilNumber}/{data.clinicalNote.councilRegion}
+                      {data.clinicalNote.finalizedAt
+                        ? ` · finalizada em ${dateTime(data.clinicalNote.finalizedAt)}`
+                        : ` · salva em ${dateTime(data.clinicalNote.updatedAt)}`}
+                    </p>
+                  ) : null}
+                  {!data.canAuthorClinicalNote ? (
+                    <div className="space-y-3 rounded-lg bg-muted p-3 text-sm text-muted-foreground">
+                      <p>{data.clinicalAuthorBlockReason}</p>
+                      {data.canClaimClinicalNote ? (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          disabled={pending}
+                          onClick={claimClinicalNote}
+                        >
+                          Assumir responsabilidade pelo atendimento
+                        </Button>
+                      ) : null}
+                      {data.needsProfessionalRegistration ? (
+                        <Button asChild type="button" variant="outline">
+                          <Link to="/estoque/usuarios">Completar meu registro profissional</Link>
+                        </Button>
+                      ) : null}
+                    </div>
+                  ) : null}
+                  {data.canAuthorClinicalNote && data.clinicalNote?.status !== "FINAL" ? (
+                    <div className="flex flex-wrap gap-2">
+                      <Button
+                        variant="outline"
+                        disabled={pending}
+                        onClick={() => saveClinicalNote("SAVE_DRAFT")}
+                      >
+                        {pending ? "Salvando…" : "Salvar rascunho"}
+                      </Button>
+                      <Button
+                        disabled={pending || evolution.trim().length < 10}
+                        onClick={() => saveClinicalNote("FINALIZE")}
+                      >
+                        {pending ? "Finalizando…" : "Finalizar evolução"}
+                      </Button>
+                    </div>
+                  ) : null}
+                </section>
+              </div>
+              <div
+                role="tabpanel"
+                id="encounter-panel-exams"
+                aria-labelledby="encounter-tab-exams"
+                hidden={activeStep !== "exams"}
+              >
+                <EncounterExamsPanel
+                  patientId={appointment.patientId}
+                  unitId={appointment.unitId}
+                  onNavigate={navigateContext}
+                  active={activeStep === "exams"}
+                />
+              </div>
+              <div
+                role="tabpanel"
+                id="encounter-panel-documents"
+                aria-labelledby={`encounter-tab-${activeStep === "requests" ? "requests" : "prescription"}`}
+                hidden={activeStep !== "prescription" && activeStep !== "requests"}
+              >
+                <div id="documentos">
+                  <EncounterDocumentsCard
+                    appointmentId={appointmentId}
+                    mode={activeStep === "requests" ? "requests" : "prescription"}
+                    onDraftStateChange={onDocumentDraftStateChange}
+                    procedures={
+                      <PatientClinicalPlans
+                        patientId={appointment.patientId}
+                        appointmentId={appointmentId}
+                        onDraftStateChange={onPlanDraftStateChange}
+                      />
+                    }
+                    medications={({ onInsert, canInsert, search }) => (
+                      <EncounterPrescriptionCard
+                        appointmentId={appointmentId}
+                        onDraftStateChange={onPrescriptionDraftStateChange}
+                        onInsertIntoDocument={onInsert}
+                        canInsertIntoDocument={canInsert}
+                        searchQuery={search}
+                      />
+                    )}
+                  />
+                  <div hidden={activeStep !== "requests"} className="p-3">
+                    <ClinicalRequestTracker appointmentId={appointmentId} />
                   </div>
-                ) : null}
-              </section>
-            </div>
-            <div
-              role="tabpanel"
-              id="encounter-panel-exams"
-              aria-labelledby="encounter-tab-exams"
-              hidden={activeStep !== "exams"}
-            >
-              <EncounterExamsPanel
+                </div>
+              </div>
+              <div
+                role="tabpanel"
+                id="encounter-panel-review"
+                aria-labelledby="encounter-tab-review"
+                hidden={activeStep !== "review"}
+                className="encounter-review-panel space-y-3 p-3 sm:p-4"
+              >
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <h2 className="text-lg font-semibold">Resumo do atendimento</h2>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      Revise as informações antes de concluir.
+                    </p>
+                  </div>
+                  {data.canAuthorClinicalNote && data.clinicalNote?.status !== "FINAL" ? (
+                    <div className="flex flex-wrap gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={pending}
+                        onClick={() => saveClinicalNote("SAVE_DRAFT")}
+                      >
+                        <Save className="size-3.5" />
+                        Salvar rascunho
+                      </Button>
+                      <Button
+                        size="sm"
+                        disabled={pending || evolution.trim().length < 10}
+                        onClick={() => saveClinicalNote("FINALIZE")}
+                      >
+                        {pending ? "Finalizando…" : "Finalizar evolução"}
+                      </Button>
+                    </div>
+                  ) : null}
+                </div>
+                <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-6">
+                  {[
+                    {
+                      label: "Evolução clínica",
+                      value:
+                        data.clinicalNote?.status === "FINAL"
+                          ? "Finalizada"
+                          : evolution.trim()
+                            ? dirty
+                              ? "Alterações não salvas"
+                              : "Rascunho salvo"
+                            : "Não registrada",
+                      target: "anamnesis",
+                    },
+                    {
+                      label: "Diagnósticos e hipóteses",
+                      value: clinicalClosure.diagnosticHypotheses.trim()
+                        ? "Registrados na avaliação"
+                        : "Não registrados",
+                      target: "anamnesis",
+                    },
+                    {
+                      label: "Prescrição",
+                      value:
+                        prescriptionQuery.error || documentsQuery.error
+                          ? "Não foi possível verificar"
+                          : documentsQuery.isPending || prescriptionQuery.isPending
+                            ? "Consultando…"
+                            : `${documentsQuery.data?.documents.filter((item) => item.type === "PRESCRIPTION" && item.status === "FINAL").length ?? 0} receita(s) finalizada(s) · ${documentsQuery.data?.documents.filter((item) => item.type === "PRESCRIPTION" && item.status === "DRAFT").length ?? 0} rascunho(s) · Registro terapêutico: ${prescriptionQuery.data?.prescription ? (prescriptionQuery.data.prescription.status === "FINAL" ? "finalizado" : therapeuticDraftHasContent(prescriptionQuery.data.prescription.items, prescriptionQuery.data.prescription.generalInstructions) ? "rascunho persistido" : "vazio · nenhum conteúdo pendente") : "não iniciado (opcional)"} · ${prescriptionQuery.data?.prescription?.items.length ?? 0} item(ns)`,
+                      target: "prescription",
+                    },
+                    {
+                      label: "Solicitações e documentos",
+                      value: documentsQuery.error
+                        ? "Não foi possível verificar"
+                        : documentsQuery.isPending
+                          ? "Consultando…"
+                          : `${documentsQuery.data?.documents.filter((item) => item.type !== "PRESCRIPTION" && item.status === "FINAL").length ?? 0} finalizado(s) · ${documentsQuery.data?.documents.filter((item) => item.type !== "PRESCRIPTION" && item.status === "DRAFT").length ?? 0} rascunho(s) · ${requestLifecycleQuery.data?.requests?.filter((item) => item.sourceKind === "PLAN").length ?? 0} plano(s) vinculado(s)`,
+                      target: "requests",
+                    },
+                    {
+                      label: "Orientações e retorno",
+                      value: documentsQuery.error
+                        ? "Não foi possível verificar orientações"
+                        : documentsQuery.isPending
+                          ? "Consultando…"
+                          : instructionsCount
+                            ? `${hasReturnGuidance ? "Retorno · " : ""}${instructionsCount} documento(s) de orientações`
+                            : hasReturnGuidance
+                              ? "Retorno registrado"
+                              : "Não registrados",
+                      target:
+                        instructionsCount > 0 && !hasReturnGuidance ? "prescription" : "anamnesis",
+                    },
+                    {
+                      label: "Orçamento",
+                      value: quoteQuery.error
+                        ? "Não foi possível verificar"
+                        : quoteQuery.isPending
+                          ? "Consultando…"
+                          : quoteQuery.data?.quote
+                            ? ((
+                                {
+                                  DRAFT: "Rascunho",
+                                  ISSUED: "Emitido",
+                                  APPROVED: "Aprovado",
+                                  DECLINED: "Recusado",
+                                  PAID: "Pago",
+                                } as Record<string, string>
+                              )[quoteQuery.data.quote.status] ?? "Disponível")
+                            : "Não iniciado · opcional",
+                      target: "review",
+                    },
+                  ].map((item) => (
+                    <article key={item.label} className="rounded-lg border p-3">
+                      <h3 className="text-xs font-semibold">{item.label}</h3>
+                      <p className="my-2 text-xs text-muted-foreground">{item.value}</p>
+                      <button
+                        type="button"
+                        className="rounded bg-accent px-2 py-1 text-xs font-medium text-primary"
+                        onClick={() => {
+                          navigateStep(item.target as EncounterStep);
+                          if (item.target === "review")
+                            requestAnimationFrame(() =>
+                              document
+                                .getElementById("orcamento")
+                                ?.scrollIntoView?.({ behavior: "smooth", block: "start" }),
+                            );
+                        }}
+                      >
+                        Revisar
+                      </button>
+                    </article>
+                  ))}
+                </div>
+                <section className="rounded-lg border bg-amber-50/40 p-3">
+                  <h3 className="flex items-center gap-2 text-sm font-semibold">
+                    <AlertTriangle className="size-4 text-amber-600" />
+                    Pendências e conferência
+                  </h3>
+                  <ul className="mt-2 space-y-1 text-xs text-muted-foreground">
+                    {anyDirty && (
+                      <li>
+                        Há alterações não salvas nos editores. Salve os rascunhos antes de concluir.
+                      </li>
+                    )}
+                    {data.clinicalNote?.status !== "FINAL" && (
+                      <li>
+                        A evolução ainda não foi finalizada. Finalize-a antes de concluir o
+                        atendimento.
+                      </li>
+                    )}
+                    {documentsQuery.data?.documents.some(
+                      (item) =>
+                        item.status === "DRAFT" &&
+                        documentDraftHasContent(item.content, item.richContent),
+                    ) && (
+                      <li>
+                        Há documentos com conteúdo em rascunho. Finalize ou limpe o conteúdo antes
+                        de concluir.
+                      </li>
+                    )}
+                    {prescriptionQuery.data?.prescription?.status === "DRAFT" &&
+                      therapeuticDraftHasContent(
+                        prescriptionQuery.data.prescription.items,
+                        prescriptionQuery.data.prescription.generalInstructions,
+                      ) && (
+                        <li>
+                          O registro terapêutico contém rascunho persistido. Finalize ou limpe o
+                          conteúdo antes de concluir.
+                        </li>
+                      )}
+                    {pendingPlans && (
+                      <li>
+                        Há planos vinculados em rascunho. Revise, ative ou arquive antes de
+                        concluir.
+                      </li>
+                    )}
+                    {(verificationPending || verificationError) && (
+                      <li>
+                        {verificationPending
+                          ? "Verificando registros clínicos obrigatórios…"
+                          : "Não foi possível verificar os registros clínicos. A conclusão está bloqueada."}
+                        <button
+                          type="button"
+                          className="ml-2 underline text-primary"
+                          onClick={() => {
+                            void documentsQuery.refetch();
+                            void prescriptionQuery.refetch();
+                            void requestLifecycleQuery.refetch();
+                          }}
+                        >
+                          Tentar novamente
+                        </button>
+                      </li>
+                    )}
+                    <li>
+                      {laboratoryFilesQuery.error
+                        ? "Não foi possível verificar os arquivos de exames."
+                        : laboratoryFilesQuery.isPending
+                          ? "Consultando arquivos de exames…"
+                          : `${laboratoryFilesQuery.data?.documents.filter((item) => item.laboratoryStatus && item.laboratoryStatus !== "VALIDATED").length ?? 0} arquivo(s) de exames aguardando processamento ou revisão${(laboratoryFilesQuery.data?.total ?? 0) > encounterReviewDocumentLimit ? ` (nos primeiros ${encounterReviewDocumentLimit} de ${laboratoryFilesQuery.data?.total} arquivos; consulte Exames para os demais)` : ""}.`}{" "}
+                      Exames podem ser acompanhados após o atendimento; esta pendência não bloqueia
+                      a conclusão.{" "}
+                      <button
+                        type="button"
+                        className="underline text-primary"
+                        onClick={() => navigateStep("exams")}
+                      >
+                        Conferir exames
+                      </button>
+                    </li>
+                    {documentsQuery.data && !documentsQuery.error && (
+                      <li>
+                        {completedDocuments.length} documento(s) finalizado(s) neste atendimento.
+                      </li>
+                    )}
+                    <li>
+                      Confira alergias, autoria, orientações e os documentos antes da conclusão.
+                    </li>
+                  </ul>
+                </section>
+                <div id="orcamento">
+                  <EncounterQuoteCard appointmentId={appointmentId} />
+                </div>
+                {canComplete && (
+                  <p className="text-xs text-muted-foreground">
+                    Use “Concluir atendimento” na barra superior após a conferência. A ação mantém
+                    as validações clínicas e operacionais. Prescrição e exames são opcionais;
+                    rascunhos clínicos com conteúdo e planos vinculados precisam ser resolvidos.
+                    Contêineres vazios não representam prescrição ou solicitação pendente.
+                  </p>
+                )}
+              </div>
+            </main>
+            <div hidden={activeStep !== "anamnesis"} className="encounter-context-column min-w-0">
+              <EncounterContextPanel
                 patientId={appointment.patientId}
                 unitId={appointment.unitId}
                 onNavigate={navigateContext}
-                active={activeStep === "exams"}
+                onCollapseChange={setContextCollapsed}
+                active={activeStep === "anamnesis"}
+                quickNotes={
+                  <label className="block space-y-2 text-xs text-muted-foreground">
+                    Anotações de conduta — salvas com evolução
+                    <Textarea
+                      id="conduta"
+                      aria-label="Conduta"
+                      value={conduct}
+                      onChange={(event) => setConduct(event.target.value)}
+                      disabled={
+                        !data.canAuthorClinicalNote || data.clinicalNote?.status === "FINAL"
+                      }
+                      rows={4}
+                      maxLength={10000}
+                      placeholder="Adicionar anotação clínica…"
+                      className="min-h-20 text-xs"
+                    />
+                  </label>
+                }
+                onQuickNote={() => {
+                  navigateStep("anamnesis");
+                  requestAnimationFrame(() => editorRef.current?.focus());
+                }}
               />
             </div>
-            <div
-              role="tabpanel"
-              id="encounter-panel-documents"
-              aria-labelledby={`encounter-tab-${activeStep === "requests" ? "requests" : "prescription"}`}
-              hidden={activeStep !== "prescription" && activeStep !== "requests"}
-            >
-              <div id="documentos">
-                <EncounterDocumentsCard
-                  appointmentId={appointmentId}
-                  mode={activeStep === "requests" ? "requests" : "prescription"}
-                  onDraftStateChange={onDocumentDraftStateChange}
-                  procedures={
-                    <PatientClinicalPlans
-                      patientId={appointment.patientId}
-                      appointmentId={appointmentId}
-                      onDraftStateChange={onPlanDraftStateChange}
-                    />
-                  }
-                  medications={({ onInsert, canInsert, search }) => (
-                    <EncounterPrescriptionCard
-                      appointmentId={appointmentId}
-                      onDraftStateChange={onPrescriptionDraftStateChange}
-                      onInsertIntoDocument={onInsert}
-                      canInsertIntoDocument={canInsert}
-                      searchQuery={search}
-                    />
-                  )}
-                />
-                <div hidden={activeStep !== "requests"} className="p-3">
-                  <ClinicalRequestTracker appointmentId={appointmentId} />
-                </div>
-              </div>
-            </div>
-            <div
-              role="tabpanel"
-              id="encounter-panel-review"
-              aria-labelledby="encounter-tab-review"
-              hidden={activeStep !== "review"}
-              className="space-y-4 p-3"
-            >
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <div>
-                  <h2 className="text-lg font-semibold">Resumo do atendimento</h2>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    Revise as informações antes de concluir.
-                  </p>
-                </div>
-                {data.canAuthorClinicalNote && data.clinicalNote?.status !== "FINAL" && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    disabled={pending}
-                    onClick={() => saveClinicalNote("SAVE_DRAFT")}
-                  >
-                    <Save className="size-3.5" />
-                    Salvar evolução como rascunho
-                  </Button>
-                )}
-              </div>
-              <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-6">
-                {[
-                  {
-                    label: "Evolução clínica",
-                    value:
-                      data.clinicalNote?.status === "FINAL"
-                        ? "Finalizada"
-                        : evolution.trim()
-                          ? dirty
-                            ? "Alterações não salvas"
-                            : "Rascunho salvo"
-                          : "Não registrada",
-                    target: "anamnesis",
-                  },
-                  {
-                    label: "Diagnósticos e hipóteses",
-                    value: clinicalClosure.diagnosticHypotheses.trim()
-                      ? "Registrados na avaliação"
-                      : "Não registrados",
-                    target: "anamnesis",
-                  },
-                  {
-                    label: "Prescrição",
-                    value:
-                      prescriptionQuery.error || documentsQuery.error
-                        ? "Não foi possível verificar"
-                        : documentsQuery.isPending || prescriptionQuery.isPending
-                          ? "Consultando…"
-                          : `${documentsQuery.data?.documents.filter((item) => item.type === "PRESCRIPTION" && item.status === "FINAL").length ?? 0} receita(s) finalizada(s) · ${documentsQuery.data?.documents.filter((item) => item.type === "PRESCRIPTION" && item.status === "DRAFT").length ?? 0} rascunho(s) · Registro terapêutico: ${prescriptionQuery.data?.prescription ? (prescriptionQuery.data.prescription.status === "FINAL" ? "finalizado" : therapeuticDraftHasContent(prescriptionQuery.data.prescription.items, prescriptionQuery.data.prescription.generalInstructions) ? "rascunho persistido" : "vazio · nenhum conteúdo pendente") : "não iniciado (opcional)"} · ${prescriptionQuery.data?.prescription?.items.length ?? 0} item(ns)`,
-                    target: "prescription",
-                  },
-                  {
-                    label: "Solicitações e documentos",
-                    value: documentsQuery.error
-                      ? "Não foi possível verificar"
-                      : documentsQuery.isPending
-                        ? "Consultando…"
-                        : `${documentsQuery.data?.documents.filter((item) => item.type !== "PRESCRIPTION" && item.status === "FINAL").length ?? 0} finalizado(s) · ${documentsQuery.data?.documents.filter((item) => item.type !== "PRESCRIPTION" && item.status === "DRAFT").length ?? 0} rascunho(s) · ${requestLifecycleQuery.data?.requests?.filter((item) => item.sourceKind === "PLAN").length ?? 0} plano(s) vinculado(s)`,
-                    target: "requests",
-                  },
-                  {
-                    label: "Orientações e retorno",
-                    value: documentsQuery.error
-                      ? "Não foi possível verificar orientações"
-                      : documentsQuery.isPending
-                        ? "Consultando…"
-                        : instructionsCount
-                          ? `${hasReturnGuidance ? "Retorno · " : ""}${instructionsCount} documento(s) de orientações`
-                          : hasReturnGuidance
-                            ? "Retorno registrado"
-                            : "Não registrados",
-                    target:
-                      instructionsCount > 0 && !hasReturnGuidance ? "prescription" : "anamnesis",
-                  },
-                  {
-                    label: "Orçamento",
-                    value: quoteQuery.error
-                      ? "Não foi possível verificar"
-                      : quoteQuery.isPending
-                        ? "Consultando…"
-                        : quoteQuery.data?.quote
-                          ? ((
-                              {
-                                DRAFT: "Rascunho",
-                                ISSUED: "Emitido",
-                                APPROVED: "Aprovado",
-                                DECLINED: "Recusado",
-                                PAID: "Pago",
-                              } as Record<string, string>
-                            )[quoteQuery.data.quote.status] ?? "Disponível")
-                          : "Não iniciado · opcional",
-                    target: "review",
-                  },
-                ].map((item) => (
-                  <article key={item.label} className="rounded-lg border p-3">
-                    <h3 className="text-xs font-semibold">{item.label}</h3>
-                    <p className="my-2 text-xs text-muted-foreground">{item.value}</p>
-                    <button
-                      type="button"
-                      className="rounded bg-accent px-2 py-1 text-xs font-medium text-primary"
-                      onClick={() => {
-                        navigateStep(item.target as EncounterStep);
-                        if (item.target === "review")
-                          requestAnimationFrame(() =>
-                            document
-                              .getElementById("orcamento")
-                              ?.scrollIntoView?.({ behavior: "smooth", block: "start" }),
-                          );
-                      }}
-                    >
-                      Revisar
-                    </button>
-                  </article>
-                ))}
-              </div>
-              <section className="rounded-lg border bg-amber-50/40 p-3">
-                <h3 className="flex items-center gap-2 text-sm font-semibold">
-                  <AlertTriangle className="size-4 text-amber-600" />
-                  Pendências e conferência
-                </h3>
-                <ul className="mt-2 space-y-1 text-xs text-muted-foreground">
-                  {anyDirty && (
-                    <li>
-                      Há alterações não salvas nos editores. Salve os rascunhos antes de concluir.
-                    </li>
-                  )}
-                  {data.clinicalNote?.status !== "FINAL" && (
-                    <li>
-                      A evolução ainda não foi finalizada. Finalize-a antes de concluir o
-                      atendimento.
-                    </li>
-                  )}
-                  {documentsQuery.data?.documents.some(
-                    (item) =>
-                      item.status === "DRAFT" &&
-                      documentDraftHasContent(item.content, item.richContent),
-                  ) && (
-                    <li>
-                      Há documentos com conteúdo em rascunho. Finalize ou limpe o conteúdo antes de
-                      concluir.
-                    </li>
-                  )}
-                  {prescriptionQuery.data?.prescription?.status === "DRAFT" &&
-                    therapeuticDraftHasContent(
-                      prescriptionQuery.data.prescription.items,
-                      prescriptionQuery.data.prescription.generalInstructions,
-                    ) && (
-                      <li>
-                        O registro terapêutico contém rascunho persistido. Finalize ou limpe o
-                        conteúdo antes de concluir.
-                      </li>
-                    )}
-                  {pendingPlans && (
-                    <li>
-                      Há planos vinculados em rascunho. Revise, ative ou arquive antes de concluir.
-                    </li>
-                  )}
-                  {(verificationPending || verificationError) && (
-                    <li>
-                      {verificationPending
-                        ? "Verificando registros clínicos obrigatórios…"
-                        : "Não foi possível verificar os registros clínicos. A conclusão está bloqueada."}
-                      <button
-                        type="button"
-                        className="ml-2 underline text-primary"
-                        onClick={() => {
-                          void documentsQuery.refetch();
-                          void prescriptionQuery.refetch();
-                          void requestLifecycleQuery.refetch();
-                        }}
-                      >
-                        Tentar novamente
-                      </button>
-                    </li>
-                  )}
-                  <li>
-                    {laboratoryFilesQuery.error
-                      ? "Não foi possível verificar os arquivos de exames."
-                      : laboratoryFilesQuery.isPending
-                        ? "Consultando arquivos de exames…"
-                        : `${laboratoryFilesQuery.data?.documents.filter((item) => item.laboratoryStatus && item.laboratoryStatus !== "VALIDATED").length ?? 0} arquivo(s) de exames aguardando processamento ou revisão${(laboratoryFilesQuery.data?.total ?? 0) > encounterReviewDocumentLimit ? ` (nos primeiros ${encounterReviewDocumentLimit} de ${laboratoryFilesQuery.data?.total} arquivos; consulte Exames para os demais)` : ""}.`}{" "}
-                    Exames podem ser acompanhados após o atendimento; esta pendência não bloqueia a
-                    conclusão.{" "}
-                    <button
-                      type="button"
-                      className="underline text-primary"
-                      onClick={() => navigateStep("exams")}
-                    >
-                      Conferir exames
-                    </button>
-                  </li>
-                  {documentsQuery.data && !documentsQuery.error && (
-                    <li>
-                      {completedDocuments.length} documento(s) finalizado(s) neste atendimento.
-                    </li>
-                  )}
-                  <li>
-                    Confira alergias, autoria, orientações e os documentos antes da conclusão.
-                  </li>
-                </ul>
-              </section>
-              <div id="orcamento">
-                <EncounterQuoteCard appointmentId={appointmentId} />
-              </div>
-              {canComplete && (
-                <p className="text-xs text-muted-foreground">
-                  Use “Concluir atendimento” na barra superior após a conferência. A ação mantém as
-                  validações clínicas e operacionais. Prescrição e exames são opcionais; rascunhos
-                  clínicos com conteúdo e planos vinculados precisam ser resolvidos. Contêineres
-                  vazios não representam prescrição ou solicitação pendente.
-                </p>
-              )}
-            </div>
-          </main>
-          <div hidden={activeStep !== "anamnesis"} className="min-w-0">
-            <EncounterContextPanel
-              patientId={appointment.patientId}
-              unitId={appointment.unitId}
-              onNavigate={navigateContext}
-              onCollapseChange={setContextCollapsed}
-              active={activeStep === "anamnesis"}
-              quickNotes={
-                <label className="block space-y-2 text-xs text-muted-foreground">
-                  Anotações de conduta — salvas com evolução
-                  <Textarea
-                    id="conduta"
-                    aria-label="Conduta"
-                    value={conduct}
-                    onChange={(event) => setConduct(event.target.value)}
-                    disabled={!data.canAuthorClinicalNote || data.clinicalNote?.status === "FINAL"}
-                    rows={4}
-                    maxLength={10000}
-                    placeholder="Adicionar anotação clínica…"
-                    className="min-h-20 text-xs"
-                  />
-                </label>
-              }
-              onQuickNote={() => {
-                navigateStep("anamnesis");
-                requestAnimationFrame(() => editorRef.current?.focus());
-              }}
-            />
           </div>
         </div>
       </div>
@@ -2161,78 +1986,6 @@ type PhysicalExam = {
   skinExam: string;
   otherExam: string;
 };
-
-function PhysicalExamField({
-  label,
-  field,
-  value,
-  setPhysicalExam,
-}: {
-  label: string;
-  field: keyof PhysicalExam;
-  value: string;
-  setPhysicalExam: React.Dispatch<React.SetStateAction<PhysicalExam>>;
-}) {
-  return (
-    <AccordionItem value={`exam-${field}`}>
-      <AccordionTrigger>
-        <span className="flex items-center gap-2">
-          {label}
-          {value.trim() ? <Badge variant="secondary">Preenchido</Badge> : null}
-        </span>
-      </AccordionTrigger>
-      <AccordionContent>
-        <Textarea
-          aria-label={label}
-          rows={4}
-          maxLength={5000}
-          value={value}
-          onChange={(event) =>
-            setPhysicalExam((current) => ({ ...current, [field]: event.target.value }))
-          }
-          placeholder={`Registre os achados de ${label.toLocaleLowerCase("pt-BR")}.`}
-        />
-      </AccordionContent>
-    </AccordionItem>
-  );
-}
-
-function AnamnesisField({
-  label,
-  field,
-  value,
-  maxLength,
-  setAnamnesis,
-}: {
-  label: string;
-  field: keyof Anamnesis;
-  value: string;
-  maxLength: number;
-  setAnamnesis: React.Dispatch<React.SetStateAction<Anamnesis>>;
-}) {
-  return (
-    <AccordionItem value={`anamnesis-${field}`}>
-      <AccordionTrigger>
-        <span className="flex items-center gap-2">
-          {label}
-          {value.trim() ? <Badge variant="secondary">Preenchido</Badge> : null}
-        </span>
-      </AccordionTrigger>
-      <AccordionContent>
-        <Textarea
-          aria-label={label}
-          rows={4}
-          maxLength={maxLength}
-          value={value}
-          onChange={(event) =>
-            setAnamnesis((current) => ({ ...current, [field]: event.target.value }))
-          }
-          placeholder={`Registre ${label.toLocaleLowerCase("pt-BR")}.`}
-        />
-      </AccordionContent>
-    </AccordionItem>
-  );
-}
 
 function VitalsSection({
   vitals,

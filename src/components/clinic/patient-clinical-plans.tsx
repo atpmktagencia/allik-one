@@ -489,6 +489,27 @@ function Plans({
             setError("");
             setMessage("");
           }}
+          onDuplicate={(plan, record) => {
+            const source = record ?? selected;
+            beginEditor({
+              id: crypto.randomUUID(),
+              version: null,
+              title: `Cópia de ${source.title}`.slice(0, 160),
+              status: "DRAFT",
+              plan: structuredClone(plan),
+            });
+            setSelected(null);
+            setError("");
+            setMessage("Cópia em edição. O plano original não foi alterado.");
+          }}
+          onArchived={() => {
+            setSelected(null);
+            setMessage(
+              "Rascunho arquivado. O registro permanece no histórico; não houve exclusão física.",
+            );
+            setError("");
+            void query.refetch();
+          }}
         />
       )}
       {editor && (
@@ -515,11 +536,13 @@ function Plans({
                 value={editor.status}
                 onChange={(status) => setEditor({ ...editor, status: status as Head["status"] })}
               >
-                {Object.entries(statusNames).map(([value, label]) => (
-                  <option key={value} value={value}>
-                    {label}
-                  </option>
-                ))}
+                {Object.entries(statusNames)
+                  .filter(([value]) => value !== "ARCHIVED")
+                  .map(([value, label]) => (
+                    <option key={value} value={value}>
+                      {label}
+                    </option>
+                  ))}
               </Select>
               <label>
                 Data inicial do plano
@@ -968,15 +991,21 @@ function PlanDetail({
   head,
   canManage,
   onEdit,
+  onDuplicate,
+  onArchived,
 }: {
   patientId: string;
   appointmentId?: string | undefined;
   head: Head;
   canManage: boolean;
   onEdit: (plan: TreatmentPlanInput, record?: Head) => void;
+  onDuplicate: (plan: TreatmentPlanInput, record?: Head) => void;
+  onArchived: () => void;
 }) {
   const [tab, setTab] = useState<"clinical" | "quote">("clinical");
   const [quoteOpened, setQuoteOpened] = useState(false);
+  const [archivePending, setArchivePending] = useState(false);
+  const [archiveError, setArchiveError] = useState("");
   const query = useInventory<{
     plan: TreatmentPlanInput;
     preview: ComputedTreatmentPlan;
@@ -990,6 +1019,49 @@ function PlanDetail({
       <InventoryState pending={query.isPending} error={query.error} retry={() => query.refetch()} />
     );
   const data = query.data!;
+  const record = data.record ?? head;
+  const canEdit = canManage && record.canEdit === true && data.canEdit === true;
+  async function archiveDraft() {
+    if (record.status !== "DRAFT" || !canEdit || archivePending) return;
+    const version = data.record?.version ?? head.version;
+    const author = data.record?.authorUserId ?? head.authorUserId;
+    if (
+      !window.confirm(
+        `Arquivar este rascunho? Autor: ${author}. Versão: ${version}. Esta ação mantém o registro no histórico e não apaga dados fisicamente.`,
+      )
+    )
+      return;
+    setArchivePending(true);
+    setArchiveError("");
+    try {
+      const response = await fetch(withSelectedUnit("/api/v1/inventory/patient-treatment-plans"), {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "SAVE_PLAN",
+          id: record.id,
+          version,
+          patientId,
+          ...(appointmentId ? { appointmentId } : {}),
+          title: record.title,
+          status: "ARCHIVED",
+          plan: data.plan,
+          operationId: crypto.randomUUID(),
+        }),
+      });
+      const result = await readInventoryResponse<{ id: string; version: number }>(
+        response,
+        "Não foi possível arquivar o rascunho.",
+      );
+      if (!result.data) throw new Error("O servidor não confirmou o arquivamento.");
+      onArchived();
+    } catch (cause) {
+      setArchiveError(cause instanceof Error ? cause.message : "Falha de conexão.");
+    } finally {
+      setArchivePending(false);
+    }
+  }
   return (
     <div className="space-y-3">
       <h3 className="font-semibold">{data.record?.title ?? head.title}</h3>
@@ -997,10 +1069,31 @@ function PlanDetail({
         {statusNames[data.record?.status ?? head.status]} · versão{" "}
         {data.record?.version ?? head.version} · snapshot clínico independente
       </p>
-      {canManage && (data.record?.canEdit ?? head.canEdit) === true && data.canEdit === true && (
-        <Button variant="outline" onClick={() => onEdit(data.plan, data.record)}>
-          Editar plano clínico
-        </Button>
+      {canEdit && (
+        <div className="flex flex-wrap gap-2">
+          <Button variant="outline" onClick={() => onEdit(data.plan, data.record)}>
+            Editar plano clínico
+          </Button>
+          <Button variant="outline" onClick={() => onDuplicate(data.plan, data.record)}>
+            Duplicar plano clínico
+          </Button>
+          {record.status === "DRAFT" && (
+            <Button variant="outline" disabled={archivePending} onClick={() => void archiveDraft()}>
+              {archivePending ? "Arquivando…" : "Arquivar rascunho"}
+            </Button>
+          )}
+        </div>
+      )}
+      {record.status === "ACTIVE" && (
+        <p className="text-xs text-muted-foreground">
+          Planos ativos não podem ser excluídos por esta tela. Para corrigir, edite conforme a
+          autorização vigente ou crie uma nova versão.
+        </p>
+      )}
+      {archiveError && (
+        <p role="alert" className="text-sm text-destructive">
+          {archiveError}
+        </p>
       )}
       <div role="tablist" aria-label="Visões do plano clínico" className="flex flex-wrap gap-2">
         <Button
