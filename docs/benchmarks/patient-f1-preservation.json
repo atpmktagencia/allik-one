@@ -1,0 +1,32 @@
+{
+  "candidate": {
+    "sha": "a99712079deff8a1fc0df6d7260f2183b8f27218",
+    "deployment": "dpl_8eMtsBpW533oxeD2kDZGUHo89rmn",
+    "url": "https://allik-h1z8fw0b6-atp-mkt.vercel.app",
+    "target": "preview"
+  },
+  "before": {
+    "checked_at": "2026-10-20T23:09:22.836Z",
+    "results": "88",
+    "digest": "713f44bd5c8fa62783847475c61a3525",
+    "extractions": "25"
+  },
+  "after": {
+    "checked_at": "2026-10-20T23:22:11.286Z",
+    "results": "88",
+    "digest": "713f44bd5c8fa62783847475c61a3525",
+    "extractions": "25",
+    "f1_documents": "4",
+    "f1_laboratory_imports": "0"
+  },
+  "production": {
+    "id": "dpl_4ag81mHUxsDZ7VaKqnrKKHqKrFkp",
+    "sha": "091612549723e484d41bd3c984e877ddd19365e6"
+  },
+  "newPaidAiCalls": 0,
+  "classificationImplemented": false,
+  "automaticExtractionImplemented": false,
+  "migrationsAdded": 0,
+  "sandboxStopped": true,
+  "headlessPdfLimitation": "The private PDF response and SHA-256 were verified. Native PDF content was not rendered in the headless screenshot; the frame alone is not evidence of visual PDF rendering."
+}

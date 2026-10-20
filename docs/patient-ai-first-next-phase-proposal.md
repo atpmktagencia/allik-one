@@ -1,9 +1,13 @@
 # Proposta — Central de Documentos AI-First e exames longitudinais
 
-**Somente proposta, aguardando aprovação.** A rodada técnica D.2 foi encerrada
-com os seis casos reais e ressalvas documentadas. Não iniciar esta fase antes da
-aprovação do responsável. Nenhum componente, tabela, migration ou deployment desta proposta foi
-implementado. Não há necessidade demonstrada de trocar fornecedor ou adicionar OCR.
+**Escopo atualizado: F1 aprovada e implementada; F2–F5 continuam como proposta.**
+Veja [a entrega F1](patient-ai-first-f1.md), suas evidências e limitações. A rodada D.2
+foi encerrada com ressalvas. Nenhuma classificação por IA, novo prompt ou extração
+automática foi implementada na F1. A [proposta detalhada F2](patient-ai-first-f2-proposal.md)
+aguarda aprovação específica.
+
+O diagnóstico abaixo descreve a base anterior à F1, para preservar a justificativa
+original do plano. O relatório F1 descreve o estado atual do recebimento.
 
 ## 1. Diagnóstico do que já existe
 
@@ -165,8 +169,7 @@ será proposto com corpus definido e comparação equivalente, antes da F2/F3.
 
 Aprovação futura deve delimitar o primeiro marco, ambiente Preview sintético, orçamento
 e critérios; não implica implementar F1–F5 de uma vez. Portal completo, tela ao paciente,
-novos fornecedores, OCR e produção ficam fora desta proposta. **Nenhuma implementação
-foi iniciada.**
+novos fornecedores, OCR e produção ficam fora desta proposta. **Somente F1 foi implementada; F2–F5 não foram iniciadas.**
 
 ## 7. Condições adicionadas pelo encerramento D.2
 
@@ -190,6 +193,6 @@ multilinha. Isso orienta a implementação futura, sem autorizar correções nes
    Isso não mede tempo humano ou segurança de uso. Estudo humano não será realizado
    nesta fase, e nenhuma economia será anunciada sem medição autorizada posterior.
 
-Recomendação de aprovação: começar por **F1 — recebimento único**, acompanhado da
-especificação de classificação F2 e dos critérios acima. Aprovar F1 não autoriza
+F1 foi autorizada e entregue. Recomenda-se revisar agora a proposta específica F2 e
+os critérios acima, sem iniciar sua implementação. Aprovar F1 não autoriza
 automaticamente F2–F5, novas migrations, chamadas adicionais ou implantação em produção.

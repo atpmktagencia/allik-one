@@ -1,0 +1,96 @@
+{
+  "candidate": "a997120",
+  "origin": "https://allik-h1z8fw0b6-atp-mkt.vercel.app",
+  "patient": "90319847-c7a6-4adc-a08a-47cf5e2aef21",
+  "viewport": {
+    "width": 1440,
+    "height": 1000
+  },
+  "checks": [
+    "authorized synthetic Preview operator",
+    "compact unified entry without mandatory form or empty viewer",
+    "two files received sequentially through one selection",
+    "private originals reopen with exact SHA-256 and neutral receipt metadata",
+    "receipt opens the same document without laboratory review",
+    "duplicate detected; original offered without creating another copy",
+    "lost storage acknowledgement leaves an explicit retry, without automatic resend",
+    "retry reconciles the same stored identity without duplicate",
+    "patient document/exam navigation preserves the receipt queue",
+    "no laboratory OPEN/EXTRACT/VALIDATE action; no paid inference",
+    "private PDF loaded into contextual iframe; native headless PDF rendering not visually verified",
+    "explicitly categorized lab document has identical source identity in patient and exam views"
+  ],
+  "documents": [
+    {
+      "id": "ec04f126-6d65-4811-82ee-d1d322b4da43",
+      "title": "F1-1792538177748-A.pdf",
+      "classificationPending": true,
+      "sha256": "64afb253b5972367c81bbef2d6885d93a0725dcb51f70be83af76e298921b9de"
+    },
+    {
+      "id": "92fedafe-6116-4081-aef0-45f583748216",
+      "title": "F1-1792538177748-B.pdf",
+      "classificationPending": true,
+      "sha256": "32049fe7cf634fc1cdaeee3443f6c6cc35647d8964ab2f7b39970e486c8b71bc"
+    },
+    {
+      "id": "dfc05ef3-ba11-445d-aac5-b313f85df194",
+      "title": "F1-1792538177748-C.pdf"
+    },
+    {
+      "id": "ec597440-789a-45de-973f-847ba9332ce2",
+      "title": "F1-1792538461797-LAB-manual.pdf",
+      "categories": ["LAB_RESULT"],
+      "manualCategory": true
+    }
+  ],
+  "laboratoryPosts": 0,
+  "uploads": [
+    {
+      "status": 201
+    },
+    {
+      "status": 201
+    },
+    {
+      "status": 409
+    },
+    {
+      "status": 200
+    }
+  ],
+  "completed": true,
+  "limitations": [
+    "No human usability outcomes measured.",
+    "Native PDF viewer was blank in headless capture; response bytes/download integrity were verified.",
+    "Initial visual harness targeted the history route; corrected to the Patient workspace before upload tests.",
+    "Initial local E2E could not launch its expected browser; rerun passed using an explicit Chrome executable."
+  ],
+  "screenshots": [
+    {
+      "path": "docs/screenshots/patient-f1/01-central.jpg",
+      "sha256": "92f7843bf6a84abfa94d670ebcc79f1f89e2d6749b11fc3a5fd8850fcf95959e",
+      "bytes": 111300
+    },
+    {
+      "path": "docs/screenshots/patient-f1/02-recebidos.jpg",
+      "sha256": "df50c69ff422d3e9c3ea6e60dfd3cfa0d0c3399c0817577e31ee2bf134f92397",
+      "bytes": 109021
+    },
+    {
+      "path": "docs/screenshots/patient-f1/03-duplicado.jpg",
+      "sha256": "44cabd0e64093c34ad4a3dab3e57115afcaf9d549d80ced36cc55b2ecd0ff9f2",
+      "bytes": 100864
+    },
+    {
+      "path": "docs/screenshots/patient-f1/04-retentativa.jpg",
+      "sha256": "1853326e2640630a43abe7dcda545bc6f0e30a911b4537a1e9e182751e52dfba",
+      "bytes": 102712
+    },
+    {
+      "path": "docs/screenshots/patient-f1/05-original.jpg",
+      "sha256": "e7aec80a99ded4415b70bda4ebb8df09b59d3acbf147b44e1fc35355be50c6f9",
+      "bytes": 113162
+    }
+  ]
+}
