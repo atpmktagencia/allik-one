@@ -34,7 +34,11 @@ it.each(laboratoryBenchmarkCases)("evaluates a verified synthetic original: $id"
     checkLaboratoryEvidence(r, source.status === "available" ? source.pages : undefined),
   );
   const trusted = checks.map((c) => c.basis === "source_text" && c.status === "literal_match");
-  if (!supplied) expect(trusted).toEqual(item.trust);
+  // The v2 fixture treated Portuguese labels as an implicit DD/MM convention.
+  // V3 explicitly requires an unambiguous date or a printed format declaration.
+  // Preserve the original fixture/report while labeling this new safety policy.
+  const expectedTrust = item.id === "dates-and-metadata" ? [false] : item.trust;
+  if (!supplied) expect(trusted).toEqual(expectedTrust);
   const inventory = experimentLaboratoryInventory(
     source.status === "available" ? source.pages : [],
     predictions,
@@ -54,9 +58,10 @@ it.each(laboratoryBenchmarkCases)("evaluates a verified synthetic original: $id"
       ? { trusted: trusted.filter(Boolean).length, falseAlerts: null, unsafeTrusted: null }
       : {
           trusted: trusted.filter(Boolean).length,
-          falseAlerts: trusted.filter((v, i) => !v && item.trust[i]).length,
-          unsafeTrusted: trusted.filter((v, i) => v && !item.trust[i]).length,
+          falseAlerts: trusted.filter((v, i) => !v && expectedTrust[i]).length,
+          unsafeTrusted: trusted.filter((v, i) => v && !expectedTrust[i]).length,
         },
+    trustReferencePolicy: "v3-explicit-date-format; original-v2-fixtures-unchanged",
     localProcessingMilliseconds: performance.now() - started,
     inferenceMilliseconds: null,
     costUsd: null,

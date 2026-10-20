@@ -7,6 +7,11 @@ import {
 } from "./laboratory-extraction";
 import { LABORATORY_EXTRACTION_POLICY as limits } from "../lib/laboratory-extraction-policy";
 import { emptyLaboratoryRow } from "../lib/laboratory-results";
+import { checkLaboratoryEvidence } from "../lib/laboratory-evidence";
+import {
+  LABORATORY_PIPELINE_VERSION,
+  LABORATORY_PROMPT_VERSION,
+} from "../lib/laboratory-pipeline-version";
 const sdk = vi.hoisted(() => ({ generate: vi.fn() }));
 vi.mock("ai", () => ({
   generateText: sdk.generate,
@@ -130,13 +135,100 @@ it("reports only sanitized aggregate usage through the extraction boundary", asy
     expect.objectContaining({
       inputTokens: 123,
       outputTokens: 45,
-      pipelineVersion: "lab-pipeline-2",
-      promptVersion: "lab-transcription-2",
+      pipelineVersion: LABORATORY_PIPELINE_VERSION,
+      promptVersion: LABORATORY_PROMPT_VERSION,
       extractedRows: 1,
       estimatedCostUsd: null,
     }),
   );
   expect(JSON.stringify(observed.mock.calls)).not.toMatch(/PRIVATE|DO_NOT_STORE|credential/);
+});
+
+it("recovers unambiguous missing date roles from independently parsed source and audits only their locations", async () => {
+  const source = {
+    status: "available" as const,
+    totalPages: 1,
+    pages: [
+      {
+        page: 1,
+        text: "Coleta: 2026-01-02\nData do resultado: 2026-01-04\nEmissão: 2026-01-05\nFerritina: 45.5 ng/mL",
+      },
+    ],
+  };
+  sdk.generate.mockResolvedValue({
+    output: {
+      notes: "",
+      rows: [
+        {
+          ...extractedRow(),
+          name: "Ferritina",
+          result: "45.5",
+          unit: "ng/mL",
+          sourcePage: 1,
+          uncertainty: "Conferir datas.",
+        },
+      ],
+    },
+  });
+  const telemetry = vi.fn();
+  const draft = await extractLaboratoryPdf(new Uint8Array(), "synthetic/model", source, telemetry);
+  expect(sdk.generate).toHaveBeenCalledTimes(1);
+  expect(draft.rows[0]).toMatchObject({
+    collectedOn: "2026-01-02",
+    reportedOn: "2026-01-04",
+    issuedOn: "2026-01-05",
+    uncertainty: "Conferir datas.",
+    verified: false,
+  });
+  expect(draft.patientConfirmed).toBe(false);
+  expect(telemetry).toHaveBeenCalledWith(
+    expect.objectContaining({
+      dateRecoveries: [
+        { row: 0, field: "collectedOn", page: 1, line: 1 },
+        { row: 0, field: "reportedOn", page: 1, line: 2 },
+        { row: 0, field: "issuedOn", page: 1, line: 3 },
+      ],
+    }),
+  );
+  expect(JSON.stringify(telemetry.mock.calls)).not.toMatch(/Ferritina|45.5|Conferir datas/);
+});
+
+it("leaves the stage C ambiguous dates absent and preserves model uncertainty without silently assuming DD/MM", async () => {
+  const source = {
+    status: "available" as const,
+    totalPages: 1,
+    pages: [
+      {
+        page: 1,
+        text: "Coleta: 02/01/2026\nData do resultado: 04/01/2026\nEmissão: 05/01/2026\nFerritina: 45.5 ng/mL",
+      },
+    ],
+  };
+  sdk.generate.mockResolvedValue({
+    output: {
+      notes: "",
+      rows: [
+        {
+          ...extractedRow(),
+          name: "Ferritina",
+          result: "45.5",
+          unit: "ng/mL",
+          sourcePage: 1,
+          uncertainty: "Datas ambíguas.",
+        },
+      ],
+    },
+  });
+  const telemetry = vi.fn();
+  const draft = await extractLaboratoryPdf(new Uint8Array(), "synthetic/model", source, telemetry);
+  expect(draft.rows[0]).toMatchObject({
+    collectedOn: null,
+    reportedOn: null,
+    issuedOn: null,
+    uncertainty: "Datas ambíguas.",
+    verified: false,
+  });
+  expect(telemetry.mock.calls[0]![0].dateRecoveries).toBeUndefined();
 });
 
 const sourcePages = (count: number) => ({
@@ -242,6 +334,22 @@ it("rejects invented source page provenance and aggregate overflow without trunc
   await expect(
     extractLaboratoryPdf(new Uint8Array(), "synthetic/model", sourcePages(4)),
   ).rejects.toThrow();
+});
+it("uses structural page counts to reject invented scan provenance without treating scan text as independent evidence", async () => {
+  const scan = { status: "unavailable" as const, reason: "NO_TEXT" as const, totalPages: 1 };
+  sdk.generate.mockResolvedValueOnce(outputFor(99));
+  await expect(
+    extractLaboratoryPdf(new Uint8Array(), "synthetic/model", scan),
+  ).rejects.toMatchObject({ name: "ZodError" });
+  sdk.generate.mockResolvedValueOnce(outputFor(1));
+  const draft = await extractLaboratoryPdf(new Uint8Array(), "synthetic/model", scan);
+  expect(draft.rows[0]!.sourcePage).toBe(1);
+  expect(checkLaboratoryEvidence(draft.rows[0]!)).toMatchObject({
+    status: "attention",
+    issues: expect.arrayContaining(["INDEPENDENT_SOURCE_UNAVAILABLE"]),
+  });
+  expect(draft.rows[0]!.verified).toBe(false);
+  expect(draft.patientConfirmed).toBe(false);
 });
 it("caps the number of model calls for very large documents", async () => {
   sdk.generate.mockResolvedValue(outputFor(1));

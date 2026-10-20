@@ -2,7 +2,7 @@ import { z } from "zod";
 import type { LaboratoryRow } from "./laboratory-results";
 
 export const laboratorySourceChecksSchema = z.object({
-  version: z.union([z.literal(1), z.literal(2)]),
+  version: z.union([z.literal(1), z.literal(2), z.literal(3)]),
   parserStatus: z.enum(["available", "unavailable"]),
   totalPages: z.number().int().min(0).max(1000),
   rows: z
@@ -57,7 +57,9 @@ export const laboratoryEvidenceIssueLabels: Record<string, string> = {
   ASSOCIATION_UNPROVEN: "Associação entre exame e resultado não comprovada",
   DATE_UNSUPPORTED: "Data sem evidência correspondente",
   DATE_CONTRADICTION: "Data contraditória ou sequência temporal inconsistente",
+  DATE_AMBIGUOUS: "Formato ou associação da data exige conferência",
   METADATA_UNSUPPORTED: "Metadado sem evidência correspondente",
   METADATA_CONTRADICTION: "Metadado diferente da fonte ou com múltiplos valores",
+  METADATA_SCOPE_AMBIGUOUS: "Metadados de blocos diferentes exigem conferência de origem",
   FIELD_OMITTED: "Informação presente na fonte não preenchida",
 };

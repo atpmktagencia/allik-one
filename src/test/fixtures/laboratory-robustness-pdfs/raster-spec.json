@@ -1,0 +1,62 @@
+{
+  "classification": "SYNTHETIC_ONLY_NO_REAL_PATIENT_DATA",
+  "generator": "scripts/generate-laboratory-robustness-rasters.py",
+  "font": "DejaVuSans.ttf",
+  "seed": 17012026,
+  "degradation": {
+    "originalPixels": [
+      1600,
+      1100
+    ],
+    "downsamplePixels": [
+      800,
+      550
+    ],
+    "blurRadius": 0.45,
+    "contrast": 0.72,
+    "noiseRangeInclusive": [
+      -15,
+      15
+    ]
+  },
+  "rotationDegrees": 90,
+  "sources": {
+    "scan-degraded.png": {
+      "legible": [
+        {
+          "name": "TSH",
+          "result": "0,55",
+          "unit": "mUI/L",
+          "reference": "0,4 - 4,0"
+        },
+        {
+          "name": "Anti-HCV",
+          "result": "Não reagente",
+          "reference": "Não reagente"
+        }
+      ]
+    },
+    "scan-rotated.png": {
+      "sameLegibleContentAs": "scan-degraded.png",
+      "rotationDegrees": 90
+    },
+    "scan-partially-masked.png": {
+      "legible": [
+        {
+          "name": "TSH",
+          "result": "0,55",
+          "unit": "mUI/L",
+          "reference": "0,4 - 4,0"
+        }
+      ],
+      "unreadable": [
+        {
+          "name": "Ferritina",
+          "unit": "ng/mL",
+          "result": null
+        }
+      ],
+      "mask": "value never drawn; raster rectangle only"
+    }
+  }
+}

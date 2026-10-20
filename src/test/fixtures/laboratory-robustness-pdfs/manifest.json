@@ -1,0 +1,224 @@
+{
+  "classification": "SYNTHETIC_ONLY_NO_REAL_PATIENT_DATA",
+  "referenceBasis": "Hand-authored source specimens and independent expected observations; never model-generated or derived from predictions.",
+  "generator": "scripts/generate-laboratory-robustness.ts",
+  "dependencies": "Existing PDFKit; Python 3 + Pillow and system DejaVuSans for raster fixtures. Not a runtime dependency.",
+  "cases": [
+    {
+      "id": "geometric-current-previous",
+      "format": "digital",
+      "tags": [
+        "geometric_table",
+        "multiple_columns",
+        "current_previous",
+        "different_units"
+      ],
+      "pages": 1,
+      "sha256": "639ba299b70d691af2c551532c453d237760f77c04891da723fa1dafbd3b64c4",
+      "legibleObservations": 3,
+      "notes": "PDF positions each cell independently; plain text separators do not encode table geometry. Prior values are not additional current observations.",
+      "rendering": "geometric-table",
+      "raster": null,
+      "expectedUnresolved": []
+    },
+    {
+      "id": "many-pages-repeated-parameters",
+      "format": "digital",
+      "tags": [
+        "many_pages",
+        "native_text_batches",
+        "repeated_parameters",
+        "iso_dates"
+      ],
+      "pages": 8,
+      "sha256": "2eda2f67fe173823b8f581d07a31c65a60c354d3e0f7228155bce8738df64430",
+      "legibleObservations": 24,
+      "notes": "Twenty-four distinct observations: same analyte on another source page/date must not be silently deduplicated. All eight pages exceed the native-text batching threshold. Previous TSH values are not current results; Anti-HCV provides a repeated qualitative observation.",
+      "rendering": "text",
+      "raster": null,
+      "expectedUnresolved": []
+    },
+    {
+      "id": "scan-degraded",
+      "format": "scanned",
+      "tags": [
+        "scanned",
+        "degraded",
+        "visual_extraction",
+        "qualitative"
+      ],
+      "pages": 1,
+      "sha256": "7bfd8067d9a8411847577aef967936f49ea07a21810e3ed7b5a66ee99033c436",
+      "legibleObservations": 2,
+      "notes": "Deterministic downsample, blur, contrast loss and seeded pixel noise. Legibility requires inspecting raster; no text layer is provided to verifier.",
+      "rendering": "raster",
+      "raster": "scan-degraded.png",
+      "expectedUnresolved": []
+    },
+    {
+      "id": "scan-rotated",
+      "format": "scanned",
+      "tags": [
+        "scanned",
+        "degraded",
+        "rotated_90_degrees",
+        "visual_extraction",
+        "qualitative"
+      ],
+      "pages": 1,
+      "sha256": "4a28be6d344c59d69e661bdf32a6fbe96de5c830163620785fa8db038009cead",
+      "legibleObservations": 2,
+      "notes": "Degraded raster rotated by 90 degrees, embedded without orientation repair; no independent OCR is simulated.",
+      "rendering": "raster",
+      "raster": "scan-rotated.png",
+      "expectedUnresolved": []
+    },
+    {
+      "id": "dates-explicit-ddmm",
+      "format": "digital",
+      "tags": [
+        "dates",
+        "explicit_format",
+        "numeric_ambiguity_resolved"
+      ],
+      "pages": 1,
+      "sha256": "c02cd0c5584a344b0806997a1d571c6ac23167de7e3f56ecfe8b8dbb25290c49",
+      "legibleObservations": 1,
+      "notes": "Same numeric dates as Stage C but format is explicitly declared; expected interpretation is not inferred from language.",
+      "rendering": "text",
+      "raster": null,
+      "expectedUnresolved": []
+    },
+    {
+      "id": "dates-unambiguous-ddmm",
+      "format": "digital",
+      "tags": [
+        "dates",
+        "day_greater_than_12",
+        "explicit_roles"
+      ],
+      "pages": 1,
+      "sha256": "19438ac446c4f59a2c9486daf3ecf1465a4712cf6c7ff8beb9146c156926d694",
+      "legibleObservations": 1,
+      "notes": "All day components exceed twelve, ruling out MM/DD without a locale assumption.",
+      "rendering": "text",
+      "raster": null,
+      "expectedUnresolved": []
+    },
+    {
+      "id": "dates-iso",
+      "format": "digital",
+      "tags": [
+        "dates",
+        "iso",
+        "explicit_roles"
+      ],
+      "pages": 1,
+      "sha256": "4a4f2cb4613d3f5b334d7970464a22babde182b185036235216f5bb0cba33dba",
+      "legibleObservations": 1,
+      "notes": "Unambiguous ISO source dates and distinct date roles.",
+      "rendering": "text",
+      "raster": null,
+      "expectedUnresolved": []
+    },
+    {
+      "id": "dates-ambiguous-no-format",
+      "format": "digital",
+      "tags": [
+        "dates",
+        "ambiguous",
+        "must_abstain"
+      ],
+      "pages": 1,
+      "sha256": "e51c1b65eb10791dd6368b5c96d3bf67c059ec442d0e8b4e61f378ecc28d7f77",
+      "legibleObservations": 1,
+      "notes": "Date values are present but both DD/MM and MM/DD are possible. Null structured dates plus uncertainty is expected; these are not genuinely absent fields.",
+      "rendering": "text",
+      "raster": null,
+      "expectedUnresolved": [
+        {
+          "name": "Ferritina",
+          "sourcePage": 1,
+          "reason": "ambiguous_date",
+          "fields": [
+            "collectedOn",
+            "reportedOn",
+            "issuedOn"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "historical-dates-current-result",
+      "format": "digital",
+      "tags": [
+        "dates",
+        "historical_date",
+        "current_previous"
+      ],
+      "pages": 1,
+      "sha256": "cdcd1685270e095e3909f220c37b1f14b4fa112fa275b11b1b8613991f633dc5",
+      "legibleObservations": 1,
+      "notes": "The clearly labeled historical section is context only, not a second current observation or date source for the current row.",
+      "rendering": "text",
+      "raster": null,
+      "expectedUnresolved": []
+    },
+    {
+      "id": "reference-formats-qualitative",
+      "format": "digital",
+      "tags": [
+        "qualitative",
+        "comparators",
+        "reference_formats",
+        "multiline_reference"
+      ],
+      "pages": 1,
+      "sha256": "0f752f467f70742f79df1a336ceaf8bdc185fa17b02e0e43c358639293885a48",
+      "legibleObservations": 3,
+      "notes": "Preserve full labeled reference text without selecting a population or inventing a universal ideal interval. Last reference is on the following line.",
+      "rendering": "text",
+      "raster": null,
+      "expectedUnresolved": []
+    },
+    {
+      "id": "similar-names-distinct-units",
+      "format": "digital",
+      "tags": [
+        "similar_names",
+        "different_units",
+        "no_unit_conversion"
+      ],
+      "pages": 1,
+      "sha256": "ee4aa15b3938609be1cca4d73d8eae95a01827b74d9b794939a3ce939b49c9d9",
+      "legibleObservations": 4,
+      "notes": "Distinct named parameters and units; no prefix matching, unit scaling or cross-parameter normalization is authorized.",
+      "rendering": "text",
+      "raster": null,
+      "expectedUnresolved": []
+    },
+    {
+      "id": "scan-partially-masked",
+      "format": "scanned",
+      "tags": [
+        "scanned",
+        "partially_illegible",
+        "masked_result",
+        "must_abstain"
+      ],
+      "pages": 1,
+      "sha256": "5b82d8f3d95b810407f71cad86ed6ca8cfb629e3272631c7f2320a1bb68d4713",
+      "legibleObservations": 1,
+      "notes": "Ferritina name and ng/mL unit remain visible but its value is genuinely covered in the raster. Do not score a hidden original number as a legible omission; any numeric Ferritina output is unsupported.",
+      "rendering": "raster",
+      "raster": "scan-partially-masked.png",
+      "expectedUnresolved": [
+        {
+          "name": "Ferritina",
+          "sourcePage": 1,
+          "reason": "unreadable"
+        }
+      ]
+    }
+  ]
+}

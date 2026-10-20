@@ -1,4 +1,5 @@
 import type { LaboratoryRow } from "./laboratory-results";
+import { interpretLaboratoryDate, laboratoryDatesChronological } from "./laboratory-date-evidence";
 import {
   laboratoryAssociations,
   laboratoryMetadata,
@@ -19,7 +20,9 @@ export type LaboratoryEvidenceIssue =
   | "ASSOCIATION_UNPROVEN"
   | "DATE_UNSUPPORTED"
   | "DATE_CONTRADICTION"
+  | "DATE_AMBIGUOUS"
   | "METADATA_UNSUPPORTED"
+  | "METADATA_SCOPE_AMBIGUOUS"
   | "METADATA_CONTRADICTION"
   | "FIELD_OMITTED";
 export type LaboratorySourcePage = { page: number; text: string };
@@ -59,17 +62,6 @@ const keys: LaboratoryEvidenceField[] = [
   "material",
 ];
 const fold = (s: string) => normalizeLaboratoryText(s).toLocaleLowerCase("pt-BR");
-function sourceDate(s: string) {
-  const match = s.match(
-    /^(\d{4}-\d{2}-\d{2}|\d{2}\/\d{2}\/\d{4})(?:\s+(?:às\s*)?\d{2}:\d{2}(?::\d{2})?)?$/u,
-  );
-  if (!match) return null;
-  const value = match[1]!;
-  const iso = value.includes("/") ? value.split("/").reverse().join("-") : value;
-  return Number.isFinite(Date.parse(iso)) && new Date(iso).toISOString().slice(0, 10) === iso
-    ? iso
-    : null;
-}
 /** Independent source and explicit textual association are required for eligibility.
  * No row changes, fuzzy names, unit conversion, inferred geometry, or publication. */
 export function checkLaboratoryEvidence(
@@ -156,6 +148,8 @@ export function checkLaboratoryEvidence(
       add(row.reference ? "REFERENCE_NOT_FOUND" : "FIELD_OMITTED");
   }
   const metadata = laboratoryMetadata(lines, association);
+  if (metadata.scopeAmbiguous) add("METADATA_SCOPE_AMBIGUOUS");
+  const formats = (metadata.dateFormat ?? []).map((item) => item.value);
   for (const key of [
     "collectedOn",
     "reportedOn",
@@ -165,9 +159,17 @@ export function checkLaboratoryEvidence(
     "material",
   ] as const) {
     if (key === "issuedOn" && !(key in row)) continue;
+    if (metadata.scopeAmbiguous && metadata.ambiguousFields?.includes(key)) {
+      fields[key] = { status: "insufficient" };
+      if (row[key]) add(key.endsWith("On") ? "DATE_UNSUPPORTED" : "METADATA_UNSUPPORTED");
+      continue;
+    }
     const values = metadata[key] ?? [];
     const isDate = key.endsWith("On");
-    const normalized = values.map((v) => (isDate ? sourceDate(v.value) : fold(v.value)));
+    const dates = isDate ? values.map((v) => interpretLaboratoryDate(v.value, formats)) : [];
+    const ambiguous = dates.some((date) => date.status === "ambiguous");
+    if (ambiguous) add("DATE_AMBIGUOUS");
+    const normalized = isDate ? dates.map((date) => date.value) : values.map((v) => fold(v.value));
     const unique = [...new Set(normalized)];
     const actual = row[key];
     if (!actual && !values.length) continue;
@@ -179,10 +181,16 @@ export function checkLaboratoryEvidence(
     const match =
       unique.length === 1 && unique[0] !== null && unique[0] === (isDate ? actual : fold(actual));
     fields[key] = {
-      status: match ? "supported" : values.length ? "contradictory" : "insufficient",
+      status: match
+        ? "supported"
+        : ambiguous
+          ? "insufficient"
+          : values.length
+            ? "contradictory"
+            : "insufficient",
       ...(values.length === 1 ? { page: page.page, line: values[0]!.line } : {}),
     };
-    if (!match)
+    if (!match && !ambiguous)
       add(
         isDate
           ? values.length
@@ -193,12 +201,7 @@ export function checkLaboratoryEvidence(
             : "METADATA_UNSUPPORTED",
       );
   }
-  if (
-    (row.collectedOn && row.reportedOn && row.collectedOn > row.reportedOn) ||
-    (row.issuedOn &&
-      ((row.reportedOn && row.reportedOn > row.issuedOn) ||
-        (row.collectedOn && row.collectedOn > row.issuedOn)))
-  ) {
+  if (!laboratoryDatesChronological(row)) {
     add("DATE_CONTRADICTION");
     for (const key of ["collectedOn", "reportedOn", "issuedOn"] as const)
       if (row[key]) fields[key] = { status: "contradictory" };

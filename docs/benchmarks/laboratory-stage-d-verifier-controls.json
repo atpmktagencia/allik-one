@@ -1,0 +1,975 @@
+{
+  "outputOrigin": "synthetic-independent-deterministic-controls-not-live-inference",
+  "purpose": "Same observations and source text, independently specified trust labels, compared across old and new verifiers. Not clinical accuracy or real-model improvement.",
+  "oldCommit": "4e9f9c034e9465e87cd0d96394ae3814ca2511f9",
+  "oldSources": [
+    {
+      "path": "src/lib/laboratory-evidence.ts",
+      "sha256": "73267c000c8f0df3825a06fd3c16ed6ee3bfe87fa27fd83b02a6ea8bdef76875"
+    },
+    {
+      "path": "src/lib/laboratory-source-association.ts",
+      "sha256": "6ae089f4ba54ae97dbd24b68484c8edb347869a15ce05e86665d04982b17af99"
+    }
+  ],
+  "currentSources": [
+    {
+      "path": "src/lib/laboratory-evidence.ts",
+      "sha256": "cded726c69a7ae881e477b75c3245d9046aec52e60d00befe942af5e66e6d83f"
+    },
+    {
+      "path": "src/lib/laboratory-source-association.ts",
+      "sha256": "14818a5e84c665d55fc54688d905d8f6063f8d14a1a7d5733166e5ee506a3072"
+    },
+    {
+      "path": "src/lib/laboratory-date-evidence.ts",
+      "sha256": "1e7a858834a135508d90d80e568cb5b9338d5de43d7bcd11106b98d09bdf47e4"
+    }
+  ],
+  "cases": [
+    {
+      "id": "ambiguous-numeric-date-assumed-dmy",
+      "expectedLegitimateTrust": false,
+      "rationale": "02/01 is ambiguous without a declared date order; a filled date cannot be independently trusted.",
+      "text": "Coleta: 02/01/2026\nGlicose: 90 mg/dL",
+      "row": {
+        "name": "Glicose",
+        "result": "90",
+        "unit": "mg/dL",
+        "reference": null,
+        "collectedOn": "2026-01-02",
+        "reportedOn": null,
+        "laboratory": null,
+        "method": null,
+        "material": null,
+        "sourcePage": 1,
+        "evidence": null,
+        "uncertainty": null,
+        "verified": false,
+        "issuedOn": null
+      },
+      "before": {
+        "status": "literal_match",
+        "basis": "source_text",
+        "issues": [],
+        "fields": {
+          "name": {
+            "status": "supported",
+            "page": 1,
+            "line": 2
+          },
+          "result": {
+            "status": "supported",
+            "page": 1,
+            "line": 2
+          },
+          "unit": {
+            "status": "supported",
+            "page": 1,
+            "line": 2
+          },
+          "reference": {
+            "status": "absent",
+            "page": 1,
+            "line": 2
+          },
+          "collectedOn": {
+            "status": "supported",
+            "page": 1,
+            "line": 1
+          },
+          "reportedOn": {
+            "status": "absent"
+          },
+          "issuedOn": {
+            "status": "absent"
+          },
+          "laboratory": {
+            "status": "absent"
+          },
+          "method": {
+            "status": "absent"
+          },
+          "material": {
+            "status": "absent"
+          }
+        }
+      },
+      "after": {
+        "status": "attention",
+        "basis": "source_text",
+        "issues": ["DATE_AMBIGUOUS"],
+        "fields": {
+          "name": {
+            "status": "supported",
+            "page": 1,
+            "line": 2
+          },
+          "result": {
+            "status": "supported",
+            "page": 1,
+            "line": 2
+          },
+          "unit": {
+            "status": "supported",
+            "page": 1,
+            "line": 2
+          },
+          "reference": {
+            "status": "absent",
+            "page": 1,
+            "line": 2
+          },
+          "collectedOn": {
+            "status": "insufficient",
+            "page": 1,
+            "line": 1
+          },
+          "reportedOn": {
+            "status": "absent"
+          },
+          "issuedOn": {
+            "status": "absent"
+          },
+          "laboratory": {
+            "status": "absent"
+          },
+          "method": {
+            "status": "absent"
+          },
+          "material": {
+            "status": "absent"
+          }
+        }
+      },
+      "beforeEligible": true,
+      "afterEligible": false
+    },
+    {
+      "id": "wrong-earlier-laboratory-date-inherited",
+      "expectedLegitimateTrust": false,
+      "rationale": "A new laboratory/date block intervenes; Lab A's metadata cannot be assigned to Ureia in Lab B's block.",
+      "text": "Laboratório: Laboratório A\nColeta: 2026-01-15\nGlicose: 90 mg/dL\nLaboratório: Laboratório B\nColeta: 2026-02-20\nUreia: 30 mg/dL",
+      "row": {
+        "name": "Ureia",
+        "result": "30",
+        "unit": "mg/dL",
+        "reference": null,
+        "collectedOn": "2026-01-15",
+        "reportedOn": null,
+        "laboratory": "Laboratório A",
+        "method": null,
+        "material": null,
+        "sourcePage": 1,
+        "evidence": null,
+        "uncertainty": null,
+        "verified": false,
+        "issuedOn": null
+      },
+      "before": {
+        "status": "literal_match",
+        "basis": "source_text",
+        "issues": [],
+        "fields": {
+          "name": {
+            "status": "supported",
+            "page": 1,
+            "line": 6
+          },
+          "result": {
+            "status": "supported",
+            "page": 1,
+            "line": 6
+          },
+          "unit": {
+            "status": "supported",
+            "page": 1,
+            "line": 6
+          },
+          "reference": {
+            "status": "absent",
+            "page": 1,
+            "line": 6
+          },
+          "collectedOn": {
+            "status": "supported",
+            "page": 1,
+            "line": 2
+          },
+          "reportedOn": {
+            "status": "absent"
+          },
+          "issuedOn": {
+            "status": "absent"
+          },
+          "laboratory": {
+            "status": "supported",
+            "page": 1,
+            "line": 1
+          },
+          "method": {
+            "status": "absent"
+          },
+          "material": {
+            "status": "absent"
+          }
+        }
+      },
+      "after": {
+        "status": "attention",
+        "basis": "source_text",
+        "issues": ["METADATA_SCOPE_AMBIGUOUS", "DATE_UNSUPPORTED", "METADATA_UNSUPPORTED"],
+        "fields": {
+          "name": {
+            "status": "supported",
+            "page": 1,
+            "line": 6
+          },
+          "result": {
+            "status": "supported",
+            "page": 1,
+            "line": 6
+          },
+          "unit": {
+            "status": "supported",
+            "page": 1,
+            "line": 6
+          },
+          "reference": {
+            "status": "absent",
+            "page": 1,
+            "line": 6
+          },
+          "collectedOn": {
+            "status": "insufficient"
+          },
+          "reportedOn": {
+            "status": "absent"
+          },
+          "issuedOn": {
+            "status": "absent"
+          },
+          "laboratory": {
+            "status": "insufficient"
+          },
+          "method": {
+            "status": "absent"
+          },
+          "material": {
+            "status": "absent"
+          }
+        }
+      },
+      "beforeEligible": true,
+      "afterEligible": false
+    },
+    {
+      "id": "age-header-hides-omitted-source-date",
+      "expectedLegitimateTrust": false,
+      "rationale": "The source prints an unambiguous collection date; treating an age as the first analyte must not hide its omission.",
+      "text": "Idade: 53 anos\nColeta: 2026-01-15\nGlicose: 90 mg/dL",
+      "row": {
+        "name": "Glicose",
+        "result": "90",
+        "unit": "mg/dL",
+        "reference": null,
+        "collectedOn": null,
+        "reportedOn": null,
+        "laboratory": null,
+        "method": null,
+        "material": null,
+        "sourcePage": 1,
+        "evidence": null,
+        "uncertainty": null,
+        "verified": false,
+        "issuedOn": null
+      },
+      "before": {
+        "status": "literal_match",
+        "basis": "source_text",
+        "issues": [],
+        "fields": {
+          "name": {
+            "status": "supported",
+            "page": 1,
+            "line": 3
+          },
+          "result": {
+            "status": "supported",
+            "page": 1,
+            "line": 3
+          },
+          "unit": {
+            "status": "supported",
+            "page": 1,
+            "line": 3
+          },
+          "reference": {
+            "status": "absent",
+            "page": 1,
+            "line": 3
+          },
+          "collectedOn": {
+            "status": "absent"
+          },
+          "reportedOn": {
+            "status": "absent"
+          },
+          "issuedOn": {
+            "status": "absent"
+          },
+          "laboratory": {
+            "status": "absent"
+          },
+          "method": {
+            "status": "absent"
+          },
+          "material": {
+            "status": "absent"
+          }
+        }
+      },
+      "after": {
+        "status": "attention",
+        "basis": "source_text",
+        "issues": ["FIELD_OMITTED"],
+        "fields": {
+          "name": {
+            "status": "supported",
+            "page": 1,
+            "line": 3
+          },
+          "result": {
+            "status": "supported",
+            "page": 1,
+            "line": 3
+          },
+          "unit": {
+            "status": "supported",
+            "page": 1,
+            "line": 3
+          },
+          "reference": {
+            "status": "absent",
+            "page": 1,
+            "line": 3
+          },
+          "collectedOn": {
+            "status": "insufficient"
+          },
+          "reportedOn": {
+            "status": "absent"
+          },
+          "issuedOn": {
+            "status": "absent"
+          },
+          "laboratory": {
+            "status": "absent"
+          },
+          "method": {
+            "status": "absent"
+          },
+          "material": {
+            "status": "absent"
+          }
+        }
+      },
+      "beforeEligible": true,
+      "afterEligible": false
+    },
+    {
+      "id": "pagination-emitted-as-analyte",
+      "expectedLegitimateTrust": false,
+      "rationale": "Page numbering is not a laboratory parameter, even if the number and a nearby date match literally.",
+      "text": "Página: 1\nColeta: 2026-01-15\nGlicose: 90 mg/dL",
+      "row": {
+        "name": "Página",
+        "result": "1",
+        "unit": null,
+        "reference": null,
+        "collectedOn": "2026-01-15",
+        "reportedOn": null,
+        "laboratory": null,
+        "method": null,
+        "material": null,
+        "sourcePage": 1,
+        "evidence": null,
+        "uncertainty": null,
+        "verified": false,
+        "issuedOn": null
+      },
+      "before": {
+        "status": "literal_match",
+        "basis": "source_text",
+        "issues": [],
+        "fields": {
+          "name": {
+            "status": "supported",
+            "page": 1,
+            "line": 1
+          },
+          "result": {
+            "status": "supported",
+            "page": 1,
+            "line": 1
+          },
+          "unit": {
+            "status": "absent",
+            "page": 1,
+            "line": 1
+          },
+          "reference": {
+            "status": "absent",
+            "page": 1,
+            "line": 1
+          },
+          "collectedOn": {
+            "status": "supported",
+            "page": 1,
+            "line": 2
+          },
+          "reportedOn": {
+            "status": "absent"
+          },
+          "issuedOn": {
+            "status": "absent"
+          },
+          "laboratory": {
+            "status": "absent"
+          },
+          "method": {
+            "status": "absent"
+          },
+          "material": {
+            "status": "absent"
+          }
+        }
+      },
+      "after": {
+        "status": "attention",
+        "basis": "source_text",
+        "issues": ["ASSOCIATION_UNPROVEN"],
+        "fields": {
+          "name": {
+            "status": "insufficient"
+          },
+          "result": {
+            "status": "insufficient"
+          },
+          "unit": {
+            "status": "absent"
+          },
+          "reference": {
+            "status": "absent"
+          },
+          "collectedOn": {
+            "status": "supported",
+            "page": 1,
+            "line": 2
+          },
+          "reportedOn": {
+            "status": "absent"
+          },
+          "issuedOn": {
+            "status": "absent"
+          },
+          "laboratory": {
+            "status": "absent"
+          },
+          "method": {
+            "status": "absent"
+          },
+          "material": {
+            "status": "absent"
+          }
+        }
+      },
+      "beforeEligible": true,
+      "afterEligible": false
+    },
+    {
+      "id": "next-laboratory-header-applied-backward",
+      "expectedLegitimateTrust": false,
+      "rationale": "Metadata between observations may introduce the following laboratory; it is not an unequivocal postfix for Glicose.",
+      "text": "Glicose: 90 mg/dL\nLaboratório: Laboratório B\nColeta: 2026-02-20\nUreia: 30 mg/dL",
+      "row": {
+        "name": "Glicose",
+        "result": "90",
+        "unit": "mg/dL",
+        "reference": null,
+        "collectedOn": "2026-02-20",
+        "reportedOn": null,
+        "laboratory": "Laboratório B",
+        "method": null,
+        "material": null,
+        "sourcePage": 1,
+        "evidence": null,
+        "uncertainty": null,
+        "verified": false,
+        "issuedOn": null
+      },
+      "before": {
+        "status": "literal_match",
+        "basis": "source_text",
+        "issues": [],
+        "fields": {
+          "name": {
+            "status": "supported",
+            "page": 1,
+            "line": 1
+          },
+          "result": {
+            "status": "supported",
+            "page": 1,
+            "line": 1
+          },
+          "unit": {
+            "status": "supported",
+            "page": 1,
+            "line": 1
+          },
+          "reference": {
+            "status": "absent",
+            "page": 1,
+            "line": 1
+          },
+          "collectedOn": {
+            "status": "supported",
+            "page": 1,
+            "line": 3
+          },
+          "reportedOn": {
+            "status": "absent"
+          },
+          "issuedOn": {
+            "status": "absent"
+          },
+          "laboratory": {
+            "status": "supported",
+            "page": 1,
+            "line": 2
+          },
+          "method": {
+            "status": "absent"
+          },
+          "material": {
+            "status": "absent"
+          }
+        }
+      },
+      "after": {
+        "status": "attention",
+        "basis": "source_text",
+        "issues": ["METADATA_SCOPE_AMBIGUOUS", "DATE_UNSUPPORTED", "METADATA_UNSUPPORTED"],
+        "fields": {
+          "name": {
+            "status": "supported",
+            "page": 1,
+            "line": 1
+          },
+          "result": {
+            "status": "supported",
+            "page": 1,
+            "line": 1
+          },
+          "unit": {
+            "status": "supported",
+            "page": 1,
+            "line": 1
+          },
+          "reference": {
+            "status": "absent",
+            "page": 1,
+            "line": 1
+          },
+          "collectedOn": {
+            "status": "insufficient"
+          },
+          "reportedOn": {
+            "status": "absent"
+          },
+          "issuedOn": {
+            "status": "absent"
+          },
+          "laboratory": {
+            "status": "insufficient"
+          },
+          "method": {
+            "status": "absent"
+          },
+          "material": {
+            "status": "absent"
+          }
+        }
+      },
+      "beforeEligible": true,
+      "afterEligible": false
+    },
+    {
+      "id": "intervening-date-applied-backward",
+      "expectedLegitimateTrust": false,
+      "rationale": "A collection date between two observations has unproven scope; the verifier must not choose the preceding one silently.",
+      "text": "Glicose: 90 mg/dL\nColeta: 2026-02-20\nUreia: 30 mg/dL",
+      "row": {
+        "name": "Glicose",
+        "result": "90",
+        "unit": "mg/dL",
+        "reference": null,
+        "collectedOn": "2026-02-20",
+        "reportedOn": null,
+        "laboratory": null,
+        "method": null,
+        "material": null,
+        "sourcePage": 1,
+        "evidence": null,
+        "uncertainty": null,
+        "verified": false,
+        "issuedOn": null
+      },
+      "before": {
+        "status": "literal_match",
+        "basis": "source_text",
+        "issues": [],
+        "fields": {
+          "name": {
+            "status": "supported",
+            "page": 1,
+            "line": 1
+          },
+          "result": {
+            "status": "supported",
+            "page": 1,
+            "line": 1
+          },
+          "unit": {
+            "status": "supported",
+            "page": 1,
+            "line": 1
+          },
+          "reference": {
+            "status": "absent",
+            "page": 1,
+            "line": 1
+          },
+          "collectedOn": {
+            "status": "supported",
+            "page": 1,
+            "line": 2
+          },
+          "reportedOn": {
+            "status": "absent"
+          },
+          "issuedOn": {
+            "status": "absent"
+          },
+          "laboratory": {
+            "status": "absent"
+          },
+          "method": {
+            "status": "absent"
+          },
+          "material": {
+            "status": "absent"
+          }
+        }
+      },
+      "after": {
+        "status": "attention",
+        "basis": "source_text",
+        "issues": ["METADATA_SCOPE_AMBIGUOUS", "DATE_UNSUPPORTED"],
+        "fields": {
+          "name": {
+            "status": "supported",
+            "page": 1,
+            "line": 1
+          },
+          "result": {
+            "status": "supported",
+            "page": 1,
+            "line": 1
+          },
+          "unit": {
+            "status": "supported",
+            "page": 1,
+            "line": 1
+          },
+          "reference": {
+            "status": "absent",
+            "page": 1,
+            "line": 1
+          },
+          "collectedOn": {
+            "status": "insufficient"
+          },
+          "reportedOn": {
+            "status": "absent"
+          },
+          "issuedOn": {
+            "status": "absent"
+          },
+          "laboratory": {
+            "status": "absent"
+          },
+          "method": {
+            "status": "absent"
+          },
+          "material": {
+            "status": "absent"
+          }
+        }
+      },
+      "beforeEligible": true,
+      "afterEligible": false
+    },
+    {
+      "id": "positive-unambiguous-iso-header",
+      "expectedLegitimateTrust": true,
+      "rationale": "A unique ISO date in the common header has a clear role and no intervening block.",
+      "text": "Coleta: 2026-01-15\nGlicose: 90 mg/dL",
+      "row": {
+        "name": "Glicose",
+        "result": "90",
+        "unit": "mg/dL",
+        "reference": null,
+        "collectedOn": "2026-01-15",
+        "reportedOn": null,
+        "laboratory": null,
+        "method": null,
+        "material": null,
+        "sourcePage": 1,
+        "evidence": null,
+        "uncertainty": null,
+        "verified": false,
+        "issuedOn": null
+      },
+      "before": {
+        "status": "literal_match",
+        "basis": "source_text",
+        "issues": [],
+        "fields": {
+          "name": {
+            "status": "supported",
+            "page": 1,
+            "line": 2
+          },
+          "result": {
+            "status": "supported",
+            "page": 1,
+            "line": 2
+          },
+          "unit": {
+            "status": "supported",
+            "page": 1,
+            "line": 2
+          },
+          "reference": {
+            "status": "absent",
+            "page": 1,
+            "line": 2
+          },
+          "collectedOn": {
+            "status": "supported",
+            "page": 1,
+            "line": 1
+          },
+          "reportedOn": {
+            "status": "absent"
+          },
+          "issuedOn": {
+            "status": "absent"
+          },
+          "laboratory": {
+            "status": "absent"
+          },
+          "method": {
+            "status": "absent"
+          },
+          "material": {
+            "status": "absent"
+          }
+        }
+      },
+      "after": {
+        "status": "literal_match",
+        "basis": "source_text",
+        "issues": [],
+        "fields": {
+          "name": {
+            "status": "supported",
+            "page": 1,
+            "line": 2
+          },
+          "result": {
+            "status": "supported",
+            "page": 1,
+            "line": 2
+          },
+          "unit": {
+            "status": "supported",
+            "page": 1,
+            "line": 2
+          },
+          "reference": {
+            "status": "absent",
+            "page": 1,
+            "line": 2
+          },
+          "collectedOn": {
+            "status": "supported",
+            "page": 1,
+            "line": 1
+          },
+          "reportedOn": {
+            "status": "absent"
+          },
+          "issuedOn": {
+            "status": "absent"
+          },
+          "laboratory": {
+            "status": "absent"
+          },
+          "method": {
+            "status": "absent"
+          },
+          "material": {
+            "status": "absent"
+          }
+        }
+      },
+      "beforeEligible": true,
+      "afterEligible": true
+    },
+    {
+      "id": "positive-explicit-dmy-header",
+      "expectedLegitimateTrust": true,
+      "rationale": "The common source header explicitly declares DD/MM/AAAA, so 02/01 is not an unresolved locale assumption.",
+      "text": "Formato das datas: DD/MM/AAAA\nColeta: 02/01/2026\nGlicose: 90 mg/dL",
+      "row": {
+        "name": "Glicose",
+        "result": "90",
+        "unit": "mg/dL",
+        "reference": null,
+        "collectedOn": "2026-01-02",
+        "reportedOn": null,
+        "laboratory": null,
+        "method": null,
+        "material": null,
+        "sourcePage": 1,
+        "evidence": null,
+        "uncertainty": null,
+        "verified": false,
+        "issuedOn": null
+      },
+      "before": {
+        "status": "literal_match",
+        "basis": "source_text",
+        "issues": [],
+        "fields": {
+          "name": {
+            "status": "supported",
+            "page": 1,
+            "line": 3
+          },
+          "result": {
+            "status": "supported",
+            "page": 1,
+            "line": 3
+          },
+          "unit": {
+            "status": "supported",
+            "page": 1,
+            "line": 3
+          },
+          "reference": {
+            "status": "absent",
+            "page": 1,
+            "line": 3
+          },
+          "collectedOn": {
+            "status": "supported",
+            "page": 1,
+            "line": 2
+          },
+          "reportedOn": {
+            "status": "absent"
+          },
+          "issuedOn": {
+            "status": "absent"
+          },
+          "laboratory": {
+            "status": "absent"
+          },
+          "method": {
+            "status": "absent"
+          },
+          "material": {
+            "status": "absent"
+          }
+        }
+      },
+      "after": {
+        "status": "literal_match",
+        "basis": "source_text",
+        "issues": [],
+        "fields": {
+          "name": {
+            "status": "supported",
+            "page": 1,
+            "line": 3
+          },
+          "result": {
+            "status": "supported",
+            "page": 1,
+            "line": 3
+          },
+          "unit": {
+            "status": "supported",
+            "page": 1,
+            "line": 3
+          },
+          "reference": {
+            "status": "absent",
+            "page": 1,
+            "line": 3
+          },
+          "collectedOn": {
+            "status": "supported",
+            "page": 1,
+            "line": 2
+          },
+          "reportedOn": {
+            "status": "absent"
+          },
+          "issuedOn": {
+            "status": "absent"
+          },
+          "laboratory": {
+            "status": "absent"
+          },
+          "method": {
+            "status": "absent"
+          },
+          "material": {
+            "status": "absent"
+          }
+        }
+      },
+      "beforeEligible": true,
+      "afterEligible": true
+    }
+  ],
+  "totals": {
+    "controls": 8,
+    "expectedLegitimatelyEligible": 2,
+    "before": {
+      "eligible": 8,
+      "unsafeEligible": 6,
+      "falseAlerts": 0
+    },
+    "after": {
+      "eligible": 2,
+      "unsafeEligible": 0,
+      "falseAlerts": 0
+    }
+  }
+}

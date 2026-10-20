@@ -169,7 +169,7 @@ describe("independent laboratory field evidence", () => {
     expect(c.fields.collectedOn.status).toBe("absent");
   });
   const source =
-    "Laboratório: Laboratório Fictício\nColeta: 02/01/2026\nData do resultado: 04/01/2026\nEmissão: 05/01/2026\nMétodo: Quimioluminescência\nMaterial: Soro\nTSH: <0,1 µUI/mL Referência: 0,27 – 4,2";
+    "Formato das datas: DD/MM/AAAA\nLaboratório: Laboratório Fictício\nColeta: 02/01/2026\nData do resultado: 04/01/2026\nEmissão: 05/01/2026\nMétodo: Quimioluminescência\nMaterial: Soro\nTSH: <0,1 µUI/mL Referência: 0,27 – 4,2";
   const dated = () =>
     row({
       collectedOn: "2026-01-02",

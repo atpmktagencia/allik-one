@@ -366,7 +366,7 @@ export function LaboratoryReview({
       !!row.name.trim() &&
       !!row.result.trim() &&
       !row.uncertainty?.trim() &&
-      data?.evidenceChecks?.version === 2 &&
+      data?.evidenceChecks?.version === 3 &&
       check?.basis === "source_text" &&
       check.status === "literal_match" &&
       check.fields?.["name"]?.status === "supported" &&

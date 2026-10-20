@@ -14,6 +14,8 @@ export type LaboratoryPdfText =
   | {
       status: "unavailable";
       reason: "INVALID_PDF" | "FILE_LIMIT" | "PAGE_LIMIT" | "TEXT_LIMIT" | "NO_TEXT" | "TIMEOUT";
+      /** Structural PDF metadata only, never independent OCR or extracted text. */
+      totalPages?: number;
     };
 
 /** Independent literal text only: no OCR, AI, interpretation or remote resources.
@@ -78,7 +80,7 @@ export async function extractLaboratoryPdfText(bytes: Uint8Array): Promise<Labor
       }
       return pages.some((page) => page.text.trim())
         ? { status: "available", pages, totalPages: pdf.numPages }
-        : { status: "unavailable", reason: "NO_TEXT" };
+        : { status: "unavailable", reason: "NO_TEXT", totalPages: pdf.numPages };
     } catch {
       return { status: "unavailable", reason: expired ? "TIMEOUT" : "INVALID_PDF" };
     } finally {

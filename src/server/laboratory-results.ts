@@ -337,7 +337,7 @@ async function finishExtraction(
     sourceChecks = {
       version: LABORATORY_VERIFIER_VERSION,
       parserStatus: text.status,
-      totalPages: text.status === "available" ? text.totalPages : 0,
+      totalPages: text.totalPages ?? 0,
       rows: draft.rows.map((row) =>
         checkLaboratoryEvidence(row, text.status === "available" ? text.pages : undefined),
       ),

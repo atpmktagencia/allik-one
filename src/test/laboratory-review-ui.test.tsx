@@ -108,7 +108,7 @@ it("reviews beside the original, saves before validation and preserves literal r
   expect(screen.getByRole("button", { name: "Corrigir resultados" })).toBeInTheDocument();
 });
 
-async function openExtractedReview(version = 2) {
+async function openExtractedReview(version = 3) {
   const rows = [
     { ...emptyLaboratoryRow(), name: "TSH", result: "<0,1", evidence: "TSH <0,1", sourcePage: 1 },
     {
@@ -169,7 +169,7 @@ async function openExtractedReview(version = 2) {
   render(<LaboratoryReview patientId="patient" documentId="doc" />);
   fireEvent.click(screen.getByRole("button", { name: "Conferir resultados laboratoriais" }));
   await screen.findByDisplayValue("Ferritina");
-  if (version === 2)
+  if (version === 3)
     await waitFor(() =>
       expect(
         screen.getByRole("button", { name: "Conferi as 2 linhas sem pendências" }),
@@ -386,10 +386,13 @@ it("does not reconcile a forbidden extraction as a transport failure", async () 
   expect(reads).toBe(0);
 });
 
-it("keeps legacy evidence readable without granting current bulk eligibility", async () => {
-  await openExtractedReview(1);
-  expect(screen.getByRole("button", { name: /Conferi as 0/ })).toBeDisabled();
-  expect(screen.getByLabelText("Conferir linha 1")).not.toBeChecked();
-  fireEvent.click(screen.getByLabelText("Conferir linha 1"));
-  expect(screen.getByLabelText("Conferir linha 1")).toBeChecked();
-});
+it.each([1, 2])(
+  "keeps legacy v%s evidence readable without granting current bulk eligibility",
+  async (version) => {
+    await openExtractedReview(version);
+    expect(screen.getByRole("button", { name: /Conferi as 0/ })).toBeDisabled();
+    expect(screen.getByLabelText("Conferir linha 1")).not.toBeChecked();
+    fireEvent.click(screen.getByLabelText("Conferir linha 1"));
+    expect(screen.getByLabelText("Conferir linha 1")).toBeChecked();
+  },
+);

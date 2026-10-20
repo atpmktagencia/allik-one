@@ -50,6 +50,7 @@ it("does not invent text for a scanned/blank page or return parser details for i
   expect(await extractLaboratoryPdfText(await pdfBytes([""]))).toEqual({
     status: "unavailable",
     reason: "NO_TEXT",
+    totalPages: 1,
   });
   expect(await extractLaboratoryPdfText(new TextEncoder().encode("not PDF"))).toEqual({
     status: "unavailable",

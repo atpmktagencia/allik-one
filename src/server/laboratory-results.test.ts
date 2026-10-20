@@ -324,7 +324,7 @@ describe("laboratory import, review and isolation", () => {
     extracted.rows[0]!.sourcePage = 1;
     extracted.rows[0]!.evidence = "TSH <0,1 µUI/mL Referência: 0,27–4,2";
     const sourceText =
-      "Cabeçalho exclusivo do PDF fictício\nColeta: 02/01/2026\n" + extracted.rows[0]!.evidence;
+      "Cabeçalho exclusivo do PDF fictício\nColeta: 2026-01-02\n" + extracted.rows[0]!.evidence;
     ai.extract.mockImplementation(async (_bytes, _model, _text, observe) => {
       const t = createLaboratoryTelemetry("openai", "synthetic/model");
       t.start();
@@ -355,7 +355,7 @@ describe("laboratory import, review and isolation", () => {
     expect(d.import.draft.rows[0].verified).toBe(false);
     expect(d.import.extracted_payload.rows[0].result).toBe("<0,1");
     expect(d.evidenceChecks).toMatchObject({
-      version: 2,
+      version: 3,
       parserStatus: "available",
       totalPages: 1,
       rows: [
@@ -381,7 +381,7 @@ describe("laboratory import, review and isolation", () => {
       divergenceRows: 0,
       divergenceFields: 0,
       estimatedCostUsd: null,
-      pipelineVersion: "lab-pipeline-2",
+      pipelineVersion: "lab-pipeline-3",
     });
     expect(JSON.stringify(metadata)).not.toContain(sourceText);
     expect(JSON.stringify(metadata)).not.toContain(extracted.rows[0]!.evidence);

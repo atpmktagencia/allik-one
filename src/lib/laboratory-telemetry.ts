@@ -123,4 +123,12 @@ export function createLaboratoryTelemetry(provider: string, model: string, prici
 }
 export type LaboratoryExtractionTelemetry = ReturnType<
   ReturnType<typeof createLaboratoryTelemetry>["finish"]
->;
+> & {
+  /** Technical provenance only: values and source excerpts are never logged. */
+  dateRecoveries?: {
+    row: number;
+    field: "collectedOn" | "reportedOn" | "issuedOn";
+    page: number;
+    line: number;
+  }[];
+};

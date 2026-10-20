@@ -17,6 +17,7 @@ export type LaboratoryAssociation = {
   text: string;
 };
 export const laboratoryMetadataLabels = {
+  dateFormat: /^formato (?:das? |de )?datas?$/iu,
   collectedOn: /^(?:data (?:da |de )?coleta|coleta)$/iu,
   reportedOn:
     /^(?:data (?:do |de )?resultado|resultado em|liberação|data (?:da |de )?liberação)$/iu,
@@ -49,9 +50,14 @@ const referenceLabel = /(?:^|[;\s])(?:referência|referencia|ref\.?)(?:\s*(?:\.{
 const stopLabel =
   /(?:^|[;\s])(?:resultado anterior|anterior|histórico|historico|coleta|data|método|metodo|material|laboratório|laboratorio)\s*:?/iu;
 
+/** Identity, pagination and administrative dates are not analytes. These are exact
+ * header labels, not a guess based merely on a line containing digits. */
+const nonObservationLabel =
+  /^(?:página|pagina|idade|id(?: do paciente)?|identificação(?: do paciente)?|identificacao(?: do paciente)?|paciente|prontuário|prontuario|registro|data (?:de )?nascimento|nascimento|número do pedido|numero do pedido|requisição|requisicao|protocolo|pedido|código do paciente|codigo do paciente|número da amostra|numero da amostra)$/iu;
+
 /** Uses columns only when explicit separators and a unique current-result header survive. */
 export function laboratoryAssociations(lines: string[], name: string): LaboratoryAssociation[] {
-  if (!name.trim()) return [];
+  if (!name.trim() || nonObservationLabel.test(normalizeLaboratoryText(name))) return [];
   const matches: LaboratoryAssociation[] = [],
     target = folded(name);
   let historicalSection = false;
@@ -120,21 +126,75 @@ export function laboratoryAssociations(lines: string[], name: string): Laborator
   return matches;
 }
 
-/** Metadata must be a page header or immediately follow the anchored row. */
+function observationLine(line: string, tableHeader?: string) {
+  if (laboratoryLabeledField(line)) return false;
+  const candidate = line
+    .trim()
+    .match(
+      /^([\p{L}][^:|]{0,160}?)(?:\s*(?:\.{2,})?[:|]|\s+(?=(?:[<>≤≥]?\s*[+−-]?\d|não|reagente|negativo|positivo)))/iu,
+    )?.[1]
+    ?.trim();
+  if (!candidate || nonObservationLabel.test(candidate)) return false;
+  const context = line.includes("|") && tableHeader ? [tableHeader, line] : [line];
+  return laboratoryAssociations(context, candidate).some((item) => item.line === context.length);
+}
+
+/** Metadata must have an anchored scope; inter-observation date/lab blocks
+ * cannot be assumed to belong to either their preceding or following row. */
 export function laboratoryMetadata(
   lines: string[],
   association: LaboratoryAssociation | undefined,
 ) {
-  const result: Partial<Record<LaboratoryMetadataField, { value: string; line: number }[]>> = {};
-  const firstObservation = lines.findIndex(
-    (line) =>
-      !laboratoryLabeledField(line) &&
-      /^[\p{L}][^:|]{0,160}?(?::|\||\s)\s*(?:[<>≤≥]?\s*[+−-]?\d|não|reagente|negativo|positivo)/iu.test(
-        line.trim(),
+  const result: Partial<Record<LaboratoryMetadataField, { value: string; line: number }[]>> & {
+    scopeAmbiguous?: true;
+    ambiguousFields?: LaboratoryMetadataField[];
+  } = {};
+  let start = 0;
+  let historical = false;
+  const anchor = association ? association.line - 1 : lines.length - 1;
+  // Historical sections cannot supply the current observation's metadata.
+  for (let i = 0; i <= anchor; i++) {
+    if (
+      /^(?:resultados? anteriores?|histórico(?: de resultados)?|valores? de referência|referências?)\s*:?$/iu.test(
+        lines[i]!.trim(),
+      )
+    )
+      historical = true;
+    if (/^resultados? atuais?\s*:?$/iu.test(lines[i]!.trim())) {
+      historical = false;
+      start = i + 1;
+    }
+  }
+  if (historical) return result;
+  let tableHeader: string | undefined;
+  const relativeFirstObservation = lines.slice(start).findIndex((line) => {
+    if (/^\s*(?:exame|parâmetro|parametro)\s*\|/iu.test(line)) tableHeader = line;
+    // A valid name/current-result/unit cell must actually parse on this line.
+    // "Página 1 de 8" cannot pass as an observation just because it has a number.
+    // Keep the recognition context bounded instead of rescanning a long header.
+    return observationLine(line, tableHeader);
+  });
+  const firstObservation = relativeFirstObservation < 0 ? -1 : start + relativeFirstObservation;
+  // An intervening labeled block may describe a new specimen or the preceding
+  // analyte. Neither interpretation authorizes inheriting the earlier header.
+  const interveningMetadata =
+    association &&
+    firstObservation >= 0 &&
+    lines.slice(firstObservation + 1, anchor).some((line) => !!laboratoryLabeledField(line));
+  if (interveningMetadata) {
+    result.scopeAmbiguous = true;
+    result.ambiguousFields = [
+      ...new Set(
+        lines.slice(start, anchor).flatMap((line) => {
+          const labeled = laboratoryLabeledField(line);
+          return labeled ? [labeled.key] : [];
+        }),
       ),
-  );
+    ];
+  }
   const positions = new Set<number>();
-  for (let i = 0; i < (firstObservation < 0 ? 0 : firstObservation); i++) {
+  for (let i = start; i < (firstObservation < 0 ? start : firstObservation); i++) {
+    if (interveningMetadata) break;
     const labeled = laboratoryLabeledField(lines[i]!);
     // An analyte-specific method/material before the first observation is not
     // evidence that it also applies to subsequent observations on the page.
@@ -147,10 +207,36 @@ export function laboratoryMetadata(
     positions.add(i);
   }
   if (association) {
-    for (let i = association.line; i < lines.length; i++) {
-      if (!lines[i]!.trim()) continue;
-      if (!laboratoryLabeledField(lines[i]!)) break;
-      positions.add(i);
+    const postPositions: number[] = [];
+    let after = association.line;
+    for (; after < lines.length; after++) {
+      if (!lines[after]!.trim()) continue;
+      if (!laboratoryLabeledField(lines[after]!)) break;
+      postPositions.push(after);
+      positions.add(after);
+    }
+    const hasDateOrLab = postPositions.some((i) => {
+      const key = laboratoryLabeledField(lines[i]!)!.key;
+      return key === "laboratory" || key === "dateFormat" || key.endsWith("On");
+    });
+    let laterTableHeader: string | undefined;
+    const hasLaterObservation =
+      hasDateOrLab &&
+      lines.slice(after).some((line) => {
+        if (/^\s*(?:exame|parâmetro|parametro)\s*\|/iu.test(line)) laterTableHeader = line;
+        return observationLine(line, laterTableHeader);
+      });
+    if (hasLaterObservation) {
+      result.scopeAmbiguous = true;
+      result.ambiguousFields = [
+        ...new Set([
+          ...(result.ambiguousFields ?? []),
+          ...[...positions].flatMap((i) => {
+            const labeled = laboratoryLabeledField(lines[i]!);
+            return labeled ? [labeled.key] : [];
+          }),
+        ]),
+      ];
     }
   }
   for (const i of positions) {
