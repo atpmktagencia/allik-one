@@ -1,0 +1,30 @@
+{
+  "purpose": "AUTOMATED_SMOKE_NOT_HUMAN_USABILITY",
+  "htmlSha256": {
+    "participante-lote-1.html": "563b5d97b7633c05215f0f3481fd9a99d3b1309e789e32149c3e7d7c735e0ad3",
+    "participante-lote-2.html": "d0aef6a5bdfa731876f3b1ae92612587bf79dc268e3c95a8a377d800b5388775"
+  },
+  "checks": [
+    "csp_blocks_native_xhr_independently_of_fixture_fetch",
+    "group_1_extract_validate_reopen_external_unknown_scope_blocked",
+    "individual_condition_blocks_eligible_bulk_action",
+    "rotation_zoom_preserve_original_geometry",
+    "group_1_six_tasks_memory_snapshot_events_export_and_reset",
+    "group_2_extract_validate_reopen_external_unknown_scope_blocked",
+    "controlled_group_initial_unconfirmed_state_preserved",
+    "group_2_six_tasks_memory_snapshot_events_export_and_reset",
+    "zero_non_document_http_requests_issued_by_both_offline_documents",
+    "loopback_static_server_rejects_api_without_application_handlers",
+    "moderator_scoring_rejects_automated_exports_even_with_authorization_flag"
+  ],
+  "initialLoopbackDocuments": 2,
+  "assetApiOrExternalHttpRequests": 0,
+  "humanParticipantsMeasured": 0,
+  "clinicalRequests": 0,
+  "providerCalls": 0,
+  "viewport": {
+    "width": 1440,
+    "height": 900
+  },
+  "browser": "151.0.7922.173"
+}

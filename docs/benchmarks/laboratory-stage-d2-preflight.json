@@ -1,0 +1,44 @@
+{
+  "stage": "D.2",
+  "checkedAt": "2026-10-20 05:57:43 UTC",
+  "repositoryHead": "82b6dcae8c448fe4bd4a182c9a167f11d85524f8",
+  "candidate": {
+    "id": "dpl_9FxbUKdHHaKS1YLsiN7Rg5dGgfyt",
+    "sha": "2b16b12c7f6417ae3e9df6042a4e01f793379b07",
+    "branch": "feature/allik-patients",
+    "url": "allik-dkwdbf14o-atp-mkt.vercel.app",
+    "target": null,
+    "state": "READY"
+  },
+  "quotaBefore": [
+    {
+      "utc_now": "2026-10-20T05:35:04.266Z",
+      "bucket": "2026-10-20T00:00:00.000Z",
+      "attempts": 20
+    },
+    {
+      "utc_now": "2026-10-20T05:35:04.266Z",
+      "bucket": "2026-10-20T05:00:00.000Z",
+      "attempts": 5
+    }
+  ],
+  "historyBefore": [
+    {
+      "results": "88",
+      "digest": "713f44bd5c8fa62783847475c61a3525",
+      "reviews": "2"
+    }
+  ],
+  "scope": {
+    "neonProject": "little-dust-61663559",
+    "neonBranch": "br-winter-hill-b69uz195",
+    "dataClassification": "synthetic"
+  },
+  "paidInferenceDecision": "blocked_daily_quota_no_calls_or_overrides",
+  "humanStudy": {
+    "availabilityAndAuthorization": "user_confirmed_in_chat",
+    "measuredParticipants": 0,
+    "collectionStatus": "waiting_for_actual_participant_interactions"
+  },
+  "scheduledProviderCalls": 0
+}

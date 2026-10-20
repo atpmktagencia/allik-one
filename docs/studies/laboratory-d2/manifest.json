@@ -1,0 +1,28 @@
+{
+  "classification": "SYNTHETIC_ONLY_OFFLINE_STUDY_NOT_HUMAN_RESULTS",
+  "candidate": "2b16b12c7f6417ae3e9df6042a4e01f793379b07",
+  "componentSha256": "a784920720057edebc1f141f14b5e2ee8d99d3b4d625947159f2bb91fa921dd3",
+  "referenceSha256": "9bb8bead7b73ea3c456b01428aa8ed3512692ea3995132ade62100c596de7d9f",
+  "zipSha256": "d001f2d5bdc393d73d32d2012921683d68b9bd0d02f7cf632f2d770a1a98c250",
+  "zipBytes": 2634692,
+  "htmlSha256": {
+    "participante-lote-1.html": "563b5d97b7633c05215f0f3481fd9a99d3b1309e789e32149c3e7d7c735e0ad3",
+    "participante-lote-2.html": "d0aef6a5bdfa731876f3b1ae92612587bf79dc268e3c95a8a377d800b5388775"
+  },
+  "checksPassed": 11,
+  "humanParticipantsMeasured": 0,
+  "moderatorAnswersInParticipantZip": false,
+  "newPaidInferences": 0,
+  "sourceSha256": {
+    "scripts/laboratory-study/build.ts": "a47778face713f4d46892174dfe802756096dd141081348caaca34b17c9ac7ce",
+    "scripts/laboratory-study/main.tsx": "a8ff03ff4b3e8db703aa291151faf187bc91f8e2ec9e6bcbeeed611961b7a126",
+    "scripts/laboratory-study/package.ts": "06fd17a1409249b02558aef69b3d098de8d8d845bacedcce701f677f337f3d4c",
+    "scripts/laboratory-study/report.ts": "a78f1f9ae05f2b518394ede608906d1624aeb3ad035d191331bae3380a1d85a4",
+    "scripts/laboratory-study/runtime.ts": "dcc82a8bc1bf5101cc5cbba5c936572b8745041c92ec8f8d5bc24920a3552dad",
+    "scripts/laboratory-study/serve.ts": "cbf25cf2851bb61fae7ddd687d0fe2f962d3ed099fdaffbe53d8a9cd708e5849",
+    "scripts/laboratory-study/smoke.ts": "93447ed8a8eb9657aa80ea11dbc24dfcf1e99e9b5883f2821098405680520f54",
+    "scripts/laboratory-study/study.css": "56682191b5534536df1c3e88d55755c90d3b5c9b17cfdaefc97f28149d0b6572",
+    "scripts/laboratory-study/tsconfig.json": "fea5bb1114b5e2863d05b2e430e5b0ce09f041ce5d4b00bcb756a71c9a7f4e17",
+    "scripts/laboratory-study/viewer.tsx": "26b9b20321ac3ff3112311d363a6100fe49bd4e14b52b9bdcf6c229eeffc9b87"
+  }
+}

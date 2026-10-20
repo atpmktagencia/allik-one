@@ -1,0 +1,13 @@
+@import "../../src/styles.css";
+@source ".";
+
+[data-study-toolbar] button,
+main > button {
+  padding: 4px 8px;
+  border: 1px solid #d3e3e5;
+  border-radius: 6px;
+}
+
+button:disabled {
+  opacity: 0.45;
+}

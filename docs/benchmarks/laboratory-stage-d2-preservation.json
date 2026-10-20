@@ -1,0 +1,30 @@
+{
+  "checkedAt": "2026-10-20 06:01:21 UTC",
+  "historyBefore": [
+    {
+      "results": "88",
+      "digest": "713f44bd5c8fa62783847475c61a3525",
+      "reviews": "2"
+    }
+  ],
+  "historyAfter": [
+    {
+      "checked_at": "2026-10-20T05:59:13.689Z",
+      "results": "88",
+      "digest": "713f44bd5c8fa62783847475c61a3525",
+      "reviews": "2",
+      "daily_attempts": 20
+    }
+  ],
+  "productionAfter": {
+    "id": "dpl_4ag81mHUxsDZ7VaKqnrKKHqKrFkp",
+    "sha": "091612549723e484d41bd3c984e877ddd19365e6"
+  },
+  "newProviderRequests": 0,
+  "newClinicalImports": 0,
+  "clinicalWrites": 0,
+  "quotaOverride": false,
+  "scheduledProviderCalls": 0,
+  "humanParticipantsMeasured": 0,
+  "humanParticipationAuthorization": "user_confirmed_in_chat"
+}
