@@ -333,20 +333,16 @@ export function LaboratoryHistory({
       }
       aria-label="Histórico longitudinal de exames"
     >
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h3 className={compact ? "sr-only" : "font-semibold"}>
-            {compact ? "Histórico de resultados" : "Resultados laboratoriais"}
-          </h3>
-          <p
-            className={
-              compact ? "max-w-xl text-xs text-muted-foreground" : "text-sm text-muted-foreground"
-            }
-          >
-            Somente resultados confirmados. Unidades, métodos, material e laboratórios diferentes
-            permanecem separados.
-          </p>
-        </div>
+      <div>
+        <h3 className={compact ? "sr-only" : "font-semibold"}>
+          {compact ? "Histórico de resultados" : "Resultados laboratoriais"}
+        </h3>
+        <p className={compact ? "text-xs text-muted-foreground" : "text-sm text-muted-foreground"}>
+          Somente resultados confirmados. Unidades, métodos, material e laboratórios diferentes
+          permanecem separados.
+        </p>
+      </div>
+      <div className="flex flex-wrap items-end gap-2">
         <label className="sr-only" htmlFor={`laboratory-group-${patientId}`}>
           Grupo de exames
         </label>
@@ -375,7 +371,7 @@ export function LaboratoryHistory({
           <option value="desc">Mais recentes primeiro</option>
         </select>
         <Input
-          className="max-w-xs"
+          className="order-first min-w-44 max-w-xs flex-1"
           aria-label="Buscar parâmetro laboratorial"
           placeholder="Buscar exame…"
           value={search}
@@ -385,8 +381,6 @@ export function LaboratoryHistory({
             setDateOffset(0);
           }}
         />
-      </div>
-      <div className="flex flex-wrap gap-3">
         <label className="space-y-1 text-xs">
           Data inicial
           <Input
@@ -659,7 +653,14 @@ export function LaboratoryHistory({
                         {visibleDates.map((date) => (
                           <td key={date} className="p-3">
                             {(indexed.get(group.id)!.byDate.get(date) ?? []).map((entry) => (
-                              <div className="mb-3 space-y-1 last:mb-0" key={entry.id}>
+                              <div
+                                className={
+                                  compact
+                                    ? "mb-2 flex items-center gap-3 last:mb-0"
+                                    : "mb-3 space-y-1 last:mb-0"
+                                }
+                                key={entry.id}
+                              >
                                 {compact ? (
                                   <div
                                     className="flex items-center gap-1.5"

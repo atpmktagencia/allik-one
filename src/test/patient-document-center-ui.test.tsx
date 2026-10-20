@@ -83,6 +83,9 @@ describe("Patient private document center", () => {
     setup();
     const { rerender } = render(<PatientDocumentCenter patientId="patient" />);
     expect(fetch).not.toHaveBeenCalled();
+    expect(
+      screen.queryByRole("complementary", { name: "Prévia privada do documento" }),
+    ).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: /Solicitação sintética/ }));
     const preview = screen.getByRole("complementary", { name: "Prévia privada do documento" });
     expect(
@@ -103,6 +106,11 @@ describe("Patient private document center", () => {
     );
     fireEvent.change(screen.getByLabelText("Profissional"), { target: { value: "professional" } });
     expect(state.resources.at(-1)).toContain("professionalId=professional");
+    fireEvent.click(screen.getByRole("button", { name: "Fechar prévia" }));
+    expect(
+      screen.queryByRole("complementary", { name: "Prévia privada do documento" }),
+    ).not.toBeInTheDocument();
+    expect(screen.getByLabelText("Profissional")).toHaveValue("professional");
     rerender(<PatientDocumentCenter patientId="patient" examsOnly />);
     expect(state.resources.at(-1)).toContain("categoryGroup=EXAMS");
     expect(screen.queryByRole("button", { name: /Validar|Extrair/ })).not.toBeInTheDocument();

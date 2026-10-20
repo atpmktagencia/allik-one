@@ -480,9 +480,14 @@ export function PatientDocumentCenter({
             </fieldset>
           </form>
         )}
-        <div className="grid min-w-0 items-start gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(280px,350px)]">
+        <div
+          className={`grid min-w-0 items-start gap-5 ${selected ? "xl:grid-cols-[minmax(0,1fr)_minmax(280px,350px)]" : ""}`}
+        >
           <div className="min-w-0 space-y-4">
-            <div className="space-y-3" aria-label="Filtros de documentos">
+            <div
+              className="grid items-end gap-2 sm:grid-cols-2 xl:grid-cols-[minmax(200px,1fr)_minmax(0,3fr)] [&_input]:h-8 [&_select]:h-8 [&_select]:min-h-8 [&_select]:py-1 [&_select]:text-xs [&_label]:text-xs"
+              aria-label="Filtros de documentos"
+            >
               <label className="block space-y-1 text-sm">
                 Buscar documentos
                 <Input
@@ -491,7 +496,7 @@ export function PatientDocumentCenter({
                   placeholder="Nome do documento"
                 />
               </label>
-              <div className="grid gap-3 sm:grid-cols-2">
+              <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
                 <div>
                   <label htmlFor={`${id}-category`} className="mb-1 block text-sm">
                     Categoria
@@ -545,7 +550,7 @@ export function PatientDocumentCenter({
                   />
                 </label>
               </div>
-              <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="flex flex-wrap items-center justify-between gap-2 sm:col-span-2">
                 <div>
                   <label htmlFor={`${id}-sort`} className="mr-2 text-sm">
                     Ordenar por
@@ -723,12 +728,16 @@ export function PatientDocumentCenter({
           </div>
           <aside
             ref={detailRef}
+            hidden={!selected}
             aria-label="Prévia privada do documento"
             className="min-w-0 space-y-4 border-t border-slate-200 pt-4 xl:sticky xl:top-4 xl:border-l xl:border-t-0 xl:pl-4 xl:pt-0"
             key={`${patientId}:${unitId}`}
           >
             {selected ? (
               <>
+                <Button type="button" size="sm" variant="ghost" onClick={() => setSelected(null)}>
+                  Fechar prévia
+                </Button>
                 <div className="space-y-2">
                   <h3 className="break-words font-semibold">{selected.title}</h3>
                   <p className="text-xs text-muted-foreground">
