@@ -50,7 +50,7 @@ Histórico integra-se como seção do Paciente360º, com carregamento sob demand
 
 ### Migração e ambientes
 
-A migração 0076 é aditiva e necessária para o descarte auditado. Aplicada somente no projeto Neon de Preview `little-dust-61663559`, branch `br-winter-hill-b69uz195`, depois de conferir os 76 hashes anteriores. Agora são 77 migrações. Os cinco snapshots documentais finais permaneceram idênticos: fingerprint `04854324af21c6b7752428e2d9ca15e8` antes/depois. Nenhum paciente, usuário, receita ou questionário criado remotamente para esta entrega.
+A migração 0076 é aditiva e necessária para o descarte auditado. Aplicada somente no projeto Neon de Preview `little-dust-61663559`, branch `br-winter-hill-b69uz195`, depois de conferir os 76 hashes anteriores. Agora são 77 migrações. Os cinco snapshots documentais finais permaneceram idênticos: fingerprint `04854324af21c6b7752428e2d9ca15e8` antes/depois. Nenhum paciente, usuário, receita ou questionário criado remotamente para esta entrega. Uma consulta sintética foi criada pela API, com auditoria e regras de agenda, para o operador de Preview no paciente sintético existente: `de5f6c7a-2402-450c-b0e6-68ab34a70699`. O atendimento anterior pertence a outro profissional; sua autoria e conteúdo foram preservados. A consulta nova permanece agendada, sem evolução ou documento clínico criado.
 
 A integração Neon deve manter desativada “Create Database Branch For Deployment → Preview”: a injeção de credenciais owner por implantação substituía a conexão restrita configurada no projeto. Não se altera o banco nem a integração de Production.
 
@@ -61,13 +61,39 @@ A integração Neon deve manter desativada “Create Database Branch For Deploym
 - Unitários/interface: 500 testes aprovados em 76 arquivos.
 - Integração PostgreSQL: 424 testes aprovados em 37 arquivos, incluindo descarte idempotente, concorrência com finalização, isolamento e histórico laboratorial/questionários.
 - Provisionamento de papel restrito: 3/3; guardas de build/migrações: 8/8.
-- Testes de navegador e evidências do Preview: em validação final.
+- E2E completo com usuário restrito: 17/17 aprovados.
+- Após ajustes visuais adicionais em Exames/Documentos: 16 testes de interface e 2 E2E dos fluxos afetados aprovados; teste de fechar prévia e preservar filtro: 7/7.
+- Cenário beta no bundle de produção, com autenticação individual, migração 0012→0076 e backup/restauração descartáveis: aprovado. Isso não comprova restauração de produção.
+- Candidato inicial: `c78329c77586eec6a260557f4a2670f657bab717`; ajuste final de espaço: `ab86cfd85329c43447c0c634406d65560a9f50bb`.
+- Preview final: deployment `dpl_8R5NB4q3ur3grvcNPz8VMiGuJPsT`, `allik-ga6cmtzwj-atp-mkt.vercel.app`, alias fixo abaixo. Produção continua em `dpl_4ag81mHUxsDZ7VaKqnrKKHqKrFkp`.
 
 Nas reproduções iniciais, o navegador Chromium esperado pelo Playwright não estava instalado; a execução passou a usar `/usr/bin/chromium`. Os cenários antigos foram adaptados para abrir arquivos recolhidos e acessar o editor documental secundário. Uma duplicação de “Voltar às solicitações” foi encontrada pelo E2E e corrigida na aplicação.
 
 - Escritas de testes automatizados são feitas em PostgreSQL 16 descartável, com conta restrita no navegador. Não representam ensaios em produção.
 - Trocar abas mantém os componentes e buffers locais montados. Recarregamento recupera os rascunhos explicitamente salvos; alterações locais ainda não persistidas usam aviso de saída. Não se promete recuperação após fechamento forçado/crash do navegador, nem se introduziu cópia de dados clínicos no localStorage.
 - Erro de rede e conflito de versão mantêm conteúdo local e exigem correção explícita. Não há sobrescrita silenciosa automática.
+- Não foi possível confirmar o status remoto do GitHub Actions nesta sessão; o CLI respondeu 403 e o conector disponível consulta somente execuções de pull request. Os resultados declarados são dos comandos efetivamente executados e do build READY na Vercel.
 - Não se executou nova chamada paga de IA, envio de mensagens ou auditoria externa. O pipeline existente foi preservado e ensaiado com extração sintética no banco descartável.
 - Validação visual usa os dados existentes e sintéticos, portanto nomes, conteúdo e contagens diferem dos mockups. Não foram adicionados valores clínicos para preencher espaços.
 - Concluir atendimento continua sujeito às validações existentes; descartar documento não finaliza evolução, assina receita, cria venda ou consome estoque.
+
+## Preview e evidências visuais
+
+[Preview fixo — pacientes](https://allik-one-git-feature-allik-patients-atp-mkt.vercel.app/pacientes) · [Consulta sintética do operador](https://allik-one-git-feature-allik-patients-atp-mkt.vercel.app/atendimentos/de5f6c7a-2402-450c-b0e6-68ab34a70699).
+
+Resolução de referência: 1536 × 1024. Nas oito telas, header global de 54 px, sidebar de 206 px e ausência de overflow horizontal. Barra das cinco etapas fixa em x=238, y=244, largura=1278 e altura=44 nas cinco abas. Nenhum POST clínico emitido pela navegação; zero erros de JavaScript. O PDF original foi aberto e fechado: tabela com 1228 px, 758 px com o painel aberto e 1228 px após fechar. Prévia privada em URL blob e detalhes do resultado confirmados no Preview.
+
+Comparação com os mockups: preservados fundo claro, bordas discretas, teal, cabeçalho clínico horizontal e editor central com contexto lateral. Exames ocupa a largura sem PDF vazio; filtros foram compactados após a primeira captura. Documentos também passou a abrir a prévia sob demanda e recuperar largura ao fechar. Prescrição utiliza intencionalmente três colunas para biblioteca, composição e prévia; formulário documental anterior fica secundário. Avatar por iniciais quando não há foto. Sinais vitais, diagnósticos, categorias e estados exibem somente os dados existentes; uma consulta agendada apresenta ações de início e não simula conclusão.
+
+| Tela                       | Screenshot no Preview                                     |
+| -------------------------- | --------------------------------------------------------- |
+| Anamnese                   | [Abrir captura](ux2-evidence/01-anamnese.jpg)             |
+| Exames                     | [Abrir captura](ux2-evidence/02-exames.jpg)               |
+| Prescrição                 | [Abrir captura](ux2-evidence/03-prescricao.jpg)           |
+| Solicitações               | [Abrir captura](ux2-evidence/04-solicitacoes.jpg)         |
+| Revisão                    | [Abrir captura](ux2-evidence/05-revisao.jpg)              |
+| Paciente360º — Visão geral | [Abrir captura](ux2-evidence/06-paciente-visao-geral.jpg) |
+| Documentos                 | [Abrir captura](ux2-evidence/07-documentos.jpg)           |
+| Histórico                  | [Abrir captura](ux2-evidence/08-historico.jpg)            |
+
+Não se declara equivalência pixel a pixel: o mockup contém dados, fotos, estados e recursos que não se substituem por exemplos fictícios. A implementação preserva operações clínicas reais e a distinção entre orçamento, receita, venda, assinatura e execução.

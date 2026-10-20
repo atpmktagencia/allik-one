@@ -1,0 +1,103 @@
+{
+  "viewport": "1536x1024",
+  "screens": [
+    {
+      "name": "01-anamnese",
+      "width": 1536,
+      "scrollWidth": 1536,
+      "header": 54,
+      "sidebar": 206
+    },
+    {
+      "name": "02-exames",
+      "width": 1536,
+      "scrollWidth": 1536,
+      "header": 54,
+      "sidebar": 206
+    },
+    {
+      "name": "03-prescricao",
+      "width": 1536,
+      "scrollWidth": 1536,
+      "header": 54,
+      "sidebar": 206
+    },
+    {
+      "name": "04-solicitacoes",
+      "width": 1536,
+      "scrollWidth": 1536,
+      "header": 54,
+      "sidebar": 206
+    },
+    {
+      "name": "05-revisao",
+      "width": 1536,
+      "scrollWidth": 1536,
+      "header": 54,
+      "sidebar": 206
+    },
+    {
+      "name": "06-paciente-visao-geral",
+      "width": 1536,
+      "scrollWidth": 1536,
+      "header": 54,
+      "sidebar": 206
+    },
+    {
+      "name": "07-documentos",
+      "width": 1536,
+      "scrollWidth": 1536,
+      "header": 54,
+      "sidebar": 206
+    },
+    {
+      "name": "08-historico",
+      "width": 1536,
+      "scrollWidth": 1536,
+      "header": 54,
+      "sidebar": 206
+    }
+  ],
+  "writes": [],
+  "errors": [],
+  "steps": [
+    {
+      "label": "Anamnese",
+      "x": 238,
+      "y": 244,
+      "width": 1278,
+      "height": 44
+    },
+    {
+      "label": "Exames",
+      "x": 238,
+      "y": 244,
+      "width": 1278,
+      "height": 44
+    },
+    {
+      "label": "Prescrição",
+      "x": 238,
+      "y": 244,
+      "width": 1278,
+      "height": 44
+    },
+    {
+      "label": "Solicitações",
+      "x": 238,
+      "y": 244,
+      "width": 1278,
+      "height": 44
+    },
+    {
+      "label": "Revisão",
+      "x": 238,
+      "y": 244,
+      "width": 1278,
+      "height": 44
+    }
+  ],
+  "commit": "ab86cfd85329c43447c0c634406d65560a9f50bb",
+  "deploymentId": "dpl_8R5NB4q3ur3grvcNPz8VMiGuJPsT",
+  "classification": "synthetic-preview"
+}
