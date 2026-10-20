@@ -1,0 +1,2190 @@
+{
+  "benchmark": "stage-d-real-openai",
+  "evaluation": "offline_reference_v1",
+  "providerCallsPerformedByReporter": 0,
+  "sourceCaptureSha256": "32706f80f4bd0a0c97a07d4029ac8b0f49b1970e5303fcf2db7f28069d88af73",
+  "sourceProvenance": {
+    "beforeCommit": "4e9f9c034e9465e87cd0d96394ae3814ca2511f9",
+    "afterCommit": "2b16b12c7f6417ae3e9df6042a4e01f793379b07",
+    "provider": "openai",
+    "configuredModel": "openai/gpt-6-luna",
+    "resolvedModelRevision": null,
+    "dataClassification": "synthetic",
+    "neonProject": "little-dust-61663559",
+    "neonBranch": "br-winter-hill-b69uz195",
+    "sourceSha256": {
+      "src/lib/laboratory-evidence.ts": "cded726c69a7ae881e477b75c3245d9046aec52e60d00befe942af5e66e6d83f",
+      "src/lib/laboratory-date-evidence.ts": "1e7a858834a135508d90d80e568cb5b9338d5de43d7bcd11106b98d09bdf47e4",
+      "src/lib/laboratory-source-association.ts": "14818a5e84c665d55fc54688d905d8f6063f8d14a1a7d5733166e5ee506a3072",
+      "src/lib/laboratory-completeness-experiment.ts": "046a9d02463705e461ce87706497eb8baa94a2c3cb81fadadf374d2a3ea783d5",
+      "src/server/laboratory-extraction.ts": "b109a1fb1286b16f095359d86b88a78e89616dcd7c1c8b90bd8bd452f4759c5f",
+      "src/server/laboratory-pdf-text.ts": "42d0fd421b3aad19d0efb5ac1e2b867db48611e8678aafab99c562e0ee2d6eec",
+      "src/server/laboratory-results.ts": "1d465e01a3534377eadb571f42e1e18955fd2af1134fbcb09997abe60b61efe9",
+      "src/test/fixtures/laboratory-robustness.ts": "9bb8bead7b73ea3c456b01428aa8ed3512692ea3995132ade62100c596de7d9f"
+    },
+    "pairedCaseIds": ["many-pages-repeated-parameters"],
+    "operationalDeviation": "Stable Preview alias remained on old deployment after git deployment. Two v2 repetitions were discovered, interrupted and excluded from candidate comparison. Alias corrected; one remaining quota slot used on immutable candidate URL. No quota change/reset."
+  },
+  "attemptAccounting": {
+    "primaryImports": 4,
+    "supplementalImports": 2,
+    "supplementalQualityIncluded": false
+  },
+  "supplementalUsage": {
+    "imports": 2,
+    "successfulBackendExtractions": 2,
+    "failedBackendExtractions": 0,
+    "unknownBackendOutcomes": 0,
+    "interruptedClientRequests": 1,
+    "inputTokens": 4275,
+    "outputTokens": 2790,
+    "startedRequests": 5,
+    "completedRequests": 5,
+    "usageComplete": true,
+    "estimatedTokenCostUsd": 0.0018225000000000001,
+    "observedInvoiceCostUsd": null,
+    "costBasis": "public_standard_token_rates_not_invoice"
+  },
+  "allAttemptUsage": {
+    "imports": 6,
+    "successfulBackendExtractions": 6,
+    "failedBackendExtractions": 0,
+    "unknownBackendOutcomes": 0,
+    "interruptedClientRequests": 1,
+    "inputTokens": 15537,
+    "outputTokens": 8508,
+    "startedRequests": 15,
+    "completedRequests": 15,
+    "usageComplete": true,
+    "estimatedTokenCostUsd": 0.005807700000000001,
+    "observedInvoiceCostUsd": null,
+    "costBasis": "public_standard_token_rates_not_invoice"
+  },
+  "pricing": {
+    "inputUsdPerMillion": 0.1,
+    "cachedInputUsdPerMillion": 0.01,
+    "outputUsdPerMillion": 0.5,
+    "asOf": "2026-10-20",
+    "source": "https://developers.openai.com/api/docs/models/gpt-6-luna",
+    "basis": "standard_token_estimate_not_invoice",
+    "excludes": [
+      "infrastructure",
+      "taxes",
+      "service_tier_or_regional_surcharges",
+      "cache_writes_if_any"
+    ]
+  },
+  "byPhase": {
+    "before": {
+      "documents": 3,
+      "successfulExtractions": 3,
+      "failedAttempts": 0,
+      "expectedLegibleResults": 27,
+      "correctResults": 27,
+      "resultRecall": 1,
+      "emittedRows": 27,
+      "completeRows": 27,
+      "omittedRows": 0,
+      "unmatchedRows": 0,
+      "associationErrors": 0,
+      "fields": {
+        "name": {
+          "expectedPositive": 27,
+          "emittedPositive": 27,
+          "correctPositive": 27,
+          "omittedPositive": 0,
+          "wrongPositive": 0,
+          "inventedPositive": 0,
+          "correctAbsent": 0,
+          "unresolved": 0,
+          "preservedUnresolved": 0
+        },
+        "result": {
+          "expectedPositive": 27,
+          "emittedPositive": 27,
+          "correctPositive": 27,
+          "omittedPositive": 0,
+          "wrongPositive": 0,
+          "inventedPositive": 0,
+          "correctAbsent": 0,
+          "unresolved": 0,
+          "preservedUnresolved": 0
+        },
+        "unit": {
+          "expectedPositive": 18,
+          "emittedPositive": 18,
+          "correctPositive": 18,
+          "omittedPositive": 0,
+          "wrongPositive": 0,
+          "inventedPositive": 0,
+          "correctAbsent": 9,
+          "unresolved": 0,
+          "preservedUnresolved": 0
+        },
+        "reference": {
+          "expectedPositive": 26,
+          "emittedPositive": 26,
+          "correctPositive": 26,
+          "omittedPositive": 0,
+          "wrongPositive": 0,
+          "inventedPositive": 0,
+          "correctAbsent": 1,
+          "unresolved": 0,
+          "preservedUnresolved": 0
+        },
+        "collectedOn": {
+          "expectedPositive": 25,
+          "emittedPositive": 25,
+          "correctPositive": 25,
+          "omittedPositive": 0,
+          "wrongPositive": 0,
+          "inventedPositive": 0,
+          "correctAbsent": 2,
+          "unresolved": 0,
+          "preservedUnresolved": 0
+        },
+        "reportedOn": {
+          "expectedPositive": 25,
+          "emittedPositive": 25,
+          "correctPositive": 25,
+          "omittedPositive": 0,
+          "wrongPositive": 0,
+          "inventedPositive": 0,
+          "correctAbsent": 2,
+          "unresolved": 0,
+          "preservedUnresolved": 0
+        },
+        "issuedOn": {
+          "expectedPositive": 1,
+          "emittedPositive": 1,
+          "correctPositive": 1,
+          "omittedPositive": 0,
+          "wrongPositive": 0,
+          "inventedPositive": 0,
+          "correctAbsent": 26,
+          "unresolved": 0,
+          "preservedUnresolved": 0
+        },
+        "laboratory": {
+          "expectedPositive": 1,
+          "emittedPositive": 1,
+          "correctPositive": 1,
+          "omittedPositive": 0,
+          "wrongPositive": 0,
+          "inventedPositive": 0,
+          "correctAbsent": 26,
+          "unresolved": 0,
+          "preservedUnresolved": 0
+        },
+        "method": {
+          "expectedPositive": 1,
+          "emittedPositive": 1,
+          "correctPositive": 1,
+          "omittedPositive": 0,
+          "wrongPositive": 0,
+          "inventedPositive": 0,
+          "correctAbsent": 26,
+          "unresolved": 0,
+          "preservedUnresolved": 0
+        },
+        "material": {
+          "expectedPositive": 1,
+          "emittedPositive": 1,
+          "correctPositive": 1,
+          "omittedPositive": 0,
+          "wrongPositive": 0,
+          "inventedPositive": 0,
+          "correctAbsent": 26,
+          "unresolved": 0,
+          "preservedUnresolved": 0
+        },
+        "sourcePage": {
+          "expectedPositive": 27,
+          "emittedPositive": 27,
+          "correctPositive": 27,
+          "omittedPositive": 0,
+          "wrongPositive": 0,
+          "inventedPositive": 0,
+          "correctAbsent": 0,
+          "unresolved": 0,
+          "preservedUnresolved": 0
+        }
+      },
+      "reviewRows": 26,
+      "reviewFraction": 0.9629629629629629,
+      "unsafeLiteralMatches": 0,
+      "falseAlertCandidates": 24,
+      "silentUnresolvedAcceptance": 0,
+      "deterministicDateRecoveredFields": 0,
+      "medianHttpMilliseconds": 18789,
+      "latencyMeasuredDocuments": 3,
+      "inputTokens": 7238,
+      "outputTokens": 3067,
+      "startedRequests": 6,
+      "completedRequests": 6,
+      "estimatedTokenCostUsd": 0.0022573000000000003,
+      "observedInvoiceCostUsd": null
+    },
+    "after": {
+      "documents": 1,
+      "successfulExtractions": 1,
+      "failedAttempts": 0,
+      "expectedLegibleResults": 24,
+      "correctResults": 24,
+      "resultRecall": 1,
+      "emittedRows": 24,
+      "completeRows": 24,
+      "omittedRows": 0,
+      "unmatchedRows": 0,
+      "associationErrors": 0,
+      "fields": {
+        "name": {
+          "expectedPositive": 24,
+          "emittedPositive": 24,
+          "correctPositive": 24,
+          "omittedPositive": 0,
+          "wrongPositive": 0,
+          "inventedPositive": 0,
+          "correctAbsent": 0,
+          "unresolved": 0,
+          "preservedUnresolved": 0
+        },
+        "result": {
+          "expectedPositive": 24,
+          "emittedPositive": 24,
+          "correctPositive": 24,
+          "omittedPositive": 0,
+          "wrongPositive": 0,
+          "inventedPositive": 0,
+          "correctAbsent": 0,
+          "unresolved": 0,
+          "preservedUnresolved": 0
+        },
+        "unit": {
+          "expectedPositive": 16,
+          "emittedPositive": 16,
+          "correctPositive": 16,
+          "omittedPositive": 0,
+          "wrongPositive": 0,
+          "inventedPositive": 0,
+          "correctAbsent": 8,
+          "unresolved": 0,
+          "preservedUnresolved": 0
+        },
+        "reference": {
+          "expectedPositive": 24,
+          "emittedPositive": 24,
+          "correctPositive": 24,
+          "omittedPositive": 0,
+          "wrongPositive": 0,
+          "inventedPositive": 0,
+          "correctAbsent": 0,
+          "unresolved": 0,
+          "preservedUnresolved": 0
+        },
+        "collectedOn": {
+          "expectedPositive": 24,
+          "emittedPositive": 24,
+          "correctPositive": 24,
+          "omittedPositive": 0,
+          "wrongPositive": 0,
+          "inventedPositive": 0,
+          "correctAbsent": 0,
+          "unresolved": 0,
+          "preservedUnresolved": 0
+        },
+        "reportedOn": {
+          "expectedPositive": 24,
+          "emittedPositive": 24,
+          "correctPositive": 24,
+          "omittedPositive": 0,
+          "wrongPositive": 0,
+          "inventedPositive": 0,
+          "correctAbsent": 0,
+          "unresolved": 0,
+          "preservedUnresolved": 0
+        },
+        "issuedOn": {
+          "expectedPositive": 0,
+          "emittedPositive": 0,
+          "correctPositive": 0,
+          "omittedPositive": 0,
+          "wrongPositive": 0,
+          "inventedPositive": 0,
+          "correctAbsent": 24,
+          "unresolved": 0,
+          "preservedUnresolved": 0
+        },
+        "laboratory": {
+          "expectedPositive": 0,
+          "emittedPositive": 0,
+          "correctPositive": 0,
+          "omittedPositive": 0,
+          "wrongPositive": 0,
+          "inventedPositive": 0,
+          "correctAbsent": 24,
+          "unresolved": 0,
+          "preservedUnresolved": 0
+        },
+        "method": {
+          "expectedPositive": 0,
+          "emittedPositive": 0,
+          "correctPositive": 0,
+          "omittedPositive": 0,
+          "wrongPositive": 0,
+          "inventedPositive": 0,
+          "correctAbsent": 24,
+          "unresolved": 0,
+          "preservedUnresolved": 0
+        },
+        "material": {
+          "expectedPositive": 0,
+          "emittedPositive": 0,
+          "correctPositive": 0,
+          "omittedPositive": 0,
+          "wrongPositive": 0,
+          "inventedPositive": 0,
+          "correctAbsent": 24,
+          "unresolved": 0,
+          "preservedUnresolved": 0
+        },
+        "sourcePage": {
+          "expectedPositive": 24,
+          "emittedPositive": 24,
+          "correctPositive": 24,
+          "omittedPositive": 0,
+          "wrongPositive": 0,
+          "inventedPositive": 0,
+          "correctAbsent": 0,
+          "unresolved": 0,
+          "preservedUnresolved": 0
+        }
+      },
+      "reviewRows": 0,
+      "reviewFraction": 0,
+      "unsafeLiteralMatches": 0,
+      "falseAlertCandidates": 0,
+      "silentUnresolvedAcceptance": 0,
+      "deterministicDateRecoveredFields": 0,
+      "medianHttpMilliseconds": 16324,
+      "latencyMeasuredDocuments": 1,
+      "inputTokens": 4024,
+      "outputTokens": 2651,
+      "startedRequests": 4,
+      "completedRequests": 4,
+      "estimatedTokenCostUsd": 0.0017279,
+      "observedInvoiceCostUsd": null
+    }
+  },
+  "byPhaseAndFormat": {
+    "before:digital": {
+      "documents": 2,
+      "successfulExtractions": 2,
+      "failedAttempts": 0,
+      "expectedLegibleResults": 25,
+      "correctResults": 25,
+      "resultRecall": 1,
+      "emittedRows": 25,
+      "completeRows": 25,
+      "omittedRows": 0,
+      "unmatchedRows": 0,
+      "associationErrors": 0,
+      "fields": {
+        "name": {
+          "expectedPositive": 25,
+          "emittedPositive": 25,
+          "correctPositive": 25,
+          "omittedPositive": 0,
+          "wrongPositive": 0,
+          "inventedPositive": 0,
+          "correctAbsent": 0,
+          "unresolved": 0,
+          "preservedUnresolved": 0
+        },
+        "result": {
+          "expectedPositive": 25,
+          "emittedPositive": 25,
+          "correctPositive": 25,
+          "omittedPositive": 0,
+          "wrongPositive": 0,
+          "inventedPositive": 0,
+          "correctAbsent": 0,
+          "unresolved": 0,
+          "preservedUnresolved": 0
+        },
+        "unit": {
+          "expectedPositive": 17,
+          "emittedPositive": 17,
+          "correctPositive": 17,
+          "omittedPositive": 0,
+          "wrongPositive": 0,
+          "inventedPositive": 0,
+          "correctAbsent": 8,
+          "unresolved": 0,
+          "preservedUnresolved": 0
+        },
+        "reference": {
+          "expectedPositive": 24,
+          "emittedPositive": 24,
+          "correctPositive": 24,
+          "omittedPositive": 0,
+          "wrongPositive": 0,
+          "inventedPositive": 0,
+          "correctAbsent": 1,
+          "unresolved": 0,
+          "preservedUnresolved": 0
+        },
+        "collectedOn": {
+          "expectedPositive": 25,
+          "emittedPositive": 25,
+          "correctPositive": 25,
+          "omittedPositive": 0,
+          "wrongPositive": 0,
+          "inventedPositive": 0,
+          "correctAbsent": 0,
+          "unresolved": 0,
+          "preservedUnresolved": 0
+        },
+        "reportedOn": {
+          "expectedPositive": 25,
+          "emittedPositive": 25,
+          "correctPositive": 25,
+          "omittedPositive": 0,
+          "wrongPositive": 0,
+          "inventedPositive": 0,
+          "correctAbsent": 0,
+          "unresolved": 0,
+          "preservedUnresolved": 0
+        },
+        "issuedOn": {
+          "expectedPositive": 1,
+          "emittedPositive": 1,
+          "correctPositive": 1,
+          "omittedPositive": 0,
+          "wrongPositive": 0,
+          "inventedPositive": 0,
+          "correctAbsent": 24,
+          "unresolved": 0,
+          "preservedUnresolved": 0
+        },
+        "laboratory": {
+          "expectedPositive": 1,
+          "emittedPositive": 1,
+          "correctPositive": 1,
+          "omittedPositive": 0,
+          "wrongPositive": 0,
+          "inventedPositive": 0,
+          "correctAbsent": 24,
+          "unresolved": 0,
+          "preservedUnresolved": 0
+        },
+        "method": {
+          "expectedPositive": 1,
+          "emittedPositive": 1,
+          "correctPositive": 1,
+          "omittedPositive": 0,
+          "wrongPositive": 0,
+          "inventedPositive": 0,
+          "correctAbsent": 24,
+          "unresolved": 0,
+          "preservedUnresolved": 0
+        },
+        "material": {
+          "expectedPositive": 1,
+          "emittedPositive": 1,
+          "correctPositive": 1,
+          "omittedPositive": 0,
+          "wrongPositive": 0,
+          "inventedPositive": 0,
+          "correctAbsent": 24,
+          "unresolved": 0,
+          "preservedUnresolved": 0
+        },
+        "sourcePage": {
+          "expectedPositive": 25,
+          "emittedPositive": 25,
+          "correctPositive": 25,
+          "omittedPositive": 0,
+          "wrongPositive": 0,
+          "inventedPositive": 0,
+          "correctAbsent": 0,
+          "unresolved": 0,
+          "preservedUnresolved": 0
+        }
+      },
+      "reviewRows": 24,
+      "reviewFraction": 0.96,
+      "unsafeLiteralMatches": 0,
+      "falseAlertCandidates": 24,
+      "silentUnresolvedAcceptance": 0,
+      "deterministicDateRecoveredFields": 0,
+      "medianHttpMilliseconds": 23755,
+      "latencyMeasuredDocuments": 2,
+      "inputTokens": 4275,
+      "outputTokens": 2806,
+      "startedRequests": 5,
+      "completedRequests": 5,
+      "estimatedTokenCostUsd": 0.0018305,
+      "observedInvoiceCostUsd": null
+    },
+    "before:scanned": {
+      "documents": 1,
+      "successfulExtractions": 1,
+      "failedAttempts": 0,
+      "expectedLegibleResults": 2,
+      "correctResults": 2,
+      "resultRecall": 1,
+      "emittedRows": 2,
+      "completeRows": 2,
+      "omittedRows": 0,
+      "unmatchedRows": 0,
+      "associationErrors": 0,
+      "fields": {
+        "name": {
+          "expectedPositive": 2,
+          "emittedPositive": 2,
+          "correctPositive": 2,
+          "omittedPositive": 0,
+          "wrongPositive": 0,
+          "inventedPositive": 0,
+          "correctAbsent": 0,
+          "unresolved": 0,
+          "preservedUnresolved": 0
+        },
+        "result": {
+          "expectedPositive": 2,
+          "emittedPositive": 2,
+          "correctPositive": 2,
+          "omittedPositive": 0,
+          "wrongPositive": 0,
+          "inventedPositive": 0,
+          "correctAbsent": 0,
+          "unresolved": 0,
+          "preservedUnresolved": 0
+        },
+        "unit": {
+          "expectedPositive": 1,
+          "emittedPositive": 1,
+          "correctPositive": 1,
+          "omittedPositive": 0,
+          "wrongPositive": 0,
+          "inventedPositive": 0,
+          "correctAbsent": 1,
+          "unresolved": 0,
+          "preservedUnresolved": 0
+        },
+        "reference": {
+          "expectedPositive": 2,
+          "emittedPositive": 2,
+          "correctPositive": 2,
+          "omittedPositive": 0,
+          "wrongPositive": 0,
+          "inventedPositive": 0,
+          "correctAbsent": 0,
+          "unresolved": 0,
+          "preservedUnresolved": 0
+        },
+        "collectedOn": {
+          "expectedPositive": 0,
+          "emittedPositive": 0,
+          "correctPositive": 0,
+          "omittedPositive": 0,
+          "wrongPositive": 0,
+          "inventedPositive": 0,
+          "correctAbsent": 2,
+          "unresolved": 0,
+          "preservedUnresolved": 0
+        },
+        "reportedOn": {
+          "expectedPositive": 0,
+          "emittedPositive": 0,
+          "correctPositive": 0,
+          "omittedPositive": 0,
+          "wrongPositive": 0,
+          "inventedPositive": 0,
+          "correctAbsent": 2,
+          "unresolved": 0,
+          "preservedUnresolved": 0
+        },
+        "issuedOn": {
+          "expectedPositive": 0,
+          "emittedPositive": 0,
+          "correctPositive": 0,
+          "omittedPositive": 0,
+          "wrongPositive": 0,
+          "inventedPositive": 0,
+          "correctAbsent": 2,
+          "unresolved": 0,
+          "preservedUnresolved": 0
+        },
+        "laboratory": {
+          "expectedPositive": 0,
+          "emittedPositive": 0,
+          "correctPositive": 0,
+          "omittedPositive": 0,
+          "wrongPositive": 0,
+          "inventedPositive": 0,
+          "correctAbsent": 2,
+          "unresolved": 0,
+          "preservedUnresolved": 0
+        },
+        "method": {
+          "expectedPositive": 0,
+          "emittedPositive": 0,
+          "correctPositive": 0,
+          "omittedPositive": 0,
+          "wrongPositive": 0,
+          "inventedPositive": 0,
+          "correctAbsent": 2,
+          "unresolved": 0,
+          "preservedUnresolved": 0
+        },
+        "material": {
+          "expectedPositive": 0,
+          "emittedPositive": 0,
+          "correctPositive": 0,
+          "omittedPositive": 0,
+          "wrongPositive": 0,
+          "inventedPositive": 0,
+          "correctAbsent": 2,
+          "unresolved": 0,
+          "preservedUnresolved": 0
+        },
+        "sourcePage": {
+          "expectedPositive": 2,
+          "emittedPositive": 2,
+          "correctPositive": 2,
+          "omittedPositive": 0,
+          "wrongPositive": 0,
+          "inventedPositive": 0,
+          "correctAbsent": 0,
+          "unresolved": 0,
+          "preservedUnresolved": 0
+        }
+      },
+      "reviewRows": 2,
+      "reviewFraction": 1,
+      "unsafeLiteralMatches": 0,
+      "falseAlertCandidates": 0,
+      "silentUnresolvedAcceptance": 0,
+      "deterministicDateRecoveredFields": 0,
+      "medianHttpMilliseconds": 18789,
+      "latencyMeasuredDocuments": 1,
+      "inputTokens": 2963,
+      "outputTokens": 261,
+      "startedRequests": 1,
+      "completedRequests": 1,
+      "estimatedTokenCostUsd": 0.0004268,
+      "observedInvoiceCostUsd": null
+    },
+    "after:digital": {
+      "documents": 1,
+      "successfulExtractions": 1,
+      "failedAttempts": 0,
+      "expectedLegibleResults": 24,
+      "correctResults": 24,
+      "resultRecall": 1,
+      "emittedRows": 24,
+      "completeRows": 24,
+      "omittedRows": 0,
+      "unmatchedRows": 0,
+      "associationErrors": 0,
+      "fields": {
+        "name": {
+          "expectedPositive": 24,
+          "emittedPositive": 24,
+          "correctPositive": 24,
+          "omittedPositive": 0,
+          "wrongPositive": 0,
+          "inventedPositive": 0,
+          "correctAbsent": 0,
+          "unresolved": 0,
+          "preservedUnresolved": 0
+        },
+        "result": {
+          "expectedPositive": 24,
+          "emittedPositive": 24,
+          "correctPositive": 24,
+          "omittedPositive": 0,
+          "wrongPositive": 0,
+          "inventedPositive": 0,
+          "correctAbsent": 0,
+          "unresolved": 0,
+          "preservedUnresolved": 0
+        },
+        "unit": {
+          "expectedPositive": 16,
+          "emittedPositive": 16,
+          "correctPositive": 16,
+          "omittedPositive": 0,
+          "wrongPositive": 0,
+          "inventedPositive": 0,
+          "correctAbsent": 8,
+          "unresolved": 0,
+          "preservedUnresolved": 0
+        },
+        "reference": {
+          "expectedPositive": 24,
+          "emittedPositive": 24,
+          "correctPositive": 24,
+          "omittedPositive": 0,
+          "wrongPositive": 0,
+          "inventedPositive": 0,
+          "correctAbsent": 0,
+          "unresolved": 0,
+          "preservedUnresolved": 0
+        },
+        "collectedOn": {
+          "expectedPositive": 24,
+          "emittedPositive": 24,
+          "correctPositive": 24,
+          "omittedPositive": 0,
+          "wrongPositive": 0,
+          "inventedPositive": 0,
+          "correctAbsent": 0,
+          "unresolved": 0,
+          "preservedUnresolved": 0
+        },
+        "reportedOn": {
+          "expectedPositive": 24,
+          "emittedPositive": 24,
+          "correctPositive": 24,
+          "omittedPositive": 0,
+          "wrongPositive": 0,
+          "inventedPositive": 0,
+          "correctAbsent": 0,
+          "unresolved": 0,
+          "preservedUnresolved": 0
+        },
+        "issuedOn": {
+          "expectedPositive": 0,
+          "emittedPositive": 0,
+          "correctPositive": 0,
+          "omittedPositive": 0,
+          "wrongPositive": 0,
+          "inventedPositive": 0,
+          "correctAbsent": 24,
+          "unresolved": 0,
+          "preservedUnresolved": 0
+        },
+        "laboratory": {
+          "expectedPositive": 0,
+          "emittedPositive": 0,
+          "correctPositive": 0,
+          "omittedPositive": 0,
+          "wrongPositive": 0,
+          "inventedPositive": 0,
+          "correctAbsent": 24,
+          "unresolved": 0,
+          "preservedUnresolved": 0
+        },
+        "method": {
+          "expectedPositive": 0,
+          "emittedPositive": 0,
+          "correctPositive": 0,
+          "omittedPositive": 0,
+          "wrongPositive": 0,
+          "inventedPositive": 0,
+          "correctAbsent": 24,
+          "unresolved": 0,
+          "preservedUnresolved": 0
+        },
+        "material": {
+          "expectedPositive": 0,
+          "emittedPositive": 0,
+          "correctPositive": 0,
+          "omittedPositive": 0,
+          "wrongPositive": 0,
+          "inventedPositive": 0,
+          "correctAbsent": 24,
+          "unresolved": 0,
+          "preservedUnresolved": 0
+        },
+        "sourcePage": {
+          "expectedPositive": 24,
+          "emittedPositive": 24,
+          "correctPositive": 24,
+          "omittedPositive": 0,
+          "wrongPositive": 0,
+          "inventedPositive": 0,
+          "correctAbsent": 0,
+          "unresolved": 0,
+          "preservedUnresolved": 0
+        }
+      },
+      "reviewRows": 0,
+      "reviewFraction": 0,
+      "unsafeLiteralMatches": 0,
+      "falseAlertCandidates": 0,
+      "silentUnresolvedAcceptance": 0,
+      "deterministicDateRecoveredFields": 0,
+      "medianHttpMilliseconds": 16324,
+      "latencyMeasuredDocuments": 1,
+      "inputTokens": 4024,
+      "outputTokens": 2651,
+      "startedRequests": 4,
+      "completedRequests": 4,
+      "estimatedTokenCostUsd": 0.0017279,
+      "observedInvoiceCostUsd": null
+    }
+  },
+  "cases": [
+    {
+      "caseId": "dates-explicit-ddmm",
+      "phase": "before",
+      "format": "digital",
+      "tags": ["dates", "explicit_format", "numeric_ambiguity_resolved"],
+      "sha256": "c02cd0c5584a344b0806997a1d571c6ac23167de7e3f56ecfe8b8dbb25290c49",
+      "referenceSha256": "b638c8db1214697c3ccd694b9cbfc0a392fbeeb865913ab29311afbcc9064d9d",
+      "referencePolicy": "stage_d_explicit_evidence_v1",
+      "pageCount": 1,
+      "independentText": true,
+      "extractionSucceeded": true,
+      "failureCode": null,
+      "httpStatus": 200,
+      "wallMilliseconds": 15110,
+      "evaluation": {
+        "expectedLegibleRows": 1,
+        "emittedRows": 1,
+        "matchedRows": 1,
+        "completeRows": 1,
+        "correctResults": 1,
+        "omittedRows": 0,
+        "unmatchedRows": 0,
+        "associationErrors": 0,
+        "resultRecall": 1,
+        "fields": {
+          "name": {
+            "expectedPositive": 1,
+            "emittedPositive": 1,
+            "correctPositive": 1,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 0,
+            "correctAbsent": 0,
+            "unresolved": 0,
+            "preservedUnresolved": 0
+          },
+          "result": {
+            "expectedPositive": 1,
+            "emittedPositive": 1,
+            "correctPositive": 1,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 0,
+            "correctAbsent": 0,
+            "unresolved": 0,
+            "preservedUnresolved": 0
+          },
+          "unit": {
+            "expectedPositive": 1,
+            "emittedPositive": 1,
+            "correctPositive": 1,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 0,
+            "correctAbsent": 0,
+            "unresolved": 0,
+            "preservedUnresolved": 0
+          },
+          "reference": {
+            "expectedPositive": 0,
+            "emittedPositive": 0,
+            "correctPositive": 0,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 0,
+            "correctAbsent": 1,
+            "unresolved": 0,
+            "preservedUnresolved": 0
+          },
+          "collectedOn": {
+            "expectedPositive": 1,
+            "emittedPositive": 1,
+            "correctPositive": 1,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 0,
+            "correctAbsent": 0,
+            "unresolved": 0,
+            "preservedUnresolved": 0
+          },
+          "reportedOn": {
+            "expectedPositive": 1,
+            "emittedPositive": 1,
+            "correctPositive": 1,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 0,
+            "correctAbsent": 0,
+            "unresolved": 0,
+            "preservedUnresolved": 0
+          },
+          "issuedOn": {
+            "expectedPositive": 1,
+            "emittedPositive": 1,
+            "correctPositive": 1,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 0,
+            "correctAbsent": 0,
+            "unresolved": 0,
+            "preservedUnresolved": 0
+          },
+          "laboratory": {
+            "expectedPositive": 1,
+            "emittedPositive": 1,
+            "correctPositive": 1,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 0,
+            "correctAbsent": 0,
+            "unresolved": 0,
+            "preservedUnresolved": 0
+          },
+          "method": {
+            "expectedPositive": 1,
+            "emittedPositive": 1,
+            "correctPositive": 1,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 0,
+            "correctAbsent": 0,
+            "unresolved": 0,
+            "preservedUnresolved": 0
+          },
+          "material": {
+            "expectedPositive": 1,
+            "emittedPositive": 1,
+            "correctPositive": 1,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 0,
+            "correctAbsent": 0,
+            "unresolved": 0,
+            "preservedUnresolved": 0
+          },
+          "sourcePage": {
+            "expectedPositive": 1,
+            "emittedPositive": 1,
+            "correctPositive": 1,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 0,
+            "correctAbsent": 0,
+            "unresolved": 0,
+            "preservedUnresolved": 0
+          }
+        },
+        "positiveExpected": 10,
+        "positiveEmitted": 10,
+        "positiveCorrect": 10,
+        "positivePrecision": 1,
+        "positiveRecall": 1,
+        "unreadable": {
+          "expectedMentions": 0,
+          "correctlyFlaggedUnreadable": 0,
+          "omittedUnreadableMentions": 0
+        },
+        "unresolvedDates": {
+          "rows": 0,
+          "fields": 0,
+          "preservedUnresolved": 0,
+          "signaledRows": 0
+        },
+        "verifier": {
+          "eligibleRows": 1,
+          "attentionRows": 0,
+          "reviewFraction": 0,
+          "incorrectRowsObserved": 0,
+          "unsafeLiteralMatches": 0,
+          "falseAlertCandidates": 0,
+          "correctButUnprovableRows": 0,
+          "silentUnresolvedAcceptance": 0,
+          "sensitivityToWrongResults": null
+        },
+        "errors": []
+      },
+      "deterministicDateRecoveredFields": 0,
+      "derivedModelOnlyEvaluation": null,
+      "inventory": {
+        "version": 2,
+        "scope": "recognizable_text_rows_only",
+        "completenessProven": false,
+        "recognizableRows": 1,
+        "possibleOmissions": [],
+        "coverage": {
+          "basis": "supplied_native_text_lines",
+          "coordinatesAvailable": false,
+          "independentTextAvailable": true,
+          "expectedPageCount": null,
+          "providedPages": [1],
+          "missingPages": null,
+          "duplicatePageNumbers": [],
+          "pages": [
+            {
+              "page": 1,
+              "status": "unrecognized_text_present",
+              "nonEmptyLines": 9,
+              "recognizedRows": 1,
+              "unknownLines": [
+                {
+                  "line": 1,
+                  "reason": "unsupported_or_non_observation_text"
+                }
+              ],
+              "sections": [
+                {
+                  "kind": "unspecified",
+                  "startLine": 1,
+                  "endLine": 9,
+                  "recognizedRows": 1,
+                  "unrecognizedLines": [1]
+                }
+              ]
+            }
+          ]
+        },
+        "diagnostics": {
+          "valueMismatches": [],
+          "unitMismatches": [],
+          "provenanceMissing": [],
+          "pageMismatches": [],
+          "ambiguousProvenance": [],
+          "unmatchedPredictions": []
+        }
+      },
+      "telemetry": {
+        "model": "openai/gpt-6-luna",
+        "failures": 0,
+        "provider": "openai",
+        "costBasis": "unavailable",
+        "durationMs": 10919,
+        "inputTokens": 703,
+        "pricingAsOf": null,
+        "outputTokens": 151,
+        "extractedRows": 1,
+        "promptVersion": "lab-transcription-2",
+        "usageComplete": true,
+        "divergenceRows": 0,
+        "pipelineVersion": "lab-pipeline-2",
+        "reasoningTokens": 32,
+        "startedRequests": 1,
+        "verifierVersion": 2,
+        "divergenceFields": 0,
+        "estimatedCostUsd": null,
+        "cachedInputTokens": 0,
+        "completedRequests": 1,
+        "processingMilliseconds": 12315
+      },
+      "estimatedTokenCostUsd": 0.00014580000000000002,
+      "costBasis": "public_standard_token_rates_not_invoice",
+      "historicalBaselineSamePdf": null
+    },
+    {
+      "caseId": "many-pages-repeated-parameters",
+      "phase": "before",
+      "format": "digital",
+      "tags": ["many_pages", "native_text_batches", "repeated_parameters", "iso_dates"],
+      "sha256": "2eda2f67fe173823b8f581d07a31c65a60c354d3e0f7228155bce8738df64430",
+      "referenceSha256": "2c2cdd35bb7e3f0e0ef6357bcae501480b9f5725b700abd548519f5264fcd776",
+      "referencePolicy": "stage_d_explicit_evidence_v1",
+      "pageCount": 8,
+      "independentText": true,
+      "extractionSucceeded": true,
+      "failureCode": null,
+      "httpStatus": 200,
+      "wallMilliseconds": 32400,
+      "evaluation": {
+        "expectedLegibleRows": 24,
+        "emittedRows": 24,
+        "matchedRows": 24,
+        "completeRows": 24,
+        "correctResults": 24,
+        "omittedRows": 0,
+        "unmatchedRows": 0,
+        "associationErrors": 0,
+        "resultRecall": 1,
+        "fields": {
+          "name": {
+            "expectedPositive": 24,
+            "emittedPositive": 24,
+            "correctPositive": 24,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 0,
+            "correctAbsent": 0,
+            "unresolved": 0,
+            "preservedUnresolved": 0
+          },
+          "result": {
+            "expectedPositive": 24,
+            "emittedPositive": 24,
+            "correctPositive": 24,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 0,
+            "correctAbsent": 0,
+            "unresolved": 0,
+            "preservedUnresolved": 0
+          },
+          "unit": {
+            "expectedPositive": 16,
+            "emittedPositive": 16,
+            "correctPositive": 16,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 0,
+            "correctAbsent": 8,
+            "unresolved": 0,
+            "preservedUnresolved": 0
+          },
+          "reference": {
+            "expectedPositive": 24,
+            "emittedPositive": 24,
+            "correctPositive": 24,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 0,
+            "correctAbsent": 0,
+            "unresolved": 0,
+            "preservedUnresolved": 0
+          },
+          "collectedOn": {
+            "expectedPositive": 24,
+            "emittedPositive": 24,
+            "correctPositive": 24,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 0,
+            "correctAbsent": 0,
+            "unresolved": 0,
+            "preservedUnresolved": 0
+          },
+          "reportedOn": {
+            "expectedPositive": 24,
+            "emittedPositive": 24,
+            "correctPositive": 24,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 0,
+            "correctAbsent": 0,
+            "unresolved": 0,
+            "preservedUnresolved": 0
+          },
+          "issuedOn": {
+            "expectedPositive": 0,
+            "emittedPositive": 0,
+            "correctPositive": 0,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 0,
+            "correctAbsent": 24,
+            "unresolved": 0,
+            "preservedUnresolved": 0
+          },
+          "laboratory": {
+            "expectedPositive": 0,
+            "emittedPositive": 0,
+            "correctPositive": 0,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 0,
+            "correctAbsent": 24,
+            "unresolved": 0,
+            "preservedUnresolved": 0
+          },
+          "method": {
+            "expectedPositive": 0,
+            "emittedPositive": 0,
+            "correctPositive": 0,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 0,
+            "correctAbsent": 24,
+            "unresolved": 0,
+            "preservedUnresolved": 0
+          },
+          "material": {
+            "expectedPositive": 0,
+            "emittedPositive": 0,
+            "correctPositive": 0,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 0,
+            "correctAbsent": 24,
+            "unresolved": 0,
+            "preservedUnresolved": 0
+          },
+          "sourcePage": {
+            "expectedPositive": 24,
+            "emittedPositive": 24,
+            "correctPositive": 24,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 0,
+            "correctAbsent": 0,
+            "unresolved": 0,
+            "preservedUnresolved": 0
+          }
+        },
+        "positiveExpected": 160,
+        "positiveEmitted": 160,
+        "positiveCorrect": 160,
+        "positivePrecision": 1,
+        "positiveRecall": 1,
+        "unreadable": {
+          "expectedMentions": 0,
+          "correctlyFlaggedUnreadable": 0,
+          "omittedUnreadableMentions": 0
+        },
+        "unresolvedDates": {
+          "rows": 0,
+          "fields": 0,
+          "preservedUnresolved": 0,
+          "signaledRows": 0
+        },
+        "verifier": {
+          "eligibleRows": 0,
+          "attentionRows": 24,
+          "reviewFraction": 1,
+          "incorrectRowsObserved": 0,
+          "unsafeLiteralMatches": 0,
+          "falseAlertCandidates": 24,
+          "correctButUnprovableRows": 0,
+          "silentUnresolvedAcceptance": 0,
+          "sensitivityToWrongResults": null
+        },
+        "errors": []
+      },
+      "deterministicDateRecoveredFields": 0,
+      "derivedModelOnlyEvaluation": null,
+      "inventory": {
+        "version": 2,
+        "scope": "recognizable_text_rows_only",
+        "completenessProven": false,
+        "recognizableRows": 24,
+        "possibleOmissions": [],
+        "coverage": {
+          "basis": "supplied_native_text_lines",
+          "coordinatesAvailable": false,
+          "independentTextAvailable": true,
+          "expectedPageCount": null,
+          "providedPages": [1, 2, 3, 4, 5, 6, 7, 8],
+          "missingPages": null,
+          "duplicatePageNumbers": [],
+          "pages": [
+            {
+              "page": 1,
+              "status": "unrecognized_text_present",
+              "nonEmptyLines": 7,
+              "recognizedRows": 3,
+              "unknownLines": [
+                {
+                  "line": 1,
+                  "reason": "unsupported_or_non_observation_text"
+                },
+                {
+                  "line": 2,
+                  "reason": "unsupported_or_non_observation_text"
+                }
+              ],
+              "sections": [
+                {
+                  "kind": "unspecified",
+                  "startLine": 1,
+                  "endLine": 7,
+                  "recognizedRows": 3,
+                  "unrecognizedLines": [1, 2]
+                }
+              ]
+            },
+            {
+              "page": 2,
+              "status": "unrecognized_text_present",
+              "nonEmptyLines": 7,
+              "recognizedRows": 3,
+              "unknownLines": [
+                {
+                  "line": 1,
+                  "reason": "unsupported_or_non_observation_text"
+                },
+                {
+                  "line": 2,
+                  "reason": "unsupported_or_non_observation_text"
+                }
+              ],
+              "sections": [
+                {
+                  "kind": "unspecified",
+                  "startLine": 1,
+                  "endLine": 7,
+                  "recognizedRows": 3,
+                  "unrecognizedLines": [1, 2]
+                }
+              ]
+            },
+            {
+              "page": 3,
+              "status": "unrecognized_text_present",
+              "nonEmptyLines": 7,
+              "recognizedRows": 3,
+              "unknownLines": [
+                {
+                  "line": 1,
+                  "reason": "unsupported_or_non_observation_text"
+                },
+                {
+                  "line": 2,
+                  "reason": "unsupported_or_non_observation_text"
+                }
+              ],
+              "sections": [
+                {
+                  "kind": "unspecified",
+                  "startLine": 1,
+                  "endLine": 7,
+                  "recognizedRows": 3,
+                  "unrecognizedLines": [1, 2]
+                }
+              ]
+            },
+            {
+              "page": 4,
+              "status": "unrecognized_text_present",
+              "nonEmptyLines": 7,
+              "recognizedRows": 3,
+              "unknownLines": [
+                {
+                  "line": 1,
+                  "reason": "unsupported_or_non_observation_text"
+                },
+                {
+                  "line": 2,
+                  "reason": "unsupported_or_non_observation_text"
+                }
+              ],
+              "sections": [
+                {
+                  "kind": "unspecified",
+                  "startLine": 1,
+                  "endLine": 7,
+                  "recognizedRows": 3,
+                  "unrecognizedLines": [1, 2]
+                }
+              ]
+            },
+            {
+              "page": 5,
+              "status": "unrecognized_text_present",
+              "nonEmptyLines": 7,
+              "recognizedRows": 3,
+              "unknownLines": [
+                {
+                  "line": 1,
+                  "reason": "unsupported_or_non_observation_text"
+                },
+                {
+                  "line": 2,
+                  "reason": "unsupported_or_non_observation_text"
+                }
+              ],
+              "sections": [
+                {
+                  "kind": "unspecified",
+                  "startLine": 1,
+                  "endLine": 7,
+                  "recognizedRows": 3,
+                  "unrecognizedLines": [1, 2]
+                }
+              ]
+            },
+            {
+              "page": 6,
+              "status": "unrecognized_text_present",
+              "nonEmptyLines": 7,
+              "recognizedRows": 3,
+              "unknownLines": [
+                {
+                  "line": 1,
+                  "reason": "unsupported_or_non_observation_text"
+                },
+                {
+                  "line": 2,
+                  "reason": "unsupported_or_non_observation_text"
+                }
+              ],
+              "sections": [
+                {
+                  "kind": "unspecified",
+                  "startLine": 1,
+                  "endLine": 7,
+                  "recognizedRows": 3,
+                  "unrecognizedLines": [1, 2]
+                }
+              ]
+            },
+            {
+              "page": 7,
+              "status": "unrecognized_text_present",
+              "nonEmptyLines": 7,
+              "recognizedRows": 3,
+              "unknownLines": [
+                {
+                  "line": 1,
+                  "reason": "unsupported_or_non_observation_text"
+                },
+                {
+                  "line": 2,
+                  "reason": "unsupported_or_non_observation_text"
+                }
+              ],
+              "sections": [
+                {
+                  "kind": "unspecified",
+                  "startLine": 1,
+                  "endLine": 7,
+                  "recognizedRows": 3,
+                  "unrecognizedLines": [1, 2]
+                }
+              ]
+            },
+            {
+              "page": 8,
+              "status": "unrecognized_text_present",
+              "nonEmptyLines": 7,
+              "recognizedRows": 3,
+              "unknownLines": [
+                {
+                  "line": 1,
+                  "reason": "unsupported_or_non_observation_text"
+                },
+                {
+                  "line": 2,
+                  "reason": "unsupported_or_non_observation_text"
+                }
+              ],
+              "sections": [
+                {
+                  "kind": "unspecified",
+                  "startLine": 1,
+                  "endLine": 7,
+                  "recognizedRows": 3,
+                  "unrecognizedLines": [1, 2]
+                }
+              ]
+            }
+          ]
+        },
+        "diagnostics": {
+          "valueMismatches": [],
+          "unitMismatches": [],
+          "provenanceMissing": [],
+          "pageMismatches": [],
+          "ambiguousProvenance": [],
+          "unmatchedPredictions": []
+        }
+      },
+      "telemetry": {
+        "model": "openai/gpt-6-luna",
+        "failures": 0,
+        "provider": "openai",
+        "costBasis": "unavailable",
+        "durationMs": 27750,
+        "inputTokens": 3572,
+        "pricingAsOf": null,
+        "outputTokens": 2655,
+        "extractedRows": 24,
+        "promptVersion": "lab-transcription-2",
+        "usageComplete": true,
+        "divergenceRows": 24,
+        "pipelineVersion": "lab-pipeline-2",
+        "reasoningTokens": 93,
+        "startedRequests": 4,
+        "verifierVersion": 2,
+        "divergenceFields": 48,
+        "estimatedCostUsd": null,
+        "cachedInputTokens": 0,
+        "completedRequests": 4,
+        "processingMilliseconds": 30070
+      },
+      "estimatedTokenCostUsd": 0.0016847000000000001,
+      "costBasis": "public_standard_token_rates_not_invoice",
+      "historicalBaselineSamePdf": null
+    },
+    {
+      "caseId": "scan-rotated",
+      "phase": "before",
+      "format": "scanned",
+      "tags": ["scanned", "degraded", "rotated_90_degrees", "visual_extraction", "qualitative"],
+      "sha256": "4a28be6d344c59d69e661bdf32a6fbe96de5c830163620785fa8db038009cead",
+      "referenceSha256": "d32f6540e8d40e9a4cc273548c6b19e250451edc26496be760bffac2c246a388",
+      "referencePolicy": "stage_d_explicit_evidence_v1",
+      "pageCount": 1,
+      "independentText": false,
+      "extractionSucceeded": true,
+      "failureCode": null,
+      "httpStatus": 200,
+      "wallMilliseconds": 18789,
+      "evaluation": {
+        "expectedLegibleRows": 2,
+        "emittedRows": 2,
+        "matchedRows": 2,
+        "completeRows": 2,
+        "correctResults": 2,
+        "omittedRows": 0,
+        "unmatchedRows": 0,
+        "associationErrors": 0,
+        "resultRecall": 1,
+        "fields": {
+          "name": {
+            "expectedPositive": 2,
+            "emittedPositive": 2,
+            "correctPositive": 2,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 0,
+            "correctAbsent": 0,
+            "unresolved": 0,
+            "preservedUnresolved": 0
+          },
+          "result": {
+            "expectedPositive": 2,
+            "emittedPositive": 2,
+            "correctPositive": 2,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 0,
+            "correctAbsent": 0,
+            "unresolved": 0,
+            "preservedUnresolved": 0
+          },
+          "unit": {
+            "expectedPositive": 1,
+            "emittedPositive": 1,
+            "correctPositive": 1,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 0,
+            "correctAbsent": 1,
+            "unresolved": 0,
+            "preservedUnresolved": 0
+          },
+          "reference": {
+            "expectedPositive": 2,
+            "emittedPositive": 2,
+            "correctPositive": 2,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 0,
+            "correctAbsent": 0,
+            "unresolved": 0,
+            "preservedUnresolved": 0
+          },
+          "collectedOn": {
+            "expectedPositive": 0,
+            "emittedPositive": 0,
+            "correctPositive": 0,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 0,
+            "correctAbsent": 2,
+            "unresolved": 0,
+            "preservedUnresolved": 0
+          },
+          "reportedOn": {
+            "expectedPositive": 0,
+            "emittedPositive": 0,
+            "correctPositive": 0,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 0,
+            "correctAbsent": 2,
+            "unresolved": 0,
+            "preservedUnresolved": 0
+          },
+          "issuedOn": {
+            "expectedPositive": 0,
+            "emittedPositive": 0,
+            "correctPositive": 0,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 0,
+            "correctAbsent": 2,
+            "unresolved": 0,
+            "preservedUnresolved": 0
+          },
+          "laboratory": {
+            "expectedPositive": 0,
+            "emittedPositive": 0,
+            "correctPositive": 0,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 0,
+            "correctAbsent": 2,
+            "unresolved": 0,
+            "preservedUnresolved": 0
+          },
+          "method": {
+            "expectedPositive": 0,
+            "emittedPositive": 0,
+            "correctPositive": 0,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 0,
+            "correctAbsent": 2,
+            "unresolved": 0,
+            "preservedUnresolved": 0
+          },
+          "material": {
+            "expectedPositive": 0,
+            "emittedPositive": 0,
+            "correctPositive": 0,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 0,
+            "correctAbsent": 2,
+            "unresolved": 0,
+            "preservedUnresolved": 0
+          },
+          "sourcePage": {
+            "expectedPositive": 2,
+            "emittedPositive": 2,
+            "correctPositive": 2,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 0,
+            "correctAbsent": 0,
+            "unresolved": 0,
+            "preservedUnresolved": 0
+          }
+        },
+        "positiveExpected": 9,
+        "positiveEmitted": 9,
+        "positiveCorrect": 9,
+        "positivePrecision": 1,
+        "positiveRecall": 1,
+        "unreadable": {
+          "expectedMentions": 0,
+          "correctlyFlaggedUnreadable": 0,
+          "omittedUnreadableMentions": 0
+        },
+        "unresolvedDates": {
+          "rows": 0,
+          "fields": 0,
+          "preservedUnresolved": 0,
+          "signaledRows": 0
+        },
+        "verifier": {
+          "eligibleRows": 0,
+          "attentionRows": 2,
+          "reviewFraction": 1,
+          "incorrectRowsObserved": 0,
+          "unsafeLiteralMatches": 0,
+          "falseAlertCandidates": 0,
+          "correctButUnprovableRows": 2,
+          "silentUnresolvedAcceptance": 0,
+          "sensitivityToWrongResults": null
+        },
+        "errors": []
+      },
+      "deterministicDateRecoveredFields": 0,
+      "derivedModelOnlyEvaluation": null,
+      "inventory": {
+        "scope": "no_independent_text",
+        "completenessProven": false,
+        "recognizableRows": null,
+        "possibleOmissions": null
+      },
+      "telemetry": {
+        "model": "openai/gpt-6-luna",
+        "failures": 0,
+        "provider": "openai",
+        "costBasis": "unavailable",
+        "durationMs": 13892,
+        "inputTokens": 2963,
+        "pricingAsOf": null,
+        "outputTokens": 261,
+        "extractedRows": 2,
+        "promptVersion": "lab-transcription-2",
+        "usageComplete": true,
+        "divergenceRows": 2,
+        "pipelineVersion": "lab-pipeline-2",
+        "reasoningTokens": 71,
+        "startedRequests": 1,
+        "verifierVersion": 2,
+        "divergenceFields": 7,
+        "estimatedCostUsd": null,
+        "cachedInputTokens": 0,
+        "completedRequests": 1,
+        "processingMilliseconds": 15989
+      },
+      "estimatedTokenCostUsd": 0.0004268,
+      "costBasis": "public_standard_token_rates_not_invoice",
+      "historicalBaselineSamePdf": null
+    },
+    {
+      "caseId": "many-pages-repeated-parameters",
+      "phase": "after",
+      "format": "digital",
+      "tags": ["many_pages", "native_text_batches", "repeated_parameters", "iso_dates"],
+      "sha256": "2eda2f67fe173823b8f581d07a31c65a60c354d3e0f7228155bce8738df64430",
+      "referenceSha256": "2c2cdd35bb7e3f0e0ef6357bcae501480b9f5725b700abd548519f5264fcd776",
+      "referencePolicy": "stage_d_explicit_evidence_v1",
+      "pageCount": 8,
+      "independentText": true,
+      "extractionSucceeded": true,
+      "failureCode": null,
+      "httpStatus": 200,
+      "wallMilliseconds": 16324,
+      "evaluation": {
+        "expectedLegibleRows": 24,
+        "emittedRows": 24,
+        "matchedRows": 24,
+        "completeRows": 24,
+        "correctResults": 24,
+        "omittedRows": 0,
+        "unmatchedRows": 0,
+        "associationErrors": 0,
+        "resultRecall": 1,
+        "fields": {
+          "name": {
+            "expectedPositive": 24,
+            "emittedPositive": 24,
+            "correctPositive": 24,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 0,
+            "correctAbsent": 0,
+            "unresolved": 0,
+            "preservedUnresolved": 0
+          },
+          "result": {
+            "expectedPositive": 24,
+            "emittedPositive": 24,
+            "correctPositive": 24,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 0,
+            "correctAbsent": 0,
+            "unresolved": 0,
+            "preservedUnresolved": 0
+          },
+          "unit": {
+            "expectedPositive": 16,
+            "emittedPositive": 16,
+            "correctPositive": 16,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 0,
+            "correctAbsent": 8,
+            "unresolved": 0,
+            "preservedUnresolved": 0
+          },
+          "reference": {
+            "expectedPositive": 24,
+            "emittedPositive": 24,
+            "correctPositive": 24,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 0,
+            "correctAbsent": 0,
+            "unresolved": 0,
+            "preservedUnresolved": 0
+          },
+          "collectedOn": {
+            "expectedPositive": 24,
+            "emittedPositive": 24,
+            "correctPositive": 24,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 0,
+            "correctAbsent": 0,
+            "unresolved": 0,
+            "preservedUnresolved": 0
+          },
+          "reportedOn": {
+            "expectedPositive": 24,
+            "emittedPositive": 24,
+            "correctPositive": 24,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 0,
+            "correctAbsent": 0,
+            "unresolved": 0,
+            "preservedUnresolved": 0
+          },
+          "issuedOn": {
+            "expectedPositive": 0,
+            "emittedPositive": 0,
+            "correctPositive": 0,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 0,
+            "correctAbsent": 24,
+            "unresolved": 0,
+            "preservedUnresolved": 0
+          },
+          "laboratory": {
+            "expectedPositive": 0,
+            "emittedPositive": 0,
+            "correctPositive": 0,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 0,
+            "correctAbsent": 24,
+            "unresolved": 0,
+            "preservedUnresolved": 0
+          },
+          "method": {
+            "expectedPositive": 0,
+            "emittedPositive": 0,
+            "correctPositive": 0,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 0,
+            "correctAbsent": 24,
+            "unresolved": 0,
+            "preservedUnresolved": 0
+          },
+          "material": {
+            "expectedPositive": 0,
+            "emittedPositive": 0,
+            "correctPositive": 0,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 0,
+            "correctAbsent": 24,
+            "unresolved": 0,
+            "preservedUnresolved": 0
+          },
+          "sourcePage": {
+            "expectedPositive": 24,
+            "emittedPositive": 24,
+            "correctPositive": 24,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 0,
+            "correctAbsent": 0,
+            "unresolved": 0,
+            "preservedUnresolved": 0
+          }
+        },
+        "positiveExpected": 160,
+        "positiveEmitted": 160,
+        "positiveCorrect": 160,
+        "positivePrecision": 1,
+        "positiveRecall": 1,
+        "unreadable": {
+          "expectedMentions": 0,
+          "correctlyFlaggedUnreadable": 0,
+          "omittedUnreadableMentions": 0
+        },
+        "unresolvedDates": {
+          "rows": 0,
+          "fields": 0,
+          "preservedUnresolved": 0,
+          "signaledRows": 0
+        },
+        "verifier": {
+          "eligibleRows": 24,
+          "attentionRows": 0,
+          "reviewFraction": 0,
+          "incorrectRowsObserved": 0,
+          "unsafeLiteralMatches": 0,
+          "falseAlertCandidates": 0,
+          "correctButUnprovableRows": 0,
+          "silentUnresolvedAcceptance": 0,
+          "sensitivityToWrongResults": null
+        },
+        "errors": []
+      },
+      "deterministicDateRecoveredFields": 0,
+      "derivedModelOnlyEvaluation": null,
+      "inventory": {
+        "version": 2,
+        "scope": "recognizable_text_rows_only",
+        "completenessProven": false,
+        "recognizableRows": 24,
+        "possibleOmissions": [],
+        "coverage": {
+          "basis": "supplied_native_text_lines",
+          "coordinatesAvailable": false,
+          "independentTextAvailable": true,
+          "expectedPageCount": null,
+          "providedPages": [1, 2, 3, 4, 5, 6, 7, 8],
+          "missingPages": null,
+          "duplicatePageNumbers": [],
+          "pages": [
+            {
+              "page": 1,
+              "status": "unrecognized_text_present",
+              "nonEmptyLines": 7,
+              "recognizedRows": 3,
+              "unknownLines": [
+                {
+                  "line": 1,
+                  "reason": "unsupported_or_non_observation_text"
+                },
+                {
+                  "line": 2,
+                  "reason": "unsupported_or_non_observation_text"
+                }
+              ],
+              "sections": [
+                {
+                  "kind": "unspecified",
+                  "startLine": 1,
+                  "endLine": 7,
+                  "recognizedRows": 3,
+                  "unrecognizedLines": [1, 2]
+                }
+              ]
+            },
+            {
+              "page": 2,
+              "status": "unrecognized_text_present",
+              "nonEmptyLines": 7,
+              "recognizedRows": 3,
+              "unknownLines": [
+                {
+                  "line": 1,
+                  "reason": "unsupported_or_non_observation_text"
+                },
+                {
+                  "line": 2,
+                  "reason": "unsupported_or_non_observation_text"
+                }
+              ],
+              "sections": [
+                {
+                  "kind": "unspecified",
+                  "startLine": 1,
+                  "endLine": 7,
+                  "recognizedRows": 3,
+                  "unrecognizedLines": [1, 2]
+                }
+              ]
+            },
+            {
+              "page": 3,
+              "status": "unrecognized_text_present",
+              "nonEmptyLines": 7,
+              "recognizedRows": 3,
+              "unknownLines": [
+                {
+                  "line": 1,
+                  "reason": "unsupported_or_non_observation_text"
+                },
+                {
+                  "line": 2,
+                  "reason": "unsupported_or_non_observation_text"
+                }
+              ],
+              "sections": [
+                {
+                  "kind": "unspecified",
+                  "startLine": 1,
+                  "endLine": 7,
+                  "recognizedRows": 3,
+                  "unrecognizedLines": [1, 2]
+                }
+              ]
+            },
+            {
+              "page": 4,
+              "status": "unrecognized_text_present",
+              "nonEmptyLines": 7,
+              "recognizedRows": 3,
+              "unknownLines": [
+                {
+                  "line": 1,
+                  "reason": "unsupported_or_non_observation_text"
+                },
+                {
+                  "line": 2,
+                  "reason": "unsupported_or_non_observation_text"
+                }
+              ],
+              "sections": [
+                {
+                  "kind": "unspecified",
+                  "startLine": 1,
+                  "endLine": 7,
+                  "recognizedRows": 3,
+                  "unrecognizedLines": [1, 2]
+                }
+              ]
+            },
+            {
+              "page": 5,
+              "status": "unrecognized_text_present",
+              "nonEmptyLines": 7,
+              "recognizedRows": 3,
+              "unknownLines": [
+                {
+                  "line": 1,
+                  "reason": "unsupported_or_non_observation_text"
+                },
+                {
+                  "line": 2,
+                  "reason": "unsupported_or_non_observation_text"
+                }
+              ],
+              "sections": [
+                {
+                  "kind": "unspecified",
+                  "startLine": 1,
+                  "endLine": 7,
+                  "recognizedRows": 3,
+                  "unrecognizedLines": [1, 2]
+                }
+              ]
+            },
+            {
+              "page": 6,
+              "status": "unrecognized_text_present",
+              "nonEmptyLines": 7,
+              "recognizedRows": 3,
+              "unknownLines": [
+                {
+                  "line": 1,
+                  "reason": "unsupported_or_non_observation_text"
+                },
+                {
+                  "line": 2,
+                  "reason": "unsupported_or_non_observation_text"
+                }
+              ],
+              "sections": [
+                {
+                  "kind": "unspecified",
+                  "startLine": 1,
+                  "endLine": 7,
+                  "recognizedRows": 3,
+                  "unrecognizedLines": [1, 2]
+                }
+              ]
+            },
+            {
+              "page": 7,
+              "status": "unrecognized_text_present",
+              "nonEmptyLines": 7,
+              "recognizedRows": 3,
+              "unknownLines": [
+                {
+                  "line": 1,
+                  "reason": "unsupported_or_non_observation_text"
+                },
+                {
+                  "line": 2,
+                  "reason": "unsupported_or_non_observation_text"
+                }
+              ],
+              "sections": [
+                {
+                  "kind": "unspecified",
+                  "startLine": 1,
+                  "endLine": 7,
+                  "recognizedRows": 3,
+                  "unrecognizedLines": [1, 2]
+                }
+              ]
+            },
+            {
+              "page": 8,
+              "status": "unrecognized_text_present",
+              "nonEmptyLines": 7,
+              "recognizedRows": 3,
+              "unknownLines": [
+                {
+                  "line": 1,
+                  "reason": "unsupported_or_non_observation_text"
+                },
+                {
+                  "line": 2,
+                  "reason": "unsupported_or_non_observation_text"
+                }
+              ],
+              "sections": [
+                {
+                  "kind": "unspecified",
+                  "startLine": 1,
+                  "endLine": 7,
+                  "recognizedRows": 3,
+                  "unrecognizedLines": [1, 2]
+                }
+              ]
+            }
+          ]
+        },
+        "diagnostics": {
+          "valueMismatches": [],
+          "unitMismatches": [],
+          "provenanceMissing": [],
+          "pageMismatches": [],
+          "ambiguousProvenance": [],
+          "unmatchedPredictions": []
+        }
+      },
+      "telemetry": {
+        "model": "openai/gpt-6-luna",
+        "failures": 0,
+        "provider": "openai",
+        "costBasis": "unavailable",
+        "durationMs": 12299,
+        "inputTokens": 4024,
+        "pricingAsOf": null,
+        "outputTokens": 2651,
+        "extractedRows": 24,
+        "promptVersion": "lab-transcription-3",
+        "usageComplete": true,
+        "divergenceRows": 0,
+        "pipelineVersion": "lab-pipeline-3",
+        "reasoningTokens": 149,
+        "startedRequests": 4,
+        "verifierVersion": 3,
+        "divergenceFields": 0,
+        "estimatedCostUsd": null,
+        "cachedInputTokens": 0,
+        "completedRequests": 4,
+        "processingMilliseconds": 13935
+      },
+      "estimatedTokenCostUsd": 0.0017279,
+      "costBasis": "public_standard_token_rates_not_invoice",
+      "historicalBaselineSamePdf": null
+    }
+  ],
+  "pairedComparisons": [
+    {
+      "caseId": "many-pages-repeated-parameters",
+      "samePdf": true,
+      "sameReference": true,
+      "sameConfiguredModel": true,
+      "nominallyComparable": true,
+      "resolvedRevisionKnown": false,
+      "correctResultsBefore": 24,
+      "correctResultsAfter": 24,
+      "fieldCorrectBefore": 160,
+      "fieldCorrectAfter": 160,
+      "fieldExpected": 160,
+      "omittedRowsBefore": 0,
+      "omittedRowsAfter": 0,
+      "unsafeBefore": 0,
+      "unsafeAfter": 0,
+      "beforeHttpMilliseconds": 32400,
+      "afterHttpMilliseconds": 16324,
+      "limitation": "Single trials and a configured alias do not establish causal improvement or model stability."
+    }
+  ],
+  "limitations": [
+    "Synthetic small selected corpus; no clinical accuracy claim.",
+    "Missing or failed attempts remain in denominators; unknown usage/cost never becomes zero.",
+    "False-alert candidates need source adjudication; correct-but-unprovable scan/layout warnings remain legitimate.",
+    "Stage C legacy ambiguous DD/MM references differ from explicit-evidence Stage D policy; do not claim date improvement from changed truth.",
+    "No comparisons between different PDFs establish before/after performance gain.",
+    "Supplemental attempts contribute only to operational usage/cost and incidents; they are never relabeled as candidate quality measurements or paired comparisons.",
+    "No clinical publication, provider calls, database writes or model routing are performed by this reporter.",
+    "derivedModelOnlyEvaluation reverts audited null-to-date recoveries; it is derived attribution, not a captured raw model response. Actual verifier decisions belong only to delivered evaluation."
+  ]
+}

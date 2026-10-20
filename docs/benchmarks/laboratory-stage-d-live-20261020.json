@@ -1,0 +1,5157 @@
+{
+  "schemaVersion": 1,
+  "purpose": "SYNTHETIC_ONLY_REAL_OPENAI_STAGE_D_NOT_CLINICAL_VALIDATION",
+  "provenance": {
+    "beforeCommit": "4e9f9c034e9465e87cd0d96394ae3814ca2511f9",
+    "afterCommit": "2b16b12c7f6417ae3e9df6042a4e01f793379b07",
+    "provider": "openai",
+    "configuredModel": "openai/gpt-6-luna",
+    "resolvedModelRevision": null,
+    "dataClassification": "synthetic",
+    "neonProject": "little-dust-61663559",
+    "neonBranch": "br-winter-hill-b69uz195",
+    "sourceSha256": {
+      "src/lib/laboratory-evidence.ts": "cded726c69a7ae881e477b75c3245d9046aec52e60d00befe942af5e66e6d83f",
+      "src/lib/laboratory-date-evidence.ts": "1e7a858834a135508d90d80e568cb5b9338d5de43d7bcd11106b98d09bdf47e4",
+      "src/lib/laboratory-source-association.ts": "14818a5e84c665d55fc54688d905d8f6063f8d14a1a7d5733166e5ee506a3072",
+      "src/lib/laboratory-completeness-experiment.ts": "046a9d02463705e461ce87706497eb8baa94a2c3cb81fadadf374d2a3ea783d5",
+      "src/server/laboratory-extraction.ts": "b109a1fb1286b16f095359d86b88a78e89616dcd7c1c8b90bd8bd452f4759c5f",
+      "src/server/laboratory-pdf-text.ts": "42d0fd421b3aad19d0efb5ac1e2b867db48611e8678aafab99c562e0ee2d6eec",
+      "src/server/laboratory-results.ts": "1d465e01a3534377eadb571f42e1e18955fd2af1134fbcb09997abe60b61efe9",
+      "src/test/fixtures/laboratory-robustness.ts": "9bb8bead7b73ea3c456b01428aa8ed3512692ea3995132ade62100c596de7d9f"
+    },
+    "pairedCaseIds": ["many-pages-repeated-parameters"],
+    "operationalDeviation": "Stable Preview alias remained on old deployment after git deployment. Two v2 repetitions were discovered, interrupted and excluded from candidate comparison. Alias corrected; one remaining quota slot used on immutable candidate URL. No quota change/reset."
+  },
+  "records": [
+    {
+      "phase": "before",
+      "caseId": "dates-explicit-ddmm",
+      "sha256": "c02cd0c5584a344b0806997a1d571c6ac23167de7e3f56ecfe8b8dbb25290c49",
+      "documentId": "11f2453f-43d4-42f7-93a9-1c80bdedc3be",
+      "operationId": "0a7eb45b-4419-457c-98c6-c8cbe8dd1366",
+      "startedAt": "2026-10-20T04:00:14.064Z",
+      "uploadStatus": 201,
+      "openStatus": 200,
+      "httpStatus": 200,
+      "import": {
+        "id": "0dd01ed7-7c83-4bfb-85d1-ef7516545c90",
+        "status": "READY_REVIEW",
+        "version": 2,
+        "draft": {
+          "rows": [
+            {
+              "name": "Ferritina",
+              "unit": "ng/mL",
+              "method": "Quimioluminescência",
+              "result": "45.5",
+              "evidence": "Ferritina: 45.5 ng/mL",
+              "issuedOn": "2026-01-05",
+              "material": "Soro",
+              "verified": false,
+              "reference": null,
+              "laboratory": "Laboratório Sintético Beta",
+              "reportedOn": "2026-01-04",
+              "sourcePage": 1,
+              "collectedOn": "2026-01-02",
+              "uncertainty": null
+            }
+          ],
+          "notes": "",
+          "patientConfirmed": false
+        },
+        "failure_code": null,
+        "model": "openai/gpt-6-luna"
+      },
+      "evidenceChecks": {
+        "version": 2,
+        "parserStatus": "available",
+        "totalPages": 1,
+        "rows": [
+          {
+            "status": "literal_match",
+            "basis": "source_text",
+            "issues": [],
+            "fields": {
+              "name": {
+                "status": "supported",
+                "page": 1,
+                "line": 9
+              },
+              "unit": {
+                "status": "supported",
+                "page": 1,
+                "line": 9
+              },
+              "method": {
+                "status": "supported",
+                "page": 1,
+                "line": 7
+              },
+              "result": {
+                "status": "supported",
+                "page": 1,
+                "line": 9
+              },
+              "issuedOn": {
+                "status": "supported",
+                "page": 1,
+                "line": 6
+              },
+              "material": {
+                "status": "supported",
+                "page": 1,
+                "line": 8
+              },
+              "reference": {
+                "status": "absent",
+                "page": 1,
+                "line": 9
+              },
+              "laboratory": {
+                "status": "supported",
+                "page": 1,
+                "line": 2
+              },
+              "reportedOn": {
+                "status": "supported",
+                "page": 1,
+                "line": 5
+              },
+              "collectedOn": {
+                "status": "supported",
+                "page": 1,
+                "line": 4
+              }
+            }
+          }
+        ]
+      },
+      "wallMilliseconds": 15110,
+      "finishedAt": "2026-10-20T04:00:33.165Z",
+      "telemetry": {
+        "model": "openai/gpt-6-luna",
+        "failures": 0,
+        "provider": "openai",
+        "costBasis": "unavailable",
+        "durationMs": 10919,
+        "inputTokens": 703,
+        "pricingAsOf": null,
+        "outputTokens": 151,
+        "extractedRows": 1,
+        "promptVersion": "lab-transcription-2",
+        "usageComplete": true,
+        "divergenceRows": 0,
+        "pipelineVersion": "lab-pipeline-2",
+        "reasoningTokens": 32,
+        "startedRequests": 1,
+        "verifierVersion": 2,
+        "divergenceFields": 0,
+        "estimatedCostUsd": null,
+        "cachedInputTokens": 0,
+        "completedRequests": 1,
+        "processingMilliseconds": 12315
+      },
+      "deploymentId": "dpl_4kEKMi4z4YA1utvhwAbvQQJMoUTj",
+      "codeCommit": "4e9f9c034e9465e87cd0d96394ae3814ca2511f9",
+      "transportError": null
+    },
+    {
+      "phase": "before",
+      "caseId": "many-pages-repeated-parameters",
+      "sha256": "2eda2f67fe173823b8f581d07a31c65a60c354d3e0f7228155bce8738df64430",
+      "documentId": "854acd2b-88bb-408f-8d20-d392f46c9709",
+      "operationId": "c22dff05-bd12-41c9-bbc1-0ca74b4b2f6b",
+      "startedAt": "2026-10-20T04:00:33.166Z",
+      "uploadStatus": 201,
+      "openStatus": 200,
+      "httpStatus": 200,
+      "import": {
+        "id": "7efb3adf-f15a-44d1-903b-5d7c609a2ef3",
+        "status": "READY_REVIEW",
+        "version": 2,
+        "draft": {
+          "rows": [
+            {
+              "name": "TSH",
+              "unit": "mUI/L",
+              "method": null,
+              "result": "0,5",
+              "evidence": "TSH: 0,5 mUI/L; Referência: 0,4 - 4,0; Resultado anterior: 2,9 mUI/L",
+              "issuedOn": null,
+              "material": null,
+              "verified": false,
+              "reference": "0,4 - 4,0",
+              "laboratory": null,
+              "reportedOn": "2026-02-13",
+              "sourcePage": 1,
+              "collectedOn": "2026-02-13",
+              "uncertainty": null
+            },
+            {
+              "name": "T4 livre",
+              "unit": "ng/dL",
+              "method": null,
+              "result": "1,0",
+              "evidence": "T4 livre: 1,0 ng/dL; Referência: 0,8 - 1,8",
+              "issuedOn": null,
+              "material": null,
+              "verified": false,
+              "reference": "0,8 - 1,8",
+              "laboratory": null,
+              "reportedOn": "2026-02-13",
+              "sourcePage": 1,
+              "collectedOn": "2026-02-13",
+              "uncertainty": null
+            },
+            {
+              "name": "Anti-HCV",
+              "unit": null,
+              "method": null,
+              "result": "Não reagente",
+              "evidence": "Anti-HCV: Não reagente; Referência: Não reagente",
+              "issuedOn": null,
+              "material": null,
+              "verified": false,
+              "reference": "Não reagente",
+              "laboratory": null,
+              "reportedOn": "2026-02-13",
+              "sourcePage": 1,
+              "collectedOn": "2026-02-13",
+              "uncertainty": null
+            },
+            {
+              "name": "TSH",
+              "unit": "mUI/L",
+              "method": null,
+              "result": "0,7",
+              "evidence": "TSH: 0,7 mUI/L; Referência: 0,4 - 4,0; Resultado anterior: 2,9 mUI/L",
+              "issuedOn": null,
+              "material": null,
+              "verified": false,
+              "reference": "0,4 - 4,0",
+              "laboratory": null,
+              "reportedOn": "2026-02-14",
+              "sourcePage": 2,
+              "collectedOn": "2026-02-14",
+              "uncertainty": null
+            },
+            {
+              "name": "T4 livre",
+              "unit": "ng/dL",
+              "method": null,
+              "result": "1,1",
+              "evidence": "T4 livre: 1,1 ng/dL; Referência: 0,8 - 1,8",
+              "issuedOn": null,
+              "material": null,
+              "verified": false,
+              "reference": "0,8 - 1,8",
+              "laboratory": null,
+              "reportedOn": "2026-02-14",
+              "sourcePage": 2,
+              "collectedOn": "2026-02-14",
+              "uncertainty": null
+            },
+            {
+              "name": "Anti-HCV",
+              "unit": null,
+              "method": null,
+              "result": "Não reagente",
+              "evidence": "Anti-HCV: Não reagente; Referência: Não reagente",
+              "issuedOn": null,
+              "material": null,
+              "verified": false,
+              "reference": "Não reagente",
+              "laboratory": null,
+              "reportedOn": "2026-02-14",
+              "sourcePage": 2,
+              "collectedOn": "2026-02-14",
+              "uncertainty": null
+            },
+            {
+              "name": "TSH",
+              "unit": "mUI/L",
+              "method": null,
+              "result": "0,9",
+              "evidence": "TSH: 0,9 mUI/L; Referência: 0,4 - 4,0; Resultado anterior: 2,9 mUI/L",
+              "issuedOn": null,
+              "material": null,
+              "verified": false,
+              "reference": "0,4 - 4,0",
+              "laboratory": null,
+              "reportedOn": "2026-02-15",
+              "sourcePage": 3,
+              "collectedOn": "2026-02-15",
+              "uncertainty": null
+            },
+            {
+              "name": "T4 livre",
+              "unit": "ng/dL",
+              "method": null,
+              "result": "1,2",
+              "evidence": "T4 livre: 1,2 ng/dL; Referência: 0,8 - 1,8",
+              "issuedOn": null,
+              "material": null,
+              "verified": false,
+              "reference": "0,8 - 1,8",
+              "laboratory": null,
+              "reportedOn": "2026-02-15",
+              "sourcePage": 3,
+              "collectedOn": "2026-02-15",
+              "uncertainty": null
+            },
+            {
+              "name": "Anti-HCV",
+              "unit": null,
+              "method": null,
+              "result": "Não reagente",
+              "evidence": "Anti-HCV: Não reagente; Referência: Não reagente",
+              "issuedOn": null,
+              "material": null,
+              "verified": false,
+              "reference": "Não reagente",
+              "laboratory": null,
+              "reportedOn": "2026-02-15",
+              "sourcePage": 3,
+              "collectedOn": "2026-02-15",
+              "uncertainty": null
+            },
+            {
+              "name": "TSH",
+              "unit": "mUI/L",
+              "method": null,
+              "result": "1,1",
+              "evidence": "TSH: 1,1 mUI/L; Referência: 0,4 - 4,0; Resultado anterior: 2,9 mUI/L",
+              "issuedOn": null,
+              "material": null,
+              "verified": false,
+              "reference": "0,4 - 4,0",
+              "laboratory": null,
+              "reportedOn": "2026-02-16",
+              "sourcePage": 4,
+              "collectedOn": "2026-02-16",
+              "uncertainty": null
+            },
+            {
+              "name": "T4 livre",
+              "unit": "ng/dL",
+              "method": null,
+              "result": "1,3",
+              "evidence": "T4 livre: 1,3 ng/dL; Referência: 0,8 - 1,8",
+              "issuedOn": null,
+              "material": null,
+              "verified": false,
+              "reference": "0,8 - 1,8",
+              "laboratory": null,
+              "reportedOn": "2026-02-16",
+              "sourcePage": 4,
+              "collectedOn": "2026-02-16",
+              "uncertainty": null
+            },
+            {
+              "name": "Anti-HCV",
+              "unit": null,
+              "method": null,
+              "result": "Não reagente",
+              "evidence": "Anti-HCV: Não reagente; Referência: Não reagente",
+              "issuedOn": null,
+              "material": null,
+              "verified": false,
+              "reference": "Não reagente",
+              "laboratory": null,
+              "reportedOn": "2026-02-16",
+              "sourcePage": 4,
+              "collectedOn": "2026-02-16",
+              "uncertainty": null
+            },
+            {
+              "name": "TSH",
+              "unit": "mUI/L",
+              "method": null,
+              "result": "1,3",
+              "evidence": "TSH: 1,3 mUI/L; Referência: 0,4 - 4,0",
+              "issuedOn": null,
+              "material": null,
+              "verified": false,
+              "reference": "0,4 - 4,0",
+              "laboratory": null,
+              "reportedOn": "2026-02-17",
+              "sourcePage": 5,
+              "collectedOn": "2026-02-17",
+              "uncertainty": null
+            },
+            {
+              "name": "T4 livre",
+              "unit": "ng/dL",
+              "method": null,
+              "result": "1,4",
+              "evidence": "T4 livre: 1,4 ng/dL; Referência: 0,8 - 1,8",
+              "issuedOn": null,
+              "material": null,
+              "verified": false,
+              "reference": "0,8 - 1,8",
+              "laboratory": null,
+              "reportedOn": "2026-02-17",
+              "sourcePage": 5,
+              "collectedOn": "2026-02-17",
+              "uncertainty": null
+            },
+            {
+              "name": "Anti-HCV",
+              "unit": null,
+              "method": null,
+              "result": "Não reagente",
+              "evidence": "Anti-HCV: Não reagente; Referência: Não reagente",
+              "issuedOn": null,
+              "material": null,
+              "verified": false,
+              "reference": "Não reagente",
+              "laboratory": null,
+              "reportedOn": "2026-02-17",
+              "sourcePage": 5,
+              "collectedOn": "2026-02-17",
+              "uncertainty": null
+            },
+            {
+              "name": "TSH",
+              "unit": "mUI/L",
+              "method": null,
+              "result": "1,5",
+              "evidence": "TSH: 1,5 mUI/L; Referência: 0,4 - 4,0",
+              "issuedOn": null,
+              "material": null,
+              "verified": false,
+              "reference": "0,4 - 4,0",
+              "laboratory": null,
+              "reportedOn": "2026-02-18",
+              "sourcePage": 6,
+              "collectedOn": "2026-02-18",
+              "uncertainty": null
+            },
+            {
+              "name": "T4 livre",
+              "unit": "ng/dL",
+              "method": null,
+              "result": "1,5",
+              "evidence": "T4 livre: 1,5 ng/dL; Referência: 0,8 - 1,8",
+              "issuedOn": null,
+              "material": null,
+              "verified": false,
+              "reference": "0,8 - 1,8",
+              "laboratory": null,
+              "reportedOn": "2026-02-18",
+              "sourcePage": 6,
+              "collectedOn": "2026-02-18",
+              "uncertainty": null
+            },
+            {
+              "name": "Anti-HCV",
+              "unit": null,
+              "method": null,
+              "result": "Não reagente",
+              "evidence": "Anti-HCV: Não reagente; Referência: Não reagente",
+              "issuedOn": null,
+              "material": null,
+              "verified": false,
+              "reference": "Não reagente",
+              "laboratory": null,
+              "reportedOn": "2026-02-18",
+              "sourcePage": 6,
+              "collectedOn": "2026-02-18",
+              "uncertainty": null
+            },
+            {
+              "name": "TSH",
+              "unit": "mUI/L",
+              "method": null,
+              "result": "1,7",
+              "evidence": "TSH: 1,7 mUI/L; Referência: 0,4 - 4,0; Resultado anterior: 2,9 mUI/L",
+              "issuedOn": null,
+              "material": null,
+              "verified": false,
+              "reference": "0,4 - 4,0",
+              "laboratory": null,
+              "reportedOn": "2026-02-19",
+              "sourcePage": 7,
+              "collectedOn": "2026-02-19",
+              "uncertainty": null
+            },
+            {
+              "name": "T4 livre",
+              "unit": "ng/dL",
+              "method": null,
+              "result": "1,6",
+              "evidence": "T4 livre: 1,6 ng/dL; Referência: 0,8 - 1,8",
+              "issuedOn": null,
+              "material": null,
+              "verified": false,
+              "reference": "0,8 - 1,8",
+              "laboratory": null,
+              "reportedOn": "2026-02-19",
+              "sourcePage": 7,
+              "collectedOn": "2026-02-19",
+              "uncertainty": null
+            },
+            {
+              "name": "Anti-HCV",
+              "unit": null,
+              "method": null,
+              "result": "Não reagente",
+              "evidence": "Anti-HCV: Não reagente; Referência: Não reagente",
+              "issuedOn": null,
+              "material": null,
+              "verified": false,
+              "reference": "Não reagente",
+              "laboratory": null,
+              "reportedOn": "2026-02-19",
+              "sourcePage": 7,
+              "collectedOn": "2026-02-19",
+              "uncertainty": null
+            },
+            {
+              "name": "TSH",
+              "unit": "mUI/L",
+              "method": null,
+              "result": "1,9",
+              "evidence": "TSH: 1,9 mUI/L; Referência: 0,4 - 4,0; Resultado anterior: 2,9 mUI/L",
+              "issuedOn": null,
+              "material": null,
+              "verified": false,
+              "reference": "0,4 - 4,0",
+              "laboratory": null,
+              "reportedOn": "2026-02-20",
+              "sourcePage": 8,
+              "collectedOn": "2026-02-20",
+              "uncertainty": null
+            },
+            {
+              "name": "T4 livre",
+              "unit": "ng/dL",
+              "method": null,
+              "result": "1,7",
+              "evidence": "T4 livre: 1,7 ng/dL; Referência: 0,8 - 1,8",
+              "issuedOn": null,
+              "material": null,
+              "verified": false,
+              "reference": "0,8 - 1,8",
+              "laboratory": null,
+              "reportedOn": "2026-02-20",
+              "sourcePage": 8,
+              "collectedOn": "2026-02-20",
+              "uncertainty": null
+            },
+            {
+              "name": "Anti-HCV",
+              "unit": null,
+              "method": null,
+              "result": "Não reagente",
+              "evidence": "Anti-HCV: Não reagente; Referência: Não reagente",
+              "issuedOn": null,
+              "material": null,
+              "verified": false,
+              "reference": "Não reagente",
+              "laboratory": null,
+              "reportedOn": "2026-02-20",
+              "sourcePage": 8,
+              "collectedOn": "2026-02-20",
+              "uncertainty": null
+            }
+          ],
+          "notes": "Resultados repetidos preservados conforme aparecem nas páginas; resultados anteriores não foram transcritos como atuais.",
+          "patientConfirmed": false
+        },
+        "failure_code": null,
+        "model": "openai/gpt-6-luna"
+      },
+      "evidenceChecks": {
+        "version": 2,
+        "parserStatus": "available",
+        "totalPages": 8,
+        "rows": [
+          {
+            "status": "attention",
+            "basis": "source_text",
+            "issues": ["DATE_UNSUPPORTED"],
+            "fields": {
+              "name": {
+                "status": "supported",
+                "page": 1,
+                "line": 5
+              },
+              "unit": {
+                "status": "supported",
+                "page": 1,
+                "line": 5
+              },
+              "method": {
+                "status": "absent"
+              },
+              "result": {
+                "status": "supported",
+                "page": 1,
+                "line": 5
+              },
+              "issuedOn": {
+                "status": "absent"
+              },
+              "material": {
+                "status": "absent"
+              },
+              "reference": {
+                "status": "supported",
+                "page": 1,
+                "line": 5
+              },
+              "laboratory": {
+                "status": "absent"
+              },
+              "reportedOn": {
+                "status": "insufficient"
+              },
+              "collectedOn": {
+                "status": "insufficient"
+              }
+            }
+          },
+          {
+            "status": "attention",
+            "basis": "source_text",
+            "issues": ["DATE_UNSUPPORTED"],
+            "fields": {
+              "name": {
+                "status": "supported",
+                "page": 1,
+                "line": 6
+              },
+              "unit": {
+                "status": "supported",
+                "page": 1,
+                "line": 6
+              },
+              "method": {
+                "status": "absent"
+              },
+              "result": {
+                "status": "supported",
+                "page": 1,
+                "line": 6
+              },
+              "issuedOn": {
+                "status": "absent"
+              },
+              "material": {
+                "status": "absent"
+              },
+              "reference": {
+                "status": "supported",
+                "page": 1,
+                "line": 6
+              },
+              "laboratory": {
+                "status": "absent"
+              },
+              "reportedOn": {
+                "status": "insufficient"
+              },
+              "collectedOn": {
+                "status": "insufficient"
+              }
+            }
+          },
+          {
+            "status": "attention",
+            "basis": "source_text",
+            "issues": ["DATE_UNSUPPORTED"],
+            "fields": {
+              "name": {
+                "status": "supported",
+                "page": 1,
+                "line": 7
+              },
+              "unit": {
+                "status": "absent",
+                "page": 1,
+                "line": 7
+              },
+              "method": {
+                "status": "absent"
+              },
+              "result": {
+                "status": "supported",
+                "page": 1,
+                "line": 7
+              },
+              "issuedOn": {
+                "status": "absent"
+              },
+              "material": {
+                "status": "absent"
+              },
+              "reference": {
+                "status": "supported",
+                "page": 1,
+                "line": 7
+              },
+              "laboratory": {
+                "status": "absent"
+              },
+              "reportedOn": {
+                "status": "insufficient"
+              },
+              "collectedOn": {
+                "status": "insufficient"
+              }
+            }
+          },
+          {
+            "status": "attention",
+            "basis": "source_text",
+            "issues": ["DATE_UNSUPPORTED"],
+            "fields": {
+              "name": {
+                "status": "supported",
+                "page": 2,
+                "line": 5
+              },
+              "unit": {
+                "status": "supported",
+                "page": 2,
+                "line": 5
+              },
+              "method": {
+                "status": "absent"
+              },
+              "result": {
+                "status": "supported",
+                "page": 2,
+                "line": 5
+              },
+              "issuedOn": {
+                "status": "absent"
+              },
+              "material": {
+                "status": "absent"
+              },
+              "reference": {
+                "status": "supported",
+                "page": 2,
+                "line": 5
+              },
+              "laboratory": {
+                "status": "absent"
+              },
+              "reportedOn": {
+                "status": "insufficient"
+              },
+              "collectedOn": {
+                "status": "insufficient"
+              }
+            }
+          },
+          {
+            "status": "attention",
+            "basis": "source_text",
+            "issues": ["DATE_UNSUPPORTED"],
+            "fields": {
+              "name": {
+                "status": "supported",
+                "page": 2,
+                "line": 6
+              },
+              "unit": {
+                "status": "supported",
+                "page": 2,
+                "line": 6
+              },
+              "method": {
+                "status": "absent"
+              },
+              "result": {
+                "status": "supported",
+                "page": 2,
+                "line": 6
+              },
+              "issuedOn": {
+                "status": "absent"
+              },
+              "material": {
+                "status": "absent"
+              },
+              "reference": {
+                "status": "supported",
+                "page": 2,
+                "line": 6
+              },
+              "laboratory": {
+                "status": "absent"
+              },
+              "reportedOn": {
+                "status": "insufficient"
+              },
+              "collectedOn": {
+                "status": "insufficient"
+              }
+            }
+          },
+          {
+            "status": "attention",
+            "basis": "source_text",
+            "issues": ["DATE_UNSUPPORTED"],
+            "fields": {
+              "name": {
+                "status": "supported",
+                "page": 2,
+                "line": 7
+              },
+              "unit": {
+                "status": "absent",
+                "page": 2,
+                "line": 7
+              },
+              "method": {
+                "status": "absent"
+              },
+              "result": {
+                "status": "supported",
+                "page": 2,
+                "line": 7
+              },
+              "issuedOn": {
+                "status": "absent"
+              },
+              "material": {
+                "status": "absent"
+              },
+              "reference": {
+                "status": "supported",
+                "page": 2,
+                "line": 7
+              },
+              "laboratory": {
+                "status": "absent"
+              },
+              "reportedOn": {
+                "status": "insufficient"
+              },
+              "collectedOn": {
+                "status": "insufficient"
+              }
+            }
+          },
+          {
+            "status": "attention",
+            "basis": "source_text",
+            "issues": ["DATE_UNSUPPORTED"],
+            "fields": {
+              "name": {
+                "status": "supported",
+                "page": 3,
+                "line": 5
+              },
+              "unit": {
+                "status": "supported",
+                "page": 3,
+                "line": 5
+              },
+              "method": {
+                "status": "absent"
+              },
+              "result": {
+                "status": "supported",
+                "page": 3,
+                "line": 5
+              },
+              "issuedOn": {
+                "status": "absent"
+              },
+              "material": {
+                "status": "absent"
+              },
+              "reference": {
+                "status": "supported",
+                "page": 3,
+                "line": 5
+              },
+              "laboratory": {
+                "status": "absent"
+              },
+              "reportedOn": {
+                "status": "insufficient"
+              },
+              "collectedOn": {
+                "status": "insufficient"
+              }
+            }
+          },
+          {
+            "status": "attention",
+            "basis": "source_text",
+            "issues": ["DATE_UNSUPPORTED"],
+            "fields": {
+              "name": {
+                "status": "supported",
+                "page": 3,
+                "line": 6
+              },
+              "unit": {
+                "status": "supported",
+                "page": 3,
+                "line": 6
+              },
+              "method": {
+                "status": "absent"
+              },
+              "result": {
+                "status": "supported",
+                "page": 3,
+                "line": 6
+              },
+              "issuedOn": {
+                "status": "absent"
+              },
+              "material": {
+                "status": "absent"
+              },
+              "reference": {
+                "status": "supported",
+                "page": 3,
+                "line": 6
+              },
+              "laboratory": {
+                "status": "absent"
+              },
+              "reportedOn": {
+                "status": "insufficient"
+              },
+              "collectedOn": {
+                "status": "insufficient"
+              }
+            }
+          },
+          {
+            "status": "attention",
+            "basis": "source_text",
+            "issues": ["DATE_UNSUPPORTED"],
+            "fields": {
+              "name": {
+                "status": "supported",
+                "page": 3,
+                "line": 7
+              },
+              "unit": {
+                "status": "absent",
+                "page": 3,
+                "line": 7
+              },
+              "method": {
+                "status": "absent"
+              },
+              "result": {
+                "status": "supported",
+                "page": 3,
+                "line": 7
+              },
+              "issuedOn": {
+                "status": "absent"
+              },
+              "material": {
+                "status": "absent"
+              },
+              "reference": {
+                "status": "supported",
+                "page": 3,
+                "line": 7
+              },
+              "laboratory": {
+                "status": "absent"
+              },
+              "reportedOn": {
+                "status": "insufficient"
+              },
+              "collectedOn": {
+                "status": "insufficient"
+              }
+            }
+          },
+          {
+            "status": "attention",
+            "basis": "source_text",
+            "issues": ["DATE_UNSUPPORTED"],
+            "fields": {
+              "name": {
+                "status": "supported",
+                "page": 4,
+                "line": 5
+              },
+              "unit": {
+                "status": "supported",
+                "page": 4,
+                "line": 5
+              },
+              "method": {
+                "status": "absent"
+              },
+              "result": {
+                "status": "supported",
+                "page": 4,
+                "line": 5
+              },
+              "issuedOn": {
+                "status": "absent"
+              },
+              "material": {
+                "status": "absent"
+              },
+              "reference": {
+                "status": "supported",
+                "page": 4,
+                "line": 5
+              },
+              "laboratory": {
+                "status": "absent"
+              },
+              "reportedOn": {
+                "status": "insufficient"
+              },
+              "collectedOn": {
+                "status": "insufficient"
+              }
+            }
+          },
+          {
+            "status": "attention",
+            "basis": "source_text",
+            "issues": ["DATE_UNSUPPORTED"],
+            "fields": {
+              "name": {
+                "status": "supported",
+                "page": 4,
+                "line": 6
+              },
+              "unit": {
+                "status": "supported",
+                "page": 4,
+                "line": 6
+              },
+              "method": {
+                "status": "absent"
+              },
+              "result": {
+                "status": "supported",
+                "page": 4,
+                "line": 6
+              },
+              "issuedOn": {
+                "status": "absent"
+              },
+              "material": {
+                "status": "absent"
+              },
+              "reference": {
+                "status": "supported",
+                "page": 4,
+                "line": 6
+              },
+              "laboratory": {
+                "status": "absent"
+              },
+              "reportedOn": {
+                "status": "insufficient"
+              },
+              "collectedOn": {
+                "status": "insufficient"
+              }
+            }
+          },
+          {
+            "status": "attention",
+            "basis": "source_text",
+            "issues": ["DATE_UNSUPPORTED"],
+            "fields": {
+              "name": {
+                "status": "supported",
+                "page": 4,
+                "line": 7
+              },
+              "unit": {
+                "status": "absent",
+                "page": 4,
+                "line": 7
+              },
+              "method": {
+                "status": "absent"
+              },
+              "result": {
+                "status": "supported",
+                "page": 4,
+                "line": 7
+              },
+              "issuedOn": {
+                "status": "absent"
+              },
+              "material": {
+                "status": "absent"
+              },
+              "reference": {
+                "status": "supported",
+                "page": 4,
+                "line": 7
+              },
+              "laboratory": {
+                "status": "absent"
+              },
+              "reportedOn": {
+                "status": "insufficient"
+              },
+              "collectedOn": {
+                "status": "insufficient"
+              }
+            }
+          },
+          {
+            "status": "attention",
+            "basis": "source_text",
+            "issues": ["DATE_UNSUPPORTED"],
+            "fields": {
+              "name": {
+                "status": "supported",
+                "page": 5,
+                "line": 5
+              },
+              "unit": {
+                "status": "supported",
+                "page": 5,
+                "line": 5
+              },
+              "method": {
+                "status": "absent"
+              },
+              "result": {
+                "status": "supported",
+                "page": 5,
+                "line": 5
+              },
+              "issuedOn": {
+                "status": "absent"
+              },
+              "material": {
+                "status": "absent"
+              },
+              "reference": {
+                "status": "supported",
+                "page": 5,
+                "line": 5
+              },
+              "laboratory": {
+                "status": "absent"
+              },
+              "reportedOn": {
+                "status": "insufficient"
+              },
+              "collectedOn": {
+                "status": "insufficient"
+              }
+            }
+          },
+          {
+            "status": "attention",
+            "basis": "source_text",
+            "issues": ["DATE_UNSUPPORTED"],
+            "fields": {
+              "name": {
+                "status": "supported",
+                "page": 5,
+                "line": 6
+              },
+              "unit": {
+                "status": "supported",
+                "page": 5,
+                "line": 6
+              },
+              "method": {
+                "status": "absent"
+              },
+              "result": {
+                "status": "supported",
+                "page": 5,
+                "line": 6
+              },
+              "issuedOn": {
+                "status": "absent"
+              },
+              "material": {
+                "status": "absent"
+              },
+              "reference": {
+                "status": "supported",
+                "page": 5,
+                "line": 6
+              },
+              "laboratory": {
+                "status": "absent"
+              },
+              "reportedOn": {
+                "status": "insufficient"
+              },
+              "collectedOn": {
+                "status": "insufficient"
+              }
+            }
+          },
+          {
+            "status": "attention",
+            "basis": "source_text",
+            "issues": ["DATE_UNSUPPORTED"],
+            "fields": {
+              "name": {
+                "status": "supported",
+                "page": 5,
+                "line": 7
+              },
+              "unit": {
+                "status": "absent",
+                "page": 5,
+                "line": 7
+              },
+              "method": {
+                "status": "absent"
+              },
+              "result": {
+                "status": "supported",
+                "page": 5,
+                "line": 7
+              },
+              "issuedOn": {
+                "status": "absent"
+              },
+              "material": {
+                "status": "absent"
+              },
+              "reference": {
+                "status": "supported",
+                "page": 5,
+                "line": 7
+              },
+              "laboratory": {
+                "status": "absent"
+              },
+              "reportedOn": {
+                "status": "insufficient"
+              },
+              "collectedOn": {
+                "status": "insufficient"
+              }
+            }
+          },
+          {
+            "status": "attention",
+            "basis": "source_text",
+            "issues": ["DATE_UNSUPPORTED"],
+            "fields": {
+              "name": {
+                "status": "supported",
+                "page": 6,
+                "line": 5
+              },
+              "unit": {
+                "status": "supported",
+                "page": 6,
+                "line": 5
+              },
+              "method": {
+                "status": "absent"
+              },
+              "result": {
+                "status": "supported",
+                "page": 6,
+                "line": 5
+              },
+              "issuedOn": {
+                "status": "absent"
+              },
+              "material": {
+                "status": "absent"
+              },
+              "reference": {
+                "status": "supported",
+                "page": 6,
+                "line": 5
+              },
+              "laboratory": {
+                "status": "absent"
+              },
+              "reportedOn": {
+                "status": "insufficient"
+              },
+              "collectedOn": {
+                "status": "insufficient"
+              }
+            }
+          },
+          {
+            "status": "attention",
+            "basis": "source_text",
+            "issues": ["DATE_UNSUPPORTED"],
+            "fields": {
+              "name": {
+                "status": "supported",
+                "page": 6,
+                "line": 6
+              },
+              "unit": {
+                "status": "supported",
+                "page": 6,
+                "line": 6
+              },
+              "method": {
+                "status": "absent"
+              },
+              "result": {
+                "status": "supported",
+                "page": 6,
+                "line": 6
+              },
+              "issuedOn": {
+                "status": "absent"
+              },
+              "material": {
+                "status": "absent"
+              },
+              "reference": {
+                "status": "supported",
+                "page": 6,
+                "line": 6
+              },
+              "laboratory": {
+                "status": "absent"
+              },
+              "reportedOn": {
+                "status": "insufficient"
+              },
+              "collectedOn": {
+                "status": "insufficient"
+              }
+            }
+          },
+          {
+            "status": "attention",
+            "basis": "source_text",
+            "issues": ["DATE_UNSUPPORTED"],
+            "fields": {
+              "name": {
+                "status": "supported",
+                "page": 6,
+                "line": 7
+              },
+              "unit": {
+                "status": "absent",
+                "page": 6,
+                "line": 7
+              },
+              "method": {
+                "status": "absent"
+              },
+              "result": {
+                "status": "supported",
+                "page": 6,
+                "line": 7
+              },
+              "issuedOn": {
+                "status": "absent"
+              },
+              "material": {
+                "status": "absent"
+              },
+              "reference": {
+                "status": "supported",
+                "page": 6,
+                "line": 7
+              },
+              "laboratory": {
+                "status": "absent"
+              },
+              "reportedOn": {
+                "status": "insufficient"
+              },
+              "collectedOn": {
+                "status": "insufficient"
+              }
+            }
+          },
+          {
+            "status": "attention",
+            "basis": "source_text",
+            "issues": ["DATE_UNSUPPORTED"],
+            "fields": {
+              "name": {
+                "status": "supported",
+                "page": 7,
+                "line": 5
+              },
+              "unit": {
+                "status": "supported",
+                "page": 7,
+                "line": 5
+              },
+              "method": {
+                "status": "absent"
+              },
+              "result": {
+                "status": "supported",
+                "page": 7,
+                "line": 5
+              },
+              "issuedOn": {
+                "status": "absent"
+              },
+              "material": {
+                "status": "absent"
+              },
+              "reference": {
+                "status": "supported",
+                "page": 7,
+                "line": 5
+              },
+              "laboratory": {
+                "status": "absent"
+              },
+              "reportedOn": {
+                "status": "insufficient"
+              },
+              "collectedOn": {
+                "status": "insufficient"
+              }
+            }
+          },
+          {
+            "status": "attention",
+            "basis": "source_text",
+            "issues": ["DATE_UNSUPPORTED"],
+            "fields": {
+              "name": {
+                "status": "supported",
+                "page": 7,
+                "line": 6
+              },
+              "unit": {
+                "status": "supported",
+                "page": 7,
+                "line": 6
+              },
+              "method": {
+                "status": "absent"
+              },
+              "result": {
+                "status": "supported",
+                "page": 7,
+                "line": 6
+              },
+              "issuedOn": {
+                "status": "absent"
+              },
+              "material": {
+                "status": "absent"
+              },
+              "reference": {
+                "status": "supported",
+                "page": 7,
+                "line": 6
+              },
+              "laboratory": {
+                "status": "absent"
+              },
+              "reportedOn": {
+                "status": "insufficient"
+              },
+              "collectedOn": {
+                "status": "insufficient"
+              }
+            }
+          },
+          {
+            "status": "attention",
+            "basis": "source_text",
+            "issues": ["DATE_UNSUPPORTED"],
+            "fields": {
+              "name": {
+                "status": "supported",
+                "page": 7,
+                "line": 7
+              },
+              "unit": {
+                "status": "absent",
+                "page": 7,
+                "line": 7
+              },
+              "method": {
+                "status": "absent"
+              },
+              "result": {
+                "status": "supported",
+                "page": 7,
+                "line": 7
+              },
+              "issuedOn": {
+                "status": "absent"
+              },
+              "material": {
+                "status": "absent"
+              },
+              "reference": {
+                "status": "supported",
+                "page": 7,
+                "line": 7
+              },
+              "laboratory": {
+                "status": "absent"
+              },
+              "reportedOn": {
+                "status": "insufficient"
+              },
+              "collectedOn": {
+                "status": "insufficient"
+              }
+            }
+          },
+          {
+            "status": "attention",
+            "basis": "source_text",
+            "issues": ["DATE_UNSUPPORTED"],
+            "fields": {
+              "name": {
+                "status": "supported",
+                "page": 8,
+                "line": 5
+              },
+              "unit": {
+                "status": "supported",
+                "page": 8,
+                "line": 5
+              },
+              "method": {
+                "status": "absent"
+              },
+              "result": {
+                "status": "supported",
+                "page": 8,
+                "line": 5
+              },
+              "issuedOn": {
+                "status": "absent"
+              },
+              "material": {
+                "status": "absent"
+              },
+              "reference": {
+                "status": "supported",
+                "page": 8,
+                "line": 5
+              },
+              "laboratory": {
+                "status": "absent"
+              },
+              "reportedOn": {
+                "status": "insufficient"
+              },
+              "collectedOn": {
+                "status": "insufficient"
+              }
+            }
+          },
+          {
+            "status": "attention",
+            "basis": "source_text",
+            "issues": ["DATE_UNSUPPORTED"],
+            "fields": {
+              "name": {
+                "status": "supported",
+                "page": 8,
+                "line": 6
+              },
+              "unit": {
+                "status": "supported",
+                "page": 8,
+                "line": 6
+              },
+              "method": {
+                "status": "absent"
+              },
+              "result": {
+                "status": "supported",
+                "page": 8,
+                "line": 6
+              },
+              "issuedOn": {
+                "status": "absent"
+              },
+              "material": {
+                "status": "absent"
+              },
+              "reference": {
+                "status": "supported",
+                "page": 8,
+                "line": 6
+              },
+              "laboratory": {
+                "status": "absent"
+              },
+              "reportedOn": {
+                "status": "insufficient"
+              },
+              "collectedOn": {
+                "status": "insufficient"
+              }
+            }
+          },
+          {
+            "status": "attention",
+            "basis": "source_text",
+            "issues": ["DATE_UNSUPPORTED"],
+            "fields": {
+              "name": {
+                "status": "supported",
+                "page": 8,
+                "line": 7
+              },
+              "unit": {
+                "status": "absent",
+                "page": 8,
+                "line": 7
+              },
+              "method": {
+                "status": "absent"
+              },
+              "result": {
+                "status": "supported",
+                "page": 8,
+                "line": 7
+              },
+              "issuedOn": {
+                "status": "absent"
+              },
+              "material": {
+                "status": "absent"
+              },
+              "reference": {
+                "status": "supported",
+                "page": 8,
+                "line": 7
+              },
+              "laboratory": {
+                "status": "absent"
+              },
+              "reportedOn": {
+                "status": "insufficient"
+              },
+              "collectedOn": {
+                "status": "insufficient"
+              }
+            }
+          }
+        ]
+      },
+      "wallMilliseconds": 32400,
+      "finishedAt": "2026-10-20T04:01:09.054Z",
+      "telemetry": {
+        "model": "openai/gpt-6-luna",
+        "failures": 0,
+        "provider": "openai",
+        "costBasis": "unavailable",
+        "durationMs": 27750,
+        "inputTokens": 3572,
+        "pricingAsOf": null,
+        "outputTokens": 2655,
+        "extractedRows": 24,
+        "promptVersion": "lab-transcription-2",
+        "usageComplete": true,
+        "divergenceRows": 24,
+        "pipelineVersion": "lab-pipeline-2",
+        "reasoningTokens": 93,
+        "startedRequests": 4,
+        "verifierVersion": 2,
+        "divergenceFields": 48,
+        "estimatedCostUsd": null,
+        "cachedInputTokens": 0,
+        "completedRequests": 4,
+        "processingMilliseconds": 30070
+      },
+      "deploymentId": "dpl_4kEKMi4z4YA1utvhwAbvQQJMoUTj",
+      "codeCommit": "4e9f9c034e9465e87cd0d96394ae3814ca2511f9",
+      "transportError": null
+    },
+    {
+      "phase": "before",
+      "caseId": "scan-rotated",
+      "sha256": "4a28be6d344c59d69e661bdf32a6fbe96de5c830163620785fa8db038009cead",
+      "documentId": "ef6f7de2-3a77-4f7a-addc-0852113f6a60",
+      "operationId": "3e1820c8-dec8-457d-bf63-663b71358df5",
+      "startedAt": "2026-10-20T04:01:09.055Z",
+      "uploadStatus": 201,
+      "openStatus": 200,
+      "httpStatus": 200,
+      "import": {
+        "id": "e8fc4394-8c7a-40ff-973a-3d089c446ca1",
+        "status": "READY_REVIEW",
+        "version": 2,
+        "draft": {
+          "rows": [
+            {
+              "name": "TSH",
+              "unit": "mUI/L",
+              "method": null,
+              "result": "0,55",
+              "evidence": "TSH: 0,55 mUI/L: Referência: 0,4 - 4,0",
+              "issuedOn": null,
+              "material": null,
+              "verified": false,
+              "reference": "0,4 - 4,0",
+              "laboratory": null,
+              "reportedOn": null,
+              "sourcePage": 1,
+              "collectedOn": null,
+              "uncertainty": null
+            },
+            {
+              "name": "Anti-HCV",
+              "unit": null,
+              "method": null,
+              "result": "Não reagente",
+              "evidence": "Anti-HCV: Não reagente Referência: Não reagente",
+              "issuedOn": null,
+              "material": null,
+              "verified": false,
+              "reference": "Não reagente",
+              "laboratory": null,
+              "reportedOn": null,
+              "sourcePage": 1,
+              "collectedOn": null,
+              "uncertainty": null
+            }
+          ],
+          "notes": "",
+          "patientConfirmed": false
+        },
+        "failure_code": null,
+        "model": "openai/gpt-6-luna"
+      },
+      "evidenceChecks": {
+        "version": 2,
+        "parserStatus": "unavailable",
+        "totalPages": 0,
+        "rows": [
+          {
+            "status": "attention",
+            "basis": "model_evidence",
+            "issues": ["INDEPENDENT_SOURCE_UNAVAILABLE"],
+            "fields": {
+              "name": {
+                "status": "insufficient"
+              },
+              "unit": {
+                "status": "insufficient"
+              },
+              "method": {
+                "status": "absent"
+              },
+              "result": {
+                "status": "insufficient"
+              },
+              "issuedOn": {
+                "status": "absent"
+              },
+              "material": {
+                "status": "absent"
+              },
+              "reference": {
+                "status": "insufficient"
+              },
+              "laboratory": {
+                "status": "absent"
+              },
+              "reportedOn": {
+                "status": "absent"
+              },
+              "collectedOn": {
+                "status": "absent"
+              }
+            }
+          },
+          {
+            "status": "attention",
+            "basis": "model_evidence",
+            "issues": ["INDEPENDENT_SOURCE_UNAVAILABLE"],
+            "fields": {
+              "name": {
+                "status": "insufficient"
+              },
+              "unit": {
+                "status": "absent"
+              },
+              "method": {
+                "status": "absent"
+              },
+              "result": {
+                "status": "insufficient"
+              },
+              "issuedOn": {
+                "status": "absent"
+              },
+              "material": {
+                "status": "absent"
+              },
+              "reference": {
+                "status": "insufficient"
+              },
+              "laboratory": {
+                "status": "absent"
+              },
+              "reportedOn": {
+                "status": "absent"
+              },
+              "collectedOn": {
+                "status": "absent"
+              }
+            }
+          }
+        ]
+      },
+      "wallMilliseconds": 18789,
+      "finishedAt": "2026-10-20T04:01:32.113Z",
+      "telemetry": {
+        "model": "openai/gpt-6-luna",
+        "failures": 0,
+        "provider": "openai",
+        "costBasis": "unavailable",
+        "durationMs": 13892,
+        "inputTokens": 2963,
+        "pricingAsOf": null,
+        "outputTokens": 261,
+        "extractedRows": 2,
+        "promptVersion": "lab-transcription-2",
+        "usageComplete": true,
+        "divergenceRows": 2,
+        "pipelineVersion": "lab-pipeline-2",
+        "reasoningTokens": 71,
+        "startedRequests": 1,
+        "verifierVersion": 2,
+        "divergenceFields": 7,
+        "estimatedCostUsd": null,
+        "cachedInputTokens": 0,
+        "completedRequests": 1,
+        "processingMilliseconds": 15989
+      },
+      "deploymentId": "dpl_4kEKMi4z4YA1utvhwAbvQQJMoUTj",
+      "codeCommit": "4e9f9c034e9465e87cd0d96394ae3814ca2511f9",
+      "transportError": null
+    },
+    {
+      "phase": "after",
+      "caseId": "many-pages-repeated-parameters",
+      "sha256": "2eda2f67fe173823b8f581d07a31c65a60c354d3e0f7228155bce8738df64430",
+      "documentId": "229403eb-22bc-465b-809a-ca8ab5e19f17",
+      "operationId": "72a11f21-2984-4def-99a6-66ded3be8e75",
+      "startedAt": "2026-10-20T04:13:23.359Z",
+      "uploadStatus": 201,
+      "openStatus": 200,
+      "httpStatus": 200,
+      "import": {
+        "id": "000e9544-a584-4a7e-8f68-ef52d6ec92d9",
+        "status": "READY_REVIEW",
+        "version": 2,
+        "draft": {
+          "rows": [
+            {
+              "name": "TSH",
+              "unit": "mUI/L",
+              "method": null,
+              "result": "0,5",
+              "evidence": "TSH: 0,5 mUI/L; Referência: 0,4 - 4,0; Resultado anterior: 2,9 mUI/L",
+              "issuedOn": null,
+              "material": null,
+              "verified": false,
+              "reference": "0,4 - 4,0",
+              "laboratory": null,
+              "reportedOn": "2026-02-13",
+              "sourcePage": 1,
+              "collectedOn": "2026-02-13",
+              "uncertainty": null
+            },
+            {
+              "name": "T4 livre",
+              "unit": "ng/dL",
+              "method": null,
+              "result": "1,0",
+              "evidence": "T4 livre: 1,0 ng/dL; Referência: 0,8 - 1,8",
+              "issuedOn": null,
+              "material": null,
+              "verified": false,
+              "reference": "0,8 - 1,8",
+              "laboratory": null,
+              "reportedOn": "2026-02-13",
+              "sourcePage": 1,
+              "collectedOn": "2026-02-13",
+              "uncertainty": null
+            },
+            {
+              "name": "Anti-HCV",
+              "unit": null,
+              "method": null,
+              "result": "Não reagente",
+              "evidence": "Anti-HCV: Não reagente; Referência: Não reagente",
+              "issuedOn": null,
+              "material": null,
+              "verified": false,
+              "reference": "Não reagente",
+              "laboratory": null,
+              "reportedOn": "2026-02-13",
+              "sourcePage": 1,
+              "collectedOn": "2026-02-13",
+              "uncertainty": null
+            },
+            {
+              "name": "TSH",
+              "unit": "mUI/L",
+              "method": null,
+              "result": "0,7",
+              "evidence": "TSH: 0,7 mUI/L; Referência: 0,4 - 4,0; Resultado anterior: 2,9 mUI/L",
+              "issuedOn": null,
+              "material": null,
+              "verified": false,
+              "reference": "0,4 - 4,0",
+              "laboratory": null,
+              "reportedOn": "2026-02-14",
+              "sourcePage": 2,
+              "collectedOn": "2026-02-14",
+              "uncertainty": null
+            },
+            {
+              "name": "T4 livre",
+              "unit": "ng/dL",
+              "method": null,
+              "result": "1,1",
+              "evidence": "T4 livre: 1,1 ng/dL; Referência: 0,8 - 1,8",
+              "issuedOn": null,
+              "material": null,
+              "verified": false,
+              "reference": "0,8 - 1,8",
+              "laboratory": null,
+              "reportedOn": "2026-02-14",
+              "sourcePage": 2,
+              "collectedOn": "2026-02-14",
+              "uncertainty": null
+            },
+            {
+              "name": "Anti-HCV",
+              "unit": null,
+              "method": null,
+              "result": "Não reagente",
+              "evidence": "Anti-HCV: Não reagente; Referência: Não reagente",
+              "issuedOn": null,
+              "material": null,
+              "verified": false,
+              "reference": "Não reagente",
+              "laboratory": null,
+              "reportedOn": "2026-02-14",
+              "sourcePage": 2,
+              "collectedOn": "2026-02-14",
+              "uncertainty": null
+            },
+            {
+              "name": "TSH",
+              "unit": "mUI/L",
+              "method": null,
+              "result": "0,9",
+              "evidence": "TSH: 0,9 mUI/L; Referência: 0,4 - 4,0",
+              "issuedOn": null,
+              "material": null,
+              "verified": false,
+              "reference": "0,4 - 4,0",
+              "laboratory": null,
+              "reportedOn": "2026-02-15",
+              "sourcePage": 3,
+              "collectedOn": "2026-02-15",
+              "uncertainty": null
+            },
+            {
+              "name": "T4 livre",
+              "unit": "ng/dL",
+              "method": null,
+              "result": "1,2",
+              "evidence": "T4 livre: 1,2 ng/dL; Referência: 0,8 - 1,8",
+              "issuedOn": null,
+              "material": null,
+              "verified": false,
+              "reference": "0,8 - 1,8",
+              "laboratory": null,
+              "reportedOn": "2026-02-15",
+              "sourcePage": 3,
+              "collectedOn": "2026-02-15",
+              "uncertainty": null
+            },
+            {
+              "name": "Anti-HCV",
+              "unit": null,
+              "method": null,
+              "result": "Não reagente",
+              "evidence": "Anti-HCV: Não reagente; Referência: Não reagente",
+              "issuedOn": null,
+              "material": null,
+              "verified": false,
+              "reference": "Não reagente",
+              "laboratory": null,
+              "reportedOn": "2026-02-15",
+              "sourcePage": 3,
+              "collectedOn": "2026-02-15",
+              "uncertainty": null
+            },
+            {
+              "name": "TSH",
+              "unit": "mUI/L",
+              "method": null,
+              "result": "1,1",
+              "evidence": "TSH: 1,1 mUI/L; Referência: 0,4 - 4,0",
+              "issuedOn": null,
+              "material": null,
+              "verified": false,
+              "reference": "0,4 - 4,0",
+              "laboratory": null,
+              "reportedOn": "2026-02-16",
+              "sourcePage": 4,
+              "collectedOn": "2026-02-16",
+              "uncertainty": null
+            },
+            {
+              "name": "T4 livre",
+              "unit": "ng/dL",
+              "method": null,
+              "result": "1,3",
+              "evidence": "T4 livre: 1,3 ng/dL; Referência: 0,8 - 1,8",
+              "issuedOn": null,
+              "material": null,
+              "verified": false,
+              "reference": "0,8 - 1,8",
+              "laboratory": null,
+              "reportedOn": "2026-02-16",
+              "sourcePage": 4,
+              "collectedOn": "2026-02-16",
+              "uncertainty": null
+            },
+            {
+              "name": "Anti-HCV",
+              "unit": null,
+              "method": null,
+              "result": "Não reagente",
+              "evidence": "Anti-HCV: Não reagente; Referência: Não reagente",
+              "issuedOn": null,
+              "material": null,
+              "verified": false,
+              "reference": "Não reagente",
+              "laboratory": null,
+              "reportedOn": "2026-02-16",
+              "sourcePage": 4,
+              "collectedOn": "2026-02-16",
+              "uncertainty": null
+            },
+            {
+              "name": "TSH",
+              "unit": "mUI/L",
+              "method": null,
+              "result": "1,3",
+              "evidence": "TSH: 1,3 mUI/L; Referência: 0,4 - 4,0",
+              "issuedOn": null,
+              "material": null,
+              "verified": false,
+              "reference": "0,4 - 4,0",
+              "laboratory": null,
+              "reportedOn": "2026-02-17",
+              "sourcePage": 5,
+              "collectedOn": "2026-02-17",
+              "uncertainty": null
+            },
+            {
+              "name": "T4 livre",
+              "unit": "ng/dL",
+              "method": null,
+              "result": "1,4",
+              "evidence": "T4 livre: 1,4 ng/dL; Referência: 0,8 - 1,8",
+              "issuedOn": null,
+              "material": null,
+              "verified": false,
+              "reference": "0,8 - 1,8",
+              "laboratory": null,
+              "reportedOn": "2026-02-17",
+              "sourcePage": 5,
+              "collectedOn": "2026-02-17",
+              "uncertainty": null
+            },
+            {
+              "name": "Anti-HCV",
+              "unit": null,
+              "method": null,
+              "result": "Não reagente",
+              "evidence": "Anti-HCV: Não reagente; Referência: Não reagente",
+              "issuedOn": null,
+              "material": null,
+              "verified": false,
+              "reference": "Não reagente",
+              "laboratory": null,
+              "reportedOn": "2026-02-17",
+              "sourcePage": 5,
+              "collectedOn": "2026-02-17",
+              "uncertainty": null
+            },
+            {
+              "name": "TSH",
+              "unit": "mUI/L",
+              "method": null,
+              "result": "1,5",
+              "evidence": "TSH: 1,5 mUI/L; Referência: 0,4 - 4,0",
+              "issuedOn": null,
+              "material": null,
+              "verified": false,
+              "reference": "0,4 - 4,0",
+              "laboratory": null,
+              "reportedOn": "2026-02-18",
+              "sourcePage": 6,
+              "collectedOn": "2026-02-18",
+              "uncertainty": null
+            },
+            {
+              "name": "T4 livre",
+              "unit": "ng/dL",
+              "method": null,
+              "result": "1,5",
+              "evidence": "T4 livre: 1,5 ng/dL; Referência: 0,8 - 1,8",
+              "issuedOn": null,
+              "material": null,
+              "verified": false,
+              "reference": "0,8 - 1,8",
+              "laboratory": null,
+              "reportedOn": "2026-02-18",
+              "sourcePage": 6,
+              "collectedOn": "2026-02-18",
+              "uncertainty": null
+            },
+            {
+              "name": "Anti-HCV",
+              "unit": null,
+              "method": null,
+              "result": "Não reagente",
+              "evidence": "Anti-HCV: Não reagente; Referência: Não reagente",
+              "issuedOn": null,
+              "material": null,
+              "verified": false,
+              "reference": "Não reagente",
+              "laboratory": null,
+              "reportedOn": "2026-02-18",
+              "sourcePage": 6,
+              "collectedOn": "2026-02-18",
+              "uncertainty": null
+            },
+            {
+              "name": "TSH",
+              "unit": "mUI/L",
+              "method": null,
+              "result": "1,7",
+              "evidence": "TSH: 1,7 mUI/L; Referência: 0,4 - 4,0",
+              "issuedOn": null,
+              "material": null,
+              "verified": false,
+              "reference": "0,4 - 4,0",
+              "laboratory": null,
+              "reportedOn": "2026-02-19",
+              "sourcePage": 7,
+              "collectedOn": "2026-02-19",
+              "uncertainty": null
+            },
+            {
+              "name": "T4 livre",
+              "unit": "ng/dL",
+              "method": null,
+              "result": "1,6",
+              "evidence": "T4 livre: 1,6 ng/dL; Referência: 0,8 - 1,8",
+              "issuedOn": null,
+              "material": null,
+              "verified": false,
+              "reference": "0,8 - 1,8",
+              "laboratory": null,
+              "reportedOn": "2026-02-19",
+              "sourcePage": 7,
+              "collectedOn": "2026-02-19",
+              "uncertainty": null
+            },
+            {
+              "name": "Anti-HCV",
+              "unit": null,
+              "method": null,
+              "result": "Não reagente",
+              "evidence": "Anti-HCV: Não reagente; Referência: Não reagente",
+              "issuedOn": null,
+              "material": null,
+              "verified": false,
+              "reference": "Não reagente",
+              "laboratory": null,
+              "reportedOn": "2026-02-19",
+              "sourcePage": 7,
+              "collectedOn": "2026-02-19",
+              "uncertainty": null
+            },
+            {
+              "name": "TSH",
+              "unit": "mUI/L",
+              "method": null,
+              "result": "1,9",
+              "evidence": "TSH: 1,9 mUI/L; Referência: 0,4 - 4,0",
+              "issuedOn": null,
+              "material": null,
+              "verified": false,
+              "reference": "0,4 - 4,0",
+              "laboratory": null,
+              "reportedOn": "2026-02-20",
+              "sourcePage": 8,
+              "collectedOn": "2026-02-20",
+              "uncertainty": null
+            },
+            {
+              "name": "T4 livre",
+              "unit": "ng/dL",
+              "method": null,
+              "result": "1,7",
+              "evidence": "T4 livre: 1,7 ng/dL; Referência: 0,8 - 1,8",
+              "issuedOn": null,
+              "material": null,
+              "verified": false,
+              "reference": "0,8 - 1,8",
+              "laboratory": null,
+              "reportedOn": "2026-02-20",
+              "sourcePage": 8,
+              "collectedOn": "2026-02-20",
+              "uncertainty": null
+            },
+            {
+              "name": "Anti-HCV",
+              "unit": null,
+              "method": null,
+              "result": "Não reagente",
+              "evidence": "Anti-HCV: Não reagente; Referência: Não reagente",
+              "issuedOn": null,
+              "material": null,
+              "verified": false,
+              "reference": "Não reagente",
+              "laboratory": null,
+              "reportedOn": "2026-02-20",
+              "sourcePage": 8,
+              "collectedOn": "2026-02-20",
+              "uncertainty": null
+            }
+          ],
+          "notes": "",
+          "patientConfirmed": false
+        },
+        "failure_code": null,
+        "model": "openai/gpt-6-luna"
+      },
+      "evidenceChecks": {
+        "version": 3,
+        "parserStatus": "available",
+        "totalPages": 8,
+        "rows": [
+          {
+            "status": "literal_match",
+            "basis": "source_text",
+            "issues": [],
+            "fields": {
+              "name": {
+                "status": "supported",
+                "page": 1,
+                "line": 5
+              },
+              "unit": {
+                "status": "supported",
+                "page": 1,
+                "line": 5
+              },
+              "method": {
+                "status": "absent"
+              },
+              "result": {
+                "status": "supported",
+                "page": 1,
+                "line": 5
+              },
+              "issuedOn": {
+                "status": "absent"
+              },
+              "material": {
+                "status": "absent"
+              },
+              "reference": {
+                "status": "supported",
+                "page": 1,
+                "line": 5
+              },
+              "laboratory": {
+                "status": "absent"
+              },
+              "reportedOn": {
+                "status": "supported",
+                "page": 1,
+                "line": 4
+              },
+              "collectedOn": {
+                "status": "supported",
+                "page": 1,
+                "line": 3
+              }
+            }
+          },
+          {
+            "status": "literal_match",
+            "basis": "source_text",
+            "issues": [],
+            "fields": {
+              "name": {
+                "status": "supported",
+                "page": 1,
+                "line": 6
+              },
+              "unit": {
+                "status": "supported",
+                "page": 1,
+                "line": 6
+              },
+              "method": {
+                "status": "absent"
+              },
+              "result": {
+                "status": "supported",
+                "page": 1,
+                "line": 6
+              },
+              "issuedOn": {
+                "status": "absent"
+              },
+              "material": {
+                "status": "absent"
+              },
+              "reference": {
+                "status": "supported",
+                "page": 1,
+                "line": 6
+              },
+              "laboratory": {
+                "status": "absent"
+              },
+              "reportedOn": {
+                "status": "supported",
+                "page": 1,
+                "line": 4
+              },
+              "collectedOn": {
+                "status": "supported",
+                "page": 1,
+                "line": 3
+              }
+            }
+          },
+          {
+            "status": "literal_match",
+            "basis": "source_text",
+            "issues": [],
+            "fields": {
+              "name": {
+                "status": "supported",
+                "page": 1,
+                "line": 7
+              },
+              "unit": {
+                "status": "absent",
+                "page": 1,
+                "line": 7
+              },
+              "method": {
+                "status": "absent"
+              },
+              "result": {
+                "status": "supported",
+                "page": 1,
+                "line": 7
+              },
+              "issuedOn": {
+                "status": "absent"
+              },
+              "material": {
+                "status": "absent"
+              },
+              "reference": {
+                "status": "supported",
+                "page": 1,
+                "line": 7
+              },
+              "laboratory": {
+                "status": "absent"
+              },
+              "reportedOn": {
+                "status": "supported",
+                "page": 1,
+                "line": 4
+              },
+              "collectedOn": {
+                "status": "supported",
+                "page": 1,
+                "line": 3
+              }
+            }
+          },
+          {
+            "status": "literal_match",
+            "basis": "source_text",
+            "issues": [],
+            "fields": {
+              "name": {
+                "status": "supported",
+                "page": 2,
+                "line": 5
+              },
+              "unit": {
+                "status": "supported",
+                "page": 2,
+                "line": 5
+              },
+              "method": {
+                "status": "absent"
+              },
+              "result": {
+                "status": "supported",
+                "page": 2,
+                "line": 5
+              },
+              "issuedOn": {
+                "status": "absent"
+              },
+              "material": {
+                "status": "absent"
+              },
+              "reference": {
+                "status": "supported",
+                "page": 2,
+                "line": 5
+              },
+              "laboratory": {
+                "status": "absent"
+              },
+              "reportedOn": {
+                "status": "supported",
+                "page": 2,
+                "line": 4
+              },
+              "collectedOn": {
+                "status": "supported",
+                "page": 2,
+                "line": 3
+              }
+            }
+          },
+          {
+            "status": "literal_match",
+            "basis": "source_text",
+            "issues": [],
+            "fields": {
+              "name": {
+                "status": "supported",
+                "page": 2,
+                "line": 6
+              },
+              "unit": {
+                "status": "supported",
+                "page": 2,
+                "line": 6
+              },
+              "method": {
+                "status": "absent"
+              },
+              "result": {
+                "status": "supported",
+                "page": 2,
+                "line": 6
+              },
+              "issuedOn": {
+                "status": "absent"
+              },
+              "material": {
+                "status": "absent"
+              },
+              "reference": {
+                "status": "supported",
+                "page": 2,
+                "line": 6
+              },
+              "laboratory": {
+                "status": "absent"
+              },
+              "reportedOn": {
+                "status": "supported",
+                "page": 2,
+                "line": 4
+              },
+              "collectedOn": {
+                "status": "supported",
+                "page": 2,
+                "line": 3
+              }
+            }
+          },
+          {
+            "status": "literal_match",
+            "basis": "source_text",
+            "issues": [],
+            "fields": {
+              "name": {
+                "status": "supported",
+                "page": 2,
+                "line": 7
+              },
+              "unit": {
+                "status": "absent",
+                "page": 2,
+                "line": 7
+              },
+              "method": {
+                "status": "absent"
+              },
+              "result": {
+                "status": "supported",
+                "page": 2,
+                "line": 7
+              },
+              "issuedOn": {
+                "status": "absent"
+              },
+              "material": {
+                "status": "absent"
+              },
+              "reference": {
+                "status": "supported",
+                "page": 2,
+                "line": 7
+              },
+              "laboratory": {
+                "status": "absent"
+              },
+              "reportedOn": {
+                "status": "supported",
+                "page": 2,
+                "line": 4
+              },
+              "collectedOn": {
+                "status": "supported",
+                "page": 2,
+                "line": 3
+              }
+            }
+          },
+          {
+            "status": "literal_match",
+            "basis": "source_text",
+            "issues": [],
+            "fields": {
+              "name": {
+                "status": "supported",
+                "page": 3,
+                "line": 5
+              },
+              "unit": {
+                "status": "supported",
+                "page": 3,
+                "line": 5
+              },
+              "method": {
+                "status": "absent"
+              },
+              "result": {
+                "status": "supported",
+                "page": 3,
+                "line": 5
+              },
+              "issuedOn": {
+                "status": "absent"
+              },
+              "material": {
+                "status": "absent"
+              },
+              "reference": {
+                "status": "supported",
+                "page": 3,
+                "line": 5
+              },
+              "laboratory": {
+                "status": "absent"
+              },
+              "reportedOn": {
+                "status": "supported",
+                "page": 3,
+                "line": 4
+              },
+              "collectedOn": {
+                "status": "supported",
+                "page": 3,
+                "line": 3
+              }
+            }
+          },
+          {
+            "status": "literal_match",
+            "basis": "source_text",
+            "issues": [],
+            "fields": {
+              "name": {
+                "status": "supported",
+                "page": 3,
+                "line": 6
+              },
+              "unit": {
+                "status": "supported",
+                "page": 3,
+                "line": 6
+              },
+              "method": {
+                "status": "absent"
+              },
+              "result": {
+                "status": "supported",
+                "page": 3,
+                "line": 6
+              },
+              "issuedOn": {
+                "status": "absent"
+              },
+              "material": {
+                "status": "absent"
+              },
+              "reference": {
+                "status": "supported",
+                "page": 3,
+                "line": 6
+              },
+              "laboratory": {
+                "status": "absent"
+              },
+              "reportedOn": {
+                "status": "supported",
+                "page": 3,
+                "line": 4
+              },
+              "collectedOn": {
+                "status": "supported",
+                "page": 3,
+                "line": 3
+              }
+            }
+          },
+          {
+            "status": "literal_match",
+            "basis": "source_text",
+            "issues": [],
+            "fields": {
+              "name": {
+                "status": "supported",
+                "page": 3,
+                "line": 7
+              },
+              "unit": {
+                "status": "absent",
+                "page": 3,
+                "line": 7
+              },
+              "method": {
+                "status": "absent"
+              },
+              "result": {
+                "status": "supported",
+                "page": 3,
+                "line": 7
+              },
+              "issuedOn": {
+                "status": "absent"
+              },
+              "material": {
+                "status": "absent"
+              },
+              "reference": {
+                "status": "supported",
+                "page": 3,
+                "line": 7
+              },
+              "laboratory": {
+                "status": "absent"
+              },
+              "reportedOn": {
+                "status": "supported",
+                "page": 3,
+                "line": 4
+              },
+              "collectedOn": {
+                "status": "supported",
+                "page": 3,
+                "line": 3
+              }
+            }
+          },
+          {
+            "status": "literal_match",
+            "basis": "source_text",
+            "issues": [],
+            "fields": {
+              "name": {
+                "status": "supported",
+                "page": 4,
+                "line": 5
+              },
+              "unit": {
+                "status": "supported",
+                "page": 4,
+                "line": 5
+              },
+              "method": {
+                "status": "absent"
+              },
+              "result": {
+                "status": "supported",
+                "page": 4,
+                "line": 5
+              },
+              "issuedOn": {
+                "status": "absent"
+              },
+              "material": {
+                "status": "absent"
+              },
+              "reference": {
+                "status": "supported",
+                "page": 4,
+                "line": 5
+              },
+              "laboratory": {
+                "status": "absent"
+              },
+              "reportedOn": {
+                "status": "supported",
+                "page": 4,
+                "line": 4
+              },
+              "collectedOn": {
+                "status": "supported",
+                "page": 4,
+                "line": 3
+              }
+            }
+          },
+          {
+            "status": "literal_match",
+            "basis": "source_text",
+            "issues": [],
+            "fields": {
+              "name": {
+                "status": "supported",
+                "page": 4,
+                "line": 6
+              },
+              "unit": {
+                "status": "supported",
+                "page": 4,
+                "line": 6
+              },
+              "method": {
+                "status": "absent"
+              },
+              "result": {
+                "status": "supported",
+                "page": 4,
+                "line": 6
+              },
+              "issuedOn": {
+                "status": "absent"
+              },
+              "material": {
+                "status": "absent"
+              },
+              "reference": {
+                "status": "supported",
+                "page": 4,
+                "line": 6
+              },
+              "laboratory": {
+                "status": "absent"
+              },
+              "reportedOn": {
+                "status": "supported",
+                "page": 4,
+                "line": 4
+              },
+              "collectedOn": {
+                "status": "supported",
+                "page": 4,
+                "line": 3
+              }
+            }
+          },
+          {
+            "status": "literal_match",
+            "basis": "source_text",
+            "issues": [],
+            "fields": {
+              "name": {
+                "status": "supported",
+                "page": 4,
+                "line": 7
+              },
+              "unit": {
+                "status": "absent",
+                "page": 4,
+                "line": 7
+              },
+              "method": {
+                "status": "absent"
+              },
+              "result": {
+                "status": "supported",
+                "page": 4,
+                "line": 7
+              },
+              "issuedOn": {
+                "status": "absent"
+              },
+              "material": {
+                "status": "absent"
+              },
+              "reference": {
+                "status": "supported",
+                "page": 4,
+                "line": 7
+              },
+              "laboratory": {
+                "status": "absent"
+              },
+              "reportedOn": {
+                "status": "supported",
+                "page": 4,
+                "line": 4
+              },
+              "collectedOn": {
+                "status": "supported",
+                "page": 4,
+                "line": 3
+              }
+            }
+          },
+          {
+            "status": "literal_match",
+            "basis": "source_text",
+            "issues": [],
+            "fields": {
+              "name": {
+                "status": "supported",
+                "page": 5,
+                "line": 5
+              },
+              "unit": {
+                "status": "supported",
+                "page": 5,
+                "line": 5
+              },
+              "method": {
+                "status": "absent"
+              },
+              "result": {
+                "status": "supported",
+                "page": 5,
+                "line": 5
+              },
+              "issuedOn": {
+                "status": "absent"
+              },
+              "material": {
+                "status": "absent"
+              },
+              "reference": {
+                "status": "supported",
+                "page": 5,
+                "line": 5
+              },
+              "laboratory": {
+                "status": "absent"
+              },
+              "reportedOn": {
+                "status": "supported",
+                "page": 5,
+                "line": 4
+              },
+              "collectedOn": {
+                "status": "supported",
+                "page": 5,
+                "line": 3
+              }
+            }
+          },
+          {
+            "status": "literal_match",
+            "basis": "source_text",
+            "issues": [],
+            "fields": {
+              "name": {
+                "status": "supported",
+                "page": 5,
+                "line": 6
+              },
+              "unit": {
+                "status": "supported",
+                "page": 5,
+                "line": 6
+              },
+              "method": {
+                "status": "absent"
+              },
+              "result": {
+                "status": "supported",
+                "page": 5,
+                "line": 6
+              },
+              "issuedOn": {
+                "status": "absent"
+              },
+              "material": {
+                "status": "absent"
+              },
+              "reference": {
+                "status": "supported",
+                "page": 5,
+                "line": 6
+              },
+              "laboratory": {
+                "status": "absent"
+              },
+              "reportedOn": {
+                "status": "supported",
+                "page": 5,
+                "line": 4
+              },
+              "collectedOn": {
+                "status": "supported",
+                "page": 5,
+                "line": 3
+              }
+            }
+          },
+          {
+            "status": "literal_match",
+            "basis": "source_text",
+            "issues": [],
+            "fields": {
+              "name": {
+                "status": "supported",
+                "page": 5,
+                "line": 7
+              },
+              "unit": {
+                "status": "absent",
+                "page": 5,
+                "line": 7
+              },
+              "method": {
+                "status": "absent"
+              },
+              "result": {
+                "status": "supported",
+                "page": 5,
+                "line": 7
+              },
+              "issuedOn": {
+                "status": "absent"
+              },
+              "material": {
+                "status": "absent"
+              },
+              "reference": {
+                "status": "supported",
+                "page": 5,
+                "line": 7
+              },
+              "laboratory": {
+                "status": "absent"
+              },
+              "reportedOn": {
+                "status": "supported",
+                "page": 5,
+                "line": 4
+              },
+              "collectedOn": {
+                "status": "supported",
+                "page": 5,
+                "line": 3
+              }
+            }
+          },
+          {
+            "status": "literal_match",
+            "basis": "source_text",
+            "issues": [],
+            "fields": {
+              "name": {
+                "status": "supported",
+                "page": 6,
+                "line": 5
+              },
+              "unit": {
+                "status": "supported",
+                "page": 6,
+                "line": 5
+              },
+              "method": {
+                "status": "absent"
+              },
+              "result": {
+                "status": "supported",
+                "page": 6,
+                "line": 5
+              },
+              "issuedOn": {
+                "status": "absent"
+              },
+              "material": {
+                "status": "absent"
+              },
+              "reference": {
+                "status": "supported",
+                "page": 6,
+                "line": 5
+              },
+              "laboratory": {
+                "status": "absent"
+              },
+              "reportedOn": {
+                "status": "supported",
+                "page": 6,
+                "line": 4
+              },
+              "collectedOn": {
+                "status": "supported",
+                "page": 6,
+                "line": 3
+              }
+            }
+          },
+          {
+            "status": "literal_match",
+            "basis": "source_text",
+            "issues": [],
+            "fields": {
+              "name": {
+                "status": "supported",
+                "page": 6,
+                "line": 6
+              },
+              "unit": {
+                "status": "supported",
+                "page": 6,
+                "line": 6
+              },
+              "method": {
+                "status": "absent"
+              },
+              "result": {
+                "status": "supported",
+                "page": 6,
+                "line": 6
+              },
+              "issuedOn": {
+                "status": "absent"
+              },
+              "material": {
+                "status": "absent"
+              },
+              "reference": {
+                "status": "supported",
+                "page": 6,
+                "line": 6
+              },
+              "laboratory": {
+                "status": "absent"
+              },
+              "reportedOn": {
+                "status": "supported",
+                "page": 6,
+                "line": 4
+              },
+              "collectedOn": {
+                "status": "supported",
+                "page": 6,
+                "line": 3
+              }
+            }
+          },
+          {
+            "status": "literal_match",
+            "basis": "source_text",
+            "issues": [],
+            "fields": {
+              "name": {
+                "status": "supported",
+                "page": 6,
+                "line": 7
+              },
+              "unit": {
+                "status": "absent",
+                "page": 6,
+                "line": 7
+              },
+              "method": {
+                "status": "absent"
+              },
+              "result": {
+                "status": "supported",
+                "page": 6,
+                "line": 7
+              },
+              "issuedOn": {
+                "status": "absent"
+              },
+              "material": {
+                "status": "absent"
+              },
+              "reference": {
+                "status": "supported",
+                "page": 6,
+                "line": 7
+              },
+              "laboratory": {
+                "status": "absent"
+              },
+              "reportedOn": {
+                "status": "supported",
+                "page": 6,
+                "line": 4
+              },
+              "collectedOn": {
+                "status": "supported",
+                "page": 6,
+                "line": 3
+              }
+            }
+          },
+          {
+            "status": "literal_match",
+            "basis": "source_text",
+            "issues": [],
+            "fields": {
+              "name": {
+                "status": "supported",
+                "page": 7,
+                "line": 5
+              },
+              "unit": {
+                "status": "supported",
+                "page": 7,
+                "line": 5
+              },
+              "method": {
+                "status": "absent"
+              },
+              "result": {
+                "status": "supported",
+                "page": 7,
+                "line": 5
+              },
+              "issuedOn": {
+                "status": "absent"
+              },
+              "material": {
+                "status": "absent"
+              },
+              "reference": {
+                "status": "supported",
+                "page": 7,
+                "line": 5
+              },
+              "laboratory": {
+                "status": "absent"
+              },
+              "reportedOn": {
+                "status": "supported",
+                "page": 7,
+                "line": 4
+              },
+              "collectedOn": {
+                "status": "supported",
+                "page": 7,
+                "line": 3
+              }
+            }
+          },
+          {
+            "status": "literal_match",
+            "basis": "source_text",
+            "issues": [],
+            "fields": {
+              "name": {
+                "status": "supported",
+                "page": 7,
+                "line": 6
+              },
+              "unit": {
+                "status": "supported",
+                "page": 7,
+                "line": 6
+              },
+              "method": {
+                "status": "absent"
+              },
+              "result": {
+                "status": "supported",
+                "page": 7,
+                "line": 6
+              },
+              "issuedOn": {
+                "status": "absent"
+              },
+              "material": {
+                "status": "absent"
+              },
+              "reference": {
+                "status": "supported",
+                "page": 7,
+                "line": 6
+              },
+              "laboratory": {
+                "status": "absent"
+              },
+              "reportedOn": {
+                "status": "supported",
+                "page": 7,
+                "line": 4
+              },
+              "collectedOn": {
+                "status": "supported",
+                "page": 7,
+                "line": 3
+              }
+            }
+          },
+          {
+            "status": "literal_match",
+            "basis": "source_text",
+            "issues": [],
+            "fields": {
+              "name": {
+                "status": "supported",
+                "page": 7,
+                "line": 7
+              },
+              "unit": {
+                "status": "absent",
+                "page": 7,
+                "line": 7
+              },
+              "method": {
+                "status": "absent"
+              },
+              "result": {
+                "status": "supported",
+                "page": 7,
+                "line": 7
+              },
+              "issuedOn": {
+                "status": "absent"
+              },
+              "material": {
+                "status": "absent"
+              },
+              "reference": {
+                "status": "supported",
+                "page": 7,
+                "line": 7
+              },
+              "laboratory": {
+                "status": "absent"
+              },
+              "reportedOn": {
+                "status": "supported",
+                "page": 7,
+                "line": 4
+              },
+              "collectedOn": {
+                "status": "supported",
+                "page": 7,
+                "line": 3
+              }
+            }
+          },
+          {
+            "status": "literal_match",
+            "basis": "source_text",
+            "issues": [],
+            "fields": {
+              "name": {
+                "status": "supported",
+                "page": 8,
+                "line": 5
+              },
+              "unit": {
+                "status": "supported",
+                "page": 8,
+                "line": 5
+              },
+              "method": {
+                "status": "absent"
+              },
+              "result": {
+                "status": "supported",
+                "page": 8,
+                "line": 5
+              },
+              "issuedOn": {
+                "status": "absent"
+              },
+              "material": {
+                "status": "absent"
+              },
+              "reference": {
+                "status": "supported",
+                "page": 8,
+                "line": 5
+              },
+              "laboratory": {
+                "status": "absent"
+              },
+              "reportedOn": {
+                "status": "supported",
+                "page": 8,
+                "line": 4
+              },
+              "collectedOn": {
+                "status": "supported",
+                "page": 8,
+                "line": 3
+              }
+            }
+          },
+          {
+            "status": "literal_match",
+            "basis": "source_text",
+            "issues": [],
+            "fields": {
+              "name": {
+                "status": "supported",
+                "page": 8,
+                "line": 6
+              },
+              "unit": {
+                "status": "supported",
+                "page": 8,
+                "line": 6
+              },
+              "method": {
+                "status": "absent"
+              },
+              "result": {
+                "status": "supported",
+                "page": 8,
+                "line": 6
+              },
+              "issuedOn": {
+                "status": "absent"
+              },
+              "material": {
+                "status": "absent"
+              },
+              "reference": {
+                "status": "supported",
+                "page": 8,
+                "line": 6
+              },
+              "laboratory": {
+                "status": "absent"
+              },
+              "reportedOn": {
+                "status": "supported",
+                "page": 8,
+                "line": 4
+              },
+              "collectedOn": {
+                "status": "supported",
+                "page": 8,
+                "line": 3
+              }
+            }
+          },
+          {
+            "status": "literal_match",
+            "basis": "source_text",
+            "issues": [],
+            "fields": {
+              "name": {
+                "status": "supported",
+                "page": 8,
+                "line": 7
+              },
+              "unit": {
+                "status": "absent",
+                "page": 8,
+                "line": 7
+              },
+              "method": {
+                "status": "absent"
+              },
+              "result": {
+                "status": "supported",
+                "page": 8,
+                "line": 7
+              },
+              "issuedOn": {
+                "status": "absent"
+              },
+              "material": {
+                "status": "absent"
+              },
+              "reference": {
+                "status": "supported",
+                "page": 8,
+                "line": 7
+              },
+              "laboratory": {
+                "status": "absent"
+              },
+              "reportedOn": {
+                "status": "supported",
+                "page": 8,
+                "line": 4
+              },
+              "collectedOn": {
+                "status": "supported",
+                "page": 8,
+                "line": 3
+              }
+            }
+          }
+        ]
+      },
+      "wallMilliseconds": 16324,
+      "finishedAt": "2026-10-20T04:13:43.467Z",
+      "telemetry": {
+        "model": "openai/gpt-6-luna",
+        "failures": 0,
+        "provider": "openai",
+        "costBasis": "unavailable",
+        "durationMs": 12299,
+        "inputTokens": 4024,
+        "pricingAsOf": null,
+        "outputTokens": 2651,
+        "extractedRows": 24,
+        "promptVersion": "lab-transcription-3",
+        "usageComplete": true,
+        "divergenceRows": 0,
+        "pipelineVersion": "lab-pipeline-3",
+        "reasoningTokens": 149,
+        "startedRequests": 4,
+        "verifierVersion": 3,
+        "divergenceFields": 0,
+        "estimatedCostUsd": null,
+        "cachedInputTokens": 0,
+        "completedRequests": 4,
+        "processingMilliseconds": 13935
+      },
+      "deploymentId": "dpl_9FxbUKdHHaKS1YLsiN7Rg5dGgfyt",
+      "codeCommit": "2b16b12c7f6417ae3e9df6042a4e01f793379b07",
+      "transportError": null
+    }
+  ],
+  "supplementalRecords": [
+    {
+      "phase": "baseline_repeat",
+      "caseId": "dates-explicit-ddmm",
+      "sha256": "c02cd0c5584a344b0806997a1d571c6ac23167de7e3f56ecfe8b8dbb25290c49",
+      "documentId": "9a7a2629-b23e-4994-9bb0-c199a26983cc",
+      "operationId": "72b8677c-e0ad-4513-baff-0512eec987e1",
+      "startedAt": "2026-10-20T04:10:58.879Z",
+      "uploadStatus": 201,
+      "openStatus": 200,
+      "httpStatus": 200,
+      "import": {
+        "id": "127094bd-36f4-4cbf-a242-16bc1f6c1027",
+        "status": "READY_REVIEW",
+        "version": 2,
+        "draft": {
+          "rows": [
+            {
+              "name": "Ferritina",
+              "unit": "ng/mL",
+              "method": "Quimioluminescência",
+              "result": "45.5",
+              "evidence": "Ferritina: 45.5 ng/mL",
+              "issuedOn": "2026-01-05",
+              "material": "Soro",
+              "verified": false,
+              "reference": null,
+              "laboratory": "Laboratório Sintético Beta",
+              "reportedOn": "2026-01-04",
+              "sourcePage": 1,
+              "collectedOn": "2026-01-02",
+              "uncertainty": null
+            }
+          ],
+          "notes": "",
+          "patientConfirmed": false
+        },
+        "failure_code": null,
+        "model": "openai/gpt-6-luna"
+      },
+      "evidenceChecks": {
+        "version": 2,
+        "parserStatus": "available",
+        "totalPages": 1,
+        "rows": [
+          {
+            "status": "literal_match",
+            "basis": "source_text",
+            "issues": [],
+            "fields": {
+              "name": {
+                "status": "supported",
+                "page": 1,
+                "line": 9
+              },
+              "unit": {
+                "status": "supported",
+                "page": 1,
+                "line": 9
+              },
+              "method": {
+                "status": "supported",
+                "page": 1,
+                "line": 7
+              },
+              "result": {
+                "status": "supported",
+                "page": 1,
+                "line": 9
+              },
+              "issuedOn": {
+                "status": "supported",
+                "page": 1,
+                "line": 6
+              },
+              "material": {
+                "status": "supported",
+                "page": 1,
+                "line": 8
+              },
+              "reference": {
+                "status": "absent",
+                "page": 1,
+                "line": 9
+              },
+              "laboratory": {
+                "status": "supported",
+                "page": 1,
+                "line": 2
+              },
+              "reportedOn": {
+                "status": "supported",
+                "page": 1,
+                "line": 5
+              },
+              "collectedOn": {
+                "status": "supported",
+                "page": 1,
+                "line": 4
+              }
+            }
+          }
+        ]
+      },
+      "wallMilliseconds": 9623,
+      "finishedAt": "2026-10-20T04:11:12.684Z",
+      "assignmentNote": "Execution used verifier2 and old deployment despite initial after label; excluded from candidate measurements.",
+      "telemetry": {
+        "model": "openai/gpt-6-luna",
+        "failures": 0,
+        "provider": "openai",
+        "costBasis": "unavailable",
+        "durationMs": 5110,
+        "inputTokens": 703,
+        "pricingAsOf": null,
+        "outputTokens": 166,
+        "extractedRows": 1,
+        "promptVersion": "lab-transcription-2",
+        "usageComplete": true,
+        "divergenceRows": 0,
+        "pipelineVersion": "lab-pipeline-2",
+        "reasoningTokens": 47,
+        "startedRequests": 1,
+        "verifierVersion": 2,
+        "divergenceFields": 0,
+        "estimatedCostUsd": null,
+        "cachedInputTokens": 0,
+        "completedRequests": 1,
+        "processingMilliseconds": 6600
+      },
+      "deploymentId": "dpl_4kEKMi4z4YA1utvhwAbvQQJMoUTj",
+      "codeCommit": "4e9f9c034e9465e87cd0d96394ae3814ca2511f9",
+      "transportError": null
+    },
+    {
+      "phase": "baseline_repeat",
+      "caseId": "many-pages-repeated-parameters",
+      "sha256": "2eda2f67fe173823b8f581d07a31c65a60c354d3e0f7228155bce8738df64430",
+      "documentId": "1c7fa9ce-b8e5-49d7-b81d-d77fd4140a4c",
+      "operationId": "184c0d26-cfd6-4911-83cc-52c0a26eca3f",
+      "startedAt": "2026-10-20T04:11:12.685Z",
+      "uploadStatus": 201,
+      "openStatus": 200,
+      "import": {
+        "id": "5249ef0a-9dfa-4dd0-b394-f6aeaa30d885",
+        "status": "READY_REVIEW",
+        "version": 2,
+        "draft": {
+          "rows": [
+            {
+              "name": "TSH",
+              "unit": "mUI/L",
+              "method": null,
+              "result": "0,5",
+              "evidence": "TSH: 0,5 mUI/L; Referência: 0,4 - 4,0",
+              "issuedOn": null,
+              "material": null,
+              "verified": false,
+              "reference": "0,4 - 4,0",
+              "laboratory": null,
+              "reportedOn": "2026-02-13",
+              "sourcePage": 1,
+              "collectedOn": "2026-02-13",
+              "uncertainty": null
+            },
+            {
+              "name": "T4 livre",
+              "unit": "ng/dL",
+              "method": null,
+              "result": "1,0",
+              "evidence": "T4 livre: 1,0 ng/dL; Referência: 0,8 - 1,8",
+              "issuedOn": null,
+              "material": null,
+              "verified": false,
+              "reference": "0,8 - 1,8",
+              "laboratory": null,
+              "reportedOn": "2026-02-13",
+              "sourcePage": 1,
+              "collectedOn": "2026-02-13",
+              "uncertainty": null
+            },
+            {
+              "name": "Anti-HCV",
+              "unit": null,
+              "method": null,
+              "result": "Não reagente",
+              "evidence": "Anti-HCV: Não reagente; Referência: Não reagente",
+              "issuedOn": null,
+              "material": null,
+              "verified": false,
+              "reference": "Não reagente",
+              "laboratory": null,
+              "reportedOn": "2026-02-13",
+              "sourcePage": 1,
+              "collectedOn": "2026-02-13",
+              "uncertainty": null
+            },
+            {
+              "name": "TSH",
+              "unit": "mUI/L",
+              "method": null,
+              "result": "0,7",
+              "evidence": "TSH: 0,7 mUI/L; Referência: 0,4 - 4,0",
+              "issuedOn": null,
+              "material": null,
+              "verified": false,
+              "reference": "0,4 - 4,0",
+              "laboratory": null,
+              "reportedOn": "2026-02-14",
+              "sourcePage": 2,
+              "collectedOn": "2026-02-14",
+              "uncertainty": null
+            },
+            {
+              "name": "T4 livre",
+              "unit": "ng/dL",
+              "method": null,
+              "result": "1,1",
+              "evidence": "T4 livre: 1,1 ng/dL; Referência: 0,8 - 1,8",
+              "issuedOn": null,
+              "material": null,
+              "verified": false,
+              "reference": "0,8 - 1,8",
+              "laboratory": null,
+              "reportedOn": "2026-02-14",
+              "sourcePage": 2,
+              "collectedOn": "2026-02-14",
+              "uncertainty": null
+            },
+            {
+              "name": "Anti-HCV",
+              "unit": null,
+              "method": null,
+              "result": "Não reagente",
+              "evidence": "Anti-HCV: Não reagente; Referência: Não reagente",
+              "issuedOn": null,
+              "material": null,
+              "verified": false,
+              "reference": "Não reagente",
+              "laboratory": null,
+              "reportedOn": "2026-02-14",
+              "sourcePage": 2,
+              "collectedOn": "2026-02-14",
+              "uncertainty": null
+            },
+            {
+              "name": "TSH",
+              "unit": "mUI/L",
+              "method": null,
+              "result": "0,9",
+              "evidence": "TSH: 0,9 mUI/L; Referência: 0,4 - 4,0; Resultado anterior: 2,9 mUI/L",
+              "issuedOn": null,
+              "material": null,
+              "verified": false,
+              "reference": "0,4 - 4,0",
+              "laboratory": null,
+              "reportedOn": "2026-02-15",
+              "sourcePage": 3,
+              "collectedOn": "2026-02-15",
+              "uncertainty": null
+            },
+            {
+              "name": "T4 livre",
+              "unit": "ng/dL",
+              "method": null,
+              "result": "1,2",
+              "evidence": "T4 livre: 1,2 ng/dL; Referência: 0,8 - 1,8",
+              "issuedOn": null,
+              "material": null,
+              "verified": false,
+              "reference": "0,8 - 1,8",
+              "laboratory": null,
+              "reportedOn": "2026-02-15",
+              "sourcePage": 3,
+              "collectedOn": "2026-02-15",
+              "uncertainty": null
+            },
+            {
+              "name": "Anti-HCV",
+              "unit": null,
+              "method": null,
+              "result": "Não reagente",
+              "evidence": "Anti-HCV: Não reagente; Referência: Não reagente",
+              "issuedOn": null,
+              "material": null,
+              "verified": false,
+              "reference": "Não reagente",
+              "laboratory": null,
+              "reportedOn": "2026-02-15",
+              "sourcePage": 3,
+              "collectedOn": "2026-02-15",
+              "uncertainty": null
+            },
+            {
+              "name": "TSH",
+              "unit": "mUI/L",
+              "method": null,
+              "result": "1,1",
+              "evidence": "TSH: 1,1 mUI/L; Referência: 0,4 - 4,0; Resultado anterior: 2,9 mUI/L",
+              "issuedOn": null,
+              "material": null,
+              "verified": false,
+              "reference": "0,4 - 4,0",
+              "laboratory": null,
+              "reportedOn": "2026-02-16",
+              "sourcePage": 4,
+              "collectedOn": "2026-02-16",
+              "uncertainty": null
+            },
+            {
+              "name": "T4 livre",
+              "unit": "ng/dL",
+              "method": null,
+              "result": "1,3",
+              "evidence": "T4 livre: 1,3 ng/dL; Referência: 0,8 - 1,8",
+              "issuedOn": null,
+              "material": null,
+              "verified": false,
+              "reference": "0,8 - 1,8",
+              "laboratory": null,
+              "reportedOn": "2026-02-16",
+              "sourcePage": 4,
+              "collectedOn": "2026-02-16",
+              "uncertainty": null
+            },
+            {
+              "name": "Anti-HCV",
+              "unit": null,
+              "method": null,
+              "result": "Não reagente",
+              "evidence": "Anti-HCV: Não reagente; Referência: Não reagente",
+              "issuedOn": null,
+              "material": null,
+              "verified": false,
+              "reference": "Não reagente",
+              "laboratory": null,
+              "reportedOn": "2026-02-16",
+              "sourcePage": 4,
+              "collectedOn": "2026-02-16",
+              "uncertainty": null
+            },
+            {
+              "name": "TSH",
+              "unit": "mUI/L",
+              "method": null,
+              "result": "1,3",
+              "evidence": "TSH: 1,3 mUI/L; Referência: 0,4 - 4,0",
+              "issuedOn": null,
+              "material": null,
+              "verified": false,
+              "reference": "0,4 - 4,0",
+              "laboratory": null,
+              "reportedOn": "2026-02-17",
+              "sourcePage": 5,
+              "collectedOn": "2026-02-17",
+              "uncertainty": null
+            },
+            {
+              "name": "T4 livre",
+              "unit": "ng/dL",
+              "method": null,
+              "result": "1,4",
+              "evidence": "T4 livre: 1,4 ng/dL; Referência: 0,8 - 1,8",
+              "issuedOn": null,
+              "material": null,
+              "verified": false,
+              "reference": "0,8 - 1,8",
+              "laboratory": null,
+              "reportedOn": "2026-02-17",
+              "sourcePage": 5,
+              "collectedOn": "2026-02-17",
+              "uncertainty": null
+            },
+            {
+              "name": "Anti-HCV",
+              "unit": null,
+              "method": null,
+              "result": "Não reagente",
+              "evidence": "Anti-HCV: Não reagente; Referência: Não reagente",
+              "issuedOn": null,
+              "material": null,
+              "verified": false,
+              "reference": "Não reagente",
+              "laboratory": null,
+              "reportedOn": "2026-02-17",
+              "sourcePage": 5,
+              "collectedOn": "2026-02-17",
+              "uncertainty": null
+            },
+            {
+              "name": "TSH",
+              "unit": "mUI/L",
+              "method": null,
+              "result": "1,5",
+              "evidence": "TSH: 1,5 mUI/L; Referência: 0,4 - 4,0",
+              "issuedOn": null,
+              "material": null,
+              "verified": false,
+              "reference": "0,4 - 4,0",
+              "laboratory": null,
+              "reportedOn": "2026-02-18",
+              "sourcePage": 6,
+              "collectedOn": "2026-02-18",
+              "uncertainty": null
+            },
+            {
+              "name": "T4 livre",
+              "unit": "ng/dL",
+              "method": null,
+              "result": "1,5",
+              "evidence": "T4 livre: 1,5 ng/dL; Referência: 0,8 - 1,8",
+              "issuedOn": null,
+              "material": null,
+              "verified": false,
+              "reference": "0,8 - 1,8",
+              "laboratory": null,
+              "reportedOn": "2026-02-18",
+              "sourcePage": 6,
+              "collectedOn": "2026-02-18",
+              "uncertainty": null
+            },
+            {
+              "name": "Anti-HCV",
+              "unit": null,
+              "method": null,
+              "result": "Não reagente",
+              "evidence": "Anti-HCV: Não reagente; Referência: Não reagente",
+              "issuedOn": null,
+              "material": null,
+              "verified": false,
+              "reference": "Não reagente",
+              "laboratory": null,
+              "reportedOn": "2026-02-18",
+              "sourcePage": 6,
+              "collectedOn": "2026-02-18",
+              "uncertainty": null
+            },
+            {
+              "name": "TSH",
+              "unit": "mUI/L",
+              "method": null,
+              "result": "1,7",
+              "evidence": "TSH: 1,7 mUI/L; Referência: 0,4 - 4,0",
+              "issuedOn": null,
+              "material": null,
+              "verified": false,
+              "reference": "0,4 - 4,0",
+              "laboratory": null,
+              "reportedOn": "2026-02-19",
+              "sourcePage": 7,
+              "collectedOn": "2026-02-19",
+              "uncertainty": null
+            },
+            {
+              "name": "T4 livre",
+              "unit": "ng/dL",
+              "method": null,
+              "result": "1,6",
+              "evidence": "T4 livre: 1,6 ng/dL; Referência: 0,8 - 1,8",
+              "issuedOn": null,
+              "material": null,
+              "verified": false,
+              "reference": "0,8 - 1,8",
+              "laboratory": null,
+              "reportedOn": "2026-02-19",
+              "sourcePage": 7,
+              "collectedOn": "2026-02-19",
+              "uncertainty": null
+            },
+            {
+              "name": "Anti-HCV",
+              "unit": null,
+              "method": null,
+              "result": "Não reagente",
+              "evidence": "Anti-HCV: Não reagente; Referência: Não reagente",
+              "issuedOn": null,
+              "material": null,
+              "verified": false,
+              "reference": "Não reagente",
+              "laboratory": null,
+              "reportedOn": "2026-02-19",
+              "sourcePage": 7,
+              "collectedOn": "2026-02-19",
+              "uncertainty": null
+            },
+            {
+              "name": "TSH",
+              "unit": "mUI/L",
+              "method": null,
+              "result": "1,9",
+              "evidence": "TSH: 1,9 mUI/L; Referência: 0,4 - 4,0",
+              "issuedOn": null,
+              "material": null,
+              "verified": false,
+              "reference": "0,4 - 4,0",
+              "laboratory": null,
+              "reportedOn": "2026-02-20",
+              "sourcePage": 8,
+              "collectedOn": "2026-02-20",
+              "uncertainty": null
+            },
+            {
+              "name": "T4 livre",
+              "unit": "ng/dL",
+              "method": null,
+              "result": "1,7",
+              "evidence": "T4 livre: 1,7 ng/dL; Referência: 0,8 - 1,8",
+              "issuedOn": null,
+              "material": null,
+              "verified": false,
+              "reference": "0,8 - 1,8",
+              "laboratory": null,
+              "reportedOn": "2026-02-20",
+              "sourcePage": 8,
+              "collectedOn": "2026-02-20",
+              "uncertainty": null
+            },
+            {
+              "name": "Anti-HCV",
+              "unit": null,
+              "method": null,
+              "result": "Não reagente",
+              "evidence": "Anti-HCV: Não reagente; Referência: Não reagente",
+              "issuedOn": null,
+              "material": null,
+              "verified": false,
+              "reference": "Não reagente",
+              "laboratory": null,
+              "reportedOn": "2026-02-20",
+              "sourcePage": 8,
+              "collectedOn": "2026-02-20",
+              "uncertainty": null
+            }
+          ],
+          "notes": "Páginas originais 1 e 2 transcritas. Resultados anteriores não foram incluídos como resultados atuais.\nResultados transcritos separadamente para cada página e coleta. Os resultados anteriores foram excluídos.",
+          "patientConfirmed": false
+        },
+        "failure_code": null,
+        "model": "openai/gpt-6-luna"
+      },
+      "evidenceChecks": {
+        "version": 2,
+        "parserStatus": "available",
+        "totalPages": 8,
+        "rows": [
+          {
+            "status": "attention",
+            "basis": "source_text",
+            "issues": ["DATE_UNSUPPORTED"],
+            "fields": {
+              "name": {
+                "status": "supported",
+                "page": 1,
+                "line": 5
+              },
+              "unit": {
+                "status": "supported",
+                "page": 1,
+                "line": 5
+              },
+              "method": {
+                "status": "absent"
+              },
+              "result": {
+                "status": "supported",
+                "page": 1,
+                "line": 5
+              },
+              "issuedOn": {
+                "status": "absent"
+              },
+              "material": {
+                "status": "absent"
+              },
+              "reference": {
+                "status": "supported",
+                "page": 1,
+                "line": 5
+              },
+              "laboratory": {
+                "status": "absent"
+              },
+              "reportedOn": {
+                "status": "insufficient"
+              },
+              "collectedOn": {
+                "status": "insufficient"
+              }
+            }
+          },
+          {
+            "status": "attention",
+            "basis": "source_text",
+            "issues": ["DATE_UNSUPPORTED"],
+            "fields": {
+              "name": {
+                "status": "supported",
+                "page": 1,
+                "line": 6
+              },
+              "unit": {
+                "status": "supported",
+                "page": 1,
+                "line": 6
+              },
+              "method": {
+                "status": "absent"
+              },
+              "result": {
+                "status": "supported",
+                "page": 1,
+                "line": 6
+              },
+              "issuedOn": {
+                "status": "absent"
+              },
+              "material": {
+                "status": "absent"
+              },
+              "reference": {
+                "status": "supported",
+                "page": 1,
+                "line": 6
+              },
+              "laboratory": {
+                "status": "absent"
+              },
+              "reportedOn": {
+                "status": "insufficient"
+              },
+              "collectedOn": {
+                "status": "insufficient"
+              }
+            }
+          },
+          {
+            "status": "attention",
+            "basis": "source_text",
+            "issues": ["DATE_UNSUPPORTED"],
+            "fields": {
+              "name": {
+                "status": "supported",
+                "page": 1,
+                "line": 7
+              },
+              "unit": {
+                "status": "absent",
+                "page": 1,
+                "line": 7
+              },
+              "method": {
+                "status": "absent"
+              },
+              "result": {
+                "status": "supported",
+                "page": 1,
+                "line": 7
+              },
+              "issuedOn": {
+                "status": "absent"
+              },
+              "material": {
+                "status": "absent"
+              },
+              "reference": {
+                "status": "supported",
+                "page": 1,
+                "line": 7
+              },
+              "laboratory": {
+                "status": "absent"
+              },
+              "reportedOn": {
+                "status": "insufficient"
+              },
+              "collectedOn": {
+                "status": "insufficient"
+              }
+            }
+          },
+          {
+            "status": "attention",
+            "basis": "source_text",
+            "issues": ["DATE_UNSUPPORTED"],
+            "fields": {
+              "name": {
+                "status": "supported",
+                "page": 2,
+                "line": 5
+              },
+              "unit": {
+                "status": "supported",
+                "page": 2,
+                "line": 5
+              },
+              "method": {
+                "status": "absent"
+              },
+              "result": {
+                "status": "supported",
+                "page": 2,
+                "line": 5
+              },
+              "issuedOn": {
+                "status": "absent"
+              },
+              "material": {
+                "status": "absent"
+              },
+              "reference": {
+                "status": "supported",
+                "page": 2,
+                "line": 5
+              },
+              "laboratory": {
+                "status": "absent"
+              },
+              "reportedOn": {
+                "status": "insufficient"
+              },
+              "collectedOn": {
+                "status": "insufficient"
+              }
+            }
+          },
+          {
+            "status": "attention",
+            "basis": "source_text",
+            "issues": ["DATE_UNSUPPORTED"],
+            "fields": {
+              "name": {
+                "status": "supported",
+                "page": 2,
+                "line": 6
+              },
+              "unit": {
+                "status": "supported",
+                "page": 2,
+                "line": 6
+              },
+              "method": {
+                "status": "absent"
+              },
+              "result": {
+                "status": "supported",
+                "page": 2,
+                "line": 6
+              },
+              "issuedOn": {
+                "status": "absent"
+              },
+              "material": {
+                "status": "absent"
+              },
+              "reference": {
+                "status": "supported",
+                "page": 2,
+                "line": 6
+              },
+              "laboratory": {
+                "status": "absent"
+              },
+              "reportedOn": {
+                "status": "insufficient"
+              },
+              "collectedOn": {
+                "status": "insufficient"
+              }
+            }
+          },
+          {
+            "status": "attention",
+            "basis": "source_text",
+            "issues": ["DATE_UNSUPPORTED"],
+            "fields": {
+              "name": {
+                "status": "supported",
+                "page": 2,
+                "line": 7
+              },
+              "unit": {
+                "status": "absent",
+                "page": 2,
+                "line": 7
+              },
+              "method": {
+                "status": "absent"
+              },
+              "result": {
+                "status": "supported",
+                "page": 2,
+                "line": 7
+              },
+              "issuedOn": {
+                "status": "absent"
+              },
+              "material": {
+                "status": "absent"
+              },
+              "reference": {
+                "status": "supported",
+                "page": 2,
+                "line": 7
+              },
+              "laboratory": {
+                "status": "absent"
+              },
+              "reportedOn": {
+                "status": "insufficient"
+              },
+              "collectedOn": {
+                "status": "insufficient"
+              }
+            }
+          },
+          {
+            "status": "attention",
+            "basis": "source_text",
+            "issues": ["DATE_UNSUPPORTED"],
+            "fields": {
+              "name": {
+                "status": "supported",
+                "page": 3,
+                "line": 5
+              },
+              "unit": {
+                "status": "supported",
+                "page": 3,
+                "line": 5
+              },
+              "method": {
+                "status": "absent"
+              },
+              "result": {
+                "status": "supported",
+                "page": 3,
+                "line": 5
+              },
+              "issuedOn": {
+                "status": "absent"
+              },
+              "material": {
+                "status": "absent"
+              },
+              "reference": {
+                "status": "supported",
+                "page": 3,
+                "line": 5
+              },
+              "laboratory": {
+                "status": "absent"
+              },
+              "reportedOn": {
+                "status": "insufficient"
+              },
+              "collectedOn": {
+                "status": "insufficient"
+              }
+            }
+          },
+          {
+            "status": "attention",
+            "basis": "source_text",
+            "issues": ["DATE_UNSUPPORTED"],
+            "fields": {
+              "name": {
+                "status": "supported",
+                "page": 3,
+                "line": 6
+              },
+              "unit": {
+                "status": "supported",
+                "page": 3,
+                "line": 6
+              },
+              "method": {
+                "status": "absent"
+              },
+              "result": {
+                "status": "supported",
+                "page": 3,
+                "line": 6
+              },
+              "issuedOn": {
+                "status": "absent"
+              },
+              "material": {
+                "status": "absent"
+              },
+              "reference": {
+                "status": "supported",
+                "page": 3,
+                "line": 6
+              },
+              "laboratory": {
+                "status": "absent"
+              },
+              "reportedOn": {
+                "status": "insufficient"
+              },
+              "collectedOn": {
+                "status": "insufficient"
+              }
+            }
+          },
+          {
+            "status": "attention",
+            "basis": "source_text",
+            "issues": ["DATE_UNSUPPORTED"],
+            "fields": {
+              "name": {
+                "status": "supported",
+                "page": 3,
+                "line": 7
+              },
+              "unit": {
+                "status": "absent",
+                "page": 3,
+                "line": 7
+              },
+              "method": {
+                "status": "absent"
+              },
+              "result": {
+                "status": "supported",
+                "page": 3,
+                "line": 7
+              },
+              "issuedOn": {
+                "status": "absent"
+              },
+              "material": {
+                "status": "absent"
+              },
+              "reference": {
+                "status": "supported",
+                "page": 3,
+                "line": 7
+              },
+              "laboratory": {
+                "status": "absent"
+              },
+              "reportedOn": {
+                "status": "insufficient"
+              },
+              "collectedOn": {
+                "status": "insufficient"
+              }
+            }
+          },
+          {
+            "status": "attention",
+            "basis": "source_text",
+            "issues": ["DATE_UNSUPPORTED"],
+            "fields": {
+              "name": {
+                "status": "supported",
+                "page": 4,
+                "line": 5
+              },
+              "unit": {
+                "status": "supported",
+                "page": 4,
+                "line": 5
+              },
+              "method": {
+                "status": "absent"
+              },
+              "result": {
+                "status": "supported",
+                "page": 4,
+                "line": 5
+              },
+              "issuedOn": {
+                "status": "absent"
+              },
+              "material": {
+                "status": "absent"
+              },
+              "reference": {
+                "status": "supported",
+                "page": 4,
+                "line": 5
+              },
+              "laboratory": {
+                "status": "absent"
+              },
+              "reportedOn": {
+                "status": "insufficient"
+              },
+              "collectedOn": {
+                "status": "insufficient"
+              }
+            }
+          },
+          {
+            "status": "attention",
+            "basis": "source_text",
+            "issues": ["DATE_UNSUPPORTED"],
+            "fields": {
+              "name": {
+                "status": "supported",
+                "page": 4,
+                "line": 6
+              },
+              "unit": {
+                "status": "supported",
+                "page": 4,
+                "line": 6
+              },
+              "method": {
+                "status": "absent"
+              },
+              "result": {
+                "status": "supported",
+                "page": 4,
+                "line": 6
+              },
+              "issuedOn": {
+                "status": "absent"
+              },
+              "material": {
+                "status": "absent"
+              },
+              "reference": {
+                "status": "supported",
+                "page": 4,
+                "line": 6
+              },
+              "laboratory": {
+                "status": "absent"
+              },
+              "reportedOn": {
+                "status": "insufficient"
+              },
+              "collectedOn": {
+                "status": "insufficient"
+              }
+            }
+          },
+          {
+            "status": "attention",
+            "basis": "source_text",
+            "issues": ["DATE_UNSUPPORTED"],
+            "fields": {
+              "name": {
+                "status": "supported",
+                "page": 4,
+                "line": 7
+              },
+              "unit": {
+                "status": "absent",
+                "page": 4,
+                "line": 7
+              },
+              "method": {
+                "status": "absent"
+              },
+              "result": {
+                "status": "supported",
+                "page": 4,
+                "line": 7
+              },
+              "issuedOn": {
+                "status": "absent"
+              },
+              "material": {
+                "status": "absent"
+              },
+              "reference": {
+                "status": "supported",
+                "page": 4,
+                "line": 7
+              },
+              "laboratory": {
+                "status": "absent"
+              },
+              "reportedOn": {
+                "status": "insufficient"
+              },
+              "collectedOn": {
+                "status": "insufficient"
+              }
+            }
+          },
+          {
+            "status": "attention",
+            "basis": "source_text",
+            "issues": ["DATE_UNSUPPORTED"],
+            "fields": {
+              "name": {
+                "status": "supported",
+                "page": 5,
+                "line": 5
+              },
+              "unit": {
+                "status": "supported",
+                "page": 5,
+                "line": 5
+              },
+              "method": {
+                "status": "absent"
+              },
+              "result": {
+                "status": "supported",
+                "page": 5,
+                "line": 5
+              },
+              "issuedOn": {
+                "status": "absent"
+              },
+              "material": {
+                "status": "absent"
+              },
+              "reference": {
+                "status": "supported",
+                "page": 5,
+                "line": 5
+              },
+              "laboratory": {
+                "status": "absent"
+              },
+              "reportedOn": {
+                "status": "insufficient"
+              },
+              "collectedOn": {
+                "status": "insufficient"
+              }
+            }
+          },
+          {
+            "status": "attention",
+            "basis": "source_text",
+            "issues": ["DATE_UNSUPPORTED"],
+            "fields": {
+              "name": {
+                "status": "supported",
+                "page": 5,
+                "line": 6
+              },
+              "unit": {
+                "status": "supported",
+                "page": 5,
+                "line": 6
+              },
+              "method": {
+                "status": "absent"
+              },
+              "result": {
+                "status": "supported",
+                "page": 5,
+                "line": 6
+              },
+              "issuedOn": {
+                "status": "absent"
+              },
+              "material": {
+                "status": "absent"
+              },
+              "reference": {
+                "status": "supported",
+                "page": 5,
+                "line": 6
+              },
+              "laboratory": {
+                "status": "absent"
+              },
+              "reportedOn": {
+                "status": "insufficient"
+              },
+              "collectedOn": {
+                "status": "insufficient"
+              }
+            }
+          },
+          {
+            "status": "attention",
+            "basis": "source_text",
+            "issues": ["DATE_UNSUPPORTED"],
+            "fields": {
+              "name": {
+                "status": "supported",
+                "page": 5,
+                "line": 7
+              },
+              "unit": {
+                "status": "absent",
+                "page": 5,
+                "line": 7
+              },
+              "method": {
+                "status": "absent"
+              },
+              "result": {
+                "status": "supported",
+                "page": 5,
+                "line": 7
+              },
+              "issuedOn": {
+                "status": "absent"
+              },
+              "material": {
+                "status": "absent"
+              },
+              "reference": {
+                "status": "supported",
+                "page": 5,
+                "line": 7
+              },
+              "laboratory": {
+                "status": "absent"
+              },
+              "reportedOn": {
+                "status": "insufficient"
+              },
+              "collectedOn": {
+                "status": "insufficient"
+              }
+            }
+          },
+          {
+            "status": "attention",
+            "basis": "source_text",
+            "issues": ["DATE_UNSUPPORTED"],
+            "fields": {
+              "name": {
+                "status": "supported",
+                "page": 6,
+                "line": 5
+              },
+              "unit": {
+                "status": "supported",
+                "page": 6,
+                "line": 5
+              },
+              "method": {
+                "status": "absent"
+              },
+              "result": {
+                "status": "supported",
+                "page": 6,
+                "line": 5
+              },
+              "issuedOn": {
+                "status": "absent"
+              },
+              "material": {
+                "status": "absent"
+              },
+              "reference": {
+                "status": "supported",
+                "page": 6,
+                "line": 5
+              },
+              "laboratory": {
+                "status": "absent"
+              },
+              "reportedOn": {
+                "status": "insufficient"
+              },
+              "collectedOn": {
+                "status": "insufficient"
+              }
+            }
+          },
+          {
+            "status": "attention",
+            "basis": "source_text",
+            "issues": ["DATE_UNSUPPORTED"],
+            "fields": {
+              "name": {
+                "status": "supported",
+                "page": 6,
+                "line": 6
+              },
+              "unit": {
+                "status": "supported",
+                "page": 6,
+                "line": 6
+              },
+              "method": {
+                "status": "absent"
+              },
+              "result": {
+                "status": "supported",
+                "page": 6,
+                "line": 6
+              },
+              "issuedOn": {
+                "status": "absent"
+              },
+              "material": {
+                "status": "absent"
+              },
+              "reference": {
+                "status": "supported",
+                "page": 6,
+                "line": 6
+              },
+              "laboratory": {
+                "status": "absent"
+              },
+              "reportedOn": {
+                "status": "insufficient"
+              },
+              "collectedOn": {
+                "status": "insufficient"
+              }
+            }
+          },
+          {
+            "status": "attention",
+            "basis": "source_text",
+            "issues": ["DATE_UNSUPPORTED"],
+            "fields": {
+              "name": {
+                "status": "supported",
+                "page": 6,
+                "line": 7
+              },
+              "unit": {
+                "status": "absent",
+                "page": 6,
+                "line": 7
+              },
+              "method": {
+                "status": "absent"
+              },
+              "result": {
+                "status": "supported",
+                "page": 6,
+                "line": 7
+              },
+              "issuedOn": {
+                "status": "absent"
+              },
+              "material": {
+                "status": "absent"
+              },
+              "reference": {
+                "status": "supported",
+                "page": 6,
+                "line": 7
+              },
+              "laboratory": {
+                "status": "absent"
+              },
+              "reportedOn": {
+                "status": "insufficient"
+              },
+              "collectedOn": {
+                "status": "insufficient"
+              }
+            }
+          },
+          {
+            "status": "attention",
+            "basis": "source_text",
+            "issues": ["DATE_UNSUPPORTED"],
+            "fields": {
+              "name": {
+                "status": "supported",
+                "page": 7,
+                "line": 5
+              },
+              "unit": {
+                "status": "supported",
+                "page": 7,
+                "line": 5
+              },
+              "method": {
+                "status": "absent"
+              },
+              "result": {
+                "status": "supported",
+                "page": 7,
+                "line": 5
+              },
+              "issuedOn": {
+                "status": "absent"
+              },
+              "material": {
+                "status": "absent"
+              },
+              "reference": {
+                "status": "supported",
+                "page": 7,
+                "line": 5
+              },
+              "laboratory": {
+                "status": "absent"
+              },
+              "reportedOn": {
+                "status": "insufficient"
+              },
+              "collectedOn": {
+                "status": "insufficient"
+              }
+            }
+          },
+          {
+            "status": "attention",
+            "basis": "source_text",
+            "issues": ["DATE_UNSUPPORTED"],
+            "fields": {
+              "name": {
+                "status": "supported",
+                "page": 7,
+                "line": 6
+              },
+              "unit": {
+                "status": "supported",
+                "page": 7,
+                "line": 6
+              },
+              "method": {
+                "status": "absent"
+              },
+              "result": {
+                "status": "supported",
+                "page": 7,
+                "line": 6
+              },
+              "issuedOn": {
+                "status": "absent"
+              },
+              "material": {
+                "status": "absent"
+              },
+              "reference": {
+                "status": "supported",
+                "page": 7,
+                "line": 6
+              },
+              "laboratory": {
+                "status": "absent"
+              },
+              "reportedOn": {
+                "status": "insufficient"
+              },
+              "collectedOn": {
+                "status": "insufficient"
+              }
+            }
+          },
+          {
+            "status": "attention",
+            "basis": "source_text",
+            "issues": ["DATE_UNSUPPORTED"],
+            "fields": {
+              "name": {
+                "status": "supported",
+                "page": 7,
+                "line": 7
+              },
+              "unit": {
+                "status": "absent",
+                "page": 7,
+                "line": 7
+              },
+              "method": {
+                "status": "absent"
+              },
+              "result": {
+                "status": "supported",
+                "page": 7,
+                "line": 7
+              },
+              "issuedOn": {
+                "status": "absent"
+              },
+              "material": {
+                "status": "absent"
+              },
+              "reference": {
+                "status": "supported",
+                "page": 7,
+                "line": 7
+              },
+              "laboratory": {
+                "status": "absent"
+              },
+              "reportedOn": {
+                "status": "insufficient"
+              },
+              "collectedOn": {
+                "status": "insufficient"
+              }
+            }
+          },
+          {
+            "status": "attention",
+            "basis": "source_text",
+            "issues": ["DATE_UNSUPPORTED"],
+            "fields": {
+              "name": {
+                "status": "supported",
+                "page": 8,
+                "line": 5
+              },
+              "unit": {
+                "status": "supported",
+                "page": 8,
+                "line": 5
+              },
+              "method": {
+                "status": "absent"
+              },
+              "result": {
+                "status": "supported",
+                "page": 8,
+                "line": 5
+              },
+              "issuedOn": {
+                "status": "absent"
+              },
+              "material": {
+                "status": "absent"
+              },
+              "reference": {
+                "status": "supported",
+                "page": 8,
+                "line": 5
+              },
+              "laboratory": {
+                "status": "absent"
+              },
+              "reportedOn": {
+                "status": "insufficient"
+              },
+              "collectedOn": {
+                "status": "insufficient"
+              }
+            }
+          },
+          {
+            "status": "attention",
+            "basis": "source_text",
+            "issues": ["DATE_UNSUPPORTED"],
+            "fields": {
+              "name": {
+                "status": "supported",
+                "page": 8,
+                "line": 6
+              },
+              "unit": {
+                "status": "supported",
+                "page": 8,
+                "line": 6
+              },
+              "method": {
+                "status": "absent"
+              },
+              "result": {
+                "status": "supported",
+                "page": 8,
+                "line": 6
+              },
+              "issuedOn": {
+                "status": "absent"
+              },
+              "material": {
+                "status": "absent"
+              },
+              "reference": {
+                "status": "supported",
+                "page": 8,
+                "line": 6
+              },
+              "laboratory": {
+                "status": "absent"
+              },
+              "reportedOn": {
+                "status": "insufficient"
+              },
+              "collectedOn": {
+                "status": "insufficient"
+              }
+            }
+          },
+          {
+            "status": "attention",
+            "basis": "source_text",
+            "issues": ["DATE_UNSUPPORTED"],
+            "fields": {
+              "name": {
+                "status": "supported",
+                "page": 8,
+                "line": 7
+              },
+              "unit": {
+                "status": "absent",
+                "page": 8,
+                "line": 7
+              },
+              "method": {
+                "status": "absent"
+              },
+              "result": {
+                "status": "supported",
+                "page": 8,
+                "line": 7
+              },
+              "issuedOn": {
+                "status": "absent"
+              },
+              "material": {
+                "status": "absent"
+              },
+              "reference": {
+                "status": "supported",
+                "page": 8,
+                "line": 7
+              },
+              "laboratory": {
+                "status": "absent"
+              },
+              "reportedOn": {
+                "status": "insufficient"
+              },
+              "collectedOn": {
+                "status": "insufficient"
+              }
+            }
+          }
+        ]
+      },
+      "httpStatus": null,
+      "wallMilliseconds": null,
+      "transportError": "INTERRUPTED_BY_BENCHMARK_OPERATOR",
+      "reconciled": true,
+      "assignmentNote": "Execution used verifier2 and old deployment despite initial after label; excluded from candidate measurements.",
+      "telemetry": {
+        "model": "openai/gpt-6-luna",
+        "failures": 0,
+        "provider": "openai",
+        "costBasis": "unavailable",
+        "durationMs": 31428,
+        "inputTokens": 3572,
+        "pricingAsOf": null,
+        "outputTokens": 2624,
+        "extractedRows": 24,
+        "promptVersion": "lab-transcription-2",
+        "usageComplete": true,
+        "divergenceRows": 24,
+        "pipelineVersion": "lab-pipeline-2",
+        "reasoningTokens": 81,
+        "startedRequests": 4,
+        "verifierVersion": 2,
+        "divergenceFields": 48,
+        "estimatedCostUsd": null,
+        "cachedInputTokens": 0,
+        "completedRequests": 4,
+        "processingMilliseconds": 33572
+      },
+      "deploymentId": "dpl_4kEKMi4z4YA1utvhwAbvQQJMoUTj",
+      "codeCommit": "4e9f9c034e9465e87cd0d96394ae3814ca2511f9"
+    }
+  ],
+  "limits": {
+    "organizationImportsPerHour": 6,
+    "organizationImportsPerDay": 20,
+    "importsUsedThisStage": 6,
+    "providerRequests": 15,
+    "providerRetries": 0,
+    "intentionallyInterruptedClientRequests": 1
+  },
+  "pricing": {
+    "source": "https://developers.openai.com/api/docs/models/gpt-6-luna",
+    "checkedOn": "2026-10-20",
+    "inputUsdPerMillion": 0.1,
+    "outputUsdPerMillion": 0.5,
+    "cachedInputUsdPerMillion": 0.01,
+    "basis": "PUBLIC_STANDARD_TOKEN_ESTIMATE_NOT_OBSERVED_INVOICE"
+  },
+  "safety": {
+    "validatedResultsBefore": 88,
+    "validatedResultsAfter": 88,
+    "reviewVersionsBefore": 2,
+    "reviewVersionsAfter": 2,
+    "clinicalDigestBefore": "713f44bd5c8fa62783847475c61a3525",
+    "clinicalDigestAfter": "713f44bd5c8fa62783847475c61a3525",
+    "newUnconfirmedSyntheticImports": 6,
+    "clinicalRowsPublished": 0,
+    "productionDeploymentBefore": "dpl_4ag81mHUxsDZ7VaKqnrKKHqKrFkp",
+    "productionDeploymentAfter": "dpl_4ag81mHUxsDZ7VaKqnrKKHqKrFkp",
+    "remoteMigrations": false,
+    "remoteSeed": false,
+    "providerAdded": false
+  }
+}

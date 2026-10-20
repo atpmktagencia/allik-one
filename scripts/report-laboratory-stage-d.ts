@@ -38,6 +38,7 @@ type Telemetry = {
 };
 type Capture = {
   caseId: string;
+  documentId?: string;
   phase?: string;
   sha256: string;
   httpStatus?: number;
@@ -51,9 +52,11 @@ const [inputPath, baselinePath] = process.argv.slice(2);
 assert(inputPath, "Pass a saved real-inference capture; reporter does not generate observations.");
 const input = JSON.parse(await readFile(inputPath, "utf8")) as {
   records: Capture[];
+  supplementalRecords?: Capture[];
   provenance?: unknown;
 };
 assert(Array.isArray(input.records) && input.records.length > 0);
+assert(input.supplementalRecords === undefined || Array.isArray(input.supplementalRecords));
 const baseline = baselinePath
   ? (JSON.parse(await readFile(baselinePath, "utf8")) as { records: Capture[] })
   : null;
@@ -69,6 +72,59 @@ const knownSum = (values: unknown[]) =>
   values.length && values.every(count) ? values.reduce<number>((n, v) => n + v, 0) : null;
 const rates = { inputUsdPerMillion: 0.1, cachedInputUsdPerMillion: 0.01, outputUsdPerMillion: 0.5 };
 const source = "https://developers.openai.com/api/docs/models/gpt-6-luna";
+function estimateTokenCost(t: Telemetry | undefined) {
+  if (
+    !t?.usageComplete ||
+    !count(t.inputTokens) ||
+    !count(t.outputTokens) ||
+    t.provider !== "openai" ||
+    t.model !== "openai/gpt-6-luna"
+  )
+    return null;
+  const cached = count(t.cachedInputTokens) ? t.cachedInputTokens : null;
+  if (cached !== null && cached > t.inputTokens) return null;
+  return (
+    ((t.inputTokens - (cached ?? 0)) * rates.inputUsdPerMillion +
+      (cached ?? 0) * rates.cachedInputUsdPerMillion +
+      t.outputTokens * rates.outputUsdPerMillion) /
+    1_000_000
+  );
+}
+/** Operational accounting includes misrouted/reconciled attempts without relabeling
+ * them as candidate quality measurements or pairing them with a different pipeline. */
+function usageSummary(records: Capture[]) {
+  const sum = (read: (r: Capture) => unknown) => (records.length ? knownSum(records.map(read)) : 0);
+  const costs = records.map((r) => estimateTokenCost(r.telemetry));
+  return {
+    imports: records.length,
+    successfulBackendExtractions: records.filter((r) => r.import?.status === "READY_REVIEW").length,
+    failedBackendExtractions: records.filter((r) => r.import?.status === "FAILED").length,
+    unknownBackendOutcomes: records.filter(
+      (r) => !r.import || !["READY_REVIEW", "FAILED"].includes(r.import.status),
+    ).length,
+    interruptedClientRequests: records.filter((r) => !!r.transportError).length,
+    inputTokens: sum((r) => r.telemetry?.inputTokens),
+    outputTokens: sum((r) => r.telemetry?.outputTokens),
+    startedRequests: sum((r) => r.telemetry?.startedRequests),
+    completedRequests: sum((r) => r.telemetry?.completedRequests),
+    usageComplete: records.every((r) => r.telemetry?.usageComplete === true),
+    estimatedTokenCostUsd: costs.every((c) => c !== null)
+      ? costs.reduce<number>((n, c) => n + c!, 0)
+      : null,
+    observedInvoiceCostUsd: null,
+    costBasis: costs.every((c) => c !== null)
+      ? "public_standard_token_rates_not_invoice"
+      : "unavailable",
+  };
+}
+const supplementalRecords = input.supplementalRecords ?? [];
+const allAttemptRecords = [...input.records, ...supplementalRecords];
+const documentIds = allAttemptRecords.flatMap((r) => (r.documentId ? [r.documentId] : []));
+assert.equal(
+  new Set(documentIds).size,
+  documentIds.length,
+  "Duplicate import would double-count usage.",
+);
 const seen = new Set<string>();
 type EvaluatedCase = {
   caseId: string;
@@ -167,16 +223,7 @@ for (const record of input.records) {
   const derivedModelOnlyEvaluation = recoveries.length
     ? evaluateLaboratoryRobustness(reference, reconstructed, undefined, { independentText })
     : null;
-  const tokensKnown = !!t?.usageComplete && count(t.inputTokens) && count(t.outputTokens);
-  const cached = count(t?.cachedInputTokens) ? t.cachedInputTokens : null;
-  const priceApplies = t?.provider === "openai" && t.model === "openai/gpt-6-luna";
-  const cost =
-    tokensKnown && priceApplies && (cached === null || cached <= t.inputTokens!)
-      ? ((t.inputTokens! - (cached ?? 0)) * rates.inputUsdPerMillion +
-          (cached ?? 0) * rates.cachedInputUsdPerMillion +
-          t.outputTokens! * rates.outputUsdPerMillion) /
-        1_000_000
-      : null;
+  const cost = estimateTokenCost(t);
   const sameCaseBaseline = baseline?.records.find((r) => r.caseId === record.caseId);
   const samePdfBaseline = sameCaseBaseline?.sha256 === record.sha256;
   cases.push({
@@ -305,6 +352,13 @@ console.log(
       providerCallsPerformedByReporter: 0,
       sourceCaptureSha256: digest(await readFile(inputPath)),
       sourceProvenance: input.provenance ?? null,
+      attemptAccounting: {
+        primaryImports: input.records.length,
+        supplementalImports: supplementalRecords.length,
+        supplementalQualityIncluded: false,
+      },
+      supplementalUsage: usageSummary(supplementalRecords),
+      allAttemptUsage: usageSummary(allAttemptRecords),
       pricing: {
         ...rates,
         asOf: "2026-10-20",
@@ -336,6 +390,7 @@ console.log(
         "False-alert candidates need source adjudication; correct-but-unprovable scan/layout warnings remain legitimate.",
         "Stage C legacy ambiguous DD/MM references differ from explicit-evidence Stage D policy; do not claim date improvement from changed truth.",
         "No comparisons between different PDFs establish before/after performance gain.",
+        "Supplemental attempts contribute only to operational usage/cost and incidents; they are never relabeled as candidate quality measurements or paired comparisons.",
         "No clinical publication, provider calls, database writes or model routing are performed by this reporter.",
         "derivedModelOnlyEvaluation reverts audited null-to-date recoveries; it is derived attribution, not a captured raw model response. Actual verifier decisions belong only to delivered evaluation.",
       ],
