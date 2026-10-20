@@ -1,0 +1,1218 @@
+{
+  "pipelineVersion": "lab-pipeline-1",
+  "promptVersion": "lab-transcription-1",
+  "verifierVersion": 1,
+  "sourceCommit": "7d350a6b2b6f96e86e3e9a36bff60192ebe1721b",
+  "outputOrigin": "synthetic-controlled-not-live-inference",
+  "documents": 21,
+  "totals": {
+    "expected": 28,
+    "predicted": 28,
+    "correctRows": 19,
+    "omitted": 1,
+    "invented": 1,
+    "associationCorrect": 23,
+    "trusted": 19,
+    "falseAlerts": 3,
+    "unsafeTrusted": 6
+  },
+  "cases": [
+    {
+      "id": "dotted-names",
+      "format": "digital",
+      "sourceSha256": "9ac9e235f2bfd8ea39a6741080f65764d227dee3b297571b658a58fc75482e03",
+      "extraction": {
+        "expected": 1,
+        "predicted": 1,
+        "matched": 1,
+        "correctRows": 1,
+        "omitted": 0,
+        "invented": 0,
+        "associationCorrect": 1,
+        "fields": {
+          "result": {
+            "correct": 1,
+            "compared": 1
+          },
+          "unit": {
+            "correct": 1,
+            "compared": 1
+          },
+          "collectedOn": {
+            "correct": 0,
+            "compared": 0
+          },
+          "reportedOn": {
+            "correct": 0,
+            "compared": 0
+          },
+          "reference": {
+            "correct": 1,
+            "compared": 1
+          },
+          "laboratory": {
+            "correct": 0,
+            "compared": 0
+          },
+          "method": {
+            "correct": 0,
+            "compared": 0
+          },
+          "material": {
+            "correct": 0,
+            "compared": 0
+          }
+        }
+      },
+      "verifier": {
+        "trusted": 0,
+        "falseAlerts": 1,
+        "unsafeTrusted": 0
+      },
+      "localProcessingMilliseconds": 77.60115000000002,
+      "inferenceMilliseconds": null,
+      "costUsd": null,
+      "tokens": null
+    },
+    {
+      "id": "current-and-previous",
+      "format": "digital",
+      "sourceSha256": "71440159d0e6dbdeece21f5f7755530bbc4b73bfaa5c1aa9573cb3f3d256a87a",
+      "extraction": {
+        "expected": 1,
+        "predicted": 1,
+        "matched": 1,
+        "correctRows": 1,
+        "omitted": 0,
+        "invented": 0,
+        "associationCorrect": 1,
+        "fields": {
+          "result": {
+            "correct": 1,
+            "compared": 1
+          },
+          "unit": {
+            "correct": 1,
+            "compared": 1
+          },
+          "collectedOn": {
+            "correct": 0,
+            "compared": 0
+          },
+          "reportedOn": {
+            "correct": 0,
+            "compared": 0
+          },
+          "reference": {
+            "correct": 1,
+            "compared": 1
+          },
+          "laboratory": {
+            "correct": 0,
+            "compared": 0
+          },
+          "method": {
+            "correct": 0,
+            "compared": 0
+          },
+          "material": {
+            "correct": 0,
+            "compared": 0
+          }
+        }
+      },
+      "verifier": {
+        "trusted": 1,
+        "falseAlerts": 0,
+        "unsafeTrusted": 0
+      },
+      "localProcessingMilliseconds": 4.1050539999999955,
+      "inferenceMilliseconds": null,
+      "costUsd": null,
+      "tokens": null
+    },
+    {
+      "id": "previous-as-current",
+      "format": "digital",
+      "sourceSha256": "f9419c39e68266f582a5990bc56fb684b031361887e95e3aa9436894a9687cfc",
+      "extraction": {
+        "expected": 1,
+        "predicted": 1,
+        "matched": 1,
+        "correctRows": 0,
+        "omitted": 0,
+        "invented": 0,
+        "associationCorrect": 0,
+        "fields": {
+          "result": {
+            "correct": 0,
+            "compared": 1
+          },
+          "unit": {
+            "correct": 1,
+            "compared": 1
+          },
+          "collectedOn": {
+            "correct": 0,
+            "compared": 0
+          },
+          "reportedOn": {
+            "correct": 0,
+            "compared": 0
+          },
+          "reference": {
+            "correct": 1,
+            "compared": 1
+          },
+          "laboratory": {
+            "correct": 0,
+            "compared": 0
+          },
+          "method": {
+            "correct": 0,
+            "compared": 0
+          },
+          "material": {
+            "correct": 0,
+            "compared": 0
+          }
+        }
+      },
+      "verifier": {
+        "trusted": 1,
+        "falseAlerts": 0,
+        "unsafeTrusted": 1
+      },
+      "localProcessingMilliseconds": 3.5407330000000456,
+      "inferenceMilliseconds": null,
+      "costUsd": null,
+      "tokens": null
+    },
+    {
+      "id": "reference-as-current",
+      "format": "digital",
+      "sourceSha256": "db34410e4f8014370918a0794ebe196803d6cc48bde11d472708f7cc2a81f8b2",
+      "extraction": {
+        "expected": 1,
+        "predicted": 1,
+        "matched": 1,
+        "correctRows": 0,
+        "omitted": 0,
+        "invented": 0,
+        "associationCorrect": 0,
+        "fields": {
+          "result": {
+            "correct": 0,
+            "compared": 1
+          },
+          "unit": {
+            "correct": 1,
+            "compared": 1
+          },
+          "collectedOn": {
+            "correct": 0,
+            "compared": 0
+          },
+          "reportedOn": {
+            "correct": 0,
+            "compared": 0
+          },
+          "reference": {
+            "correct": 1,
+            "compared": 1
+          },
+          "laboratory": {
+            "correct": 0,
+            "compared": 0
+          },
+          "method": {
+            "correct": 0,
+            "compared": 0
+          },
+          "material": {
+            "correct": 0,
+            "compared": 0
+          }
+        }
+      },
+      "verifier": {
+        "trusted": 0,
+        "falseAlerts": 0,
+        "unsafeTrusted": 0
+      },
+      "localProcessingMilliseconds": 4.465047999999911,
+      "inferenceMilliseconds": null,
+      "costUsd": null,
+      "tokens": null
+    },
+    {
+      "id": "multi-column",
+      "format": "digital",
+      "sourceSha256": "e3957bc74cf73ab42f6c2888a8a521c78ac6a0427735302c5e02b665a1fa2e78",
+      "extraction": {
+        "expected": 2,
+        "predicted": 2,
+        "matched": 2,
+        "correctRows": 2,
+        "omitted": 0,
+        "invented": 0,
+        "associationCorrect": 2,
+        "fields": {
+          "result": {
+            "correct": 2,
+            "compared": 2
+          },
+          "unit": {
+            "correct": 2,
+            "compared": 2
+          },
+          "collectedOn": {
+            "correct": 0,
+            "compared": 0
+          },
+          "reportedOn": {
+            "correct": 0,
+            "compared": 0
+          },
+          "reference": {
+            "correct": 2,
+            "compared": 2
+          },
+          "laboratory": {
+            "correct": 0,
+            "compared": 0
+          },
+          "method": {
+            "correct": 0,
+            "compared": 0
+          },
+          "material": {
+            "correct": 0,
+            "compared": 0
+          }
+        }
+      },
+      "verifier": {
+        "trusted": 2,
+        "falseAlerts": 0,
+        "unsafeTrusted": 0
+      },
+      "localProcessingMilliseconds": 3.242121999999995,
+      "inferenceMilliseconds": null,
+      "costUsd": null,
+      "tokens": null
+    },
+    {
+      "id": "multi-column-swapped",
+      "format": "digital",
+      "sourceSha256": "e15314a2246d8ded88048bd1526f6704c92cf31b4ff9fb2531110f5b2dd4fa11",
+      "extraction": {
+        "expected": 2,
+        "predicted": 2,
+        "matched": 2,
+        "correctRows": 1,
+        "omitted": 0,
+        "invented": 0,
+        "associationCorrect": 1,
+        "fields": {
+          "result": {
+            "correct": 1,
+            "compared": 2
+          },
+          "unit": {
+            "correct": 2,
+            "compared": 2
+          },
+          "collectedOn": {
+            "correct": 0,
+            "compared": 0
+          },
+          "reportedOn": {
+            "correct": 0,
+            "compared": 0
+          },
+          "reference": {
+            "correct": 2,
+            "compared": 2
+          },
+          "laboratory": {
+            "correct": 0,
+            "compared": 0
+          },
+          "method": {
+            "correct": 0,
+            "compared": 0
+          },
+          "material": {
+            "correct": 0,
+            "compared": 0
+          }
+        }
+      },
+      "verifier": {
+        "trusted": 2,
+        "falseAlerts": 0,
+        "unsafeTrusted": 1
+      },
+      "localProcessingMilliseconds": 2.7109909999999218,
+      "inferenceMilliseconds": null,
+      "costUsd": null,
+      "tokens": null
+    },
+    {
+      "id": "similar-names-equal-values",
+      "format": "digital",
+      "sourceSha256": "4f6cf1e0332f51b6be3e1b7f7f73390b354faa84e4ca9e9cf44d9f837d5e700c",
+      "extraction": {
+        "expected": 2,
+        "predicted": 2,
+        "matched": 2,
+        "correctRows": 2,
+        "omitted": 0,
+        "invented": 0,
+        "associationCorrect": 2,
+        "fields": {
+          "result": {
+            "correct": 2,
+            "compared": 2
+          },
+          "unit": {
+            "correct": 2,
+            "compared": 2
+          },
+          "collectedOn": {
+            "correct": 0,
+            "compared": 0
+          },
+          "reportedOn": {
+            "correct": 0,
+            "compared": 0
+          },
+          "reference": {
+            "correct": 0,
+            "compared": 0
+          },
+          "laboratory": {
+            "correct": 0,
+            "compared": 0
+          },
+          "method": {
+            "correct": 0,
+            "compared": 0
+          },
+          "material": {
+            "correct": 0,
+            "compared": 0
+          }
+        }
+      },
+      "verifier": {
+        "trusted": 1,
+        "falseAlerts": 1,
+        "unsafeTrusted": 0
+      },
+      "localProcessingMilliseconds": 2.6167279999999664,
+      "inferenceMilliseconds": null,
+      "costUsd": null,
+      "tokens": null
+    },
+    {
+      "id": "wrong-unit",
+      "format": "digital",
+      "sourceSha256": "ee8565b225395c9c24af6b4a273941d00107536736d983032d72d27527acf4f1",
+      "extraction": {
+        "expected": 2,
+        "predicted": 2,
+        "matched": 2,
+        "correctRows": 1,
+        "omitted": 0,
+        "invented": 0,
+        "associationCorrect": 2,
+        "fields": {
+          "result": {
+            "correct": 2,
+            "compared": 2
+          },
+          "unit": {
+            "correct": 1,
+            "compared": 2
+          },
+          "collectedOn": {
+            "correct": 0,
+            "compared": 0
+          },
+          "reportedOn": {
+            "correct": 0,
+            "compared": 0
+          },
+          "reference": {
+            "correct": 0,
+            "compared": 0
+          },
+          "laboratory": {
+            "correct": 0,
+            "compared": 0
+          },
+          "method": {
+            "correct": 0,
+            "compared": 0
+          },
+          "material": {
+            "correct": 0,
+            "compared": 0
+          }
+        }
+      },
+      "verifier": {
+        "trusted": 0,
+        "falseAlerts": 1,
+        "unsafeTrusted": 0
+      },
+      "localProcessingMilliseconds": 2.140119000000027,
+      "inferenceMilliseconds": null,
+      "costUsd": null,
+      "tokens": null
+    },
+    {
+      "id": "comparator-and-qualitative",
+      "format": "digital",
+      "sourceSha256": "4f53db840bcc848c4e4eb0f2835a52ce4f4a81524d734890625b4052e50cfc71",
+      "extraction": {
+        "expected": 2,
+        "predicted": 2,
+        "matched": 2,
+        "correctRows": 2,
+        "omitted": 0,
+        "invented": 0,
+        "associationCorrect": 2,
+        "fields": {
+          "result": {
+            "correct": 2,
+            "compared": 2
+          },
+          "unit": {
+            "correct": 1,
+            "compared": 1
+          },
+          "collectedOn": {
+            "correct": 0,
+            "compared": 0
+          },
+          "reportedOn": {
+            "correct": 0,
+            "compared": 0
+          },
+          "reference": {
+            "correct": 1,
+            "compared": 1
+          },
+          "laboratory": {
+            "correct": 0,
+            "compared": 0
+          },
+          "method": {
+            "correct": 0,
+            "compared": 0
+          },
+          "material": {
+            "correct": 0,
+            "compared": 0
+          }
+        }
+      },
+      "verifier": {
+        "trusted": 2,
+        "falseAlerts": 0,
+        "unsafeTrusted": 0
+      },
+      "localProcessingMilliseconds": 2.7909610000000384,
+      "inferenceMilliseconds": null,
+      "costUsd": null,
+      "tokens": null
+    },
+    {
+      "id": "lost-comparator",
+      "format": "digital",
+      "sourceSha256": "b5755a5fee7e4480be2f3e5e6914b9a8fdfdd1e3b2b6a9d1b1d8999e85a40203",
+      "extraction": {
+        "expected": 1,
+        "predicted": 1,
+        "matched": 1,
+        "correctRows": 0,
+        "omitted": 0,
+        "invented": 0,
+        "associationCorrect": 0,
+        "fields": {
+          "result": {
+            "correct": 0,
+            "compared": 1
+          },
+          "unit": {
+            "correct": 1,
+            "compared": 1
+          },
+          "collectedOn": {
+            "correct": 0,
+            "compared": 0
+          },
+          "reportedOn": {
+            "correct": 0,
+            "compared": 0
+          },
+          "reference": {
+            "correct": 1,
+            "compared": 1
+          },
+          "laboratory": {
+            "correct": 0,
+            "compared": 0
+          },
+          "method": {
+            "correct": 0,
+            "compared": 0
+          },
+          "material": {
+            "correct": 0,
+            "compared": 0
+          }
+        }
+      },
+      "verifier": {
+        "trusted": 0,
+        "falseAlerts": 0,
+        "unsafeTrusted": 0
+      },
+      "localProcessingMilliseconds": 2.4816540000000487,
+      "inferenceMilliseconds": null,
+      "costUsd": null,
+      "tokens": null
+    },
+    {
+      "id": "dates-and-metadata",
+      "format": "digital",
+      "sourceSha256": "5bb09dc0c39b3c4c4c3dd6c597aba30d088c8523fcaf9d4fc8390be07c0d15b9",
+      "extraction": {
+        "expected": 1,
+        "predicted": 1,
+        "matched": 1,
+        "correctRows": 1,
+        "omitted": 0,
+        "invented": 0,
+        "associationCorrect": 1,
+        "fields": {
+          "result": {
+            "correct": 1,
+            "compared": 1
+          },
+          "unit": {
+            "correct": 1,
+            "compared": 1
+          },
+          "collectedOn": {
+            "correct": 1,
+            "compared": 1
+          },
+          "reportedOn": {
+            "correct": 1,
+            "compared": 1
+          },
+          "reference": {
+            "correct": 0,
+            "compared": 0
+          },
+          "laboratory": {
+            "correct": 1,
+            "compared": 1
+          },
+          "method": {
+            "correct": 1,
+            "compared": 1
+          },
+          "material": {
+            "correct": 1,
+            "compared": 1
+          }
+        }
+      },
+      "verifier": {
+        "trusted": 1,
+        "falseAlerts": 0,
+        "unsafeTrusted": 0
+      },
+      "localProcessingMilliseconds": 2.7505499999999756,
+      "inferenceMilliseconds": null,
+      "costUsd": null,
+      "tokens": null
+    },
+    {
+      "id": "contradictory-dates",
+      "format": "digital",
+      "sourceSha256": "4b86fc3b88a0b9ea7a0a88f4d993bb549e114e8f33a3ca0ed4b5f1185262c1b2",
+      "extraction": {
+        "expected": 1,
+        "predicted": 1,
+        "matched": 1,
+        "correctRows": 0,
+        "omitted": 0,
+        "invented": 0,
+        "associationCorrect": 1,
+        "fields": {
+          "result": {
+            "correct": 1,
+            "compared": 1
+          },
+          "unit": {
+            "correct": 1,
+            "compared": 1
+          },
+          "collectedOn": {
+            "correct": 0,
+            "compared": 1
+          },
+          "reportedOn": {
+            "correct": 1,
+            "compared": 1
+          },
+          "reference": {
+            "correct": 0,
+            "compared": 0
+          },
+          "laboratory": {
+            "correct": 1,
+            "compared": 1
+          },
+          "method": {
+            "correct": 1,
+            "compared": 1
+          },
+          "material": {
+            "correct": 1,
+            "compared": 1
+          }
+        }
+      },
+      "verifier": {
+        "trusted": 1,
+        "falseAlerts": 0,
+        "unsafeTrusted": 1
+      },
+      "localProcessingMilliseconds": 2.3754450000000134,
+      "inferenceMilliseconds": null,
+      "costUsd": null,
+      "tokens": null
+    },
+    {
+      "id": "unsupported-metadata",
+      "format": "digital",
+      "sourceSha256": "0158429d239b846d88bbe2f52bfa389a63061f53a2e9dba70de99a012613c0f7",
+      "extraction": {
+        "expected": 1,
+        "predicted": 1,
+        "matched": 1,
+        "correctRows": 0,
+        "omitted": 0,
+        "invented": 0,
+        "associationCorrect": 1,
+        "fields": {
+          "result": {
+            "correct": 1,
+            "compared": 1
+          },
+          "unit": {
+            "correct": 1,
+            "compared": 1
+          },
+          "collectedOn": {
+            "correct": 1,
+            "compared": 1
+          },
+          "reportedOn": {
+            "correct": 1,
+            "compared": 1
+          },
+          "reference": {
+            "correct": 0,
+            "compared": 0
+          },
+          "laboratory": {
+            "correct": 1,
+            "compared": 1
+          },
+          "method": {
+            "correct": 0,
+            "compared": 1
+          },
+          "material": {
+            "correct": 1,
+            "compared": 1
+          }
+        }
+      },
+      "verifier": {
+        "trusted": 1,
+        "falseAlerts": 0,
+        "unsafeTrusted": 1
+      },
+      "localProcessingMilliseconds": 2.9208419999999933,
+      "inferenceMilliseconds": null,
+      "costUsd": null,
+      "tokens": null
+    },
+    {
+      "id": "absent-information",
+      "format": "digital",
+      "sourceSha256": "2e0b55567b426e2a10c6d24d107ebdef371ba48ef4b4b4482b51567168161c98",
+      "extraction": {
+        "expected": 1,
+        "predicted": 1,
+        "matched": 1,
+        "correctRows": 1,
+        "omitted": 0,
+        "invented": 0,
+        "associationCorrect": 1,
+        "fields": {
+          "result": {
+            "correct": 1,
+            "compared": 1
+          },
+          "unit": {
+            "correct": 0,
+            "compared": 0
+          },
+          "collectedOn": {
+            "correct": 0,
+            "compared": 0
+          },
+          "reportedOn": {
+            "correct": 0,
+            "compared": 0
+          },
+          "reference": {
+            "correct": 0,
+            "compared": 0
+          },
+          "laboratory": {
+            "correct": 0,
+            "compared": 0
+          },
+          "method": {
+            "correct": 0,
+            "compared": 0
+          },
+          "material": {
+            "correct": 0,
+            "compared": 0
+          }
+        }
+      },
+      "verifier": {
+        "trusted": 1,
+        "falseAlerts": 0,
+        "unsafeTrusted": 0
+      },
+      "localProcessingMilliseconds": 1.6746669999999995,
+      "inferenceMilliseconds": null,
+      "costUsd": null,
+      "tokens": null
+    },
+    {
+      "id": "unsupported-date",
+      "format": "digital",
+      "sourceSha256": "8c37b6192de421437b971e4352a397427fc6abb5ebe71af834e6828ceda12a05",
+      "extraction": {
+        "expected": 1,
+        "predicted": 1,
+        "matched": 1,
+        "correctRows": 0,
+        "omitted": 0,
+        "invented": 0,
+        "associationCorrect": 1,
+        "fields": {
+          "result": {
+            "correct": 1,
+            "compared": 1
+          },
+          "unit": {
+            "correct": 0,
+            "compared": 0
+          },
+          "collectedOn": {
+            "correct": 0,
+            "compared": 0
+          },
+          "reportedOn": {
+            "correct": 0,
+            "compared": 1
+          },
+          "reference": {
+            "correct": 0,
+            "compared": 0
+          },
+          "laboratory": {
+            "correct": 0,
+            "compared": 0
+          },
+          "method": {
+            "correct": 0,
+            "compared": 0
+          },
+          "material": {
+            "correct": 0,
+            "compared": 0
+          }
+        }
+      },
+      "verifier": {
+        "trusted": 1,
+        "falseAlerts": 0,
+        "unsafeTrusted": 1
+      },
+      "localProcessingMilliseconds": 1.470107999999982,
+      "inferenceMilliseconds": null,
+      "costUsd": null,
+      "tokens": null
+    },
+    {
+      "id": "multiple-pages",
+      "format": "digital",
+      "sourceSha256": "0faed0cd103e74fd012729429e7269ec458760cb2f698757cc1c14076f98c28b",
+      "extraction": {
+        "expected": 2,
+        "predicted": 2,
+        "matched": 2,
+        "correctRows": 2,
+        "omitted": 0,
+        "invented": 0,
+        "associationCorrect": 2,
+        "fields": {
+          "result": {
+            "correct": 2,
+            "compared": 2
+          },
+          "unit": {
+            "correct": 1,
+            "compared": 1
+          },
+          "collectedOn": {
+            "correct": 0,
+            "compared": 0
+          },
+          "reportedOn": {
+            "correct": 0,
+            "compared": 0
+          },
+          "reference": {
+            "correct": 1,
+            "compared": 1
+          },
+          "laboratory": {
+            "correct": 0,
+            "compared": 0
+          },
+          "method": {
+            "correct": 0,
+            "compared": 0
+          },
+          "material": {
+            "correct": 0,
+            "compared": 0
+          }
+        }
+      },
+      "verifier": {
+        "trusted": 2,
+        "falseAlerts": 0,
+        "unsafeTrusted": 0
+      },
+      "localProcessingMilliseconds": 2.2160630000000765,
+      "inferenceMilliseconds": null,
+      "costUsd": null,
+      "tokens": null
+    },
+    {
+      "id": "deliberate-omission",
+      "format": "digital",
+      "sourceSha256": "09b365d52bef7074832766677134c27cd49a299720cd6690b58d6bff3f2aea89",
+      "extraction": {
+        "expected": 2,
+        "predicted": 1,
+        "matched": 1,
+        "correctRows": 1,
+        "omitted": 1,
+        "invented": 0,
+        "associationCorrect": 1,
+        "fields": {
+          "result": {
+            "correct": 1,
+            "compared": 1
+          },
+          "unit": {
+            "correct": 1,
+            "compared": 1
+          },
+          "collectedOn": {
+            "correct": 0,
+            "compared": 0
+          },
+          "reportedOn": {
+            "correct": 0,
+            "compared": 0
+          },
+          "reference": {
+            "correct": 0,
+            "compared": 0
+          },
+          "laboratory": {
+            "correct": 0,
+            "compared": 0
+          },
+          "method": {
+            "correct": 0,
+            "compared": 0
+          },
+          "material": {
+            "correct": 0,
+            "compared": 0
+          }
+        }
+      },
+      "verifier": {
+        "trusted": 1,
+        "falseAlerts": 0,
+        "unsafeTrusted": 0
+      },
+      "localProcessingMilliseconds": 1.4128619999999046,
+      "inferenceMilliseconds": null,
+      "costUsd": null,
+      "tokens": null
+    },
+    {
+      "id": "invented-result",
+      "format": "digital",
+      "sourceSha256": "a2d8518b42e69e55453cb6def12a9d6cb8f1df8b0db089fb05532240aaa32b59",
+      "extraction": {
+        "expected": 1,
+        "predicted": 2,
+        "matched": 1,
+        "correctRows": 1,
+        "omitted": 0,
+        "invented": 1,
+        "associationCorrect": 1,
+        "fields": {
+          "result": {
+            "correct": 1,
+            "compared": 1
+          },
+          "unit": {
+            "correct": 0,
+            "compared": 0
+          },
+          "collectedOn": {
+            "correct": 0,
+            "compared": 0
+          },
+          "reportedOn": {
+            "correct": 0,
+            "compared": 0
+          },
+          "reference": {
+            "correct": 0,
+            "compared": 0
+          },
+          "laboratory": {
+            "correct": 0,
+            "compared": 0
+          },
+          "method": {
+            "correct": 0,
+            "compared": 0
+          },
+          "material": {
+            "correct": 0,
+            "compared": 0
+          }
+        }
+      },
+      "verifier": {
+        "trusted": 1,
+        "falseAlerts": 0,
+        "unsafeTrusted": 0
+      },
+      "localProcessingMilliseconds": 1.4247489999999061,
+      "inferenceMilliseconds": null,
+      "costUsd": null,
+      "tokens": null
+    },
+    {
+      "id": "ambiguous-flattened-table",
+      "format": "digital",
+      "sourceSha256": "70f382422136def4840d9e4b30e7e6bd35161b69c3c26bb2ecc5b552a6edd1bb",
+      "extraction": {
+        "expected": 1,
+        "predicted": 1,
+        "matched": 1,
+        "correctRows": 1,
+        "omitted": 0,
+        "invented": 0,
+        "associationCorrect": 1,
+        "fields": {
+          "result": {
+            "correct": 1,
+            "compared": 1
+          },
+          "unit": {
+            "correct": 1,
+            "compared": 1
+          },
+          "collectedOn": {
+            "correct": 0,
+            "compared": 0
+          },
+          "reportedOn": {
+            "correct": 0,
+            "compared": 0
+          },
+          "reference": {
+            "correct": 1,
+            "compared": 1
+          },
+          "laboratory": {
+            "correct": 0,
+            "compared": 0
+          },
+          "method": {
+            "correct": 0,
+            "compared": 0
+          },
+          "material": {
+            "correct": 0,
+            "compared": 0
+          }
+        }
+      },
+      "verifier": {
+        "trusted": 1,
+        "falseAlerts": 0,
+        "unsafeTrusted": 1
+      },
+      "localProcessingMilliseconds": 1.4280449999999973,
+      "inferenceMilliseconds": null,
+      "costUsd": null,
+      "tokens": null
+    },
+    {
+      "id": "partially-legible",
+      "format": "digital",
+      "sourceSha256": "5bcd636c8ef74e2b3e948f21a36c6c84c6da9c0789238b72b5bda45dc7c68c56",
+      "extraction": {
+        "expected": 1,
+        "predicted": 1,
+        "matched": 1,
+        "correctRows": 1,
+        "omitted": 0,
+        "invented": 0,
+        "associationCorrect": 1,
+        "fields": {
+          "result": {
+            "correct": 1,
+            "compared": 1
+          },
+          "unit": {
+            "correct": 1,
+            "compared": 1
+          },
+          "collectedOn": {
+            "correct": 0,
+            "compared": 0
+          },
+          "reportedOn": {
+            "correct": 0,
+            "compared": 0
+          },
+          "reference": {
+            "correct": 1,
+            "compared": 1
+          },
+          "laboratory": {
+            "correct": 0,
+            "compared": 0
+          },
+          "method": {
+            "correct": 0,
+            "compared": 0
+          },
+          "material": {
+            "correct": 0,
+            "compared": 0
+          }
+        }
+      },
+      "verifier": {
+        "trusted": 0,
+        "falseAlerts": 0,
+        "unsafeTrusted": 0
+      },
+      "localProcessingMilliseconds": 1.2315679999999247,
+      "inferenceMilliseconds": null,
+      "costUsd": null,
+      "tokens": null
+    },
+    {
+      "id": "scanned",
+      "format": "scanned",
+      "sourceSha256": "a8b4cb6307c5426a0a6b5db9b66e0a7f7d9dfe8dc490730414c21a913e11629a",
+      "extraction": {
+        "expected": 1,
+        "predicted": 1,
+        "matched": 1,
+        "correctRows": 1,
+        "omitted": 0,
+        "invented": 0,
+        "associationCorrect": 1,
+        "fields": {
+          "result": {
+            "correct": 1,
+            "compared": 1
+          },
+          "unit": {
+            "correct": 1,
+            "compared": 1
+          },
+          "collectedOn": {
+            "correct": 0,
+            "compared": 0
+          },
+          "reportedOn": {
+            "correct": 0,
+            "compared": 0
+          },
+          "reference": {
+            "correct": 1,
+            "compared": 1
+          },
+          "laboratory": {
+            "correct": 0,
+            "compared": 0
+          },
+          "method": {
+            "correct": 0,
+            "compared": 0
+          },
+          "material": {
+            "correct": 0,
+            "compared": 0
+          }
+        }
+      },
+      "verifier": {
+        "trusted": 0,
+        "falseAlerts": 0,
+        "unsafeTrusted": 0
+      },
+      "localProcessingMilliseconds": 1.3325509999999667,
+      "inferenceMilliseconds": null,
+      "costUsd": null,
+      "tokens": null
+    }
+  ]
+}
