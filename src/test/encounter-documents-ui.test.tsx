@@ -35,6 +35,7 @@ const draft = (id: string, type = "PRESCRIPTION", extra: Record<string, unknown>
 function renderCard(
   documents: Array<Record<string, unknown>> = [],
   templates: Array<Record<string, unknown>> = [],
+  mode: "all" | "prescription" | "requests" = "all",
 ) {
   const writes: Array<Record<string, unknown>> = [];
   vi.stubGlobal(
@@ -44,6 +45,12 @@ function renderCard(
         const body = JSON.parse(String(init.body));
         writes.push(body);
         const existing = documents.find((item) => item["id"] === body.documentId);
+        if (body.action === "DISCARD_DRAFT" && existing) {
+          documents.splice(documents.indexOf(existing), 1);
+          return Response.json({
+            data: { id: existing["id"], version: Number(existing["version"]) + 1 },
+          });
+        }
         const saved = {
           ...existing,
           ...body,
@@ -58,6 +65,8 @@ function renderCard(
         else documents.push(saved);
         return Response.json({ data: { id: saved.id, version: saved.version } });
       }
+      if (String(_url).includes("prescription-composer"))
+        return Response.json({ data: { templates: [], canCompose: true } });
       return Response.json({
         data: {
           documents: documents.map((item) => ({ ...item })),
@@ -88,7 +97,7 @@ function renderCard(
     <QueryClientProvider
       client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
     >
-      <EncounterDocumentsCard appointmentId="appointment-1" />
+      <EncounterDocumentsCard appointmentId="appointment-1" mode={mode} />
     </QueryClientProvider>,
   );
   return writes;
@@ -318,4 +327,75 @@ describe("Encounter documents workspace", () => {
     expect(preview.opener).toBeNull();
     expect(open).toHaveBeenCalledOnce();
   });
+});
+
+it("opens the complete composer by default without creating a document, preserving local components across the legacy editor", async () => {
+  const writes = renderCard([], [], "prescription");
+  const name = await screen.findByLabelText("Nome do componente");
+  fireEvent.change(name, { target: { value: "Componente sintético local" } });
+  expect(writes).toHaveLength(0);
+  fireEvent.click(screen.getByRole("button", { name: "Receitas e histórico" }));
+  expect(name).not.toBeVisible();
+  fireEvent.click(screen.getByRole("button", { name: "Compor prescrição" }));
+  expect(name).toBeVisible();
+  expect(name).toHaveValue("Componente sintético local");
+  expect(writes).toHaveLength(0);
+});
+
+it("requires confirmation before excluding a request draft and updates the list immediately after acknowledgement", async () => {
+  const document = draft("request", "EXAM_REQUEST", { title: "Solicitação sintética" });
+  const writes = renderCard([document], [], "requests");
+  const confirm = vi.fn(() => false);
+  vi.stubGlobal("confirm", confirm);
+  const discard = await screen.findByRole("button", {
+    name: "Excluir rascunho: Solicitação sintética",
+  });
+  fireEvent.click(discard);
+  expect(writes).toHaveLength(0);
+  confirm.mockReturnValue(true);
+  fireEvent.click(discard);
+  await waitFor(() =>
+    expect(writes[0]).toMatchObject({
+      action: "DISCARD_DRAFT",
+      documentId: "request",
+      version: 1,
+      type: "EXAM_REQUEST",
+    }),
+  );
+  await waitFor(() =>
+    expect(
+      screen.queryByRole("button", { name: "Excluir rascunho: Solicitação sintética" }),
+    ).not.toBeInTheDocument(),
+  );
+  expect(await screen.findByRole("status")).toHaveTextContent("Histórico preservado");
+});
+
+it("does not offer ordinary deletion or duplication for finalized requests", async () => {
+  const document = draft("request", "EXAM_REQUEST", {
+    title: "Solicitação final",
+    status: "FINAL",
+    canEdit: false,
+  });
+  const writes = renderCard([document], [], "requests");
+  await screen.findByRole("button", { name: "Visualizar" });
+  expect(screen.queryByRole("button", { name: /Excluir rascunho/ })).not.toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: /Duplicar rascunho/ })).not.toBeInTheDocument();
+  expect(writes).toHaveLength(0);
+});
+
+it("duplicates a request into an independent draft without changing its source", async () => {
+  const source = draft("request-source", "EXAM_REQUEST", { title: "Solicitação de origem" });
+  const writes = renderCard([source], [], "requests");
+  fireEvent.click(
+    await screen.findByRole("button", { name: "Duplicar rascunho: Solicitação de origem" }),
+  );
+  await waitFor(() => expect(writes).toHaveLength(1));
+  expect(writes[0]).toMatchObject({
+    action: "SAVE_DRAFT",
+    type: "EXAM_REQUEST",
+    content: "Orientação inicial",
+  });
+  expect(writes[0]!["documentId"]).not.toBe("request-source");
+  expect(writes[0]!["version"]).toBeNull();
+  expect(source).toMatchObject({ id: "request-source", version: 1, content: "Orientação inicial" });
 });

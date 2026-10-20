@@ -1,3 +1,4 @@
+import { PatientTimelinePage } from "./patient-timeline-page";
 import { PreconsultationPanel } from "./preconsultation-panel";
 import { PatientDocumentCenter } from "./patient-document-center";
 import {
@@ -288,7 +289,8 @@ export function PatientTreatmentPage({ patientId }: { patientId: string }) {
       typeof window === "undefined"
         ? null
         : new URLSearchParams(window.location.hash.slice(1)).get("secao");
-    return value && ["overview", "encounters", "documents", "exams", "treatments"].includes(value)
+    return value &&
+      ["overview", "encounters", "history", "documents", "exams", "treatments"].includes(value)
       ? (value as PatientWorkspaceSection)
       : "overview";
   };
@@ -297,7 +299,9 @@ export function PatientTreatmentPage({ patientId }: { patientId: string }) {
   const [documentsOpened, setDocumentsOpened] = useState(() =>
     ["documents", "exams"].includes(readWorkspaceSection()),
   );
+  const [historyOpened, setHistoryOpened] = useState(() => readWorkspaceSection() === "history");
   const setWorkspaceSection = (section: PatientWorkspaceSection) => {
+    if (section === "history") setHistoryOpened(true);
     updateWorkspaceSection(section);
     const url = new URL(window.location.href);
     const hash = new URLSearchParams(url.hash.slice(1));
@@ -309,6 +313,7 @@ export function PatientTreatmentPage({ patientId }: { patientId: string }) {
   useEffect(() => {
     const restore = () => {
       const section = readWorkspaceSection();
+      if (section === "history") setHistoryOpened(true);
       updateWorkspaceSection(section);
       if (section === "documents" || section === "exams") setDocumentsOpened(true);
     };
@@ -636,7 +641,7 @@ export function PatientTreatmentPage({ patientId }: { patientId: string }) {
     }
   }
   return (
-    <div className="clinical-workspace patient-workspace w-full min-w-0 space-y-3 bg-background p-3 sm:p-5">
+    <div className="clinical-workspace patient-workspace w-full min-w-0 space-y-3 bg-background px-4 py-3 lg:px-5">
       <h1 className="sr-only">Prontuário de {data.patient.fullName} · Paciente360º</h1>
       <div className="flex flex-wrap items-center justify-between gap-2 px-1 text-xs text-slate-500">
         <div className="flex items-center gap-2">
@@ -1172,6 +1177,15 @@ export function PatientTreatmentPage({ patientId }: { patientId: string }) {
               </section>
             </DialogContent>
           </Dialog>
+          <div hidden={workspaceSection !== "history"}>
+            {historyOpened && (
+              <PatientTimelinePage
+                patientId={patientId}
+                embedded
+                active={workspaceSection === "history"}
+              />
+            )}
+          </div>
           <div hidden={workspaceSection !== "encounters"} className="space-y-5">
             <PatientEncounterHistory encounters={data.encounterHistory ?? []} />
             <section className="space-y-4 rounded-xl border bg-card p-5">

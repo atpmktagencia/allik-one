@@ -1,5 +1,5 @@
 import { afterEach, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { LaboratoryHistory } from "@/components/clinic/laboratory-history";
 import { emptyLaboratoryRow } from "@/lib/laboratory-results";
 const mock = vi.hoisted(() => ({ useInventory: vi.fn() }));
@@ -96,7 +96,9 @@ it("opens the selected original in the contextual viewer without changing the co
   render(<LaboratoryHistory patientId="patient" compact onOpenOriginal={onOpenOriginal} />);
   expect(screen.getByRole("table", { name: "Tabela longitudinal de exames" })).toBeInTheDocument();
   fireEvent.click(
-    screen.getAllByRole("button", { name: "Ver original: Original privado.pdf" })[0]!,
+    within(screen.getByRole("row", { name: /Ferritina/ })).getByRole("button", {
+      name: "Ver original: Original privado.pdf",
+    }),
   );
   expect(onOpenOriginal).toHaveBeenCalledWith(
     expect.objectContaining({
@@ -151,7 +153,9 @@ it("windows dates and progressively reveals more parameters without dropping row
   });
   render(<LaboratoryHistory patientId="patient" />);
   expect(screen.getByText(/50 de 60 exames/)).toBeInTheDocument();
-  expect(screen.getAllByRole("columnheader")).toHaveLength(15);
+  expect(
+    within(screen.getByRole("table").querySelector("thead")!).getAllByRole("columnheader"),
+  ).toHaveLength(15);
   expect(screen.getByRole("button", { name: "Datas mais recentes" })).toBeDisabled();
   fireEvent.click(screen.getByRole("button", { name: "Datas anteriores" }));
   expect(screen.getByRole("button", { name: "Datas mais recentes" })).toBeEnabled();
@@ -228,4 +232,18 @@ it("restores laboratory search, dates and expansion after closing and reopening 
   expect(screen.getByLabelText("Buscar parâmetro laboratorial")).toHaveValue("TSH");
   expect(screen.getByLabelText("Data inicial dos exames")).toHaveValue("2026-01-01");
   expect(screen.getByRole("button", { name: "TSH" })).toHaveAttribute("aria-expanded", "true");
+});
+
+it("filters clinical display groups without normalizing incompatible measurements and opens selected result details on demand", () => {
+  setup();
+  render(<LaboratoryHistory patientId="patient" compact />);
+  expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  fireEvent.change(screen.getByLabelText("Grupo de exames"), { target: { value: "Tireoide" } });
+  expect(screen.getByRole("button", { name: "TSH" })).toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "Ferritina" })).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "Detalhes de TSH: 0,25" }));
+  const dialog = screen.getByRole("dialog");
+  expect(within(dialog).getByText("0,2 a 4")).toBeInTheDocument();
+  expect(within(dialog).getByText("01/01/2026")).toBeInTheDocument();
+  expect(within(dialog).getByText(/Dados do laboratório e origem/)).toBeInTheDocument();
 });

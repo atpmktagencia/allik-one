@@ -1,4 +1,5 @@
 import { beforeAll, afterAll, beforeEach, afterEach, describe, it, expect, vi } from "vitest";
+import { patientTimelineResponse } from "./patient-timeline";
 import { randomUUID, createHash } from "node:crypto";
 import { migrate } from "drizzle-orm/node-postgres/migrator";
 import { getDb, getPool } from "./db";
@@ -166,6 +167,20 @@ describe("laboratory import, review and isolation", () => {
     const f = await fixture();
     let d = await data(await f.post({ action: "OPEN" }));
     const firstId = d.import.id;
+    const timeline = async () =>
+      data(
+        await patientTimelineResponse(
+          new Request(
+            origin +
+              "/api/v1/inventory/patient-timeline?patientId=" +
+              f.patient +
+              "&kind=LABORATORY",
+            { headers: f.headers },
+          ),
+        ),
+      );
+    expect((await timeline()).events).toHaveLength(0);
+
     expect((await data(await f.post({ action: "OPEN" }))).import.id).toBe(firstId);
     expect(
       (
@@ -199,6 +214,13 @@ describe("laboratory import, review and isolation", () => {
         ])
       ).rows[0].payload.result,
     ).toBe("<0,1");
+    expect((await timeline()).events).toEqual([
+      expect.objectContaining({
+        kind: "LABORATORY",
+        status: "VALIDATED",
+        authorName: "Synthetic clinician",
+      }),
+    ]);
     const oldReview = d.import.latest_review_id;
     d = await data(await f.post({ action: "REOPEN", version: d.import.version }));
     expect(d.import.draft.patientConfirmed).toBe(false);
@@ -210,6 +232,24 @@ describe("laboratory import, review and isolation", () => {
       await f.post({ action: "VALIDATE", version: d.import.version, operationId: randomUUID() }),
     );
     expect(d.versions).toHaveLength(2);
+    expect((await timeline()).events).toHaveLength(1);
+    await f.db.query("UPDATE inventory_memberships SET role='FINANCE' WHERE id=$1", [f.membership]);
+    expect(
+      (
+        await patientTimelineResponse(
+          new Request(
+            origin +
+              "/api/v1/inventory/patient-timeline?patientId=" +
+              f.patient +
+              "&kind=LABORATORY",
+            { headers: f.headers },
+          ),
+        )
+      ).status,
+    ).toBe(403);
+    await f.db.query("UPDATE inventory_memberships SET role='CLINICIAN' WHERE id=$1", [
+      f.membership,
+    ]);
     const historical = await data(
       await laboratoryResultsResponse(
         new Request(

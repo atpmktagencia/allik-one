@@ -101,6 +101,7 @@ test("clinician copies an organization template into a private model and indepen
       .getByRole("tab", { name: "Prescrição", exact: true })
       .click();
     const documents = page.locator("#documentos");
+    await documents.getByRole("button", { name: "Receitas e histórico", exact: true }).click();
     await documents.getByRole("button", { name: "Novo documento", exact: true }).click();
     await page.getByRole("menuitem", { name: "Receita médica", exact: true }).click();
     await documents
@@ -173,6 +174,7 @@ test("clinician copies an organization template into a private model and indepen
       .getByRole("tablist", { name: "Etapas do atendimento" })
       .getByRole("tab", { name: "Prescrição", exact: true })
       .click();
+    await documents.getByRole("button", { name: "Receitas e histórico", exact: true }).click();
     await documents.getByRole("button", { name: "Editar receita", exact: true }).click();
     await expect(
       documents.getByRole("textbox", { name: "Conteúdo do documento", exact: true }),

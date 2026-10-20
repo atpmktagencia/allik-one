@@ -394,6 +394,14 @@ test("Paciente360º preserves laboratory review, conditional preconsultation and
     // serves the last confirmed revision. Confirming it refreshes this mounted
     // table without a reload or switching away from the encounter.
     const examFiles = page.getByRole("region", { name: "Arquivos de exames do paciente" });
+    await expect(
+      page.getByRole("complementary", { name: "Documento original do exame", exact: true }),
+    ).toHaveCount(0);
+    await page
+      .locator("details")
+      .filter({ has: page.locator("summary", { hasText: "Arquivos e extrações" }) })
+      .locator("summary")
+      .click();
     await expect(examFiles.getByText("Pronto para revisão", { exact: true })).toBeVisible();
     await examFiles
       .getByRole("button", { name: "Abrir exame: Laboratório sintético", exact: true })
@@ -432,14 +440,16 @@ test("Paciente360º preserves laboratory review, conditional preconsultation and
     );
     await steps.getByRole("tab", { name: "Prescrição", exact: true }).click();
     const documents = page.locator("#documentos");
-    await documents.getByRole("button", { name: "Novo documento", exact: true }).click();
-    await page.getByRole("menuitem", { name: "Receita médica", exact: true }).click();
-    await documents
-      .getByRole("button", { name: "Compor receita estruturada", exact: true })
-      .click();
-    const prescription = page.getByRole("dialog", {
-      name: "Composição estruturada e protocolos pessoais",
-    });
+    const prescription = documents.locator(".clinical-inline-composer");
+    await expect(prescription.getByLabel("Nome do componente", { exact: true })).toBeVisible();
+    expect(
+      (
+        await pool.query(
+          "SELECT count(*)::int count FROM inventory_encounter_documents WHERE appointment_id=$1",
+          [appointmentId],
+        )
+      ).rows[0].count,
+    ).toBe(0);
     const component = prescription.getByRole("group", { name: "Componente 1", exact: true });
     await component
       .getByLabel("Nome do componente", { exact: true })
@@ -489,6 +499,7 @@ test("Paciente360º preserves laboratory review, conditional preconsultation and
     await expect(page.getByRole("status").filter({ hasText: /^Rascunho salvo\.$/ })).toBeVisible();
     await page.reload({ waitUntil: "networkidle" });
     await steps.getByRole("tab", { name: "Prescrição", exact: true }).click();
+    await documents.getByRole("button", { name: "Receitas e histórico", exact: true }).click();
     await documents.getByRole("button", { name: "Editar receita", exact: true }).click();
     await expect(
       documents.getByRole("textbox", { name: "Conteúdo do documento", exact: true }),
@@ -516,8 +527,7 @@ test("Paciente360º preserves laboratory review, conditional preconsultation and
     await expect(printPage.locator("body")).toContainText("30 cápsulas");
     await printPage.close();
     await steps.getByRole("tab", { name: "Solicitações", exact: true }).click();
-    await documents.getByRole("button", { name: "Novo documento", exact: true }).click();
-    await page.getByRole("menuitem", { name: "Solicitação de exames", exact: true }).click();
+    await documents.getByRole("button", { name: "Adicionar solicitação", exact: true }).click();
     await documents
       .getByRole("textbox", { name: "Conteúdo do documento", exact: true })
       .fill("Solicitação sintética: TSH. Conferir conforme avaliação profissional.");
@@ -527,6 +537,30 @@ test("Paciente360º preserves laboratory review, conditional preconsultation and
       path: testInfo.outputPath("mockup-04-solicitacoes-editor-desktop.png"),
     });
     await documents.getByRole("button", { name: "Voltar às solicitações", exact: true }).click();
+    await documents.getByRole("button", { name: /^Duplicar rascunho:/ }).click();
+    await expect(
+      documents.getByText("Cópia independente criada em rascunho.", { exact: true }),
+    ).toBeVisible();
+    expect(
+      (
+        await pool.query(
+          "SELECT count(*)::int count FROM inventory_encounter_documents WHERE appointment_id=$1 AND type='EXAM_REQUEST' AND discarded_at IS NULL",
+          [appointmentId],
+        )
+      ).rows[0].count,
+    ).toBe(2);
+    page.once("dialog", (confirmation) => confirmation.accept());
+    await documents.getByRole("button", { name: "Excluir rascunho", exact: true }).click();
+    await expect(
+      documents.getByText("Rascunho excluído da lista. Histórico preservado.", { exact: true }),
+    ).toBeVisible();
+    const requestCounts = (
+      await pool.query(
+        "SELECT count(*)::int total,count(*) FILTER (WHERE discarded_at IS NULL)::int active FROM inventory_encounter_documents WHERE appointment_id=$1 AND type='EXAM_REQUEST'",
+        [appointmentId],
+      )
+    ).rows[0];
+    expect(requestCounts).toMatchObject({ total: 2, active: 1 });
     await page.screenshot({ path: testInfo.outputPath("mockup-04-solicitacoes-desktop.png") });
     await steps.getByRole("tab", { name: "Revisão", exact: true }).click();
     await expect(

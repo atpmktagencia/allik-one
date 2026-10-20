@@ -12,6 +12,8 @@ const kinds = [
   "DOCUMENT",
   "TREATMENT",
   "APPLICATION",
+  "LABORATORY",
+  "QUESTIONNAIRE",
 ];
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const datePattern = /^\d{4}-\d{2}-\d{2}$/;
@@ -145,6 +147,22 @@ export async function patientTimelineResponse(request: Request) {
         nullif(s.occurrence_notes,'')
       FROM inventory_patient_applications s JOIN inventory_units u ON u.id=s.unit_id AND u.organization_id=s.organization_id
       JOIN inventory_products p ON p.id=s.product_id WHERE ${scope}
+      UNION ALL
+      SELECT s.id,'LABORATORY',s.created_at,'Exame laboratorial validado',usr.name,u.name,'VALIDATED',NULL::uuid,NULL::uuid,
+        'Origem: PDF importado · revisão '||s.version::text,NULL::text
+      FROM inventory_laboratory_review_versions s
+      JOIN inventory_laboratory_imports i ON i.id=s.import_id AND i.organization_id=s.organization_id AND i.patient_id=s.patient_id AND i.unit_id=s.unit_id AND i.latest_review_id=s.id
+      JOIN inventory_units u ON u.id=s.unit_id AND u.organization_id=s.organization_id
+      JOIN inventory_users usr ON usr.id=s.reviewed_by_user_id
+      WHERE ${scope} AND EXISTS (SELECT 1 FROM inventory_laboratory_results r WHERE r.review_id=s.id AND r.organization_id=s.organization_id AND r.patient_id=s.patient_id AND r.unit_id=s.unit_id)
+      UNION ALL
+      SELECT s.id,'QUESTIONNAIRE',s.submitted_at,'Questionário · '||v.title,'Declarado pelo paciente',u.name,'SUBMITTED',s.appointment_id,NULL::uuid,
+        'Origem: pré-consulta · respostas declaradas pelo paciente, não equivalem a diagnóstico confirmado',NULL::text
+      FROM inventory_preconsultation_invitations s
+      JOIN inventory_preconsultation_versions v ON v.id=s.version_id AND v.organization_id=s.organization_id
+      JOIN inventory_preconsultation_responses r ON r.invitation_id=s.id
+      JOIN inventory_units u ON u.id=s.unit_id AND u.organization_id=s.organization_id
+      WHERE ${scope} AND s.submitted_at IS NOT NULL
     ) SELECT id,kind,title,to_char(occurred_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"') AS "occurredAt",author_name AS "authorName",unit_name AS "unitName",status,
       appointment_id AS "appointmentId",document_id AS "documentId",summary,content
     FROM events WHERE ($5::text IS NULL OR kind=$5)

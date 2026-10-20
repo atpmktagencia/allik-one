@@ -33,7 +33,7 @@ import { renderClinicalDocumentPrint } from "./clinical-document-print";
 const headers = { "Cache-Control": "private, no-store", Vary: "Cookie, Authorization" };
 const uuid = z.string().uuid();
 const input = z.object({
-  action: z.enum(["SAVE_DRAFT", "FINALIZE", "SAVE_TEMPLATE", "CREATE_AMENDMENT"]),
+  action: z.enum(["SAVE_DRAFT", "FINALIZE", "SAVE_TEMPLATE", "CREATE_AMENDMENT", "DISCARD_DRAFT"]),
   amendmentKind: z.enum(["ADDENDUM", "RECTIFICATION"]).nullable().default(null),
   amendmentReason: z.string().trim().max(2000).default(""),
   appointmentId: uuid,
@@ -84,6 +84,7 @@ export async function encounterDocumentsResponse(request: Request) {
       const doc = result.rows[0];
       if (
         !doc ||
+        doc.discarded_at ||
         !can(auth, "patients.private.read", doc.unit_id) ||
         !can(auth, "patients.private.read", doc.patient_current_unit_id)
       )
@@ -170,7 +171,7 @@ export async function encounterDocumentsResponse(request: Request) {
       return fail("Atendimento não encontrado.", 404);
     const [documents, templates] = await Promise.all([
       getPool().query(
-        `SELECT ${fields},author_user_id FROM inventory_encounter_documents WHERE appointment_id=$1 AND organization_id=$2 AND (status='FINAL' OR author_user_id=$3) ORDER BY created_at,id`,
+        `SELECT ${fields},author_user_id FROM inventory_encounter_documents WHERE appointment_id=$1 AND organization_id=$2 AND discarded_at IS NULL AND (status='FINAL' OR author_user_id=$3) ORDER BY created_at,id`,
         [appointmentId, auth.organizationId, auth.user.id],
       ),
       getPool().query(
@@ -277,7 +278,7 @@ export async function encounterDocumentsResponse(request: Request) {
   if (data.prescriptionPrintData && data.prescriptionPrintData.kind !== "SIMPLE")
     data.twoCopies = true;
   if (data.richContent) data.content = richContentText(data.richContent).trim();
-  if (!["SAVE_DRAFT", "CREATE_AMENDMENT"].includes(data.action) && !data.content)
+  if (!["SAVE_DRAFT", "CREATE_AMENDMENT", "DISCARD_DRAFT"].includes(data.action) && !data.content)
     return fail("Informe o conteúdo antes de finalizar ou salvar um modelo.", 400);
   const client = await getPool().connect();
   try {
@@ -363,7 +364,7 @@ export async function encounterDocumentsResponse(request: Request) {
     if (data.creationId && !data.documentId && data.action === "SAVE_DRAFT") {
       const retry = (
         await client.query(
-          `SELECT id,organization_id,appointment_id,author_user_id,type,status,version,
+          `SELECT id,organization_id,appointment_id,author_user_id,type,status,version,discarded_at,
             (content=$2 AND rich_content IS NOT DISTINCT FROM $3::jsonb AND two_copies=$4 AND prescription_print_data IS NOT DISTINCT FROM $5::jsonb) AS same_creation
            FROM inventory_encounter_documents WHERE id=$1 FOR UPDATE`,
           [
@@ -383,6 +384,7 @@ export async function encounterDocumentsResponse(request: Request) {
           retry.type !== data.type
         )
           throw new Error("NOT_FOUND");
+        if (retry.discarded_at) throw new Error("DISCARDED");
         if (!retry.same_creation) throw new Error("STALE");
         await client.query("COMMIT");
         return Response.json(
@@ -401,6 +403,40 @@ export async function encounterDocumentsResponse(request: Request) {
       : null;
     if (data.documentId && !previous) throw new Error("NOT_FOUND");
     if (previous && previous.author_user_id !== auth.user.id) throw new Error("NOT_AUTHOR");
+    if (data.action === "DISCARD_DRAFT") {
+      if (!previous) throw new Error("NOT_FOUND");
+      if (previous.status !== "DRAFT") throw new Error("FINAL");
+      if (previous.type !== data.type) throw new Error("TYPE");
+      if (
+        (
+          await client.query(
+            "SELECT 1 FROM inventory_clinical_document_amendments WHERE document_id=$1",
+            [previous.id],
+          )
+        ).rowCount
+      )
+        throw new Error("AMENDMENT_DRAFT");
+      if (previous.discarded_at && previous.version === (data.version ?? -2) + 1) {
+        await client.query("COMMIT");
+        return Response.json({ data: { id: previous.id, version: previous.version } }, { headers });
+      }
+      if (previous.discarded_at) throw new Error("DISCARDED");
+      if (previous.version !== data.version) throw new Error("STALE");
+      const discarded = (
+        await client.query(
+          "UPDATE inventory_encounter_documents SET discarded_at=now(),version=version+1,updated_at=now() WHERE id=$1 RETURNING *",
+          [previous.id],
+        )
+      ).rows[0];
+      await client.query(
+        "INSERT INTO inventory_encounter_document_changes(organization_id,document_id,action,before_data,after_data,actor_user_id) VALUES($1,$2,'DISCARD',$3,$4,$5)",
+        [auth.organizationId, previous.id, previous, discarded, auth.user.id],
+      );
+      await client.query("COMMIT");
+      return Response.json({ data: { id: previous.id, version: discarded.version } }, { headers });
+    }
+    if (previous?.discarded_at) throw new Error("DISCARDED");
+
     let amendmentSource: { id: string; hash: string } | null = null;
     if (data.action === "CREATE_AMENDMENT") {
       if (
@@ -688,6 +724,10 @@ export async function encounterDocumentsResponse(request: Request) {
         "O registro terapêutico de origem mudou ou não pertence a este atendimento. Confira e insira novamente os itens antes de salvar a receita.",
         409,
       ],
+      AMENDMENT_DRAFT: [
+        "Este rascunho está vinculado a uma retificação ou adendo. Preserve a correção vinculada e seu histórico.",
+        409,
+      ],
       AMENDMENT: [
         "Selecione um documento original finalizado e informe um motivo com pelo menos 5 caracteres.",
         409,
@@ -700,6 +740,10 @@ export async function encounterDocumentsResponse(request: Request) {
       NOT_AUTHOR: ["Somente o profissional responsável pode editar este documento.", 403],
       COUNCIL: ["Complete o conselho profissional antes de criar documentos.", 409],
       TERMINAL: ["Este atendimento não aceita documentos.", 409],
+      DISCARDED: [
+        "Este rascunho foi descartado e permanece preservado no histórico de auditoria.",
+        409,
+      ],
       FINAL: ["O documento finalizado é imutável.", 409],
       STALE: ["O documento mudou em outra sessão. Atualize a página.", 409],
       TYPE: ["O tipo do documento não pode ser alterado.", 409],

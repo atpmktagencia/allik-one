@@ -37,6 +37,7 @@ import {
   UserRound,
 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { ClinicalNavigation } from "./clinical-navigation";
 import { ClinicalPatientHeader } from "./clinical-patient-header";
 import {
   PatientDocumentCenter,
@@ -1021,12 +1022,11 @@ export function CareEncounterPage({ appointmentId }: { appointmentId: string }) 
           {error || message}
         </div>
       )}
-      <div className="grid min-w-0 gap-3 px-4 py-3 lg:grid-cols-[206px_minmax(0,1fr)] lg:px-5">
-        <aside
-          className={`${sidebarOpen ? "block" : "hidden"} rounded-xl border bg-card p-2.5 lg:block`}
-        >
-          <nav aria-label="Navegação clínica do paciente" className="space-y-1">
+      <div className="grid min-w-0 gap-3 px-4 py-3 lg:grid-cols-[auto_minmax(0,1fr)] lg:px-5">
+        <aside className={`${sidebarOpen ? "block" : "hidden"} lg:block`}>
+          <ClinicalNavigation label="Navegação clínica do paciente">
             <button
+              aria-label="Atendimento"
               type="button"
               onClick={() => {
                 navigateStep("anamnesis");
@@ -1035,122 +1035,107 @@ export function CareEncounterPage({ appointmentId }: { appointmentId: string }) 
               className="flex h-10 w-full items-center gap-3 rounded-lg bg-accent px-3 text-left text-[13px] font-semibold text-primary"
             >
               <ClipboardList className="size-4" />
-              Atendimento
+              <span className="clinical-nav-label">Atendimento</span>
             </button>
             <Link
+              aria-label="Visão geral"
               to="/pacientes/$patientId"
               params={{ patientId: appointment.patientId }}
               className="flex h-10 items-center gap-3 rounded-lg px-3 text-[13px] text-muted-foreground hover:bg-accent"
             >
               <UserRound className="size-4" />
-              Visão geral
+              <span className="clinical-nav-label">Visão geral</span>
             </Link>
             <button
+              aria-label="Histórico"
               type="button"
               onClick={() => setHistoryOpen(true)}
               className="flex h-10 w-full items-center gap-3 rounded-lg px-3 text-[13px] text-muted-foreground hover:bg-accent"
             >
               <History className="size-4" />
-              Histórico
+              <span className="clinical-nav-label">Histórico</span>
             </button>
             <button
+              aria-label="Documentos"
               type="button"
               onClick={() => setDocumentsOpen(true)}
               className="flex h-10 w-full items-center gap-3 rounded-lg px-3 text-left text-[13px] text-muted-foreground hover:bg-accent"
             >
               <FileText className="size-4" />
-              Documentos
+              <span className="clinical-nav-label">Documentos</span>
             </button>
-            {(
-              [
-                { id: "exams", label: "Exames", icon: Stethoscope },
-                { id: "requests", label: "Solicitações", icon: FileText },
-                { id: "prescription", label: "Prescrições", icon: Pill },
-                { id: "review", label: "Orçamentos", icon: ReceiptText },
-              ] as const
-            ).map((item) => (
-              <button
-                key={item.id}
-                type="button"
-                onClick={() => {
-                  navigateStep(item.id);
-                  setSidebarOpen(false);
-                }}
-                className="flex min-h-10 w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-[13px] text-muted-foreground hover:bg-accent"
-              >
-                <item.icon className="size-4 shrink-0" />
-                {item.label}
-              </button>
-            ))}
             <button
+              aria-label="Questionários e tarefas"
               type="button"
               onClick={() => setQuestionnairesOpen(true)}
               className="flex h-10 w-full items-center gap-3 rounded-lg px-3 text-left text-[13px] text-muted-foreground hover:bg-accent"
             >
               <ClipboardList className="size-4" />
-              Questionários e tarefas
+              <span className="clinical-nav-label">Questionários e tarefas</span>
             </button>
             <button
+              aria-label="Tratamentos e plano de cuidado"
               type="button"
               onClick={() => setDetailsOpen(true)}
               className="flex h-10 w-full items-center gap-3 rounded-lg px-3 text-left text-[13px] text-muted-foreground hover:bg-accent"
             >
               <ListTree className="size-4" />
-              Plano de cuidado
+              <span className="clinical-nav-label">Tratamentos e plano de cuidado</span>
             </button>
             <div className="mx-2 my-4 border-t" />
             <Link
+              aria-label="Voltar à agenda"
               to="/agenda"
               className="flex h-10 items-center gap-3 rounded-lg px-3 text-[13px] text-muted-foreground hover:bg-accent"
             >
               <ArrowLeft className="size-4" />
-              Voltar à agenda
+              <span className="clinical-nav-label">Voltar à agenda</span>
             </Link>
-          </nav>
+          </ClinicalNavigation>
         </aside>
         <div
           className={`grid min-w-0 items-start gap-3 ${activeStep === "anamnesis" ? (contextCollapsed ? "xl:grid-cols-[minmax(0,1fr)_48px]" : "xl:grid-cols-[minmax(0,1fr)_minmax(260px,328px)]") : ""}`}
         >
-          <main className="min-w-0 rounded-xl border bg-card p-2">
-            <nav
-              aria-label="Etapas do atendimento"
-              className="mb-3 flex min-h-10 overflow-x-auto border-b"
-              role="tablist"
-            >
-              {encounterSteps.map((step, index) => (
-                <button
-                  key={step.id}
-                  type="button"
-                  role="tab"
-                  id={`encounter-tab-${step.id}`}
-                  aria-selected={activeStep === step.id}
-                  aria-controls={`encounter-panel-${step.id === "requests" || step.id === "prescription" ? "documents" : step.id}`}
-                  tabIndex={activeStep === step.id ? 0 : -1}
-                  onKeyDown={(event) => {
-                    if (event.key === "ArrowRight" || event.key === "ArrowLeft") {
-                      event.preventDefault();
-                      const next =
-                        encounterSteps[
-                          (index + (event.key === "ArrowRight" ? 1 : -1) + encounterSteps.length) %
-                            encounterSteps.length
-                        ]!;
-                      setActiveStep(next.id);
-                      document.getElementById(`encounter-tab-${next.id}`)?.focus();
-                    }
-                  }}
-                  onClick={() => setActiveStep(step.id)}
-                  className={`flex min-w-28 flex-1 items-center justify-center gap-2 border-b-2 px-3 pb-2 text-xs transition-colors ${activeStep === step.id ? "border-primary font-semibold text-primary" : "border-transparent text-muted-foreground hover:text-foreground"}`}
+          <nav
+            aria-label="Etapas do atendimento"
+            className="clinical-step-bar flex min-h-10 overflow-x-auto"
+            role="tablist"
+          >
+            {encounterSteps.map((step, index) => (
+              <button
+                key={step.id}
+                type="button"
+                role="tab"
+                id={`encounter-tab-${step.id}`}
+                aria-selected={activeStep === step.id}
+                aria-controls={`encounter-panel-${step.id === "requests" || step.id === "prescription" ? "documents" : step.id}`}
+                tabIndex={activeStep === step.id ? 0 : -1}
+                onKeyDown={(event) => {
+                  if (event.key === "ArrowRight" || event.key === "ArrowLeft") {
+                    event.preventDefault();
+                    const next =
+                      encounterSteps[
+                        (index + (event.key === "ArrowRight" ? 1 : -1) + encounterSteps.length) %
+                          encounterSteps.length
+                      ]!;
+                    setActiveStep(next.id);
+                    document.getElementById(`encounter-tab-${next.id}`)?.focus();
+                  }
+                }}
+                onClick={() => setActiveStep(step.id)}
+                className={`flex min-w-28 flex-1 items-center justify-center gap-2 border-b-2 px-3 pb-2 text-xs transition-colors ${activeStep === step.id ? "border-primary font-semibold text-primary" : "border-transparent text-muted-foreground hover:text-foreground"}`}
+              >
+                <span
+                  aria-hidden="true"
+                  className={`flex size-6 shrink-0 items-center justify-center rounded-full text-xs ${activeStep === step.id ? "bg-primary text-primary-foreground" : "bg-muted text-foreground"}`}
                 >
-                  <span
-                    aria-hidden="true"
-                    className={`flex size-6 shrink-0 items-center justify-center rounded-full text-xs ${activeStep === step.id ? "bg-primary text-primary-foreground" : "bg-muted text-foreground"}`}
-                  >
-                    {index + 1}
-                  </span>
-                  {step.label}
-                </button>
-              ))}
-            </nav>
+                  {index + 1}
+                </span>
+                {step.label}
+              </button>
+            ))}
+          </nav>
+          <main className="min-w-0 rounded-xl border bg-card p-2">
             <div
               role="tabpanel"
               id="encounter-panel-anamnesis"
@@ -1321,6 +1306,7 @@ export function CareEncounterPage({ appointmentId }: { appointmentId: string }) 
                 </div>
                 <Accordion
                   id="anamnese"
+                  hidden
                   type="multiple"
                   className="scroll-mt-40 rounded-lg border px-4"
                 >
@@ -1385,6 +1371,7 @@ export function CareEncounterPage({ appointmentId }: { appointmentId: string }) 
                 </Accordion>
                 <Accordion
                   id="exame-fisico"
+                  hidden
                   type="multiple"
                   className="scroll-mt-40 rounded-lg border px-4"
                 >
@@ -1615,6 +1602,7 @@ export function CareEncounterPage({ appointmentId }: { appointmentId: string }) 
             >
               <div id="documentos">
                 <EncounterDocumentsCard
+                  active={activeStep === "prescription" || activeStep === "requests"}
                   appointmentId={appointmentId}
                   mode={activeStep === "requests" ? "requests" : "prescription"}
                   onDraftStateChange={onDocumentDraftStateChange}

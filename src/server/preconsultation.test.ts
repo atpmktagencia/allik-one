@@ -1,4 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import { patientTimelineResponse } from "./patient-timeline";
 import { randomUUID } from "node:crypto";
 import { migrate } from "drizzle-orm/node-postgres/migrator";
 import { getDb, getPool } from "./db";
@@ -145,6 +146,16 @@ async function fixture() {
     invite,
     ready,
     issued,
+    timeline: () =>
+      patientTimelineResponse(
+        new Request(
+          origin +
+            "/api/v1/inventory/patient-timeline?patientId=" +
+            patient +
+            "&kind=QUESTIONNAIRE",
+          { headers: { cookie: `allik_inventory_session=${token}` } },
+        ),
+      ),
   };
 }
 describe("Preconsultation security and clinical integrity", () => {
@@ -255,6 +266,22 @@ describe("Preconsultation security and clinical integrity", () => {
     ).rows[0];
     expect(persisted.revoked_at).toBeNull();
     expect(persisted.submitted_at).not.toBeNull();
+    expect((await f.timeline()).status).toBe(403);
+    await getPool().query("UPDATE inventory_memberships SET role='CLINICIAN' WHERE id=$1", [
+      f.membership,
+    ]);
+    const clinical = await f.timeline();
+    expect(clinical.status).toBe(200);
+    const history = (await clinical.json()).data.events;
+    expect(history).toEqual([
+      expect.objectContaining({
+        kind: "QUESTIONNAIRE",
+        authorName: "Declarado pelo paciente",
+        status: "SUBMITTED",
+      }),
+    ]);
+    expect(JSON.stringify(history)).not.toContain("Synthetic confidential answer");
+    expect(JSON.stringify(history)).not.toContain(invitation.token);
   });
   it("does not expose a public receipt for expired, revoked or unknown bearers", async () => {
     const f = await fixture();

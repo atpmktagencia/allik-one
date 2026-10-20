@@ -107,6 +107,58 @@ function pointer(target: Element | Window | Document, type: string) {
   Object.defineProperties(event, { pointerType: { value: "mouse" }, pointerId: { value: 1 } });
   fireEvent(target, event);
 }
+it("resolves a document only after clinical review and preserves composition when the lazy draft is bound", async () => {
+  const writes: Record<string, unknown>[] = [];
+  const ensureDocument = vi.fn(async () => "synthetic-lazy-draft");
+  const inserted = vi.fn(() => true);
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (_url: unknown, init: RequestInit) => {
+      const body = JSON.parse(String(init.body));
+      writes.push(body);
+      return Response.json({
+        data: {
+          text: "Composição revisada no servidor",
+          quantity: 1,
+          quantityLabel: "1 unidade",
+          warnings: [],
+          instanceId: "synthetic-lazy-instance",
+        },
+      });
+    }),
+  );
+  const component = (documentId?: string) => (
+    <PrescriptionComposer
+      appointmentId="synthetic-appointment"
+      documentId={documentId}
+      scopeKey="inline-test"
+      ensureDocument={ensureDocument}
+      onInsert={inserted}
+    />
+  );
+  const view = render(component());
+  fill();
+  expect(ensureDocument).not.toHaveBeenCalled();
+  expect(writes).toHaveLength(0);
+  fireEvent.click(screen.getByRole("button", { name: /^Calcular e revisar composição$/ }));
+  await screen.findByLabelText(/^Conferi composição/);
+  expect(ensureDocument).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByLabelText(/^Conferi composição/));
+  fireEvent.click(screen.getByRole("button", { name: /^Inserir no rascunho da receita$/ }));
+  await waitFor(() =>
+    expect(inserted).toHaveBeenCalledWith(
+      "Composição revisada no servidor",
+      "synthetic-lazy-instance",
+    ),
+  );
+  expect(ensureDocument).toHaveBeenCalledOnce();
+  expect(writes[1]).toMatchObject({ action: "INSTANTIATE", documentId: "synthetic-lazy-draft" });
+  view.rerender(component("synthetic-lazy-draft"));
+  expect(screen.getByLabelText("Nome do componente")).toHaveValue("Componente sintético");
+  expect(screen.getByLabelText("Quantidade por unidade")).toHaveValue("5");
+  expect(writes.filter((entry) => entry["action"] === "INSTANTIATE")).toHaveLength(1);
+});
+
 describe("Structured prescription review", () => {
   it("adds an optional second dose schedule without suggesting values and removes it explicitly", () => {
     setup();

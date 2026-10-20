@@ -364,7 +364,7 @@ export async function careAppointmentsResponse(request: Request) {
         );
         if (!closure.rows[0]?.hasFinalNote) throw new Error("FINAL_NOTE_REQUIRED");
         const draftDocuments = await client.query(
-          `SELECT content,rich_content AS "richContent" FROM inventory_encounter_documents WHERE appointment_id=$1 AND organization_id=$2 AND status='DRAFT'`,
+          `SELECT content,rich_content AS "richContent" FROM inventory_encounter_documents WHERE appointment_id=$1 AND organization_id=$2 AND status='DRAFT' AND discarded_at IS NULL`,
           [input.id, auth.organizationId],
         );
         if (

@@ -149,6 +149,7 @@ describe("Document audit safeguards", () => {
     expect(screen.getByLabelText("Nome do plano clínico")).not.toBeVisible();
     expect(planState).toHaveBeenLastCalledWith({ dirty: true, pending: false });
     view.rerender(workspace("prescription"));
+    fireEvent.click(await screen.findByRole("button", { name: "Receitas e histórico" }));
     await screen.findByRole("button", { name: "Medicamentos" });
     expect(screen.getByLabelText("Nome do plano clínico")).not.toBeVisible();
     expect(planState).toHaveBeenLastCalledWith({ dirty: true, pending: false });
@@ -221,29 +222,25 @@ describe("Document audit safeguards", () => {
 
   it("uses only the frozen patient identity in the final lateral preview", async () => {
     mount("prescription", "FINAL");
+    fireEvent.click(await screen.findByRole("button", { name: "Receitas e histórico" }));
     const panel = await screen.findByRole("complementary", { name: "Prévia da prescrição" });
     expect(within(panel).getByText("Nome congelado")).toBeInTheDocument();
     expect(within(panel).queryByText("Nome atual alterado")).not.toBeInTheDocument();
   });
-  it("limits the new-document menu to the active request category", async () => {
+  it("creates a request directly in the active category without a type menu", async () => {
     mount("requests");
-    const menu = await screen.findByRole("button", { name: "Novo documento" });
-    fireEvent.keyDown(menu, { key: "Enter" });
     expect(
-      await screen.findByRole("menuitem", { name: "Solicitação de exames" }),
+      await screen.findByRole("button", { name: "Adicionar solicitação" }),
     ).toBeInTheDocument();
-    expect(screen.queryByRole("menuitem", { name: "Encaminhamento" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("menuitem", { name: "Atestado" })).not.toBeInTheDocument();
-    fireEvent.keyDown(document.activeElement!, { key: "Escape" });
+    expect(screen.queryByRole("button", { name: "Novo documento" })).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Encaminhamentos" }));
-    fireEvent.keyDown(screen.getByRole("button", { name: "Novo documento" }), { key: "Enter" });
-    expect(await screen.findByRole("menuitem", { name: "Encaminhamento" })).toBeInTheDocument();
-    expect(
-      screen.queryByRole("menuitem", { name: "Solicitação de exames" }),
-    ).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Adicionar solicitação" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Documentos" }));
+    expect(screen.getByRole("button", { name: "Novo documento" })).toBeInTheDocument();
   });
   it("propagates composer dirty state and requires confirmation before discarding it", async () => {
     const state = mount("prescription");
+    fireEvent.click(await screen.findByRole("button", { name: "Receitas e histórico" }));
     fireEvent.click(await screen.findByRole("button", { name: "Manipulados" }));
     fireEvent.click(screen.getByRole("button", { name: "Abrir compositor avançado" }));
     fireEvent.click(await screen.findByRole("button", { name: "Modificar composição sintética" }));

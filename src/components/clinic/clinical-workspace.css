@@ -18,10 +18,63 @@
   --input: #dfe7ee;
   --ring: #007d88;
   --clinical-document-viewport-offset: 160px;
+  --clinical-sidebar-width: 206px;
+  --clinical-gap: 12px;
+  --clinical-radius: 10px;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   font-size: 13px;
   color: var(--foreground);
   color-scheme: light;
+}
+.clinical-navigation {
+  width: var(--clinical-sidebar-width);
+  min-width: 0;
+  align-self: start;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--clinical-radius);
+  background: var(--card);
+}
+.clinical-navigation-items {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.clinical-navigation[data-collapsed="true"] {
+  width: 62px;
+}
+.clinical-navigation[data-collapsed="true"] .clinical-nav-label {
+  display: none;
+}
+.clinical-navigation[data-collapsed="true"] .clinical-navigation-items :is(a, button) {
+  justify-content: center;
+  padding-inline: 5px;
+}
+.clinical-step-bar {
+  grid-column: 1 / -1;
+  margin-bottom: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--clinical-radius);
+  padding: 8px 8px 0;
+}
+.clinical-inline-composer {
+  min-width: 0;
+  padding: 12px;
+}
+.clinical-inline-composer > div {
+  font-size: 12px;
+}
+.clinical-inline-composer fieldset {
+  background: white;
+  border-radius: var(--clinical-radius);
+}
+.clinical-inline-composer :is(input, select) {
+  min-width: 0;
+}
+@media (max-width: 1023px) {
+  .clinical-navigation {
+    width: 100%;
+  }
 }
 .clinical-workspace h1,
 .clinical-workspace h2,
@@ -248,4 +301,8 @@
   .clinical-header-actions {
     margin-left: auto;
   }
+}
+
+.clinical-workspace [hidden] {
+  display: none !important;
 }

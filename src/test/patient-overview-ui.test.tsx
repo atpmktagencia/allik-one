@@ -200,7 +200,7 @@ describe("Paciente360º overview", () => {
       "aria-current",
       "page",
     );
-    fireEvent.click(within(nav).getByRole("button", { name: "Recolher navegação do paciente" }));
+    fireEvent.click(within(nav).getByRole("button", { name: "Recolher navegação clínica" }));
     for (const label of ["Visão geral", "Consultas", "Documentos", "Exames", "Tratamentos"])
       expect(within(nav).getByRole("button", { name: label })).toBeInTheDocument();
     fireEvent.click(within(nav).getByRole("button", { name: /^Exames$/ }));

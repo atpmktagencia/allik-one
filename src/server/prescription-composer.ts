@@ -258,7 +258,7 @@ export async function prescriptionComposerResponse(request: Request) {
       }
       const doc = (
         await client.query(
-          `SELECT id FROM inventory_encounter_documents WHERE id=$1 AND organization_id=$2 AND appointment_id=$3 AND author_user_id=$4 AND type='PRESCRIPTION' AND status='DRAFT' FOR SHARE`,
+          `SELECT id FROM inventory_encounter_documents WHERE id=$1 AND organization_id=$2 AND appointment_id=$3 AND author_user_id=$4 AND type='PRESCRIPTION' AND status='DRAFT' AND discarded_at IS NULL FOR SHARE`,
           [d.documentId, auth.organizationId, appointmentId, auth.user.id],
         )
       ).rows[0];

@@ -878,6 +878,7 @@ export const encounterDocuments = pgTable(
     prescriptionPrintData: jsonb("prescription_print_data"),
     prescriptionSource: jsonb("prescription_source"),
     status: text("status").notNull().default("DRAFT"),
+    discardedAt: timestamp("discarded_at", { withTimezone: true }),
     version: integer("version").notNull().default(0),
     finalSnapshot: jsonb("final_snapshot"),
     finalizedAt: timestamp("finalized_at", { withTimezone: true }),
@@ -921,6 +922,10 @@ export const encounterDocuments = pgTable(
       sql`${t.type} IN ('PRESCRIPTION','EXAM_REQUEST','MEDICAL_CERTIFICATE','REFERRAL','MEDICAL_REPORT','MEDICAL_OPINION','INSTRUCTIONS')`,
     ),
     check("encounter_document_status_valid", sql`${t.status} IN ('DRAFT','FINAL')`),
+    check(
+      "encounter_document_discard_draft_only",
+      sql`${t.discardedAt} IS NULL OR ${t.status}='DRAFT'`,
+    ),
     check(
       "encounter_document_snapshot_valid",
       sql`${t.finalSnapshot} IS NULL OR COALESCE((${t.status}='FINAL' AND jsonb_typeof(${t.finalSnapshot})='object'
@@ -1022,7 +1027,7 @@ export const encounterDocumentChanges = pgTable(
     index("encounter_document_change_history").on(t.documentId, t.createdAt),
     check(
       "encounter_document_change_action_valid",
-      sql`${t.action} IN ('CREATE','UPDATE','FINALIZE')`,
+      sql`${t.action} IN ('CREATE','UPDATE','FINALIZE','DISCARD')`,
     ),
   ],
 );

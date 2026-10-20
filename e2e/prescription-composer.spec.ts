@@ -60,6 +60,17 @@ test("individual clinician composes a prescription and explicitly saves a draft"
       .getByRole("tab", { name: "Prescrição", exact: true })
       .click();
     const documents = page.locator("#documentos");
+    // UX 2.0 opens the live compositor in one tab action, without creating a clinical document.
+    await expect(documents.getByLabel("Nome do componente", { exact: true })).toBeVisible();
+    expect(
+      (
+        await pool.query(
+          "SELECT count(*)::int count FROM inventory_encounter_documents WHERE appointment_id=$1",
+          [appointment],
+        )
+      ).rows[0].count,
+    ).toBe(0);
+    await documents.getByRole("button", { name: "Receitas e histórico", exact: true }).click();
     await documents.getByRole("button", { name: "Novo documento", exact: true }).click();
     await page.getByRole("menuitem", { name: "Receita médica", exact: true }).click();
     await documents
@@ -305,6 +316,7 @@ test("individual clinician composes a prescription and explicitly saves a draft"
       .getByRole("tablist", { name: "Etapas do atendimento" })
       .getByRole("tab", { name: "Prescrição", exact: true })
       .click();
+    await documents.getByRole("button", { name: "Receitas e histórico", exact: true }).click();
     await documents.getByRole("button", { name: "Editar receita", exact: true }).click();
     await expect(
       documents.getByRole("textbox", { name: "Conteúdo do documento", exact: true }),

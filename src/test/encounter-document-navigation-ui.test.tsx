@@ -97,6 +97,7 @@ describe("Encounter document step navigation", () => {
   );
   it("preserves independent unsaved buffers across repeated prescription/request changes", async () => {
     const view = workspace();
+    fireEvent.click(await screen.findByRole("button", { name: "Receitas e histórico" }));
     await screen.findByRole("button", { name: "Medicamentos" });
     for (const name of [
       "Medicamentos",

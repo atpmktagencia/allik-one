@@ -104,6 +104,133 @@ async function fixture() {
 }
 
 describe("final document snapshots", () => {
+  it("discards an owned request draft idempotently while retaining content and an immutable audit trail", async () => {
+    const f = await fixture();
+    const original = (
+      await (
+        await f.post({ type: "EXAM_REQUEST", content: "Solicitação sintética preservada" })
+      ).json()
+    ).data;
+    const operation = {
+      action: "DISCARD_DRAFT",
+      type: "EXAM_REQUEST",
+      documentId: original.id,
+      version: original.version,
+    };
+    expect((await f.post(operation)).status).toBe(200);
+    expect((await f.post(operation)).status).toBe(200);
+    const list = (await (await f.get()).json()).data.documents;
+    expect(list.some((entry: { id: string }) => entry.id === original.id)).toBe(false);
+    const stored = (
+      await getPool().query(
+        "SELECT content,discarded_at,status FROM inventory_encounter_documents WHERE id=$1",
+        [original.id],
+      )
+    ).rows[0];
+    expect(stored).toMatchObject({ content: "Solicitação sintética preservada", status: "DRAFT" });
+    expect(stored.discarded_at).toBeTruthy();
+    expect(
+      (
+        await getPool().query(
+          "SELECT count(*)::int AS count FROM inventory_encounter_document_changes WHERE document_id=$1 AND action='DISCARD'",
+          [original.id],
+        )
+      ).rows[0].count,
+    ).toBe(1);
+    expect(
+      (
+        await f.post({
+          type: "EXAM_REQUEST",
+          documentId: original.id,
+          version: original.version + 1,
+        })
+      ).status,
+    ).toBe(409);
+    expect(
+      (await f.post({ ...operation, action: "FINALIZE", version: original.version + 1 })).status,
+    ).toBe(409);
+    expect((await f.get(`documentId=${original.id}&print=true&preview=true`)).status).toBe(404);
+    await expect(
+      getPool().query("UPDATE inventory_encounter_documents SET discarded_at=NULL WHERE id=$1", [
+        original.id,
+      ]),
+    ).rejects.toThrow(/immutable/);
+    await expect(
+      getPool().query("DELETE FROM inventory_encounter_documents WHERE id=$1", [original.id]),
+    ).rejects.toThrow(/cannot be deleted/);
+  });
+
+  it("rejects stale, foreign-organization and unauthorized request draft discards", async () => {
+    const f = await fixture(),
+      foreign = await fixture();
+    const doc = (await (await f.post({ type: "EXAM_REQUEST" })).json()).data;
+    const operation = {
+      action: "DISCARD_DRAFT",
+      type: "EXAM_REQUEST",
+      documentId: doc.id,
+      version: doc.version,
+    };
+    expect((await f.post({ ...operation, version: doc.version + 1 })).status).toBe(409);
+    expect((await foreign.post(operation)).status).toBe(404);
+    await getPool().query("UPDATE inventory_memberships SET role='VIEWER' WHERE id=$1", [
+      f.membershipId,
+    ]);
+    expect((await f.post(operation)).status).toBe(403);
+    expect(
+      (
+        await getPool().query(
+          "SELECT discarded_at FROM inventory_encounter_documents WHERE id=$1",
+          [doc.id],
+        )
+      ).rows[0].discarded_at,
+    ).toBeNull();
+  });
+
+  it("serializes finalization and discard without ever discarding a final document", async () => {
+    const f = await fixture();
+    const doc = (await (await f.post({ type: "EXAM_REQUEST" })).json()).data;
+    const responses = await Promise.all([
+      f.post({
+        action: "FINALIZE",
+        type: "EXAM_REQUEST",
+        documentId: doc.id,
+        version: doc.version,
+      }),
+      f.post({
+        action: "DISCARD_DRAFT",
+        type: "EXAM_REQUEST",
+        documentId: doc.id,
+        version: doc.version,
+      }),
+    ]);
+    expect(responses.filter((response) => response.ok)).toHaveLength(1);
+    expect(responses.filter((response) => response.status === 409)).toHaveLength(1);
+    const row = (
+      await getPool().query(
+        "SELECT status,discarded_at FROM inventory_encounter_documents WHERE id=$1",
+        [doc.id],
+      )
+    ).rows[0];
+    if (row.status === "FINAL") expect(row.discarded_at).toBeNull();
+    else expect(row.discarded_at).toBeTruthy();
+  });
+
+  it("preserves a finalized document against the draft discard operation", async () => {
+    const f = await fixture();
+    const doc = (await (await f.post({ type: "EXAM_REQUEST", action: "FINALIZE" })).json()).data;
+    expect(
+      (
+        await f.post({
+          action: "DISCARD_DRAFT",
+          type: "EXAM_REQUEST",
+          documentId: doc.id,
+          version: doc.version,
+        })
+      ).status,
+    ).toBe(409);
+    expect((await f.get(`documentId=${doc.id}&print=true`)).status).toBe(200);
+  });
+
   it("rolls back prescription finalization when transactional event persistence fails", async () => {
     const f = await fixture();
     const draft = (await (await f.post()).json()).data;

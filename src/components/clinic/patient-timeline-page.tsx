@@ -19,6 +19,8 @@ const eventKinds = {
   DOCUMENT: "Documentos",
   TREATMENT: "Planos terapêuticos",
   APPLICATION: "Aplicações",
+  LABORATORY: "Exames",
+  QUESTIONNAIRE: "Questionários",
 } as const;
 type EventKind = keyof typeof eventKinds;
 type TimelineEvent = {
@@ -68,10 +70,12 @@ function dateLabel(value: string, includeTime = false) {
 export function PatientTimelinePage({
   patientId,
   embedded = false,
+  active = true,
   unitId: scopedUnitId,
 }: {
   patientId: string;
   embedded?: boolean;
+  active?: boolean;
   unitId?: string;
 }) {
   const [kind, setKind] = useState("");
@@ -80,6 +84,7 @@ export function PatientTimelinePage({
     `/api/v1/inventory/patient-timeline?patientId=${encodeURIComponent(patientId)}${kind ? `&kind=${kind}` : ""}${scopedUnitId ? `&unitId=${encodeURIComponent(scopedUnitId)}` : ""}`,
   );
   const query = useInfiniteQuery({
+    enabled: active,
     queryKey: ["inventory", "patient-timeline", unitId, path],
     initialPageParam: "",
     queryFn: async ({ pageParam }) => {
@@ -111,7 +116,9 @@ export function PatientTimelinePage({
       <InventoryState pending={query.isPending} error={query.error} retry={() => query.refetch()} />
     );
   return (
-    <div className="clinical-workspace mx-auto max-w-5xl space-y-6 rounded-2xl bg-background p-4 sm:p-6">
+    <div
+      className={`clinical-workspace space-y-4 ${embedded ? "min-w-0" : "mx-auto max-w-5xl rounded-2xl bg-background p-4 sm:p-6"}`}
+    >
       {!embedded && (
         <header className="space-y-4 rounded-2xl border bg-card p-5">
           <Button variant="ghost" size="sm" asChild>
@@ -142,7 +149,7 @@ export function PatientTimelinePage({
       )}
       {embedded && (
         <p className="text-xs text-muted-foreground">
-          Histórico somente leitura · unidade deste atendimento. Seu rascunho permanece aberto.
+          Histórico somente leitura · registros com data, autoria e origem.
         </p>
       )}
       {!embedded && query.data?.pages[0]?.allergySummary && (
@@ -190,7 +197,17 @@ export function PatientTimelinePage({
             >
               <div className="flex flex-wrap justify-between gap-2">
                 <h3 className="font-semibold">{event.title}</h3>
-                <Badge variant="outline">{eventKinds[event.kind]}</Badge>
+                <Badge
+                  variant="outline"
+                  className={
+                    event.kind === "APPOINTMENT"
+                      ? "bg-muted text-muted-foreground"
+                      : "bg-primary/5 text-primary"
+                  }
+                >
+                  {eventKinds[event.kind]}
+                  {event.kind === "APPOINTMENT" ? " · agenda" : ""}
+                </Badge>
               </div>
               <p className="mt-2 text-xs text-muted-foreground">
                 {dateLabel(event.occurredAt, true)} · {event.unitName}

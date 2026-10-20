@@ -43,12 +43,18 @@ const emptyFormula = (): PrescriptionFormula => ({
 export function PrescriptionComposer({
   appointmentId,
   documentId,
+  scopeKey,
+  ensureDocument,
+  patientContext,
   onInsert,
   onDraftStateChange,
 }: {
   appointmentId: string;
-  documentId: string;
-  onInsert: (text: string, instanceId?: string) => boolean | void;
+  documentId?: string | undefined;
+  scopeKey?: string;
+  ensureDocument?: () => Promise<string>;
+  patientContext?: { patientName: string; unitName: string } | undefined;
+  onInsert: (text: string, instanceId?: string) => boolean | void | Promise<boolean | void>;
   onDraftStateChange?: (state: { dirty: boolean; pending: boolean }) => void;
 }) {
   const query = useInventory<{
@@ -75,6 +81,7 @@ export function PrescriptionComposer({
   const grantSelectId = useId();
   const insertion = useRef<{ key: string; id: string } | null>(null);
   const scopeRevision = useRef(0);
+  const compositionScope = scopeKey ?? documentId;
   useEffect(() => {
     function reset() {
       scopeRevision.current += 1;
@@ -98,7 +105,7 @@ export function PrescriptionComposer({
       window.removeEventListener("inventory-unit-change", reset);
       scopeRevision.current += 1;
     };
-  }, [appointmentId, documentId]);
+  }, [appointmentId, compositionScope]);
   const [preview, setPreview] = useState<PrescriptionComposition | null>(null);
   const [reviewed, setReviewed] = useState(false);
   const [pending, setPending] = useState(false);
@@ -338,20 +345,23 @@ export function PrescriptionComposer({
   }
   async function insertReviewed() {
     if (!preview || !reviewed || lock.current) return;
-    const body = {
-      action: "INSTANTIATE",
-      appointmentId,
-      documentId,
-      formula: selectedFormula,
-      ...(protocol ? { sourceId: protocol.id, sourceVersion: protocol.version } : {}),
-    };
-    const key = JSON.stringify(body);
-    if (insertion.current?.key !== key) insertion.current = { key, id: crypto.randomUUID() };
     const scope = scopeRevision.current;
     lock.current = true;
     setPending(true);
     setError("");
     try {
+      const targetDocumentId = documentId || (await ensureDocument?.());
+      if (!targetDocumentId) throw new Error("Não foi possível associar um rascunho à composição.");
+      if (scope !== scopeRevision.current) return;
+      const body = {
+        action: "INSTANTIATE",
+        appointmentId,
+        documentId: targetDocumentId,
+        formula: selectedFormula,
+        ...(protocol ? { sourceId: protocol.id, sourceVersion: protocol.version } : {}),
+      };
+      const key = JSON.stringify(body);
+      if (insertion.current?.key !== key) insertion.current = { key, id: crypto.randomUUID() };
       const response = await fetch(withSelectedUnit("/api/v1/inventory/prescription-composer"), {
         method: "POST",
         credentials: "same-origin",
@@ -365,7 +375,11 @@ export function PrescriptionComposer({
       if (scope !== scopeRevision.current) return;
       if (!result.data?.instanceId)
         throw new Error("O servidor não confirmou o registro da composição.");
-      if (onInsert(result.data.text, result.data.instanceId) !== false) setDirty(false);
+      if ((await onInsert(result.data.text, result.data.instanceId)) !== false) {
+        setDirty(false);
+        setReviewed(false);
+        setPreview(null);
+      }
     } catch (cause) {
       if (scope !== scopeRevision.current) return;
       setError(cause instanceof Error ? cause.message : "Não foi possível inserir a composição.");
@@ -1115,6 +1129,12 @@ export function PrescriptionComposer({
             <h3 className="border-b border-teal-200 pb-2 font-semibold text-teal-950">
               Prescrição · prévia não finalizada
             </h3>
+            {patientContext && (
+              <div className="space-y-1 border-b pb-3 text-xs">
+                <p className="font-semibold">{patientContext.patientName}</p>
+                <p className="text-muted-foreground">{patientContext.unitName}</p>
+              </div>
+            )}
             <fieldset
               disabled={pending}
               className="grid min-w-0 grid-cols-2 gap-2 rounded-lg border border-teal-200 bg-teal-50 p-3"
@@ -1213,9 +1233,15 @@ export function PrescriptionComposer({
             aria-labelledby={`${composerTabsId}-quote-tab`}
             hidden={activeTab !== "quote"}
           >
-            {quoteOpened && (
-              <ComposerQuotePanel appointmentId={appointmentId} documentId={documentId} />
-            )}
+            {quoteOpened &&
+              (documentId ? (
+                <ComposerQuotePanel appointmentId={appointmentId} documentId={documentId} />
+              ) : (
+                <p className="rounded-lg border p-3 text-xs text-muted-foreground">
+                  Insira a composição no rascunho para consultar o orçamento associado. Nenhuma
+                  venda ou reserva é criada automaticamente.
+                </p>
+              ))}
           </div>
         </aside>
       </div>

@@ -1,4 +1,12 @@
 import { Fragment, memo, useEffect, useMemo, useRef, useState, type MutableRefObject } from "react";
+import { laboratoryDisplayGroup, laboratoryDisplayGroups } from "@/lib/laboratory-display-groups";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useInventory } from "@/data/inventory-api";
@@ -33,11 +41,13 @@ function ReferenceStatus({
   return (
     <p
       className={
-        status === "low" || status === "high"
-          ? "text-xs text-amber-800"
-          : status === "within"
-            ? "text-xs text-teal-800"
-            : "text-xs text-muted-foreground"
+        status === "low"
+          ? "text-xs text-sky-800"
+          : status === "high"
+            ? "text-xs text-amber-800"
+            : status === "within"
+              ? "text-xs text-teal-800"
+              : "text-xs text-muted-foreground"
       }
     >
       {labels[status]}
@@ -179,6 +189,9 @@ export type LaboratoryHistoryViewState = {
   expanded: string | null;
   scrollTop: number;
   scrollLeft: number;
+  category?: string;
+  collapsedCategories?: string[];
+  dateOrder?: "asc" | "desc";
 };
 export function LaboratoryHistory({
   patientId,
@@ -213,6 +226,13 @@ export function LaboratoryHistory({
     (offset ? `&offset=${offset}` : "");
   const query = useInventory<Payload>(resource, { enabled: active && !invalidRange });
   const [search, setSearch] = useState(remembered?.search ?? "");
+  const [category, setCategory] = useState(remembered?.category ?? "");
+  const [collapsedCategories, setCollapsedCategories] = useState<string[]>(
+    remembered?.collapsedCategories ?? [],
+  );
+  const [dateOrder, setDateOrder] = useState<"asc" | "desc">(remembered?.dateOrder ?? "asc");
+  const [selectedResultId, setSelectedResultId] = useState<string | null>(null);
+  const selectedResult = query.data?.rows.find((entry) => entry.id === selectedResultId);
   const [groupLimit, setGroupLimit] = useState(remembered?.groupLimit ?? 50);
   const [dateOffset, setDateOffset] = useState(remembered?.dateOffset ?? 0);
   const [expanded, setExpanded] = useState<string | null>(remembered?.expanded ?? null);
@@ -223,13 +243,28 @@ export function LaboratoryHistory({
         dateTo,
         offset,
         search,
+        category,
+        collapsedCategories,
+        dateOrder,
         groupLimit,
         dateOffset,
         expanded,
         scrollTop: position.current.top,
         scrollLeft: position.current.left,
       };
-  }, [viewState, dateFrom, dateTo, offset, search, groupLimit, dateOffset, expanded]);
+  }, [
+    viewState,
+    dateFrom,
+    dateTo,
+    offset,
+    search,
+    category,
+    collapsedCategories,
+    dateOrder,
+    groupLimit,
+    dateOffset,
+    expanded,
+  ]);
   useEffect(() => {
     if (tableScroll.current) {
       tableScroll.current.scrollTop = position.current.top;
@@ -265,10 +300,18 @@ export function LaboratoryHistory({
   );
   const groups = useMemo(
     () =>
-      history.groups.filter((g) =>
-        g.name.toLocaleLowerCase("pt-BR").includes(search.trim().toLocaleLowerCase("pt-BR")),
-      ),
-    [history.groups, search],
+      history.groups
+        .filter(
+          (g) =>
+            (!category || laboratoryDisplayGroup(g.name) === category) &&
+            g.name.toLocaleLowerCase("pt-BR").includes(search.trim().toLocaleLowerCase("pt-BR")),
+        )
+        .sort(
+          (a, b) =>
+            laboratoryDisplayGroups.indexOf(laboratoryDisplayGroup(a.name)) -
+            laboratoryDisplayGroups.indexOf(laboratoryDisplayGroup(b.name)),
+        ),
+    [history.groups, search, category],
   );
   const relevantDates = useMemo(() => {
     const dates = new Set(groups.flatMap((group) => [...indexed.get(group.id)!.byDate.keys()]));
@@ -280,6 +323,7 @@ export function LaboratoryHistory({
   );
   const startDate = Math.max(0, endDate - 12);
   const visibleDates = relevantDates.slice(startDate, endDate);
+  if (dateOrder === "desc") visibleDates.reverse();
   return (
     <section
       className={
@@ -303,6 +347,33 @@ export function LaboratoryHistory({
             permanecem separados.
           </p>
         </div>
+        <label className="sr-only" htmlFor={`laboratory-group-${patientId}`}>
+          Grupo de exames
+        </label>
+        <select
+          id={`laboratory-group-${patientId}`}
+          aria-label="Grupo de exames"
+          className="h-8 rounded-lg border px-2 text-xs"
+          value={category}
+          onChange={(event) => {
+            setCategory(event.target.value);
+            setGroupLimit(50);
+          }}
+        >
+          <option value="">Todos os grupos</option>
+          {laboratoryDisplayGroups.map((name) => (
+            <option key={name}>{name}</option>
+          ))}
+        </select>
+        <select
+          aria-label="Ordenação das datas dos exames"
+          className="h-8 rounded-lg border px-2 text-xs"
+          value={dateOrder}
+          onChange={(event) => setDateOrder(event.target.value as "asc" | "desc")}
+        >
+          <option value="asc">Datas crescentes</option>
+          <option value="desc">Mais recentes primeiro</option>
+        </select>
         <Input
           className="max-w-xs"
           aria-label="Buscar parâmetro laboratorial"
@@ -494,9 +565,41 @@ export function LaboratoryHistory({
                   </tr>
                 </thead>
                 <tbody>
-                  {groups.slice(0, groupLimit).map((group) => (
+                  {groups.slice(0, groupLimit).map((group, groupIndex) => (
                     <Fragment key={group.id}>
-                      <tr className="border-t align-top">
+                      {(groupIndex === 0 ||
+                        laboratoryDisplayGroup(groups[groupIndex - 1]!.name) !==
+                          laboratoryDisplayGroup(group.name)) && (
+                        <tr className="border-t bg-teal-50/60">
+                          <th colSpan={visibleDates.length + 3} className="p-2 text-left">
+                            <button
+                              type="button"
+                              className="flex items-center gap-2 text-xs font-semibold text-teal-800"
+                              aria-expanded={
+                                !collapsedCategories.includes(laboratoryDisplayGroup(group.name))
+                              }
+                              onClick={() =>
+                                setCollapsedCategories((previous) =>
+                                  previous.includes(laboratoryDisplayGroup(group.name))
+                                    ? previous.filter(
+                                        (name) => name !== laboratoryDisplayGroup(group.name),
+                                      )
+                                    : [...previous, laboratoryDisplayGroup(group.name)],
+                                )
+                              }
+                            >
+                              {collapsedCategories.includes(laboratoryDisplayGroup(group.name))
+                                ? "›"
+                                : "⌄"}{" "}
+                              {laboratoryDisplayGroup(group.name)}
+                            </button>
+                          </th>
+                        </tr>
+                      )}
+                      <tr
+                        hidden={collapsedCategories.includes(laboratoryDisplayGroup(group.name))}
+                        className="border-t align-top"
+                      >
                         <th
                           scope="row"
                           className={
@@ -563,9 +666,16 @@ export function LaboratoryHistory({
                                     title={`${entry.payload.collectedOn ? "Coleta" : entry.payload.reportedOn ? "Resultado" : "Sem data"} · Ref.: ${entry.payload.reference ?? "Não informada"}`}
                                   >
                                     <span
-                                      className={`h-1.5 w-1.5 shrink-0 rounded-full ${indexed.get(group.id)!.referenceStatuses.get(entry.id) === "within" ? "bg-emerald-600" : indexed.get(group.id)!.referenceStatuses.get(entry.id) === "unknown" ? "bg-slate-300" : "bg-amber-500"}`}
+                                      className={`h-1.5 w-1.5 shrink-0 rounded-full ${indexed.get(group.id)!.referenceStatuses.get(entry.id) === "within" ? "bg-emerald-600" : indexed.get(group.id)!.referenceStatuses.get(entry.id) === "unknown" ? "bg-slate-300" : indexed.get(group.id)!.referenceStatuses.get(entry.id) === "low" ? "bg-sky-500" : "bg-amber-500"}`}
                                     />
-                                    <span className="font-medium">{entry.payload.result}</span>
+                                    <button
+                                      type="button"
+                                      className="font-medium underline-offset-2 hover:underline focus-visible:outline-teal-700"
+                                      aria-label={`Detalhes de ${group.name}: ${entry.payload.result}`}
+                                      onClick={() => setSelectedResultId(entry.id)}
+                                    >
+                                      {entry.payload.result}
+                                    </button>
                                     <div className="sr-only">
                                       <ReferenceStatus
                                         entry={entry}
@@ -578,7 +688,14 @@ export function LaboratoryHistory({
                                   </div>
                                 ) : (
                                   <>
-                                    <p className="font-medium">{entry.payload.result}</p>
+                                    <button
+                                      type="button"
+                                      className="font-medium underline-offset-2 hover:underline"
+                                      aria-label={`Detalhes de ${group.name}: ${entry.payload.result}`}
+                                      onClick={() => setSelectedResultId(entry.id)}
+                                    >
+                                      {entry.payload.result}
+                                    </button>
                                     <p className="text-xs text-muted-foreground">
                                       {entry.payload.collectedOn
                                         ? "Data de coleta"
@@ -607,13 +724,14 @@ export function LaboratoryHistory({
                           </td>
                         ))}
                       </tr>
-                      {expanded === group.id && (
-                        <tr>
-                          <td colSpan={visibleDates.length + 3}>
-                            <HistoryGraph group={group} onOpenOriginal={onOpenOriginal} />
-                          </td>
-                        </tr>
-                      )}
+                      {expanded === group.id &&
+                        !collapsedCategories.includes(laboratoryDisplayGroup(group.name)) && (
+                          <tr>
+                            <td colSpan={visibleDates.length + 3}>
+                              <HistoryGraph group={group} onOpenOriginal={onOpenOriginal} />
+                            </td>
+                          </tr>
+                        )}
                     </Fragment>
                   ))}
                 </tbody>
@@ -627,6 +745,53 @@ export function LaboratoryHistory({
           )}
         </>
       )}
+      <Dialog
+        open={Boolean(selectedResult)}
+        onOpenChange={(open) => {
+          if (!open) setSelectedResultId(null);
+        }}
+      >
+        <DialogContent className="clinical-workspace sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Resultado confirmado</DialogTitle>
+            <DialogDescription>
+              Dados do laboratório e origem preservada, sem interpretação automática.
+            </DialogDescription>
+          </DialogHeader>
+          {selectedResult && (
+            <div className="space-y-3 text-sm">
+              <p className="text-lg font-semibold">
+                {selectedResult.payload.name} · {selectedResult.payload.result}{" "}
+                {selectedResult.payload.unit ?? ""}
+              </p>
+              <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2">
+                <dt>Data</dt>
+                <dd>{labelDate(laboratoryHistoryDate(selectedResult) ?? "undated")}</dd>
+                <dt>Referência</dt>
+                <dd>{selectedResult.payload.reference ?? "Não informada"}</dd>
+                <dt>Laboratório</dt>
+                <dd>{selectedResult.payload.laboratory ?? "Não informado"}</dd>
+                <dt>Método</dt>
+                <dd>{selectedResult.payload.method ?? "Não informado"}</dd>
+                <dt>Material</dt>
+                <dd>{selectedResult.payload.material ?? "Não informado"}</dd>
+              </dl>
+              <ReferenceStatus entry={selectedResult} />
+              <Source
+                entry={selectedResult}
+                onOpenOriginal={
+                  onOpenOriginal
+                    ? (entry) => {
+                        setSelectedResultId(null);
+                        onOpenOriginal(entry);
+                      }
+                    : undefined
+                }
+              />
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </section>
   );
 }

@@ -237,6 +237,7 @@ describe("Care encounter UI", () => {
     expect(screen.getByRole("button", { name: "Concluir atendimento" })).toBeDisabled();
     expect(writes).toHaveLength(0);
     fireEvent.click(within(steps).getByRole("tab", { name: /^Prescrição$/ }));
+    fireEvent.click(await screen.findByRole("button", { name: "Receitas e histórico" }));
     fireEvent.click(screen.getByRole("button", { name: "Adicionar item" }));
     const therapeuticBlocker = [...vi.mocked(useBlocker).mock.calls]
       .reverse()
@@ -275,11 +276,8 @@ describe("Care encounter UI", () => {
     ).toBeInTheDocument();
     expect(screen.getByRole("textbox", { name: "Plano clínico" })).toBeInTheDocument();
     expect(screen.getByLabelText("Data prevista para retorno")).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Anamnese estruturada" }));
-    fireEvent.click(screen.getByRole("button", { name: "Motivo da consulta" }));
-    fireEvent.change(screen.getByRole("textbox", { name: "Motivo da consulta" }), {
-      target: { value: "Motivo preservado" },
-    });
+    expect(screen.queryByRole("textbox", { name: "Motivo da consulta" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Anamnese estruturada" })).not.toBeInTheDocument();
     fireEvent.click(within(steps).getByRole("tab", { name: /^Prescrição$/ }));
     expect(
       await screen.findByRole("heading", { name: "Registro terapêutico" }),
@@ -309,9 +307,7 @@ describe("Care encounter UI", () => {
     fireEvent.click(within(steps).getByRole("tab", { name: /^Anamnese$/ }));
     expect(screen.getByLabelText("Evolução")).toBe(evolution);
     expect((evolution as HTMLTextAreaElement).value).toContain("ANAMNESE LONGEVIDADE SAUDÁVEL");
-    expect(screen.getByRole("textbox", { name: "Motivo da consulta" })).toHaveValue(
-      "Motivo preservado",
-    );
+    expect(screen.queryByRole("textbox", { name: "Motivo da consulta" })).not.toBeInTheDocument();
     const blocker = [...vi.mocked(useBlocker).mock.calls]
       .reverse()
       .find(([options]) => isActiveBlocker(options))?.[0] as unknown as {

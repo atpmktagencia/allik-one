@@ -62,7 +62,7 @@ describe("Patient timeline", () => {
       </QueryClientProvider>,
     );
     expect(await screen.findByText("Historical note")).toBeInTheDocument();
-    expect(screen.getByText(/Seu rascunho permanece aberto/)).toBeInTheDocument();
+    expect(screen.getByText(/Histórico somente leitura/)).toBeInTheDocument();
     expect(fetchMock.mock.calls[0]?.[0]).toContain("unitId=encounter-unit");
     expect(screen.queryByRole("link", { name: "Abrir atendimento" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Novo atendimento/ })).not.toBeInTheDocument();
