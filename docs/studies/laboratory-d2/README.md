@@ -1,8 +1,10 @@
 # Estudo local de conferência — D.2
 
-O responsável informou disponibilidade de participantes e autorizou o estudo nesta
-conversa. **Ainda não recebemos interações ou registros humanos.** O teste técnico
-automatizado não é um participante nem uma medição de produtividade clínica.
+**Estudo retirado da Etapa D.2 por decisão posterior do responsável, em 20/10/2026.**
+Não executar nem coletar participantes nesta fase. As instruções abaixo e o pacote
+permanecem como preparação histórica para eventual retomada especificamente aprovada.
+Nenhum participante foi medido; não há estimativa de economia de tempo. O teste técnico
+automatizado não representa produtividade clínica. A autorização anterior foi substituída.
 
 ## Acesso dos participantes
 

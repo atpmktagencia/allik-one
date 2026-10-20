@@ -1,0 +1,83 @@
+{
+  "stage": "D.2",
+  "status": "blocked_daily_quota_homologation_open",
+  "checkedAt": "2026-10-20T14:23:21.448Z",
+  "repositoryHead": "26fdbaed47a8d226554e93cc0092a618a11d0385",
+  "candidate": {
+    "id": "dpl_9FxbUKdHHaKS1YLsiN7Rg5dGgfyt",
+    "sha": "2b16b12c7f6417ae3e9df6042a4e01f793379b07",
+    "branch": "feature/allik-patients",
+    "url": "allik-dkwdbf14o-atp-mkt.vercel.app",
+    "target": null,
+    "state": "READY"
+  },
+  "production": {
+    "id": "dpl_4ag81mHUxsDZ7VaKqnrKKHqKrFkp",
+    "sha": "091612549723e484d41bd3c984e877ddd19365e6",
+    "branch": "feature/allik-patients",
+    "url": "allik-cz2dk6vej-atp-mkt.vercel.app",
+    "target": "production",
+    "state": "READY"
+  },
+  "scope": {
+    "neonProject": "little-dust-61663559",
+    "neonBranch": "br-winter-hill-b69uz195",
+    "dataClassification": "synthetic",
+    "classificationBasis": "previous_verified_preview_configuration_and_versioned_corpus_not_a_new_runtime_session_test"
+  },
+  "quota": {
+    "observations": [
+      {
+        "utc_now": "2026-10-20T14:23:21.448Z",
+        "bucket": "2026-10-20T00:00:00.000Z",
+        "attempts": 20
+      }
+    ],
+    "dailyAttempts": 20,
+    "dailyLimit": 20,
+    "hourlyLimit": 6,
+    "nextDailyResetUtc": "2026-10-21T00:00:00.000Z",
+    "nextDailyResetFortaleza": "2026-10-20T21:00:00-03:00",
+    "hourlyBucketObserved": false,
+    "absenceOfHourlyRowDoesNotOverrideDailyLimit": true
+  },
+  "paidInferenceDecision": "blocked_daily_quota_no_calls_or_overrides",
+  "historyPreviouslyObserved": {
+    "results": 88,
+    "reviews": 2,
+    "digest": "713f44bd5c8fa62783847475c61a3525"
+  },
+  "historyRechecked": {
+    "checked_at": "2026-10-20T14:24:33.012Z",
+    "results": "88",
+    "digest": "713f44bd5c8fa62783847475c61a3525",
+    "reviews": "2"
+  },
+  "newProviderRequests": 0,
+  "newClinicalImports": 0,
+  "clinicalWrites": 0,
+  "quotaOverride": false,
+  "scheduledProviderCalls": 0,
+  "authorizedScope": {
+    "missingSyntheticPdfs": 6,
+    "additionalReplications": 0,
+    "requiresFreshPreflightAfterQuotaReset": true
+  },
+  "humanStudy": {
+    "status": "not_conducted_by_user_decision",
+    "participantsMeasured": 0,
+    "performanceMetrics": null,
+    "timeSavingsEstimate": null,
+    "decision": "Estudo humano retirado desta fase pelo responsável; autorização anterior de participantes substituída."
+  },
+  "nextPhase": {
+    "status": "proposal_only_requires_user_approval",
+    "implementationStarted": false
+  },
+  "prohibitionsPreserved": [
+    "no_additional_ocr",
+    "no_new_providers",
+    "no_automatic_clinical_publication",
+    "no_production_changes"
+  ]
+}

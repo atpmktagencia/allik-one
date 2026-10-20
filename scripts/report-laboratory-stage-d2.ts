@@ -10,6 +10,11 @@ const prior = JSON.parse(bytes.toString());
 const currentCapture = await readFile("docs/benchmarks/laboratory-stage-d1-live-20261020.json");
 assert.equal(prior.currentCaptureSha256, sha(currentCapture));
 const historic = [...prior.currentRound.cases, ...prior.carriedForwardV3];
+const continuation = JSON.parse(
+  await readFile("docs/benchmarks/laboratory-stage-d2-continuation.json", "utf8"),
+);
+assert.equal(continuation.newProviderRequests, 0);
+assert.equal(continuation.humanStudy.status, "not_conducted_by_user_decision");
 const priority = [
   "similar-names-distinct-units",
   "scan-degraded",
@@ -72,6 +77,14 @@ console.log(
         humanPerformance: null,
         reason: "daily_quota_20_of_20_no_attempts_made",
       },
+      latestPreflight: {
+        checkedAt: continuation.checkedAt,
+        dailyAttempts: continuation.quota.dailyAttempts,
+        dailyLimit: continuation.quota.dailyLimit,
+        nextDailyResetUtc: continuation.quota.nextDailyResetUtc,
+        decision: continuation.paidInferenceDecision,
+      },
+      humanStudy: continuation.humanStudy,
       historicV3: {
         documents: coverage.filter((c) => c.realV3Documents).length,
         trials: historic.length,
@@ -86,9 +99,9 @@ console.log(
         scheduled: false,
         increaseQuota: false,
         initialMissingPdfs: 6,
-        subsequentReplicatesPerPdf: 2,
-        totalPlannedImports: 18,
-        minimumHourlyWindows: 3,
+        subsequentReplicatesPerPdf: 0,
+        totalPlannedImports: 6,
+        minimumHourlyWindows: 1,
         grouping: "per_pdf_hash_trial_index_and_hour_not_independent_documents",
         precondition: "fresh_deployment_scope_quota_budget_preflight_before_each_window",
       },
@@ -98,7 +111,7 @@ console.log(
         "All real measurements are explicitly historical D/D.1, not D.2 observations.",
         "Model revision behind the alias is not fixed; future repeats need fresh provenance.",
         "Controlled study mutations and browser smoke tests are never provider inference.",
-        "Human authorization/availability does not establish measured human outcomes.",
+        "Human study excluded from this phase by the user; human outcomes and time savings are not measured.",
       ],
     },
     null,

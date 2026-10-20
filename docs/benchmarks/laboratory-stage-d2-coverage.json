@@ -14,6 +14,20 @@
     "humanPerformance": null,
     "reason": "daily_quota_20_of_20_no_attempts_made"
   },
+  "latestPreflight": {
+    "checkedAt": "2026-10-20T14:23:21.448Z",
+    "dailyAttempts": 20,
+    "dailyLimit": 20,
+    "nextDailyResetUtc": "2026-10-21T00:00:00.000Z",
+    "decision": "blocked_daily_quota_no_calls_or_overrides"
+  },
+  "humanStudy": {
+    "status": "not_conducted_by_user_decision",
+    "participantsMeasured": 0,
+    "performanceMetrics": null,
+    "timeSavingsEstimate": null,
+    "decision": "Estudo humano retirado desta fase pelo responsável; autorização anterior de participantes substituída."
+  },
   "historicV3": {
     "documents": 6,
     "trials": 6,
@@ -324,9 +338,9 @@
     "scheduled": false,
     "increaseQuota": false,
     "initialMissingPdfs": 6,
-    "subsequentReplicatesPerPdf": 2,
-    "totalPlannedImports": 18,
-    "minimumHourlyWindows": 3,
+    "subsequentReplicatesPerPdf": 0,
+    "totalPlannedImports": 6,
+    "minimumHourlyWindows": 1,
     "grouping": "per_pdf_hash_trial_index_and_hour_not_independent_documents",
     "precondition": "fresh_deployment_scope_quota_budget_preflight_before_each_window"
   },
@@ -336,6 +350,6 @@
     "All real measurements are explicitly historical D/D.1, not D.2 observations.",
     "Model revision behind the alias is not fixed; future repeats need fresh provenance.",
     "Controlled study mutations and browser smoke tests are never provider inference.",
-    "Human authorization/availability does not establish measured human outcomes."
+    "Human study excluded from this phase by the user; human outcomes and time savings are not measured."
   ]
 }

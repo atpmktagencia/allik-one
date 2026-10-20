@@ -1,0 +1,59 @@
+{
+  "stage": "D.2 continuation",
+  "executedOnUtcDate": "2026-10-20",
+  "repositoryHeadBeforeEdits": "26fdbaed47a8d226554e93cc0092a618a11d0385",
+  "checks": [
+    {
+      "command": "npx vitest run src/test/laboratory-evidence.test.ts src/test/laboratory-date-evidence.test.ts src/test/laboratory-completeness-experiment.test.ts src/test/laboratory-robustness-evaluation.test.ts src/test/laboratory-review-ui.test.tsx src/test/laboratory-history.test.ts src/test/laboratory-history-ui.test.tsx",
+      "exitCode": 0,
+      "filesPassed": 7,
+      "testsPassed": 109,
+      "durationSeconds": 8.31
+    },
+    {
+      "command": "npx vitest run --config vitest.integration.config.ts src/server/laboratory-extraction.test.ts src/server/laboratory-pdf-text.test.ts src/server/laboratory-robustness-corpus.test.ts",
+      "exitCode": 0,
+      "filesPassed": 3,
+      "testsPassed": 26,
+      "durationSeconds": 1.69,
+      "scope": "offline tests; model SDK mocked; corpus PDFs local; not database integration or real inference"
+    },
+    {
+      "command": "npm run typecheck",
+      "exitCode": 0
+    },
+    {
+      "command": "npx eslint scripts/report-laboratory-stage-d2.ts",
+      "exitCode": 0
+    },
+    {
+      "command": "npx tsx scripts/report-laboratory-stage-d2.ts",
+      "exitCode": 0,
+      "providerRequests": 0
+    },
+    {
+      "description": "offline ledger integrity: 6 unmeasured PDFs / 12 references; no fabricated D.2 outcomes; no human metrics; historical 6 documents / 32 results / 203 fields",
+      "exitCode": 0
+    },
+    {
+      "command": "git diff --exit-code 2b16b12 -- src package.json package-lock.json bun.lock vercel.json",
+      "exitCode": 0
+    }
+  ],
+  "applicationAndSchemaChanges": false,
+  "newRealInferences": 0,
+  "humanParticipantsMeasured": 0,
+  "humanMetrics": null,
+  "timeSavingsEstimate": null,
+  "historicalBrowserSmokeNotRerunOrCountedAsHumanStudy": true,
+  "sourceSha256": {
+    "src/server/laboratory-extraction.ts": "b109a1fb1286b16f095359d86b88a78e89616dcd7c1c8b90bd8bd452f4759c5f",
+    "src/server/laboratory-results.ts": "1d465e01a3534377eadb571f42e1e18955fd2af1134fbcb09997abe60b61efe9",
+    "src/lib/laboratory-evidence.ts": "cded726c69a7ae881e477b75c3245d9046aec52e60d00befe942af5e66e6d83f",
+    "src/lib/laboratory-date-evidence.ts": "1e7a858834a135508d90d80e568cb5b9338d5de43d7bcd11106b98d09bdf47e4",
+    "src/lib/laboratory-pipeline-version.ts": "5b8d4eee2a4f41b9013e17d265979adac10a437b0d141fc74a102c38c3130007",
+    "src/components/clinic/laboratory-review.tsx": "a784920720057edebc1f141f14b5e2ee8d99d3b4d625947159f2bb91fa921dd3",
+    "src/test/fixtures/laboratory-robustness-pdfs/sha256.json": "4492f4852c0dad78f914cd5edc2a2afad40c0e8fcde6073d2ecfa22e93353b1c"
+  },
+  "scopeLimitation": "No new real inference due daily 20/20 quota. Unit/offline tests do not complete D.2 homologation."
+}
