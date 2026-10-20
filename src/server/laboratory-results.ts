@@ -4,7 +4,6 @@ import { z } from "zod";
 import type { PoolClient } from "pg";
 import { authenticate, can, type AuthContext } from "./auth";
 import { getPool } from "./db";
-import { consumeAuthRateLimit } from "./auth-rate-limit";
 import { recordClinicalAccess } from "./clinical-access-audit";
 import { patientDocumentFileResponse } from "./patient-document-center";
 import { PATIENT_DOCUMENT_MAX_BYTES } from "../data/patient-document-upload";
@@ -633,16 +632,6 @@ export async function laboratoryResultsResponse(request: Request) {
             );
           }
           model = config.model;
-          if (
-            !(await consumeAuthRateLimit("lab-extraction-hour:" + a.organizationId, 6)) ||
-            !(await consumeAuthRateLimit("lab-extraction-day:" + a.organizationId, 20, "day"))
-          ) {
-            await c.query("ROLLBACK");
-            return fail(
-              "Limite de extrações atingido. A conferência manual continua disponível.",
-              429,
-            );
-          }
           j = await change(c, a, j, "PROCESSING", j.draft, "PROCESSING_STARTED", {
             attempt: d.operationId!,
             model,

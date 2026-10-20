@@ -490,7 +490,7 @@ describe("laboratory import, review and isolation", () => {
       clock.mockRestore();
     }
   });
-  it("fails closed when read auditing fails and enforces the extraction quota before a provider call", async () => {
+  it("fails closed when read auditing fails", async () => {
     const f = await fixture();
     const opened = await data(await f.post({ action: "OPEN" }));
     const spy = vi
@@ -500,23 +500,47 @@ describe("laboratory import, review and isolation", () => {
     expect(response.status).toBe(503);
     expect(await response.text()).not.toContain("Paciente fictício");
     spy.mockRestore();
-    const key = createHash("sha256")
-      .update("lab-extraction-hour:" + f.org)
-      .digest("hex");
-    await f.db.query(
-      "INSERT INTO inventory_auth_rate_limits(key,bucket,attempts) VALUES($1,date_trunc('hour',now()),6)",
-      [key],
+    expect(opened.import.status).toBe("WAITING");
+    expect(ai.extract).not.toHaveBeenCalled();
+  });
+  it("extracts despite exhausted legacy hourly and daily counters without publishing clinical results", async () => {
+    const f = await fixture();
+    const opened = await data(await f.post({ action: "OPEN" }));
+    for (const [period, attempts] of [
+      ["hour", 6],
+      ["day", 20],
+    ] as const) {
+      const key = createHash("sha256").update(`lab-extraction-${period}:${f.org}`).digest("hex");
+      await f.db.query(
+        "INSERT INTO inventory_auth_rate_limits(key,bucket,attempts) VALUES($1,date_trunc($2,now()),$3)",
+        [key, period, attempts],
+      );
+    }
+    storage.get.mockImplementation(async () => ({
+      statusCode: 200,
+      stream: new Blob([f.bytes]).stream(),
+    }));
+    ai.extract.mockResolvedValue(confirmed());
+    const response = await f.post({
+      action: "EXTRACT",
+      version: opened.import.version,
+      operationId: randomUUID(),
+    });
+    expect(response.status).toBe(200);
+    const extracted = await data(response);
+    expect(extracted.import.status).toBe("READY_REVIEW");
+    expect(extracted.import.draft.patientConfirmed).toBe(false);
+    expect(extracted.import.draft.rows.every((row: { verified: boolean }) => !row.verified)).toBe(
+      true,
     );
+    expect(ai.extract).toHaveBeenCalledTimes(1);
     expect(
       (
-        await f.post({
-          action: "EXTRACT",
-          version: opened.import.version,
-          operationId: randomUUID(),
-        })
-      ).status,
-    ).toBe(429);
-    expect(ai.extract).not.toHaveBeenCalled();
-    expect((await data(await f.read())).import.status).toBe("WAITING");
+        await f.db.query(
+          "SELECT count(*)::int n FROM inventory_laboratory_results WHERE patient_id=$1",
+          [f.patient],
+        )
+      ).rows[0].n,
+    ).toBe(0);
   });
 });

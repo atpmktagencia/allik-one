@@ -1,5 +1,10 @@
 # Etapa D.2 — fechamento de lacunas e validação operacional
 
+> Atualização posterior: o responsável solicitou remover as cotas internas. A
+> [correção](laboratory-extraction-quota-removal.md) elimina os bloqueios por hora/dia
+> no novo candidato. Os números e o bloqueio abaixo documentam a rodada anterior,
+> não o estado do novo deployment. As seis inferências seguem sem métricas novas.
+
 **Estado: homologação técnica ainda aberta; seis inferências reais bloqueadas pela
 cota diária.** A continuidade foi autorizada, mas a leitura de 20/10/2026 às
 **14:23 UTC** confirmou **20/20**. Não foram executadas novas chamadas nem alterados
