@@ -1,8 +1,8 @@
 # Proposta — Central de Documentos AI-First e exames longitudinais
 
-**Somente proposta, aguardando aprovação.** A D.2 segue aberta pelas seis inferências
-reais pendentes; não iniciar esta fase antes de sua avaliação e da aprovação do
-responsável. Nenhum componente, tabela, migration ou deployment desta proposta foi
+**Somente proposta, aguardando aprovação.** A rodada técnica D.2 foi encerrada
+com os seis casos reais e ressalvas documentadas. Não iniciar esta fase antes da
+aprovação do responsável. Nenhum componente, tabela, migration ou deployment desta proposta foi
 implementado. Não há necessidade demonstrada de trocar fornecedor ou adicionar OCR.
 
 ## 1. Diagnóstico do que já existe
@@ -48,7 +48,7 @@ flowchart LR
   E --> H[Verificação e pendências visíveis]
   H --> I[Conferência explícita pelo profissional]
   I --> J[Versão confirmada no histórico]
-  E --> K[Falha ou cota: original preservado e nova tentativa controlada]
+  E --> K[Falha ou limite do fornecedor: original preservado e tentativa controlada]
 ```
 
 Classificação e processamento podem ser automáticos; **publicação clínica não**.
@@ -139,7 +139,7 @@ sem plano próprio, custo previsto e autorização.
 - Registrar separadamente sugestão da IA, correção profissional, versão de prompt,
   fonte/páginas e confirmação. Datas do documento não substituem coleta/resultado.
 - Testar upload interrompido, hash duplicado, operação concorrente, resposta perdida,
-  limite diário, timeout e retomada; garantir ausência de novas chamadas involuntárias.
+  limite do fornecedor, timeout e retomada; garantir ausência de novas chamadas involuntárias.
 - Classificação: confusão por categoria, PDFs mistos, pedidos versus resultados, identidade
   divergente e conteúdo tentando instruir o modelo. Usar somente corpus sintético autorizado.
 - Extração/verificação: preservar regressões D/D.1/D.2, separar erro do extrator/verificador,
@@ -159,7 +159,7 @@ separados e latências de recebimento/processamento. Repetições não viram doc
 independentes. Sem evidência suficiente, não anunciar revisão segura sem supervisão.
 
 Critérios de aceite incluem **nenhuma perda de original, publicação involuntária,
-vazamento de escopo ou alteração retroativa** nos testes, além de orçamento/cotas
+vazamento de escopo ou alteração retroativa** nos testes, além de orçamento e restrições do fornecedor
 respeitados. Limiar quantitativo de qualidade de classificação e ampliação de formatos
 será proposto com corpus definido e comparação equivalente, antes da F2/F3.
 
@@ -167,3 +167,29 @@ Aprovação futura deve delimitar o primeiro marco, ambiente Preview sintético,
 e critérios; não implica implementar F1–F5 de uma vez. Portal completo, tela ao paciente,
 novos fornecedores, OCR e produção ficam fora desta proposta. **Nenhuma implementação
 foi iniciada.**
+
+## 7. Condições adicionadas pelo encerramento D.2
+
+A rodada de seis PDFs recuperou 12/12 resultados atuais e 61/61 campos esperados,
+mas gerou uma observação histórica adicional sinalizada e um falso alerta em referência
+multilinha. Isso orienta a implementação futura, sem autorizar correções nesta entrega:
+
+1. Antes de ampliar a automação, tratar escopo atual/histórico explicitamente. A linha
+   histórica de 120 mg/dL não pode virar resultado atual elegível, e não deve ser
+   removida sem rastreabilidade quando existir na fonte. O resultado atual é 90 mg/dL.
+2. Sustentar referências multilinha com evidência independente, preservando todas as
+   populações escritas no laudo. Não escolher uma faixa pela IA nem enfraquecer o
+   verificador para eliminar alertas. A Ferritina do caso D.2 é uma regressão concreta.
+3. Usar capturas reais D.2 congeladas como testes de regressão distintos de novos
+   testes do modelo. Nenhum teste determinístico representa uma nova inferência.
+4. Um upload produz uma identidade de arquivo e operações idempotentes. Medir chamadas
+   e tokens por etapa, limitar concorrência de execução e interromper falhas. As cotas
+   antigas de 6/h e 20/dia não serão restauradas nem propostas como condição de uso.
+5. A revisão por exceção continua supervisionada: 4/13 linhas exigiram atenção nesta
+   rodada (duas por ausência de texto independente, uma histórica e um falso alerta).
+   Isso não mede tempo humano ou segurança de uso. Estudo humano não será realizado
+   nesta fase, e nenhuma economia será anunciada sem medição autorizada posterior.
+
+Recomendação de aprovação: começar por **F1 — recebimento único**, acompanhado da
+especificação de classificação F2 e dos critérios acima. Aprovar F1 não autoriza
+automaticamente F2–F5, novas migrations, chamadas adicionais ou implantação em produção.

@@ -1,0 +1,53 @@
+{
+  "stage": "D.2",
+  "basis": "versioned synthetic PDFs and hand-authored references, inspected independently of verifier labels",
+  "findings": [
+    {
+      "caseId": "historical-dates-current-result",
+      "rowIndex": 1,
+      "classification": "historical_observation_outside_current_result_scope",
+      "sourcePage": 1,
+      "sourceSection": "Histórico de resultados / Data histórica: 2024-12-12 / Glicose: 120 mg/dL",
+      "currentExpectedResult": "90 mg/dL",
+      "extraResult": "120 mg/dL",
+      "sourceNumberInvented": false,
+      "currentResultReplaced": false,
+      "modelFlaggedHistoricalUncertainty": true,
+      "verifierStatus": "attention",
+      "verifierIssues": ["MODEL_UNCERTAINTY", "RESULT_NOT_FOUND", "FIELD_OMITTED"],
+      "unsafeEligibilityObserved": false,
+      "evaluatorNote": "unmatchedRow and four inventedPositive fields quantify extra output relative to the current-only reference; these are not four hallucinated source facts."
+    },
+    {
+      "caseId": "reference-formats-qualitative",
+      "rowIndex": 2,
+      "classification": "confirmed_false_reference_alert",
+      "sourcePage": 1,
+      "parameter": "Ferritina",
+      "sourceAndExtractedReference": "Adultos: 20 - 250 ng/mL; Crianças: 7 - 140 ng/mL",
+      "referenceOnFollowingLine": true,
+      "verifierStatus": "attention",
+      "verifierIssues": ["REFERENCE_NOT_FOUND"],
+      "extractionCorrectAgainstIndependentReference": true,
+      "confirmedFalseAlerts": 1,
+      "clinicalPopulationSelectedAutomatically": false
+    },
+    {
+      "caseId": "scan-degraded",
+      "rowIndexes": [0, 1],
+      "classification": "correct_but_without_independent_text",
+      "sourcePage": 1,
+      "verifierStatus": "attention",
+      "confirmedFalseAlerts": 0,
+      "basis": "Original raster inspected; values and units legible, no text layer. Page count and AI transcription do not independently confirm content."
+    }
+  ],
+  "modelInventedNumericalValuesObserved": 0,
+  "outOfScopeHistoricalRows": 1,
+  "confirmedFalseAlerts": 1,
+  "unsafeLiteralMatchesObserved": 0,
+  "humanParticipantsMeasured": 0,
+  "humanPerformance": null,
+  "runtimeChangedByAdjudication": false,
+  "sourceCaptureSha256": "26c31e526c1592b334d9e54bc92d9af0a297b8c82c9e5b47b03807727ee1c89f"
+}

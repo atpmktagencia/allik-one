@@ -1,0 +1,73 @@
+{
+  "stage": "D.2 final",
+  "dateUtc": "2026-10-20",
+  "candidate": "3f007de429cecf87f5255adb35e4608233b2dcdb",
+  "checks": [
+    {
+      "command": "npx vitest run src/test/laboratory-evidence.test.ts src/test/laboratory-date-evidence.test.ts src/test/laboratory-completeness-experiment.test.ts src/test/laboratory-robustness-evaluation.test.ts src/test/laboratory-review-ui.test.tsx src/test/laboratory-history.test.ts src/test/laboratory-history-ui.test.tsx",
+      "exitCode": 0,
+      "testsPassed": 109,
+      "filesPassed": 7,
+      "durationSeconds": 7.77
+    },
+    {
+      "command": "npx vitest run --config vitest.integration.config.ts src/server/laboratory-extraction.test.ts src/server/laboratory-pdf-text.test.ts src/server/laboratory-robustness-corpus.test.ts",
+      "exitCode": 0,
+      "testsPassed": 26,
+      "filesPassed": 3,
+      "durationSeconds": 1.59,
+      "scope": "offline server/corpus tests; SDK controlled, not paid inferences or database integration"
+    },
+    {
+      "command": "npm run typecheck",
+      "exitCode": 0
+    },
+    {
+      "command": "npx eslint scripts/report-laboratory-stage-d2.ts docs/benchmarks/runners/laboratory-stage-d2.cjs",
+      "exitCode": 0
+    },
+    {
+      "description": "Offline reproduction is semantically identical to both versioned evaluators; source hashes match",
+      "exitCode": 0
+    },
+    {
+      "description": "Offline injected failed attempt remains in denominator; missing usage and cumulative cost remain null",
+      "exitCode": 0,
+      "origin": "controlled_reporter_test_not_provider_inference"
+    },
+    {
+      "description": "Offline duplicate operation and wrong pipeline are rejected",
+      "exitCode": 0,
+      "origin": "controlled_reporter_test_not_provider_inference"
+    },
+    {
+      "description": "Six real captures remain unconfirmed, with exactly six started/completed requests; history and production snapshots unchanged",
+      "exitCode": 0
+    },
+    {
+      "command": "git diff --exit-code -- src package.json package-lock.json vercel.json",
+      "exitCode": 0
+    }
+  ],
+  "paidInferencesSeparateFromAutomatedTests": 6,
+  "humanParticipantsMeasured": 0,
+  "humanMetrics": null,
+  "sourceSha256": {
+    "src/server/laboratory-results.ts": "39bdf362a43d8df281d762c58bbeb8fd2055c8a907806663b4d98180ce1da030",
+    "src/server/laboratory-extraction.ts": "b109a1fb1286b16f095359d86b88a78e89616dcd7c1c8b90bd8bd452f4759c5f",
+    "src/lib/laboratory-evidence.ts": "cded726c69a7ae881e477b75c3245d9046aec52e60d00befe942af5e66e6d83f",
+    "src/components/clinic/laboratory-review.tsx": "a784920720057edebc1f141f14b5e2ee8d99d3b4d625947159f2bb91fa921dd3",
+    "src/test/fixtures/laboratory-robustness.ts": "9bb8bead7b73ea3c456b01428aa8ed3512692ea3995132ade62100c596de7d9f",
+    "src/test/fixtures/laboratory-robustness-pdfs/sha256.json": "4492f4852c0dad78f914cd5edc2a2afad40c0e8fcde6073d2ecfa22e93353b1c",
+    "docs/benchmarks/runners/laboratory-stage-d2.cjs": "25dc6fc4953e4bf0c5d542ae6dd0e9616e385858d88ad2dc5f7eb9866fcbda6c",
+    "docs/benchmarks/laboratory-stage-d2-live-20261020.json": "26c31e526c1592b334d9e54bc92d9af0a297b8c82c9e5b47b03807727ee1c89f"
+  },
+  "historicalCandidateChecksNotRerun": {
+    "integrationTestsPassed": 463,
+    "runtimeRoleChecksPassed": 3,
+    "scope": "exact same deployed candidate 3f007de; previous quota-removal turn, not new benchmark tests"
+  },
+  "applicationOrSchemaChangedInThisRound": false,
+  "technicalRoundClosedWithResiduals": true,
+  "clinicalValidationOrAutomaticPublicationApproved": false
+}

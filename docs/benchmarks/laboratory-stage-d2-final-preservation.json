@@ -1,0 +1,120 @@
+{
+  "stage": "D.2 final",
+  "candidate": {
+    "id": "dpl_9wpUPeCGKMn1iqgXUmt8yLmji6Ay",
+    "url": "allik-bmdfgi7vj-atp-mkt.vercel.app",
+    "state": "READY",
+    "target": null,
+    "sha": "3f007de429cecf87f5255adb35e4608233b2dcdb",
+    "branch": "feature/allik-patients"
+  },
+  "productionBefore": {
+    "id": "dpl_4ag81mHUxsDZ7VaKqnrKKHqKrFkp",
+    "url": "allik-cz2dk6vej-atp-mkt.vercel.app",
+    "state": "READY",
+    "target": "production",
+    "sha": "091612549723e484d41bd3c984e877ddd19365e6",
+    "branch": "feature/allik-patients"
+  },
+  "productionAfter": {
+    "id": "dpl_4ag81mHUxsDZ7VaKqnrKKHqKrFkp",
+    "url": "allik-cz2dk6vej-atp-mkt.vercel.app",
+    "state": "READY",
+    "target": "production",
+    "sha": "091612549723e484d41bd3c984e877ddd19365e6",
+    "branch": "feature/allik-patients"
+  },
+  "scope": {
+    "neonProject": "little-dust-61663559",
+    "neonBranch": "br-winter-hill-b69uz195",
+    "patient": "90319847-c7a6-4adc-a08a-47cf5e2aef21",
+    "unit": "a1100000-0000-4000-8000-000000000101",
+    "dataClassification": "synthetic"
+  },
+  "configuration": {
+    "LAB_EXTRACTION_PROVIDER": {
+      "value": "openai",
+      "target": ["preview"],
+      "gitBranch": "feature/allik-patients"
+    },
+    "LAB_EXTRACTION_MODEL": {
+      "value": "openai/gpt-6-luna",
+      "target": ["preview"],
+      "gitBranch": "feature/allik-patients"
+    },
+    "INVENTORY_ENVIRONMENT": {
+      "value": "preview",
+      "target": ["preview"],
+      "gitBranch": "feature/allik-patients"
+    },
+    "INVENTORY_PREVIEW_DATA_CLASSIFICATION": {
+      "value": "synthetic",
+      "target": ["preview"],
+      "gitBranch": "feature/allik-patients"
+    },
+    "INVENTORY_PREPARE_PREVIEW": {
+      "value": "false",
+      "target": ["preview"],
+      "gitBranch": "feature/allik-patients"
+    }
+  },
+  "runtimePreflight": {
+    "at": "2026-10-20T22:38:37.696Z",
+    "immutableUrl": "https://allik-bmdfgi7vj-atp-mkt.vercel.app",
+    "sessionStatus": 200,
+    "actorEmail": "preview-operator@allik.invalid",
+    "sharedPreviewOperator": true,
+    "scopedImportId": "000e9544-a584-4a7e-8f68-ef52d6ec92d9",
+    "verifierVersion": 3,
+    "evidenceOrigin": "previous_v3_import_read_only_plus_verified_deployment_sha",
+    "extractionAvailable": true
+  },
+  "credentialAuthorization": {
+    "userAuthorizedSyntheticOpenAIInference": true,
+    "providerKeyExported": false,
+    "configurationReadyBeforePaidCalls": true,
+    "providerAuthenticationConfirmedBySixCompletedResponses": true
+  },
+  "before": {
+    "checked_at": "2026-10-20T22:37:28.122Z",
+    "database": "neondb",
+    "results": "88",
+    "digest": "713f44bd5c8fa62783847475c61a3525",
+    "reviews": "2"
+  },
+  "after": {
+    "checked_at": "2026-10-20T22:42:11.160Z",
+    "results": "88",
+    "digest": "713f44bd5c8fa62783847475c61a3525",
+    "reviews": "2",
+    "new_unconfirmed_imports": "6"
+  },
+  "validatedHistoryUnchanged": true,
+  "paidModelRequests": 6,
+  "unexpectedAdditionalRequests": 0,
+  "automaticRetries": 0,
+  "maxConcurrentBenchmarkImports": 1,
+  "providerConcurrencyPerImport": 2,
+  "savesOrValidationsOrReopens": 0,
+  "newSyntheticUnconfirmedImports": 6,
+  "oldQuotasRestored": false,
+  "providerFailureOrUnknownOutcomeStopsBenchmark": true,
+  "scheduledFutureCalls": 0,
+  "sandbox": {
+    "id": "sbx_cb1BulSnIZujYSqQbAx6z23gOH5Z",
+    "status": "stopped",
+    "persistent": false,
+    "totalDurationMilliseconds": 227656,
+    "activeCpuDurationMilliseconds": 7644,
+    "egressBytes": 397601,
+    "ingressBytes": 11032892,
+    "infrastructureCostObservedUsd": null
+  },
+  "humanStudy": {
+    "status": "not_conducted_by_user_decision",
+    "participants": 0,
+    "metrics": null,
+    "timeSavingsEstimate": null
+  },
+  "productionChangedByThisWork": false
+}

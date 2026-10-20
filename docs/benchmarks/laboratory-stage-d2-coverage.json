@@ -1,40 +1,2072 @@
 {
   "stage": "D.2",
-  "candidate": "2b16b12c7f6417ae3e9df6042a4e01f793379b07",
-  "sourceEvaluationSha256": "4bad57239a77a1071832ef112c36ae96f2c65d3e7edb0d4badbac6151dfd635f",
-  "sourceCaptureSha256": "3bc3e06eae8260285e58aad82a9634a7105b0ed4fda75795f9af50483c9b42ee",
+  "status": "technical_round_closed_with_documented_residuals",
+  "technicalRoundCompleted": true,
+  "clinicalHomologationCompleted": false,
   "providerCallsPerformedByReporter": 0,
+  "candidate": {
+    "immutableUrl": "https://allik-bmdfgi7vj-atp-mkt.vercel.app",
+    "codeCommit": "3f007de429cecf87f5255adb35e4608233b2dcdb",
+    "deploymentId": "dpl_9wpUPeCGKMn1iqgXUmt8yLmji6Ay",
+    "dataClassification": "synthetic",
+    "pipeline": "lab-pipeline-3",
+    "maximumImports": 6,
+    "maxConcurrentImports": 1,
+    "automaticRetries": 0,
+    "hourlyDailyQuotasRestored": false,
+    "budgetScope": "six preselected single-page synthetic PDFs; no additional calls or retries"
+  },
+  "sourceCaptureSha256": "26c31e526c1592b334d9e54bc92d9af0a297b8c82c9e5b47b03807727ee1c89f",
+  "sourcePriorEvaluationSha256": "4bad57239a77a1071832ef112c36ae96f2c65d3e7edb0d4badbac6151dfd635f",
   "currentRound": {
-    "realInferences": 0,
-    "providerRequests": 0,
-    "inferredDocuments": 0,
-    "observedNewResultAccuracy": null,
-    "modelLatencyMilliseconds": null,
-    "newModelTokenCostUsd": 0,
-    "humanPerformance": null,
-    "reason": "daily_quota_20_of_20_no_attempts_made"
-  },
-  "latestPreflight": {
-    "checkedAt": "2026-10-20T14:23:21.448Z",
-    "dailyAttempts": 20,
-    "dailyLimit": 20,
-    "nextDailyResetUtc": "2026-10-21T00:00:00.000Z",
-    "decision": "blocked_daily_quota_no_calls_or_overrides"
-  },
-  "humanStudy": {
-    "status": "not_conducted_by_user_decision",
-    "participantsMeasured": 0,
-    "performanceMetrics": null,
-    "timeSavingsEstimate": null,
-    "decision": "Estudo humano retirado desta fase pelo responsável; autorização anterior de participantes substituída."
+    "benchmark": "stage-d-real-openai",
+    "evaluation": "offline_reference_v1",
+    "providerCallsPerformedByReporter": 0,
+    "sourceCaptureSha256": "26c31e526c1592b334d9e54bc92d9af0a297b8c82c9e5b47b03807727ee1c89f",
+    "sourceProvenance": {
+      "immutableUrl": "https://allik-bmdfgi7vj-atp-mkt.vercel.app",
+      "codeCommit": "3f007de429cecf87f5255adb35e4608233b2dcdb",
+      "deploymentId": "dpl_9wpUPeCGKMn1iqgXUmt8yLmji6Ay",
+      "dataClassification": "synthetic",
+      "pipeline": "lab-pipeline-3",
+      "maximumImports": 6,
+      "maxConcurrentImports": 1,
+      "automaticRetries": 0,
+      "hourlyDailyQuotasRestored": false,
+      "budgetScope": "six preselected single-page synthetic PDFs; no additional calls or retries"
+    },
+    "attemptAccounting": {
+      "primaryImports": 6,
+      "supplementalImports": 0,
+      "supplementalQualityIncluded": false
+    },
+    "supplementalUsage": {
+      "imports": 0,
+      "successfulBackendExtractions": 0,
+      "failedBackendExtractions": 0,
+      "unknownBackendOutcomes": 0,
+      "interruptedClientRequests": 0,
+      "inputTokens": 0,
+      "outputTokens": 0,
+      "startedRequests": 0,
+      "completedRequests": 0,
+      "usageComplete": true,
+      "estimatedTokenCostUsd": 0,
+      "observedInvoiceCostUsd": null,
+      "costBasis": "public_standard_token_rates_not_invoice"
+    },
+    "allAttemptUsage": {
+      "imports": 6,
+      "successfulBackendExtractions": 6,
+      "failedBackendExtractions": 0,
+      "unknownBackendOutcomes": 0,
+      "interruptedClientRequests": 0,
+      "inputTokens": 5929,
+      "outputTokens": 1457,
+      "startedRequests": 6,
+      "completedRequests": 6,
+      "usageComplete": true,
+      "estimatedTokenCostUsd": 0.0013214000000000001,
+      "observedInvoiceCostUsd": null,
+      "costBasis": "public_standard_token_rates_not_invoice"
+    },
+    "pricing": {
+      "inputUsdPerMillion": 0.1,
+      "cachedInputUsdPerMillion": 0.01,
+      "outputUsdPerMillion": 0.5,
+      "asOf": "2026-10-20",
+      "source": "https://developers.openai.com/api/docs/models/gpt-6-luna",
+      "basis": "standard_token_estimate_not_invoice",
+      "excludes": [
+        "infrastructure",
+        "taxes",
+        "service_tier_or_regional_surcharges",
+        "cache_writes_if_any"
+      ]
+    },
+    "byPhase": {
+      "after": {
+        "documents": 6,
+        "successfulExtractions": 6,
+        "failedAttempts": 0,
+        "expectedLegibleResults": 12,
+        "correctResults": 12,
+        "resultRecall": 1,
+        "emittedRows": 13,
+        "completeRows": 12,
+        "omittedRows": 0,
+        "unmatchedRows": 1,
+        "associationErrors": 0,
+        "fields": {
+          "name": {
+            "expectedPositive": 12,
+            "emittedPositive": 13,
+            "correctPositive": 12,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 1,
+            "correctAbsent": 0,
+            "unresolved": 0,
+            "preservedUnresolved": 0
+          },
+          "result": {
+            "expectedPositive": 12,
+            "emittedPositive": 13,
+            "correctPositive": 12,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 1,
+            "correctAbsent": 0,
+            "unresolved": 0,
+            "preservedUnresolved": 0
+          },
+          "unit": {
+            "expectedPositive": 10,
+            "emittedPositive": 11,
+            "correctPositive": 10,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 1,
+            "correctAbsent": 2,
+            "unresolved": 0,
+            "preservedUnresolved": 0
+          },
+          "reference": {
+            "expectedPositive": 6,
+            "emittedPositive": 6,
+            "correctPositive": 6,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 0,
+            "correctAbsent": 6,
+            "unresolved": 0,
+            "preservedUnresolved": 0
+          },
+          "collectedOn": {
+            "expectedPositive": 3,
+            "emittedPositive": 3,
+            "correctPositive": 3,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 0,
+            "correctAbsent": 9,
+            "unresolved": 0,
+            "preservedUnresolved": 0
+          },
+          "reportedOn": {
+            "expectedPositive": 3,
+            "emittedPositive": 3,
+            "correctPositive": 3,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 0,
+            "correctAbsent": 9,
+            "unresolved": 0,
+            "preservedUnresolved": 0
+          },
+          "issuedOn": {
+            "expectedPositive": 3,
+            "emittedPositive": 3,
+            "correctPositive": 3,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 0,
+            "correctAbsent": 9,
+            "unresolved": 0,
+            "preservedUnresolved": 0
+          },
+          "laboratory": {
+            "expectedPositive": 0,
+            "emittedPositive": 0,
+            "correctPositive": 0,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 0,
+            "correctAbsent": 12,
+            "unresolved": 0,
+            "preservedUnresolved": 0
+          },
+          "method": {
+            "expectedPositive": 0,
+            "emittedPositive": 0,
+            "correctPositive": 0,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 0,
+            "correctAbsent": 12,
+            "unresolved": 0,
+            "preservedUnresolved": 0
+          },
+          "material": {
+            "expectedPositive": 0,
+            "emittedPositive": 0,
+            "correctPositive": 0,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 0,
+            "correctAbsent": 12,
+            "unresolved": 0,
+            "preservedUnresolved": 0
+          },
+          "sourcePage": {
+            "expectedPositive": 12,
+            "emittedPositive": 13,
+            "correctPositive": 12,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 1,
+            "correctAbsent": 0,
+            "unresolved": 0,
+            "preservedUnresolved": 0
+          }
+        },
+        "reviewRows": 4,
+        "reviewFraction": 0.3076923076923077,
+        "unsafeLiteralMatches": 0,
+        "falseAlertCandidates": 1,
+        "silentUnresolvedAcceptance": 0,
+        "deterministicDateRecoveredFields": 0,
+        "medianHttpMilliseconds": 6444.5,
+        "latencyMeasuredDocuments": 6,
+        "inputTokens": 5929,
+        "outputTokens": 1457,
+        "startedRequests": 6,
+        "completedRequests": 6,
+        "estimatedTokenCostUsd": 0.0013214000000000001,
+        "observedInvoiceCostUsd": null
+      }
+    },
+    "byPhaseAndFormat": {
+      "after:digital": {
+        "documents": 5,
+        "successfulExtractions": 5,
+        "failedAttempts": 0,
+        "expectedLegibleResults": 10,
+        "correctResults": 10,
+        "resultRecall": 1,
+        "emittedRows": 11,
+        "completeRows": 10,
+        "omittedRows": 0,
+        "unmatchedRows": 1,
+        "associationErrors": 0,
+        "fields": {
+          "name": {
+            "expectedPositive": 10,
+            "emittedPositive": 11,
+            "correctPositive": 10,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 1,
+            "correctAbsent": 0,
+            "unresolved": 0,
+            "preservedUnresolved": 0
+          },
+          "result": {
+            "expectedPositive": 10,
+            "emittedPositive": 11,
+            "correctPositive": 10,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 1,
+            "correctAbsent": 0,
+            "unresolved": 0,
+            "preservedUnresolved": 0
+          },
+          "unit": {
+            "expectedPositive": 9,
+            "emittedPositive": 10,
+            "correctPositive": 9,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 1,
+            "correctAbsent": 1,
+            "unresolved": 0,
+            "preservedUnresolved": 0
+          },
+          "reference": {
+            "expectedPositive": 4,
+            "emittedPositive": 4,
+            "correctPositive": 4,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 0,
+            "correctAbsent": 6,
+            "unresolved": 0,
+            "preservedUnresolved": 0
+          },
+          "collectedOn": {
+            "expectedPositive": 3,
+            "emittedPositive": 3,
+            "correctPositive": 3,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 0,
+            "correctAbsent": 7,
+            "unresolved": 0,
+            "preservedUnresolved": 0
+          },
+          "reportedOn": {
+            "expectedPositive": 3,
+            "emittedPositive": 3,
+            "correctPositive": 3,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 0,
+            "correctAbsent": 7,
+            "unresolved": 0,
+            "preservedUnresolved": 0
+          },
+          "issuedOn": {
+            "expectedPositive": 3,
+            "emittedPositive": 3,
+            "correctPositive": 3,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 0,
+            "correctAbsent": 7,
+            "unresolved": 0,
+            "preservedUnresolved": 0
+          },
+          "laboratory": {
+            "expectedPositive": 0,
+            "emittedPositive": 0,
+            "correctPositive": 0,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 0,
+            "correctAbsent": 10,
+            "unresolved": 0,
+            "preservedUnresolved": 0
+          },
+          "method": {
+            "expectedPositive": 0,
+            "emittedPositive": 0,
+            "correctPositive": 0,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 0,
+            "correctAbsent": 10,
+            "unresolved": 0,
+            "preservedUnresolved": 0
+          },
+          "material": {
+            "expectedPositive": 0,
+            "emittedPositive": 0,
+            "correctPositive": 0,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 0,
+            "correctAbsent": 10,
+            "unresolved": 0,
+            "preservedUnresolved": 0
+          },
+          "sourcePage": {
+            "expectedPositive": 10,
+            "emittedPositive": 11,
+            "correctPositive": 10,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 1,
+            "correctAbsent": 0,
+            "unresolved": 0,
+            "preservedUnresolved": 0
+          }
+        },
+        "reviewRows": 2,
+        "reviewFraction": 0.18181818181818182,
+        "unsafeLiteralMatches": 0,
+        "falseAlertCandidates": 1,
+        "silentUnresolvedAcceptance": 0,
+        "deterministicDateRecoveredFields": 0,
+        "medianHttpMilliseconds": 6396,
+        "latencyMeasuredDocuments": 5,
+        "inputTokens": 3975,
+        "outputTokens": 1186,
+        "startedRequests": 5,
+        "completedRequests": 5,
+        "estimatedTokenCostUsd": 0.0009905,
+        "observedInvoiceCostUsd": null
+      },
+      "after:scanned": {
+        "documents": 1,
+        "successfulExtractions": 1,
+        "failedAttempts": 0,
+        "expectedLegibleResults": 2,
+        "correctResults": 2,
+        "resultRecall": 1,
+        "emittedRows": 2,
+        "completeRows": 2,
+        "omittedRows": 0,
+        "unmatchedRows": 0,
+        "associationErrors": 0,
+        "fields": {
+          "name": {
+            "expectedPositive": 2,
+            "emittedPositive": 2,
+            "correctPositive": 2,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 0,
+            "correctAbsent": 0,
+            "unresolved": 0,
+            "preservedUnresolved": 0
+          },
+          "result": {
+            "expectedPositive": 2,
+            "emittedPositive": 2,
+            "correctPositive": 2,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 0,
+            "correctAbsent": 0,
+            "unresolved": 0,
+            "preservedUnresolved": 0
+          },
+          "unit": {
+            "expectedPositive": 1,
+            "emittedPositive": 1,
+            "correctPositive": 1,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 0,
+            "correctAbsent": 1,
+            "unresolved": 0,
+            "preservedUnresolved": 0
+          },
+          "reference": {
+            "expectedPositive": 2,
+            "emittedPositive": 2,
+            "correctPositive": 2,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 0,
+            "correctAbsent": 0,
+            "unresolved": 0,
+            "preservedUnresolved": 0
+          },
+          "collectedOn": {
+            "expectedPositive": 0,
+            "emittedPositive": 0,
+            "correctPositive": 0,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 0,
+            "correctAbsent": 2,
+            "unresolved": 0,
+            "preservedUnresolved": 0
+          },
+          "reportedOn": {
+            "expectedPositive": 0,
+            "emittedPositive": 0,
+            "correctPositive": 0,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 0,
+            "correctAbsent": 2,
+            "unresolved": 0,
+            "preservedUnresolved": 0
+          },
+          "issuedOn": {
+            "expectedPositive": 0,
+            "emittedPositive": 0,
+            "correctPositive": 0,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 0,
+            "correctAbsent": 2,
+            "unresolved": 0,
+            "preservedUnresolved": 0
+          },
+          "laboratory": {
+            "expectedPositive": 0,
+            "emittedPositive": 0,
+            "correctPositive": 0,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 0,
+            "correctAbsent": 2,
+            "unresolved": 0,
+            "preservedUnresolved": 0
+          },
+          "method": {
+            "expectedPositive": 0,
+            "emittedPositive": 0,
+            "correctPositive": 0,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 0,
+            "correctAbsent": 2,
+            "unresolved": 0,
+            "preservedUnresolved": 0
+          },
+          "material": {
+            "expectedPositive": 0,
+            "emittedPositive": 0,
+            "correctPositive": 0,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 0,
+            "correctAbsent": 2,
+            "unresolved": 0,
+            "preservedUnresolved": 0
+          },
+          "sourcePage": {
+            "expectedPositive": 2,
+            "emittedPositive": 2,
+            "correctPositive": 2,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 0,
+            "correctAbsent": 0,
+            "unresolved": 0,
+            "preservedUnresolved": 0
+          }
+        },
+        "reviewRows": 2,
+        "reviewFraction": 1,
+        "unsafeLiteralMatches": 0,
+        "falseAlertCandidates": 0,
+        "silentUnresolvedAcceptance": 0,
+        "deterministicDateRecoveredFields": 0,
+        "medianHttpMilliseconds": 8626,
+        "latencyMeasuredDocuments": 1,
+        "inputTokens": 1954,
+        "outputTokens": 271,
+        "startedRequests": 1,
+        "completedRequests": 1,
+        "estimatedTokenCostUsd": 0.00033089999999999997,
+        "observedInvoiceCostUsd": null
+      }
+    },
+    "cases": [
+      {
+        "caseId": "similar-names-distinct-units",
+        "phase": "after",
+        "format": "digital",
+        "tags": ["similar_names", "different_units", "no_unit_conversion"],
+        "sha256": "ee4aa15b3938609be1cca4d73d8eae95a01827b74d9b794939a3ce939b49c9d9",
+        "referenceSha256": "a60336a007d49a2c2ee0810ee5948a9960b5436db454202948f6abaa37104d79",
+        "referencePolicy": "stage_d_explicit_evidence_v1",
+        "pageCount": 1,
+        "independentText": true,
+        "extractionSucceeded": true,
+        "failureCode": null,
+        "httpStatus": 200,
+        "wallMilliseconds": 8357,
+        "evaluation": {
+          "expectedLegibleRows": 4,
+          "emittedRows": 4,
+          "matchedRows": 4,
+          "completeRows": 4,
+          "correctResults": 4,
+          "omittedRows": 0,
+          "unmatchedRows": 0,
+          "associationErrors": 0,
+          "resultRecall": 1,
+          "fields": {
+            "name": {
+              "expectedPositive": 4,
+              "emittedPositive": 4,
+              "correctPositive": 4,
+              "omittedPositive": 0,
+              "wrongPositive": 0,
+              "inventedPositive": 0,
+              "correctAbsent": 0,
+              "unresolved": 0,
+              "preservedUnresolved": 0
+            },
+            "result": {
+              "expectedPositive": 4,
+              "emittedPositive": 4,
+              "correctPositive": 4,
+              "omittedPositive": 0,
+              "wrongPositive": 0,
+              "inventedPositive": 0,
+              "correctAbsent": 0,
+              "unresolved": 0,
+              "preservedUnresolved": 0
+            },
+            "unit": {
+              "expectedPositive": 4,
+              "emittedPositive": 4,
+              "correctPositive": 4,
+              "omittedPositive": 0,
+              "wrongPositive": 0,
+              "inventedPositive": 0,
+              "correctAbsent": 0,
+              "unresolved": 0,
+              "preservedUnresolved": 0
+            },
+            "reference": {
+              "expectedPositive": 0,
+              "emittedPositive": 0,
+              "correctPositive": 0,
+              "omittedPositive": 0,
+              "wrongPositive": 0,
+              "inventedPositive": 0,
+              "correctAbsent": 4,
+              "unresolved": 0,
+              "preservedUnresolved": 0
+            },
+            "collectedOn": {
+              "expectedPositive": 0,
+              "emittedPositive": 0,
+              "correctPositive": 0,
+              "omittedPositive": 0,
+              "wrongPositive": 0,
+              "inventedPositive": 0,
+              "correctAbsent": 4,
+              "unresolved": 0,
+              "preservedUnresolved": 0
+            },
+            "reportedOn": {
+              "expectedPositive": 0,
+              "emittedPositive": 0,
+              "correctPositive": 0,
+              "omittedPositive": 0,
+              "wrongPositive": 0,
+              "inventedPositive": 0,
+              "correctAbsent": 4,
+              "unresolved": 0,
+              "preservedUnresolved": 0
+            },
+            "issuedOn": {
+              "expectedPositive": 0,
+              "emittedPositive": 0,
+              "correctPositive": 0,
+              "omittedPositive": 0,
+              "wrongPositive": 0,
+              "inventedPositive": 0,
+              "correctAbsent": 4,
+              "unresolved": 0,
+              "preservedUnresolved": 0
+            },
+            "laboratory": {
+              "expectedPositive": 0,
+              "emittedPositive": 0,
+              "correctPositive": 0,
+              "omittedPositive": 0,
+              "wrongPositive": 0,
+              "inventedPositive": 0,
+              "correctAbsent": 4,
+              "unresolved": 0,
+              "preservedUnresolved": 0
+            },
+            "method": {
+              "expectedPositive": 0,
+              "emittedPositive": 0,
+              "correctPositive": 0,
+              "omittedPositive": 0,
+              "wrongPositive": 0,
+              "inventedPositive": 0,
+              "correctAbsent": 4,
+              "unresolved": 0,
+              "preservedUnresolved": 0
+            },
+            "material": {
+              "expectedPositive": 0,
+              "emittedPositive": 0,
+              "correctPositive": 0,
+              "omittedPositive": 0,
+              "wrongPositive": 0,
+              "inventedPositive": 0,
+              "correctAbsent": 4,
+              "unresolved": 0,
+              "preservedUnresolved": 0
+            },
+            "sourcePage": {
+              "expectedPositive": 4,
+              "emittedPositive": 4,
+              "correctPositive": 4,
+              "omittedPositive": 0,
+              "wrongPositive": 0,
+              "inventedPositive": 0,
+              "correctAbsent": 0,
+              "unresolved": 0,
+              "preservedUnresolved": 0
+            }
+          },
+          "positiveExpected": 16,
+          "positiveEmitted": 16,
+          "positiveCorrect": 16,
+          "positivePrecision": 1,
+          "positiveRecall": 1,
+          "unreadable": {
+            "expectedMentions": 0,
+            "correctlyFlaggedUnreadable": 0,
+            "omittedUnreadableMentions": 0
+          },
+          "unresolvedDates": {
+            "rows": 0,
+            "fields": 0,
+            "preservedUnresolved": 0,
+            "signaledRows": 0
+          },
+          "verifier": {
+            "eligibleRows": 4,
+            "attentionRows": 0,
+            "reviewFraction": 0,
+            "incorrectRowsObserved": 0,
+            "unsafeLiteralMatches": 0,
+            "falseAlertCandidates": 0,
+            "correctButUnprovableRows": 0,
+            "silentUnresolvedAcceptance": 0,
+            "sensitivityToWrongResults": null
+          },
+          "errors": []
+        },
+        "deterministicDateRecoveredFields": 0,
+        "derivedModelOnlyEvaluation": null,
+        "inventory": {
+          "version": 2,
+          "scope": "recognizable_text_rows_only",
+          "completenessProven": false,
+          "recognizableRows": 4,
+          "possibleOmissions": [],
+          "coverage": {
+            "basis": "supplied_native_text_lines",
+            "coordinatesAvailable": false,
+            "independentTextAvailable": true,
+            "expectedPageCount": null,
+            "providedPages": [1],
+            "missingPages": null,
+            "duplicatePageNumbers": [],
+            "pages": [
+              {
+                "page": 1,
+                "status": "unrecognized_text_present",
+                "nonEmptyLines": 5,
+                "recognizedRows": 4,
+                "unknownLines": [
+                  {
+                    "line": 1,
+                    "reason": "unsupported_or_non_observation_text"
+                  }
+                ],
+                "sections": [
+                  {
+                    "kind": "unspecified",
+                    "startLine": 1,
+                    "endLine": 5,
+                    "recognizedRows": 4,
+                    "unrecognizedLines": [1]
+                  }
+                ]
+              }
+            ]
+          },
+          "diagnostics": {
+            "valueMismatches": [],
+            "unitMismatches": [],
+            "provenanceMissing": [],
+            "pageMismatches": [],
+            "ambiguousProvenance": [],
+            "unmatchedPredictions": []
+          }
+        },
+        "telemetry": {
+          "model": "openai/gpt-6-luna",
+          "failures": 0,
+          "provider": "openai",
+          "costBasis": "unavailable",
+          "durationMs": 4876,
+          "inputTokens": 783,
+          "pricingAsOf": null,
+          "outputTokens": 345,
+          "extractedRows": 4,
+          "promptVersion": "lab-transcription-3",
+          "usageComplete": true,
+          "divergenceRows": 0,
+          "pipelineVersion": "lab-pipeline-3",
+          "reasoningTokens": 23,
+          "startedRequests": 1,
+          "verifierVersion": 3,
+          "divergenceFields": 0,
+          "estimatedCostUsd": null,
+          "cachedInputTokens": 0,
+          "completedRequests": 1,
+          "processingMilliseconds": 6494
+        },
+        "estimatedTokenCostUsd": 0.0002508,
+        "costBasis": "public_standard_token_rates_not_invoice",
+        "historicalBaselineSamePdf": null
+      },
+      {
+        "caseId": "scan-degraded",
+        "phase": "after",
+        "format": "scanned",
+        "tags": ["scanned", "degraded", "visual_extraction", "qualitative"],
+        "sha256": "7bfd8067d9a8411847577aef967936f49ea07a21810e3ed7b5a66ee99033c436",
+        "referenceSha256": "d32f6540e8d40e9a4cc273548c6b19e250451edc26496be760bffac2c246a388",
+        "referencePolicy": "stage_d_explicit_evidence_v1",
+        "pageCount": 1,
+        "independentText": false,
+        "extractionSucceeded": true,
+        "failureCode": null,
+        "httpStatus": 200,
+        "wallMilliseconds": 8626,
+        "evaluation": {
+          "expectedLegibleRows": 2,
+          "emittedRows": 2,
+          "matchedRows": 2,
+          "completeRows": 2,
+          "correctResults": 2,
+          "omittedRows": 0,
+          "unmatchedRows": 0,
+          "associationErrors": 0,
+          "resultRecall": 1,
+          "fields": {
+            "name": {
+              "expectedPositive": 2,
+              "emittedPositive": 2,
+              "correctPositive": 2,
+              "omittedPositive": 0,
+              "wrongPositive": 0,
+              "inventedPositive": 0,
+              "correctAbsent": 0,
+              "unresolved": 0,
+              "preservedUnresolved": 0
+            },
+            "result": {
+              "expectedPositive": 2,
+              "emittedPositive": 2,
+              "correctPositive": 2,
+              "omittedPositive": 0,
+              "wrongPositive": 0,
+              "inventedPositive": 0,
+              "correctAbsent": 0,
+              "unresolved": 0,
+              "preservedUnresolved": 0
+            },
+            "unit": {
+              "expectedPositive": 1,
+              "emittedPositive": 1,
+              "correctPositive": 1,
+              "omittedPositive": 0,
+              "wrongPositive": 0,
+              "inventedPositive": 0,
+              "correctAbsent": 1,
+              "unresolved": 0,
+              "preservedUnresolved": 0
+            },
+            "reference": {
+              "expectedPositive": 2,
+              "emittedPositive": 2,
+              "correctPositive": 2,
+              "omittedPositive": 0,
+              "wrongPositive": 0,
+              "inventedPositive": 0,
+              "correctAbsent": 0,
+              "unresolved": 0,
+              "preservedUnresolved": 0
+            },
+            "collectedOn": {
+              "expectedPositive": 0,
+              "emittedPositive": 0,
+              "correctPositive": 0,
+              "omittedPositive": 0,
+              "wrongPositive": 0,
+              "inventedPositive": 0,
+              "correctAbsent": 2,
+              "unresolved": 0,
+              "preservedUnresolved": 0
+            },
+            "reportedOn": {
+              "expectedPositive": 0,
+              "emittedPositive": 0,
+              "correctPositive": 0,
+              "omittedPositive": 0,
+              "wrongPositive": 0,
+              "inventedPositive": 0,
+              "correctAbsent": 2,
+              "unresolved": 0,
+              "preservedUnresolved": 0
+            },
+            "issuedOn": {
+              "expectedPositive": 0,
+              "emittedPositive": 0,
+              "correctPositive": 0,
+              "omittedPositive": 0,
+              "wrongPositive": 0,
+              "inventedPositive": 0,
+              "correctAbsent": 2,
+              "unresolved": 0,
+              "preservedUnresolved": 0
+            },
+            "laboratory": {
+              "expectedPositive": 0,
+              "emittedPositive": 0,
+              "correctPositive": 0,
+              "omittedPositive": 0,
+              "wrongPositive": 0,
+              "inventedPositive": 0,
+              "correctAbsent": 2,
+              "unresolved": 0,
+              "preservedUnresolved": 0
+            },
+            "method": {
+              "expectedPositive": 0,
+              "emittedPositive": 0,
+              "correctPositive": 0,
+              "omittedPositive": 0,
+              "wrongPositive": 0,
+              "inventedPositive": 0,
+              "correctAbsent": 2,
+              "unresolved": 0,
+              "preservedUnresolved": 0
+            },
+            "material": {
+              "expectedPositive": 0,
+              "emittedPositive": 0,
+              "correctPositive": 0,
+              "omittedPositive": 0,
+              "wrongPositive": 0,
+              "inventedPositive": 0,
+              "correctAbsent": 2,
+              "unresolved": 0,
+              "preservedUnresolved": 0
+            },
+            "sourcePage": {
+              "expectedPositive": 2,
+              "emittedPositive": 2,
+              "correctPositive": 2,
+              "omittedPositive": 0,
+              "wrongPositive": 0,
+              "inventedPositive": 0,
+              "correctAbsent": 0,
+              "unresolved": 0,
+              "preservedUnresolved": 0
+            }
+          },
+          "positiveExpected": 9,
+          "positiveEmitted": 9,
+          "positiveCorrect": 9,
+          "positivePrecision": 1,
+          "positiveRecall": 1,
+          "unreadable": {
+            "expectedMentions": 0,
+            "correctlyFlaggedUnreadable": 0,
+            "omittedUnreadableMentions": 0
+          },
+          "unresolvedDates": {
+            "rows": 0,
+            "fields": 0,
+            "preservedUnresolved": 0,
+            "signaledRows": 0
+          },
+          "verifier": {
+            "eligibleRows": 0,
+            "attentionRows": 2,
+            "reviewFraction": 1,
+            "incorrectRowsObserved": 0,
+            "unsafeLiteralMatches": 0,
+            "falseAlertCandidates": 0,
+            "correctButUnprovableRows": 2,
+            "silentUnresolvedAcceptance": 0,
+            "sensitivityToWrongResults": null
+          },
+          "errors": []
+        },
+        "deterministicDateRecoveredFields": 0,
+        "derivedModelOnlyEvaluation": null,
+        "inventory": {
+          "scope": "no_independent_text",
+          "completenessProven": false,
+          "recognizableRows": null,
+          "possibleOmissions": null
+        },
+        "telemetry": {
+          "model": "openai/gpt-6-luna",
+          "failures": 0,
+          "provider": "openai",
+          "costBasis": "unavailable",
+          "durationMs": 4876,
+          "inputTokens": 1954,
+          "pricingAsOf": null,
+          "outputTokens": 271,
+          "extractedRows": 2,
+          "promptVersion": "lab-transcription-3",
+          "usageComplete": true,
+          "divergenceRows": 2,
+          "pipelineVersion": "lab-pipeline-3",
+          "reasoningTokens": 69,
+          "startedRequests": 1,
+          "verifierVersion": 3,
+          "divergenceFields": 7,
+          "estimatedCostUsd": null,
+          "cachedInputTokens": 0,
+          "completedRequests": 1,
+          "processingMilliseconds": 6744
+        },
+        "estimatedTokenCostUsd": 0.00033089999999999997,
+        "costBasis": "public_standard_token_rates_not_invoice",
+        "historicalBaselineSamePdf": null
+      },
+      {
+        "caseId": "historical-dates-current-result",
+        "phase": "after",
+        "format": "digital",
+        "tags": ["dates", "historical_date", "current_previous"],
+        "sha256": "cdcd1685270e095e3909f220c37b1f14b4fa112fa275b11b1b8613991f633dc5",
+        "referenceSha256": "08f9084560e86ef8dc12a0d21c2cc8036da4e7a574892aa09c9278556d7701a0",
+        "referencePolicy": "stage_d_explicit_evidence_v1",
+        "pageCount": 1,
+        "independentText": true,
+        "extractionSucceeded": true,
+        "failureCode": null,
+        "httpStatus": 200,
+        "wallMilliseconds": 6396,
+        "evaluation": {
+          "expectedLegibleRows": 1,
+          "emittedRows": 2,
+          "matchedRows": 1,
+          "completeRows": 1,
+          "correctResults": 1,
+          "omittedRows": 0,
+          "unmatchedRows": 1,
+          "associationErrors": 0,
+          "resultRecall": 1,
+          "fields": {
+            "name": {
+              "expectedPositive": 1,
+              "emittedPositive": 2,
+              "correctPositive": 1,
+              "omittedPositive": 0,
+              "wrongPositive": 0,
+              "inventedPositive": 1,
+              "correctAbsent": 0,
+              "unresolved": 0,
+              "preservedUnresolved": 0
+            },
+            "result": {
+              "expectedPositive": 1,
+              "emittedPositive": 2,
+              "correctPositive": 1,
+              "omittedPositive": 0,
+              "wrongPositive": 0,
+              "inventedPositive": 1,
+              "correctAbsent": 0,
+              "unresolved": 0,
+              "preservedUnresolved": 0
+            },
+            "unit": {
+              "expectedPositive": 1,
+              "emittedPositive": 2,
+              "correctPositive": 1,
+              "omittedPositive": 0,
+              "wrongPositive": 0,
+              "inventedPositive": 1,
+              "correctAbsent": 0,
+              "unresolved": 0,
+              "preservedUnresolved": 0
+            },
+            "reference": {
+              "expectedPositive": 1,
+              "emittedPositive": 1,
+              "correctPositive": 1,
+              "omittedPositive": 0,
+              "wrongPositive": 0,
+              "inventedPositive": 0,
+              "correctAbsent": 0,
+              "unresolved": 0,
+              "preservedUnresolved": 0
+            },
+            "collectedOn": {
+              "expectedPositive": 1,
+              "emittedPositive": 1,
+              "correctPositive": 1,
+              "omittedPositive": 0,
+              "wrongPositive": 0,
+              "inventedPositive": 0,
+              "correctAbsent": 0,
+              "unresolved": 0,
+              "preservedUnresolved": 0
+            },
+            "reportedOn": {
+              "expectedPositive": 1,
+              "emittedPositive": 1,
+              "correctPositive": 1,
+              "omittedPositive": 0,
+              "wrongPositive": 0,
+              "inventedPositive": 0,
+              "correctAbsent": 0,
+              "unresolved": 0,
+              "preservedUnresolved": 0
+            },
+            "issuedOn": {
+              "expectedPositive": 1,
+              "emittedPositive": 1,
+              "correctPositive": 1,
+              "omittedPositive": 0,
+              "wrongPositive": 0,
+              "inventedPositive": 0,
+              "correctAbsent": 0,
+              "unresolved": 0,
+              "preservedUnresolved": 0
+            },
+            "laboratory": {
+              "expectedPositive": 0,
+              "emittedPositive": 0,
+              "correctPositive": 0,
+              "omittedPositive": 0,
+              "wrongPositive": 0,
+              "inventedPositive": 0,
+              "correctAbsent": 1,
+              "unresolved": 0,
+              "preservedUnresolved": 0
+            },
+            "method": {
+              "expectedPositive": 0,
+              "emittedPositive": 0,
+              "correctPositive": 0,
+              "omittedPositive": 0,
+              "wrongPositive": 0,
+              "inventedPositive": 0,
+              "correctAbsent": 1,
+              "unresolved": 0,
+              "preservedUnresolved": 0
+            },
+            "material": {
+              "expectedPositive": 0,
+              "emittedPositive": 0,
+              "correctPositive": 0,
+              "omittedPositive": 0,
+              "wrongPositive": 0,
+              "inventedPositive": 0,
+              "correctAbsent": 1,
+              "unresolved": 0,
+              "preservedUnresolved": 0
+            },
+            "sourcePage": {
+              "expectedPositive": 1,
+              "emittedPositive": 2,
+              "correctPositive": 1,
+              "omittedPositive": 0,
+              "wrongPositive": 0,
+              "inventedPositive": 1,
+              "correctAbsent": 0,
+              "unresolved": 0,
+              "preservedUnresolved": 0
+            }
+          },
+          "positiveExpected": 8,
+          "positiveEmitted": 12,
+          "positiveCorrect": 8,
+          "positivePrecision": 0.6666666666666666,
+          "positiveRecall": 1,
+          "unreadable": {
+            "expectedMentions": 0,
+            "correctlyFlaggedUnreadable": 0,
+            "omittedUnreadableMentions": 0
+          },
+          "unresolvedDates": {
+            "rows": 0,
+            "fields": 0,
+            "preservedUnresolved": 0,
+            "signaledRows": 0
+          },
+          "verifier": {
+            "eligibleRows": 1,
+            "attentionRows": 1,
+            "reviewFraction": 0.5,
+            "incorrectRowsObserved": 1,
+            "unsafeLiteralMatches": 0,
+            "falseAlertCandidates": 0,
+            "correctButUnprovableRows": 0,
+            "silentUnresolvedAcceptance": 0,
+            "sensitivityToWrongResults": null
+          },
+          "errors": [
+            {
+              "row": 1,
+              "field": "observation",
+              "kind": "unmatchedRow",
+              "expected": null,
+              "actual": "Glicose",
+              "verifierDetectedField": true
+            }
+          ]
+        },
+        "deterministicDateRecoveredFields": 0,
+        "derivedModelOnlyEvaluation": null,
+        "inventory": {
+          "version": 2,
+          "scope": "recognizable_text_rows_only",
+          "completenessProven": false,
+          "recognizableRows": 1,
+          "possibleOmissions": [],
+          "coverage": {
+            "basis": "supplied_native_text_lines",
+            "coordinatesAvailable": false,
+            "independentTextAvailable": true,
+            "expectedPageCount": null,
+            "providedPages": [1],
+            "missingPages": null,
+            "duplicatePageNumbers": [],
+            "pages": [
+              {
+                "page": 1,
+                "status": "unrecognized_text_present",
+                "nonEmptyLines": 8,
+                "recognizedRows": 1,
+                "unknownLines": [
+                  {
+                    "line": 1,
+                    "reason": "unsupported_or_non_observation_text"
+                  }
+                ],
+                "sections": [
+                  {
+                    "kind": "unspecified",
+                    "startLine": 1,
+                    "endLine": 5,
+                    "recognizedRows": 1,
+                    "unrecognizedLines": [1]
+                  },
+                  {
+                    "kind": "historical",
+                    "startLine": 6,
+                    "endLine": 8,
+                    "recognizedRows": 0,
+                    "unrecognizedLines": []
+                  }
+                ]
+              }
+            ]
+          },
+          "diagnostics": {
+            "valueMismatches": [],
+            "unitMismatches": [],
+            "provenanceMissing": [],
+            "pageMismatches": [],
+            "ambiguousProvenance": [],
+            "unmatchedPredictions": [
+              {
+                "predictionIndex": 1,
+                "name": "Glicose",
+                "result": "120",
+                "sourcePage": 1,
+                "reason": "no_remaining_recognizable_source"
+              }
+            ]
+          }
+        },
+        "telemetry": {
+          "model": "openai/gpt-6-luna",
+          "failures": 0,
+          "provider": "openai",
+          "costBasis": "unavailable",
+          "durationMs": 3187,
+          "inputTokens": 824,
+          "pricingAsOf": null,
+          "outputTokens": 240,
+          "extractedRows": 2,
+          "promptVersion": "lab-transcription-3",
+          "usageComplete": true,
+          "divergenceRows": 1,
+          "pipelineVersion": "lab-pipeline-3",
+          "reasoningTokens": 30,
+          "startedRequests": 1,
+          "verifierVersion": 3,
+          "divergenceFields": 5,
+          "estimatedCostUsd": null,
+          "cachedInputTokens": 0,
+          "completedRequests": 1,
+          "processingMilliseconds": 4526
+        },
+        "estimatedTokenCostUsd": 0.00020240000000000001,
+        "costBasis": "public_standard_token_rates_not_invoice",
+        "historicalBaselineSamePdf": null
+      },
+      {
+        "caseId": "reference-formats-qualitative",
+        "phase": "after",
+        "format": "digital",
+        "tags": ["qualitative", "comparators", "reference_formats", "multiline_reference"],
+        "sha256": "0f752f467f70742f79df1a336ceaf8bdc185fa17b02e0e43c358639293885a48",
+        "referenceSha256": "41025d1405fb603cddd62785806cca149f13080cfed1b9c74ef4c8f4b1fab333",
+        "referencePolicy": "stage_d_explicit_evidence_v1",
+        "pageCount": 1,
+        "independentText": true,
+        "extractionSucceeded": true,
+        "failureCode": null,
+        "httpStatus": 200,
+        "wallMilliseconds": 6493,
+        "evaluation": {
+          "expectedLegibleRows": 3,
+          "emittedRows": 3,
+          "matchedRows": 3,
+          "completeRows": 3,
+          "correctResults": 3,
+          "omittedRows": 0,
+          "unmatchedRows": 0,
+          "associationErrors": 0,
+          "resultRecall": 1,
+          "fields": {
+            "name": {
+              "expectedPositive": 3,
+              "emittedPositive": 3,
+              "correctPositive": 3,
+              "omittedPositive": 0,
+              "wrongPositive": 0,
+              "inventedPositive": 0,
+              "correctAbsent": 0,
+              "unresolved": 0,
+              "preservedUnresolved": 0
+            },
+            "result": {
+              "expectedPositive": 3,
+              "emittedPositive": 3,
+              "correctPositive": 3,
+              "omittedPositive": 0,
+              "wrongPositive": 0,
+              "inventedPositive": 0,
+              "correctAbsent": 0,
+              "unresolved": 0,
+              "preservedUnresolved": 0
+            },
+            "unit": {
+              "expectedPositive": 2,
+              "emittedPositive": 2,
+              "correctPositive": 2,
+              "omittedPositive": 0,
+              "wrongPositive": 0,
+              "inventedPositive": 0,
+              "correctAbsent": 1,
+              "unresolved": 0,
+              "preservedUnresolved": 0
+            },
+            "reference": {
+              "expectedPositive": 3,
+              "emittedPositive": 3,
+              "correctPositive": 3,
+              "omittedPositive": 0,
+              "wrongPositive": 0,
+              "inventedPositive": 0,
+              "correctAbsent": 0,
+              "unresolved": 0,
+              "preservedUnresolved": 0
+            },
+            "collectedOn": {
+              "expectedPositive": 0,
+              "emittedPositive": 0,
+              "correctPositive": 0,
+              "omittedPositive": 0,
+              "wrongPositive": 0,
+              "inventedPositive": 0,
+              "correctAbsent": 3,
+              "unresolved": 0,
+              "preservedUnresolved": 0
+            },
+            "reportedOn": {
+              "expectedPositive": 0,
+              "emittedPositive": 0,
+              "correctPositive": 0,
+              "omittedPositive": 0,
+              "wrongPositive": 0,
+              "inventedPositive": 0,
+              "correctAbsent": 3,
+              "unresolved": 0,
+              "preservedUnresolved": 0
+            },
+            "issuedOn": {
+              "expectedPositive": 0,
+              "emittedPositive": 0,
+              "correctPositive": 0,
+              "omittedPositive": 0,
+              "wrongPositive": 0,
+              "inventedPositive": 0,
+              "correctAbsent": 3,
+              "unresolved": 0,
+              "preservedUnresolved": 0
+            },
+            "laboratory": {
+              "expectedPositive": 0,
+              "emittedPositive": 0,
+              "correctPositive": 0,
+              "omittedPositive": 0,
+              "wrongPositive": 0,
+              "inventedPositive": 0,
+              "correctAbsent": 3,
+              "unresolved": 0,
+              "preservedUnresolved": 0
+            },
+            "method": {
+              "expectedPositive": 0,
+              "emittedPositive": 0,
+              "correctPositive": 0,
+              "omittedPositive": 0,
+              "wrongPositive": 0,
+              "inventedPositive": 0,
+              "correctAbsent": 3,
+              "unresolved": 0,
+              "preservedUnresolved": 0
+            },
+            "material": {
+              "expectedPositive": 0,
+              "emittedPositive": 0,
+              "correctPositive": 0,
+              "omittedPositive": 0,
+              "wrongPositive": 0,
+              "inventedPositive": 0,
+              "correctAbsent": 3,
+              "unresolved": 0,
+              "preservedUnresolved": 0
+            },
+            "sourcePage": {
+              "expectedPositive": 3,
+              "emittedPositive": 3,
+              "correctPositive": 3,
+              "omittedPositive": 0,
+              "wrongPositive": 0,
+              "inventedPositive": 0,
+              "correctAbsent": 0,
+              "unresolved": 0,
+              "preservedUnresolved": 0
+            }
+          },
+          "positiveExpected": 14,
+          "positiveEmitted": 14,
+          "positiveCorrect": 14,
+          "positivePrecision": 1,
+          "positiveRecall": 1,
+          "unreadable": {
+            "expectedMentions": 0,
+            "correctlyFlaggedUnreadable": 0,
+            "omittedUnreadableMentions": 0
+          },
+          "unresolvedDates": {
+            "rows": 0,
+            "fields": 0,
+            "preservedUnresolved": 0,
+            "signaledRows": 0
+          },
+          "verifier": {
+            "eligibleRows": 2,
+            "attentionRows": 1,
+            "reviewFraction": 0.3333333333333333,
+            "incorrectRowsObserved": 0,
+            "unsafeLiteralMatches": 0,
+            "falseAlertCandidates": 1,
+            "correctButUnprovableRows": 0,
+            "silentUnresolvedAcceptance": 0,
+            "sensitivityToWrongResults": null
+          },
+          "errors": []
+        },
+        "deterministicDateRecoveredFields": 0,
+        "derivedModelOnlyEvaluation": null,
+        "inventory": {
+          "version": 2,
+          "scope": "recognizable_text_rows_only",
+          "completenessProven": false,
+          "recognizableRows": 3,
+          "possibleOmissions": [],
+          "coverage": {
+            "basis": "supplied_native_text_lines",
+            "coordinatesAvailable": false,
+            "independentTextAvailable": true,
+            "expectedPageCount": null,
+            "providedPages": [1],
+            "missingPages": null,
+            "duplicatePageNumbers": [],
+            "pages": [
+              {
+                "page": 1,
+                "status": "unrecognized_text_present",
+                "nonEmptyLines": 5,
+                "recognizedRows": 3,
+                "unknownLines": [
+                  {
+                    "line": 1,
+                    "reason": "unsupported_or_non_observation_text"
+                  },
+                  {
+                    "line": 5,
+                    "reason": "unsupported_or_non_observation_text"
+                  }
+                ],
+                "sections": [
+                  {
+                    "kind": "unspecified",
+                    "startLine": 1,
+                    "endLine": 5,
+                    "recognizedRows": 3,
+                    "unrecognizedLines": [1, 5]
+                  }
+                ]
+              }
+            ]
+          },
+          "diagnostics": {
+            "valueMismatches": [],
+            "unitMismatches": [],
+            "provenanceMissing": [],
+            "pageMismatches": [],
+            "ambiguousProvenance": [],
+            "unmatchedPredictions": []
+          }
+        },
+        "telemetry": {
+          "model": "openai/gpt-6-luna",
+          "failures": 0,
+          "provider": "openai",
+          "costBasis": "unavailable",
+          "durationMs": 3233,
+          "inputTokens": 807,
+          "pricingAsOf": null,
+          "outputTokens": 319,
+          "extractedRows": 3,
+          "promptVersion": "lab-transcription-3",
+          "usageComplete": true,
+          "divergenceRows": 1,
+          "pipelineVersion": "lab-pipeline-3",
+          "reasoningTokens": 0,
+          "startedRequests": 1,
+          "verifierVersion": 3,
+          "divergenceFields": 1,
+          "estimatedCostUsd": null,
+          "cachedInputTokens": 0,
+          "completedRequests": 1,
+          "processingMilliseconds": 4538
+        },
+        "estimatedTokenCostUsd": 0.00024019999999999998,
+        "costBasis": "public_standard_token_rates_not_invoice",
+        "historicalBaselineSamePdf": null
+      },
+      {
+        "caseId": "dates-unambiguous-ddmm",
+        "phase": "after",
+        "format": "digital",
+        "tags": ["dates", "day_greater_than_12", "explicit_roles"],
+        "sha256": "19438ac446c4f59a2c9486daf3ecf1465a4712cf6c7ff8beb9146c156926d694",
+        "referenceSha256": "b3a56d2ea3d76382da0238a16adf0b268dd6db4d23c84623b02a247e0ff8c002",
+        "referencePolicy": "stage_d_explicit_evidence_v1",
+        "pageCount": 1,
+        "independentText": true,
+        "extractionSucceeded": true,
+        "failureCode": null,
+        "httpStatus": 200,
+        "wallMilliseconds": 6101,
+        "evaluation": {
+          "expectedLegibleRows": 1,
+          "emittedRows": 1,
+          "matchedRows": 1,
+          "completeRows": 1,
+          "correctResults": 1,
+          "omittedRows": 0,
+          "unmatchedRows": 0,
+          "associationErrors": 0,
+          "resultRecall": 1,
+          "fields": {
+            "name": {
+              "expectedPositive": 1,
+              "emittedPositive": 1,
+              "correctPositive": 1,
+              "omittedPositive": 0,
+              "wrongPositive": 0,
+              "inventedPositive": 0,
+              "correctAbsent": 0,
+              "unresolved": 0,
+              "preservedUnresolved": 0
+            },
+            "result": {
+              "expectedPositive": 1,
+              "emittedPositive": 1,
+              "correctPositive": 1,
+              "omittedPositive": 0,
+              "wrongPositive": 0,
+              "inventedPositive": 0,
+              "correctAbsent": 0,
+              "unresolved": 0,
+              "preservedUnresolved": 0
+            },
+            "unit": {
+              "expectedPositive": 1,
+              "emittedPositive": 1,
+              "correctPositive": 1,
+              "omittedPositive": 0,
+              "wrongPositive": 0,
+              "inventedPositive": 0,
+              "correctAbsent": 0,
+              "unresolved": 0,
+              "preservedUnresolved": 0
+            },
+            "reference": {
+              "expectedPositive": 0,
+              "emittedPositive": 0,
+              "correctPositive": 0,
+              "omittedPositive": 0,
+              "wrongPositive": 0,
+              "inventedPositive": 0,
+              "correctAbsent": 1,
+              "unresolved": 0,
+              "preservedUnresolved": 0
+            },
+            "collectedOn": {
+              "expectedPositive": 1,
+              "emittedPositive": 1,
+              "correctPositive": 1,
+              "omittedPositive": 0,
+              "wrongPositive": 0,
+              "inventedPositive": 0,
+              "correctAbsent": 0,
+              "unresolved": 0,
+              "preservedUnresolved": 0
+            },
+            "reportedOn": {
+              "expectedPositive": 1,
+              "emittedPositive": 1,
+              "correctPositive": 1,
+              "omittedPositive": 0,
+              "wrongPositive": 0,
+              "inventedPositive": 0,
+              "correctAbsent": 0,
+              "unresolved": 0,
+              "preservedUnresolved": 0
+            },
+            "issuedOn": {
+              "expectedPositive": 1,
+              "emittedPositive": 1,
+              "correctPositive": 1,
+              "omittedPositive": 0,
+              "wrongPositive": 0,
+              "inventedPositive": 0,
+              "correctAbsent": 0,
+              "unresolved": 0,
+              "preservedUnresolved": 0
+            },
+            "laboratory": {
+              "expectedPositive": 0,
+              "emittedPositive": 0,
+              "correctPositive": 0,
+              "omittedPositive": 0,
+              "wrongPositive": 0,
+              "inventedPositive": 0,
+              "correctAbsent": 1,
+              "unresolved": 0,
+              "preservedUnresolved": 0
+            },
+            "method": {
+              "expectedPositive": 0,
+              "emittedPositive": 0,
+              "correctPositive": 0,
+              "omittedPositive": 0,
+              "wrongPositive": 0,
+              "inventedPositive": 0,
+              "correctAbsent": 1,
+              "unresolved": 0,
+              "preservedUnresolved": 0
+            },
+            "material": {
+              "expectedPositive": 0,
+              "emittedPositive": 0,
+              "correctPositive": 0,
+              "omittedPositive": 0,
+              "wrongPositive": 0,
+              "inventedPositive": 0,
+              "correctAbsent": 1,
+              "unresolved": 0,
+              "preservedUnresolved": 0
+            },
+            "sourcePage": {
+              "expectedPositive": 1,
+              "emittedPositive": 1,
+              "correctPositive": 1,
+              "omittedPositive": 0,
+              "wrongPositive": 0,
+              "inventedPositive": 0,
+              "correctAbsent": 0,
+              "unresolved": 0,
+              "preservedUnresolved": 0
+            }
+          },
+          "positiveExpected": 7,
+          "positiveEmitted": 7,
+          "positiveCorrect": 7,
+          "positivePrecision": 1,
+          "positiveRecall": 1,
+          "unreadable": {
+            "expectedMentions": 0,
+            "correctlyFlaggedUnreadable": 0,
+            "omittedUnreadableMentions": 0
+          },
+          "unresolvedDates": {
+            "rows": 0,
+            "fields": 0,
+            "preservedUnresolved": 0,
+            "signaledRows": 0
+          },
+          "verifier": {
+            "eligibleRows": 1,
+            "attentionRows": 0,
+            "reviewFraction": 0,
+            "incorrectRowsObserved": 0,
+            "unsafeLiteralMatches": 0,
+            "falseAlertCandidates": 0,
+            "correctButUnprovableRows": 0,
+            "silentUnresolvedAcceptance": 0,
+            "sensitivityToWrongResults": null
+          },
+          "errors": []
+        },
+        "deterministicDateRecoveredFields": 0,
+        "derivedModelOnlyEvaluation": null,
+        "inventory": {
+          "version": 2,
+          "scope": "recognizable_text_rows_only",
+          "completenessProven": false,
+          "recognizableRows": 1,
+          "possibleOmissions": [],
+          "coverage": {
+            "basis": "supplied_native_text_lines",
+            "coordinatesAvailable": false,
+            "independentTextAvailable": true,
+            "expectedPageCount": null,
+            "providedPages": [1],
+            "missingPages": null,
+            "duplicatePageNumbers": [],
+            "pages": [
+              {
+                "page": 1,
+                "status": "unrecognized_text_present",
+                "nonEmptyLines": 5,
+                "recognizedRows": 1,
+                "unknownLines": [
+                  {
+                    "line": 1,
+                    "reason": "unsupported_or_non_observation_text"
+                  }
+                ],
+                "sections": [
+                  {
+                    "kind": "unspecified",
+                    "startLine": 1,
+                    "endLine": 5,
+                    "recognizedRows": 1,
+                    "unrecognizedLines": [1]
+                  }
+                ]
+              }
+            ]
+          },
+          "diagnostics": {
+            "valueMismatches": [],
+            "unitMismatches": [],
+            "provenanceMissing": [],
+            "pageMismatches": [],
+            "ambiguousProvenance": [],
+            "unmatchedPredictions": []
+          }
+        },
+        "telemetry": {
+          "model": "openai/gpt-6-luna",
+          "failures": 0,
+          "provider": "openai",
+          "costBasis": "unavailable",
+          "durationMs": 2930,
+          "inputTokens": 780,
+          "pricingAsOf": null,
+          "outputTokens": 154,
+          "extractedRows": 1,
+          "promptVersion": "lab-transcription-3",
+          "usageComplete": true,
+          "divergenceRows": 0,
+          "pipelineVersion": "lab-pipeline-3",
+          "reasoningTokens": 50,
+          "startedRequests": 1,
+          "verifierVersion": 3,
+          "divergenceFields": 0,
+          "estimatedCostUsd": null,
+          "cachedInputTokens": 0,
+          "completedRequests": 1,
+          "processingMilliseconds": 4237
+        },
+        "estimatedTokenCostUsd": 0.000155,
+        "costBasis": "public_standard_token_rates_not_invoice",
+        "historicalBaselineSamePdf": null
+      },
+      {
+        "caseId": "dates-iso",
+        "phase": "after",
+        "format": "digital",
+        "tags": ["dates", "iso", "explicit_roles"],
+        "sha256": "4a4f2cb4613d3f5b334d7970464a22babde182b185036235216f5bb0cba33dba",
+        "referenceSha256": "c6e6b461af1cfda6780a0248aa8f3f48a875bd7e31f375aac25f527a71436c83",
+        "referencePolicy": "stage_d_explicit_evidence_v1",
+        "pageCount": 1,
+        "independentText": true,
+        "extractionSucceeded": true,
+        "failureCode": null,
+        "httpStatus": 200,
+        "wallMilliseconds": 5334,
+        "evaluation": {
+          "expectedLegibleRows": 1,
+          "emittedRows": 1,
+          "matchedRows": 1,
+          "completeRows": 1,
+          "correctResults": 1,
+          "omittedRows": 0,
+          "unmatchedRows": 0,
+          "associationErrors": 0,
+          "resultRecall": 1,
+          "fields": {
+            "name": {
+              "expectedPositive": 1,
+              "emittedPositive": 1,
+              "correctPositive": 1,
+              "omittedPositive": 0,
+              "wrongPositive": 0,
+              "inventedPositive": 0,
+              "correctAbsent": 0,
+              "unresolved": 0,
+              "preservedUnresolved": 0
+            },
+            "result": {
+              "expectedPositive": 1,
+              "emittedPositive": 1,
+              "correctPositive": 1,
+              "omittedPositive": 0,
+              "wrongPositive": 0,
+              "inventedPositive": 0,
+              "correctAbsent": 0,
+              "unresolved": 0,
+              "preservedUnresolved": 0
+            },
+            "unit": {
+              "expectedPositive": 1,
+              "emittedPositive": 1,
+              "correctPositive": 1,
+              "omittedPositive": 0,
+              "wrongPositive": 0,
+              "inventedPositive": 0,
+              "correctAbsent": 0,
+              "unresolved": 0,
+              "preservedUnresolved": 0
+            },
+            "reference": {
+              "expectedPositive": 0,
+              "emittedPositive": 0,
+              "correctPositive": 0,
+              "omittedPositive": 0,
+              "wrongPositive": 0,
+              "inventedPositive": 0,
+              "correctAbsent": 1,
+              "unresolved": 0,
+              "preservedUnresolved": 0
+            },
+            "collectedOn": {
+              "expectedPositive": 1,
+              "emittedPositive": 1,
+              "correctPositive": 1,
+              "omittedPositive": 0,
+              "wrongPositive": 0,
+              "inventedPositive": 0,
+              "correctAbsent": 0,
+              "unresolved": 0,
+              "preservedUnresolved": 0
+            },
+            "reportedOn": {
+              "expectedPositive": 1,
+              "emittedPositive": 1,
+              "correctPositive": 1,
+              "omittedPositive": 0,
+              "wrongPositive": 0,
+              "inventedPositive": 0,
+              "correctAbsent": 0,
+              "unresolved": 0,
+              "preservedUnresolved": 0
+            },
+            "issuedOn": {
+              "expectedPositive": 1,
+              "emittedPositive": 1,
+              "correctPositive": 1,
+              "omittedPositive": 0,
+              "wrongPositive": 0,
+              "inventedPositive": 0,
+              "correctAbsent": 0,
+              "unresolved": 0,
+              "preservedUnresolved": 0
+            },
+            "laboratory": {
+              "expectedPositive": 0,
+              "emittedPositive": 0,
+              "correctPositive": 0,
+              "omittedPositive": 0,
+              "wrongPositive": 0,
+              "inventedPositive": 0,
+              "correctAbsent": 1,
+              "unresolved": 0,
+              "preservedUnresolved": 0
+            },
+            "method": {
+              "expectedPositive": 0,
+              "emittedPositive": 0,
+              "correctPositive": 0,
+              "omittedPositive": 0,
+              "wrongPositive": 0,
+              "inventedPositive": 0,
+              "correctAbsent": 1,
+              "unresolved": 0,
+              "preservedUnresolved": 0
+            },
+            "material": {
+              "expectedPositive": 0,
+              "emittedPositive": 0,
+              "correctPositive": 0,
+              "omittedPositive": 0,
+              "wrongPositive": 0,
+              "inventedPositive": 0,
+              "correctAbsent": 1,
+              "unresolved": 0,
+              "preservedUnresolved": 0
+            },
+            "sourcePage": {
+              "expectedPositive": 1,
+              "emittedPositive": 1,
+              "correctPositive": 1,
+              "omittedPositive": 0,
+              "wrongPositive": 0,
+              "inventedPositive": 0,
+              "correctAbsent": 0,
+              "unresolved": 0,
+              "preservedUnresolved": 0
+            }
+          },
+          "positiveExpected": 7,
+          "positiveEmitted": 7,
+          "positiveCorrect": 7,
+          "positivePrecision": 1,
+          "positiveRecall": 1,
+          "unreadable": {
+            "expectedMentions": 0,
+            "correctlyFlaggedUnreadable": 0,
+            "omittedUnreadableMentions": 0
+          },
+          "unresolvedDates": {
+            "rows": 0,
+            "fields": 0,
+            "preservedUnresolved": 0,
+            "signaledRows": 0
+          },
+          "verifier": {
+            "eligibleRows": 1,
+            "attentionRows": 0,
+            "reviewFraction": 0,
+            "incorrectRowsObserved": 0,
+            "unsafeLiteralMatches": 0,
+            "falseAlertCandidates": 0,
+            "correctButUnprovableRows": 0,
+            "silentUnresolvedAcceptance": 0,
+            "sensitivityToWrongResults": null
+          },
+          "errors": []
+        },
+        "deterministicDateRecoveredFields": 0,
+        "derivedModelOnlyEvaluation": null,
+        "inventory": {
+          "version": 2,
+          "scope": "recognizable_text_rows_only",
+          "completenessProven": false,
+          "recognizableRows": 1,
+          "possibleOmissions": [],
+          "coverage": {
+            "basis": "supplied_native_text_lines",
+            "coordinatesAvailable": false,
+            "independentTextAvailable": true,
+            "expectedPageCount": null,
+            "providedPages": [1],
+            "missingPages": null,
+            "duplicatePageNumbers": [],
+            "pages": [
+              {
+                "page": 1,
+                "status": "unrecognized_text_present",
+                "nonEmptyLines": 5,
+                "recognizedRows": 1,
+                "unknownLines": [
+                  {
+                    "line": 1,
+                    "reason": "unsupported_or_non_observation_text"
+                  }
+                ],
+                "sections": [
+                  {
+                    "kind": "unspecified",
+                    "startLine": 1,
+                    "endLine": 5,
+                    "recognizedRows": 1,
+                    "unrecognizedLines": [1]
+                  }
+                ]
+              }
+            ]
+          },
+          "diagnostics": {
+            "valueMismatches": [],
+            "unitMismatches": [],
+            "provenanceMissing": [],
+            "pageMismatches": [],
+            "ambiguousProvenance": [],
+            "unmatchedPredictions": []
+          }
+        },
+        "telemetry": {
+          "model": "openai/gpt-6-luna",
+          "failures": 0,
+          "provider": "openai",
+          "costBasis": "unavailable",
+          "durationMs": 2158,
+          "inputTokens": 781,
+          "pricingAsOf": null,
+          "outputTokens": 128,
+          "extractedRows": 1,
+          "promptVersion": "lab-transcription-3",
+          "usageComplete": true,
+          "divergenceRows": 0,
+          "pipelineVersion": "lab-pipeline-3",
+          "reasoningTokens": 22,
+          "startedRequests": 1,
+          "verifierVersion": 3,
+          "divergenceFields": 0,
+          "estimatedCostUsd": null,
+          "cachedInputTokens": 0,
+          "completedRequests": 1,
+          "processingMilliseconds": 3476
+        },
+        "estimatedTokenCostUsd": 0.0001421,
+        "costBasis": "public_standard_token_rates_not_invoice",
+        "historicalBaselineSamePdf": null
+      }
+    ],
+    "pairedComparisons": [],
+    "limitations": [
+      "Synthetic small selected corpus; no clinical accuracy claim.",
+      "Missing or failed attempts remain in denominators; unknown usage/cost never becomes zero.",
+      "False-alert candidates need source adjudication; correct-but-unprovable scan/layout warnings remain legitimate.",
+      "Stage C legacy ambiguous DD/MM references differ from explicit-evidence Stage D policy; do not claim date improvement from changed truth.",
+      "No comparisons between different PDFs establish before/after performance gain.",
+      "Supplemental attempts contribute only to operational usage/cost and incidents; they are never relabeled as candidate quality measurements or paired comparisons.",
+      "No clinical publication, provider calls, database writes or model routing are performed by this reporter.",
+      "derivedModelOnlyEvaluation reverts audited null-to-date recoveries; it is derived attribution, not a captured raw model response. Actual verifier decisions belong only to delivered evaluation."
+    ]
   },
   "historicV3": {
     "documents": 6,
     "trials": 6,
     "readableResultsRecovered": 32,
     "positiveFieldsCorrect": 203,
-    "estimatedHistoricTokenCostUsd": 0.0031469000000000002,
-    "independentDocumentReplications": 0
+    "estimatedHistoricTokenCostUsd": 0.0031469000000000002
+  },
+  "cumulativeV3": {
+    "documents": 12,
+    "trials": 12,
+    "expectedLegibleResults": 44,
+    "readableResultsRecovered": 44,
+    "expectedPositiveFields": 264,
+    "positiveFieldsCorrect": 264,
+    "estimatedHistoricPlusCurrentTokenCostUsd": 0.0044683,
+    "independentReplicationsPerPdf": 0
   },
   "coverage": [
     {
@@ -43,19 +2075,157 @@
       "tags": ["geometric_table", "multiple_columns", "current_previous", "different_units"],
       "pdfSha256": "639ba299b70d691af2c551532c453d237760f77c04891da723fa1dafbd3b64c4",
       "expectedLegibleResults": 3,
-      "realV3Documents": 1,
+      "sourceStage": "D.1",
       "realV3Trials": 1,
-      "newD2Trials": 0,
-      "newD2Outcome": null,
-      "status": "historical_real_v3_single_trial_only",
-      "historicalSource": "D.1",
-      "historicalResult": {
-        "readableRecovered": 3,
-        "positiveCorrect": 15,
-        "positiveExpected": 15,
+      "results": {
+        "expectedLegibleRows": 3,
+        "emittedRows": 3,
+        "matchedRows": 3,
+        "completeRows": 3,
+        "correctResults": 3,
         "omittedRows": 0,
+        "unmatchedRows": 0,
         "associationErrors": 0,
-        "errors": [],
+        "resultRecall": 1,
+        "fields": {
+          "name": {
+            "expectedPositive": 3,
+            "emittedPositive": 3,
+            "correctPositive": 3,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 0,
+            "correctAbsent": 0,
+            "unresolved": 0,
+            "preservedUnresolved": 0
+          },
+          "result": {
+            "expectedPositive": 3,
+            "emittedPositive": 3,
+            "correctPositive": 3,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 0,
+            "correctAbsent": 0,
+            "unresolved": 0,
+            "preservedUnresolved": 0
+          },
+          "unit": {
+            "expectedPositive": 3,
+            "emittedPositive": 3,
+            "correctPositive": 3,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 0,
+            "correctAbsent": 0,
+            "unresolved": 0,
+            "preservedUnresolved": 0
+          },
+          "reference": {
+            "expectedPositive": 3,
+            "emittedPositive": 3,
+            "correctPositive": 3,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 0,
+            "correctAbsent": 0,
+            "unresolved": 0,
+            "preservedUnresolved": 0
+          },
+          "collectedOn": {
+            "expectedPositive": 0,
+            "emittedPositive": 0,
+            "correctPositive": 0,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 0,
+            "correctAbsent": 3,
+            "unresolved": 0,
+            "preservedUnresolved": 0
+          },
+          "reportedOn": {
+            "expectedPositive": 0,
+            "emittedPositive": 0,
+            "correctPositive": 0,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 0,
+            "correctAbsent": 3,
+            "unresolved": 0,
+            "preservedUnresolved": 0
+          },
+          "issuedOn": {
+            "expectedPositive": 0,
+            "emittedPositive": 0,
+            "correctPositive": 0,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 0,
+            "correctAbsent": 3,
+            "unresolved": 0,
+            "preservedUnresolved": 0
+          },
+          "laboratory": {
+            "expectedPositive": 0,
+            "emittedPositive": 0,
+            "correctPositive": 0,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 0,
+            "correctAbsent": 3,
+            "unresolved": 0,
+            "preservedUnresolved": 0
+          },
+          "method": {
+            "expectedPositive": 0,
+            "emittedPositive": 0,
+            "correctPositive": 0,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 0,
+            "correctAbsent": 3,
+            "unresolved": 0,
+            "preservedUnresolved": 0
+          },
+          "material": {
+            "expectedPositive": 0,
+            "emittedPositive": 0,
+            "correctPositive": 0,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 0,
+            "correctAbsent": 3,
+            "unresolved": 0,
+            "preservedUnresolved": 0
+          },
+          "sourcePage": {
+            "expectedPositive": 3,
+            "emittedPositive": 3,
+            "correctPositive": 3,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 0,
+            "correctAbsent": 0,
+            "unresolved": 0,
+            "preservedUnresolved": 0
+          }
+        },
+        "positiveExpected": 15,
+        "positiveEmitted": 15,
+        "positiveCorrect": 15,
+        "positivePrecision": 1,
+        "positiveRecall": 1,
+        "unreadable": {
+          "expectedMentions": 0,
+          "correctlyFlaggedUnreadable": 0,
+          "omittedUnreadableMentions": 0
+        },
+        "unresolvedDates": {
+          "rows": 0,
+          "fields": 0,
+          "preservedUnresolved": 0,
+          "signaledRows": 0
+        },
         "verifier": {
           "eligibleRows": 0,
           "attentionRows": 3,
@@ -67,9 +2237,99 @@
           "silentUnresolvedAcceptance": 0,
           "sensitivityToWrongResults": null
         },
-        "httpMilliseconds": 8819,
-        "estimatedTokenCostUsd": 0.0002258
-      }
+        "errors": []
+      },
+      "inventory": {
+        "version": 2,
+        "scope": "recognizable_text_rows_only",
+        "completenessProven": false,
+        "recognizableRows": 0,
+        "possibleOmissions": [],
+        "coverage": {
+          "basis": "supplied_native_text_lines",
+          "coordinatesAvailable": false,
+          "independentTextAvailable": true,
+          "expectedPageCount": null,
+          "providedPages": [1],
+          "missingPages": null,
+          "duplicatePageNumbers": [],
+          "pages": [
+            {
+              "page": 1,
+              "status": "unrecognized_text_present",
+              "nonEmptyLines": 6,
+              "recognizedRows": 0,
+              "unknownLines": [
+                {
+                  "line": 1,
+                  "reason": "unsupported_or_non_observation_text"
+                },
+                {
+                  "line": 2,
+                  "reason": "unsupported_or_non_observation_text"
+                },
+                {
+                  "line": 3,
+                  "reason": "unsupported_or_non_observation_text"
+                },
+                {
+                  "line": 4,
+                  "reason": "unsupported_or_non_observation_text"
+                },
+                {
+                  "line": 5,
+                  "reason": "unsupported_or_non_observation_text"
+                },
+                {
+                  "line": 6,
+                  "reason": "unsupported_or_non_observation_text"
+                }
+              ],
+              "sections": [
+                {
+                  "kind": "unspecified",
+                  "startLine": 1,
+                  "endLine": 6,
+                  "recognizedRows": 0,
+                  "unrecognizedLines": [1, 2, 3, 4, 5, 6]
+                }
+              ]
+            }
+          ]
+        },
+        "diagnostics": {
+          "valueMismatches": [],
+          "unitMismatches": [],
+          "provenanceMissing": [],
+          "pageMismatches": [],
+          "ambiguousProvenance": [],
+          "unmatchedPredictions": [
+            {
+              "predictionIndex": 0,
+              "name": "Glicose",
+              "result": "91",
+              "sourcePage": 1,
+              "reason": "no_remaining_recognizable_source"
+            },
+            {
+              "predictionIndex": 1,
+              "name": "Ureia",
+              "result": "32",
+              "sourcePage": 1,
+              "reason": "no_remaining_recognizable_source"
+            },
+            {
+              "predictionIndex": 2,
+              "name": "T4 livre",
+              "result": "1,3",
+              "sourcePage": 1,
+              "reason": "no_remaining_recognizable_source"
+            }
+          ]
+        }
+      },
+      "wallMilliseconds": 8819,
+      "estimatedTokenCostUsd": 0.0002258
     },
     {
       "caseId": "many-pages-repeated-parameters",
@@ -77,19 +2337,157 @@
       "tags": ["many_pages", "native_text_batches", "repeated_parameters", "iso_dates"],
       "pdfSha256": "2eda2f67fe173823b8f581d07a31c65a60c354d3e0f7228155bce8738df64430",
       "expectedLegibleResults": 24,
-      "realV3Documents": 1,
+      "sourceStage": "D",
       "realV3Trials": 1,
-      "newD2Trials": 0,
-      "newD2Outcome": null,
-      "status": "historical_real_v3_single_trial_only",
-      "historicalSource": "D",
-      "historicalResult": {
-        "readableRecovered": 24,
-        "positiveCorrect": 160,
-        "positiveExpected": 160,
+      "results": {
+        "expectedLegibleRows": 24,
+        "emittedRows": 24,
+        "matchedRows": 24,
+        "completeRows": 24,
+        "correctResults": 24,
         "omittedRows": 0,
+        "unmatchedRows": 0,
         "associationErrors": 0,
-        "errors": [],
+        "resultRecall": 1,
+        "fields": {
+          "name": {
+            "expectedPositive": 24,
+            "emittedPositive": 24,
+            "correctPositive": 24,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 0,
+            "correctAbsent": 0,
+            "unresolved": 0,
+            "preservedUnresolved": 0
+          },
+          "result": {
+            "expectedPositive": 24,
+            "emittedPositive": 24,
+            "correctPositive": 24,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 0,
+            "correctAbsent": 0,
+            "unresolved": 0,
+            "preservedUnresolved": 0
+          },
+          "unit": {
+            "expectedPositive": 16,
+            "emittedPositive": 16,
+            "correctPositive": 16,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 0,
+            "correctAbsent": 8,
+            "unresolved": 0,
+            "preservedUnresolved": 0
+          },
+          "reference": {
+            "expectedPositive": 24,
+            "emittedPositive": 24,
+            "correctPositive": 24,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 0,
+            "correctAbsent": 0,
+            "unresolved": 0,
+            "preservedUnresolved": 0
+          },
+          "collectedOn": {
+            "expectedPositive": 24,
+            "emittedPositive": 24,
+            "correctPositive": 24,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 0,
+            "correctAbsent": 0,
+            "unresolved": 0,
+            "preservedUnresolved": 0
+          },
+          "reportedOn": {
+            "expectedPositive": 24,
+            "emittedPositive": 24,
+            "correctPositive": 24,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 0,
+            "correctAbsent": 0,
+            "unresolved": 0,
+            "preservedUnresolved": 0
+          },
+          "issuedOn": {
+            "expectedPositive": 0,
+            "emittedPositive": 0,
+            "correctPositive": 0,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 0,
+            "correctAbsent": 24,
+            "unresolved": 0,
+            "preservedUnresolved": 0
+          },
+          "laboratory": {
+            "expectedPositive": 0,
+            "emittedPositive": 0,
+            "correctPositive": 0,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 0,
+            "correctAbsent": 24,
+            "unresolved": 0,
+            "preservedUnresolved": 0
+          },
+          "method": {
+            "expectedPositive": 0,
+            "emittedPositive": 0,
+            "correctPositive": 0,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 0,
+            "correctAbsent": 24,
+            "unresolved": 0,
+            "preservedUnresolved": 0
+          },
+          "material": {
+            "expectedPositive": 0,
+            "emittedPositive": 0,
+            "correctPositive": 0,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 0,
+            "correctAbsent": 24,
+            "unresolved": 0,
+            "preservedUnresolved": 0
+          },
+          "sourcePage": {
+            "expectedPositive": 24,
+            "emittedPositive": 24,
+            "correctPositive": 24,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 0,
+            "correctAbsent": 0,
+            "unresolved": 0,
+            "preservedUnresolved": 0
+          }
+        },
+        "positiveExpected": 160,
+        "positiveEmitted": 160,
+        "positiveCorrect": 160,
+        "positivePrecision": 1,
+        "positiveRecall": 1,
+        "unreadable": {
+          "expectedMentions": 0,
+          "correctlyFlaggedUnreadable": 0,
+          "omittedUnreadableMentions": 0
+        },
+        "unresolvedDates": {
+          "rows": 0,
+          "fields": 0,
+          "preservedUnresolved": 0,
+          "signaledRows": 0
+        },
         "verifier": {
           "eligibleRows": 24,
           "attentionRows": 0,
@@ -101,9 +2499,236 @@
           "silentUnresolvedAcceptance": 0,
           "sensitivityToWrongResults": null
         },
-        "httpMilliseconds": 16324,
-        "estimatedTokenCostUsd": 0.0017279
-      }
+        "errors": []
+      },
+      "inventory": {
+        "version": 2,
+        "scope": "recognizable_text_rows_only",
+        "completenessProven": false,
+        "recognizableRows": 24,
+        "possibleOmissions": [],
+        "coverage": {
+          "basis": "supplied_native_text_lines",
+          "coordinatesAvailable": false,
+          "independentTextAvailable": true,
+          "expectedPageCount": null,
+          "providedPages": [1, 2, 3, 4, 5, 6, 7, 8],
+          "missingPages": null,
+          "duplicatePageNumbers": [],
+          "pages": [
+            {
+              "page": 1,
+              "status": "unrecognized_text_present",
+              "nonEmptyLines": 7,
+              "recognizedRows": 3,
+              "unknownLines": [
+                {
+                  "line": 1,
+                  "reason": "unsupported_or_non_observation_text"
+                },
+                {
+                  "line": 2,
+                  "reason": "unsupported_or_non_observation_text"
+                }
+              ],
+              "sections": [
+                {
+                  "kind": "unspecified",
+                  "startLine": 1,
+                  "endLine": 7,
+                  "recognizedRows": 3,
+                  "unrecognizedLines": [1, 2]
+                }
+              ]
+            },
+            {
+              "page": 2,
+              "status": "unrecognized_text_present",
+              "nonEmptyLines": 7,
+              "recognizedRows": 3,
+              "unknownLines": [
+                {
+                  "line": 1,
+                  "reason": "unsupported_or_non_observation_text"
+                },
+                {
+                  "line": 2,
+                  "reason": "unsupported_or_non_observation_text"
+                }
+              ],
+              "sections": [
+                {
+                  "kind": "unspecified",
+                  "startLine": 1,
+                  "endLine": 7,
+                  "recognizedRows": 3,
+                  "unrecognizedLines": [1, 2]
+                }
+              ]
+            },
+            {
+              "page": 3,
+              "status": "unrecognized_text_present",
+              "nonEmptyLines": 7,
+              "recognizedRows": 3,
+              "unknownLines": [
+                {
+                  "line": 1,
+                  "reason": "unsupported_or_non_observation_text"
+                },
+                {
+                  "line": 2,
+                  "reason": "unsupported_or_non_observation_text"
+                }
+              ],
+              "sections": [
+                {
+                  "kind": "unspecified",
+                  "startLine": 1,
+                  "endLine": 7,
+                  "recognizedRows": 3,
+                  "unrecognizedLines": [1, 2]
+                }
+              ]
+            },
+            {
+              "page": 4,
+              "status": "unrecognized_text_present",
+              "nonEmptyLines": 7,
+              "recognizedRows": 3,
+              "unknownLines": [
+                {
+                  "line": 1,
+                  "reason": "unsupported_or_non_observation_text"
+                },
+                {
+                  "line": 2,
+                  "reason": "unsupported_or_non_observation_text"
+                }
+              ],
+              "sections": [
+                {
+                  "kind": "unspecified",
+                  "startLine": 1,
+                  "endLine": 7,
+                  "recognizedRows": 3,
+                  "unrecognizedLines": [1, 2]
+                }
+              ]
+            },
+            {
+              "page": 5,
+              "status": "unrecognized_text_present",
+              "nonEmptyLines": 7,
+              "recognizedRows": 3,
+              "unknownLines": [
+                {
+                  "line": 1,
+                  "reason": "unsupported_or_non_observation_text"
+                },
+                {
+                  "line": 2,
+                  "reason": "unsupported_or_non_observation_text"
+                }
+              ],
+              "sections": [
+                {
+                  "kind": "unspecified",
+                  "startLine": 1,
+                  "endLine": 7,
+                  "recognizedRows": 3,
+                  "unrecognizedLines": [1, 2]
+                }
+              ]
+            },
+            {
+              "page": 6,
+              "status": "unrecognized_text_present",
+              "nonEmptyLines": 7,
+              "recognizedRows": 3,
+              "unknownLines": [
+                {
+                  "line": 1,
+                  "reason": "unsupported_or_non_observation_text"
+                },
+                {
+                  "line": 2,
+                  "reason": "unsupported_or_non_observation_text"
+                }
+              ],
+              "sections": [
+                {
+                  "kind": "unspecified",
+                  "startLine": 1,
+                  "endLine": 7,
+                  "recognizedRows": 3,
+                  "unrecognizedLines": [1, 2]
+                }
+              ]
+            },
+            {
+              "page": 7,
+              "status": "unrecognized_text_present",
+              "nonEmptyLines": 7,
+              "recognizedRows": 3,
+              "unknownLines": [
+                {
+                  "line": 1,
+                  "reason": "unsupported_or_non_observation_text"
+                },
+                {
+                  "line": 2,
+                  "reason": "unsupported_or_non_observation_text"
+                }
+              ],
+              "sections": [
+                {
+                  "kind": "unspecified",
+                  "startLine": 1,
+                  "endLine": 7,
+                  "recognizedRows": 3,
+                  "unrecognizedLines": [1, 2]
+                }
+              ]
+            },
+            {
+              "page": 8,
+              "status": "unrecognized_text_present",
+              "nonEmptyLines": 7,
+              "recognizedRows": 3,
+              "unknownLines": [
+                {
+                  "line": 1,
+                  "reason": "unsupported_or_non_observation_text"
+                },
+                {
+                  "line": 2,
+                  "reason": "unsupported_or_non_observation_text"
+                }
+              ],
+              "sections": [
+                {
+                  "kind": "unspecified",
+                  "startLine": 1,
+                  "endLine": 7,
+                  "recognizedRows": 3,
+                  "unrecognizedLines": [1, 2]
+                }
+              ]
+            }
+          ]
+        },
+        "diagnostics": {
+          "valueMismatches": [],
+          "unitMismatches": [],
+          "provenanceMissing": [],
+          "pageMismatches": [],
+          "ambiguousProvenance": [],
+          "unmatchedPredictions": []
+        }
+      },
+      "wallMilliseconds": 16324,
+      "estimatedTokenCostUsd": 0.0017279
     },
     {
       "caseId": "scan-degraded",
@@ -111,33 +2736,157 @@
       "tags": ["scanned", "degraded", "visual_extraction", "qualitative"],
       "pdfSha256": "7bfd8067d9a8411847577aef967936f49ea07a21810e3ed7b5a66ee99033c436",
       "expectedLegibleResults": 2,
-      "realV3Documents": 0,
-      "realV3Trials": 0,
-      "newD2Trials": 0,
-      "newD2Outcome": null,
-      "status": "pending_daily_quota",
-      "historicalSource": null,
-      "historicalResult": null
-    },
-    {
-      "caseId": "scan-rotated",
-      "format": "scanned",
-      "tags": ["scanned", "degraded", "rotated_90_degrees", "visual_extraction", "qualitative"],
-      "pdfSha256": "4a28be6d344c59d69e661bdf32a6fbe96de5c830163620785fa8db038009cead",
-      "expectedLegibleResults": 2,
-      "realV3Documents": 1,
+      "sourceStage": "D.2",
       "realV3Trials": 1,
-      "newD2Trials": 0,
-      "newD2Outcome": null,
-      "status": "historical_real_v3_single_trial_only",
-      "historicalSource": "D.1",
-      "historicalResult": {
-        "readableRecovered": 2,
-        "positiveCorrect": 9,
-        "positiveExpected": 9,
+      "results": {
+        "expectedLegibleRows": 2,
+        "emittedRows": 2,
+        "matchedRows": 2,
+        "completeRows": 2,
+        "correctResults": 2,
         "omittedRows": 0,
+        "unmatchedRows": 0,
         "associationErrors": 0,
-        "errors": [],
+        "resultRecall": 1,
+        "fields": {
+          "name": {
+            "expectedPositive": 2,
+            "emittedPositive": 2,
+            "correctPositive": 2,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 0,
+            "correctAbsent": 0,
+            "unresolved": 0,
+            "preservedUnresolved": 0
+          },
+          "result": {
+            "expectedPositive": 2,
+            "emittedPositive": 2,
+            "correctPositive": 2,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 0,
+            "correctAbsent": 0,
+            "unresolved": 0,
+            "preservedUnresolved": 0
+          },
+          "unit": {
+            "expectedPositive": 1,
+            "emittedPositive": 1,
+            "correctPositive": 1,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 0,
+            "correctAbsent": 1,
+            "unresolved": 0,
+            "preservedUnresolved": 0
+          },
+          "reference": {
+            "expectedPositive": 2,
+            "emittedPositive": 2,
+            "correctPositive": 2,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 0,
+            "correctAbsent": 0,
+            "unresolved": 0,
+            "preservedUnresolved": 0
+          },
+          "collectedOn": {
+            "expectedPositive": 0,
+            "emittedPositive": 0,
+            "correctPositive": 0,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 0,
+            "correctAbsent": 2,
+            "unresolved": 0,
+            "preservedUnresolved": 0
+          },
+          "reportedOn": {
+            "expectedPositive": 0,
+            "emittedPositive": 0,
+            "correctPositive": 0,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 0,
+            "correctAbsent": 2,
+            "unresolved": 0,
+            "preservedUnresolved": 0
+          },
+          "issuedOn": {
+            "expectedPositive": 0,
+            "emittedPositive": 0,
+            "correctPositive": 0,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 0,
+            "correctAbsent": 2,
+            "unresolved": 0,
+            "preservedUnresolved": 0
+          },
+          "laboratory": {
+            "expectedPositive": 0,
+            "emittedPositive": 0,
+            "correctPositive": 0,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 0,
+            "correctAbsent": 2,
+            "unresolved": 0,
+            "preservedUnresolved": 0
+          },
+          "method": {
+            "expectedPositive": 0,
+            "emittedPositive": 0,
+            "correctPositive": 0,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 0,
+            "correctAbsent": 2,
+            "unresolved": 0,
+            "preservedUnresolved": 0
+          },
+          "material": {
+            "expectedPositive": 0,
+            "emittedPositive": 0,
+            "correctPositive": 0,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 0,
+            "correctAbsent": 2,
+            "unresolved": 0,
+            "preservedUnresolved": 0
+          },
+          "sourcePage": {
+            "expectedPositive": 2,
+            "emittedPositive": 2,
+            "correctPositive": 2,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 0,
+            "correctAbsent": 0,
+            "unresolved": 0,
+            "preservedUnresolved": 0
+          }
+        },
+        "positiveExpected": 9,
+        "positiveEmitted": 9,
+        "positiveCorrect": 9,
+        "positivePrecision": 1,
+        "positiveRecall": 1,
+        "unreadable": {
+          "expectedMentions": 0,
+          "correctlyFlaggedUnreadable": 0,
+          "omittedUnreadableMentions": 0
+        },
+        "unresolvedDates": {
+          "rows": 0,
+          "fields": 0,
+          "preservedUnresolved": 0,
+          "signaledRows": 0
+        },
         "verifier": {
           "eligibleRows": 0,
           "attentionRows": 2,
@@ -149,9 +2898,195 @@
           "silentUnresolvedAcceptance": 0,
           "sensitivityToWrongResults": null
         },
-        "httpMilliseconds": 10100,
-        "estimatedTokenCostUsd": 0.00043610000000000003
-      }
+        "errors": []
+      },
+      "inventory": {
+        "scope": "no_independent_text",
+        "completenessProven": false,
+        "recognizableRows": null,
+        "possibleOmissions": null
+      },
+      "wallMilliseconds": 8626,
+      "estimatedTokenCostUsd": 0.00033089999999999997
+    },
+    {
+      "caseId": "scan-rotated",
+      "format": "scanned",
+      "tags": ["scanned", "degraded", "rotated_90_degrees", "visual_extraction", "qualitative"],
+      "pdfSha256": "4a28be6d344c59d69e661bdf32a6fbe96de5c830163620785fa8db038009cead",
+      "expectedLegibleResults": 2,
+      "sourceStage": "D.1",
+      "realV3Trials": 1,
+      "results": {
+        "expectedLegibleRows": 2,
+        "emittedRows": 2,
+        "matchedRows": 2,
+        "completeRows": 2,
+        "correctResults": 2,
+        "omittedRows": 0,
+        "unmatchedRows": 0,
+        "associationErrors": 0,
+        "resultRecall": 1,
+        "fields": {
+          "name": {
+            "expectedPositive": 2,
+            "emittedPositive": 2,
+            "correctPositive": 2,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 0,
+            "correctAbsent": 0,
+            "unresolved": 0,
+            "preservedUnresolved": 0
+          },
+          "result": {
+            "expectedPositive": 2,
+            "emittedPositive": 2,
+            "correctPositive": 2,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 0,
+            "correctAbsent": 0,
+            "unresolved": 0,
+            "preservedUnresolved": 0
+          },
+          "unit": {
+            "expectedPositive": 1,
+            "emittedPositive": 1,
+            "correctPositive": 1,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 0,
+            "correctAbsent": 1,
+            "unresolved": 0,
+            "preservedUnresolved": 0
+          },
+          "reference": {
+            "expectedPositive": 2,
+            "emittedPositive": 2,
+            "correctPositive": 2,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 0,
+            "correctAbsent": 0,
+            "unresolved": 0,
+            "preservedUnresolved": 0
+          },
+          "collectedOn": {
+            "expectedPositive": 0,
+            "emittedPositive": 0,
+            "correctPositive": 0,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 0,
+            "correctAbsent": 2,
+            "unresolved": 0,
+            "preservedUnresolved": 0
+          },
+          "reportedOn": {
+            "expectedPositive": 0,
+            "emittedPositive": 0,
+            "correctPositive": 0,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 0,
+            "correctAbsent": 2,
+            "unresolved": 0,
+            "preservedUnresolved": 0
+          },
+          "issuedOn": {
+            "expectedPositive": 0,
+            "emittedPositive": 0,
+            "correctPositive": 0,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 0,
+            "correctAbsent": 2,
+            "unresolved": 0,
+            "preservedUnresolved": 0
+          },
+          "laboratory": {
+            "expectedPositive": 0,
+            "emittedPositive": 0,
+            "correctPositive": 0,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 0,
+            "correctAbsent": 2,
+            "unresolved": 0,
+            "preservedUnresolved": 0
+          },
+          "method": {
+            "expectedPositive": 0,
+            "emittedPositive": 0,
+            "correctPositive": 0,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 0,
+            "correctAbsent": 2,
+            "unresolved": 0,
+            "preservedUnresolved": 0
+          },
+          "material": {
+            "expectedPositive": 0,
+            "emittedPositive": 0,
+            "correctPositive": 0,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 0,
+            "correctAbsent": 2,
+            "unresolved": 0,
+            "preservedUnresolved": 0
+          },
+          "sourcePage": {
+            "expectedPositive": 2,
+            "emittedPositive": 2,
+            "correctPositive": 2,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 0,
+            "correctAbsent": 0,
+            "unresolved": 0,
+            "preservedUnresolved": 0
+          }
+        },
+        "positiveExpected": 9,
+        "positiveEmitted": 9,
+        "positiveCorrect": 9,
+        "positivePrecision": 1,
+        "positiveRecall": 1,
+        "unreadable": {
+          "expectedMentions": 0,
+          "correctlyFlaggedUnreadable": 0,
+          "omittedUnreadableMentions": 0
+        },
+        "unresolvedDates": {
+          "rows": 0,
+          "fields": 0,
+          "preservedUnresolved": 0,
+          "signaledRows": 0
+        },
+        "verifier": {
+          "eligibleRows": 0,
+          "attentionRows": 2,
+          "reviewFraction": 1,
+          "incorrectRowsObserved": 0,
+          "unsafeLiteralMatches": 0,
+          "falseAlertCandidates": 0,
+          "correctButUnprovableRows": 2,
+          "silentUnresolvedAcceptance": 0,
+          "sensitivityToWrongResults": null
+        },
+        "errors": []
+      },
+      "inventory": {
+        "scope": "no_independent_text",
+        "completenessProven": false,
+        "recognizableRows": null,
+        "possibleOmissions": null
+      },
+      "wallMilliseconds": 10100,
+      "estimatedTokenCostUsd": 0.00043610000000000003
     },
     {
       "caseId": "dates-explicit-ddmm",
@@ -159,19 +3094,157 @@
       "tags": ["dates", "explicit_format", "numeric_ambiguity_resolved"],
       "pdfSha256": "c02cd0c5584a344b0806997a1d571c6ac23167de7e3f56ecfe8b8dbb25290c49",
       "expectedLegibleResults": 1,
-      "realV3Documents": 1,
+      "sourceStage": "D.1",
       "realV3Trials": 1,
-      "newD2Trials": 0,
-      "newD2Outcome": null,
-      "status": "historical_real_v3_single_trial_only",
-      "historicalSource": "D.1",
-      "historicalResult": {
-        "readableRecovered": 1,
-        "positiveCorrect": 10,
-        "positiveExpected": 10,
+      "results": {
+        "expectedLegibleRows": 1,
+        "emittedRows": 1,
+        "matchedRows": 1,
+        "completeRows": 1,
+        "correctResults": 1,
         "omittedRows": 0,
+        "unmatchedRows": 0,
         "associationErrors": 0,
-        "errors": [],
+        "resultRecall": 1,
+        "fields": {
+          "name": {
+            "expectedPositive": 1,
+            "emittedPositive": 1,
+            "correctPositive": 1,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 0,
+            "correctAbsent": 0,
+            "unresolved": 0,
+            "preservedUnresolved": 0
+          },
+          "result": {
+            "expectedPositive": 1,
+            "emittedPositive": 1,
+            "correctPositive": 1,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 0,
+            "correctAbsent": 0,
+            "unresolved": 0,
+            "preservedUnresolved": 0
+          },
+          "unit": {
+            "expectedPositive": 1,
+            "emittedPositive": 1,
+            "correctPositive": 1,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 0,
+            "correctAbsent": 0,
+            "unresolved": 0,
+            "preservedUnresolved": 0
+          },
+          "reference": {
+            "expectedPositive": 0,
+            "emittedPositive": 0,
+            "correctPositive": 0,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 0,
+            "correctAbsent": 1,
+            "unresolved": 0,
+            "preservedUnresolved": 0
+          },
+          "collectedOn": {
+            "expectedPositive": 1,
+            "emittedPositive": 1,
+            "correctPositive": 1,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 0,
+            "correctAbsent": 0,
+            "unresolved": 0,
+            "preservedUnresolved": 0
+          },
+          "reportedOn": {
+            "expectedPositive": 1,
+            "emittedPositive": 1,
+            "correctPositive": 1,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 0,
+            "correctAbsent": 0,
+            "unresolved": 0,
+            "preservedUnresolved": 0
+          },
+          "issuedOn": {
+            "expectedPositive": 1,
+            "emittedPositive": 1,
+            "correctPositive": 1,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 0,
+            "correctAbsent": 0,
+            "unresolved": 0,
+            "preservedUnresolved": 0
+          },
+          "laboratory": {
+            "expectedPositive": 1,
+            "emittedPositive": 1,
+            "correctPositive": 1,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 0,
+            "correctAbsent": 0,
+            "unresolved": 0,
+            "preservedUnresolved": 0
+          },
+          "method": {
+            "expectedPositive": 1,
+            "emittedPositive": 1,
+            "correctPositive": 1,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 0,
+            "correctAbsent": 0,
+            "unresolved": 0,
+            "preservedUnresolved": 0
+          },
+          "material": {
+            "expectedPositive": 1,
+            "emittedPositive": 1,
+            "correctPositive": 1,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 0,
+            "correctAbsent": 0,
+            "unresolved": 0,
+            "preservedUnresolved": 0
+          },
+          "sourcePage": {
+            "expectedPositive": 1,
+            "emittedPositive": 1,
+            "correctPositive": 1,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 0,
+            "correctAbsent": 0,
+            "unresolved": 0,
+            "preservedUnresolved": 0
+          }
+        },
+        "positiveExpected": 10,
+        "positiveEmitted": 10,
+        "positiveCorrect": 10,
+        "positivePrecision": 1,
+        "positiveRecall": 1,
+        "unreadable": {
+          "expectedMentions": 0,
+          "correctlyFlaggedUnreadable": 0,
+          "omittedUnreadableMentions": 0
+        },
+        "unresolvedDates": {
+          "rows": 0,
+          "fields": 0,
+          "preservedUnresolved": 0,
+          "signaledRows": 0
+        },
         "verifier": {
           "eligibleRows": 1,
           "attentionRows": 0,
@@ -183,9 +3256,57 @@
           "silentUnresolvedAcceptance": 0,
           "sensitivityToWrongResults": null
         },
-        "httpMilliseconds": 9485,
-        "estimatedTokenCostUsd": 0.00016410000000000003
-      }
+        "errors": []
+      },
+      "inventory": {
+        "version": 2,
+        "scope": "recognizable_text_rows_only",
+        "completenessProven": false,
+        "recognizableRows": 1,
+        "possibleOmissions": [],
+        "coverage": {
+          "basis": "supplied_native_text_lines",
+          "coordinatesAvailable": false,
+          "independentTextAvailable": true,
+          "expectedPageCount": null,
+          "providedPages": [1],
+          "missingPages": null,
+          "duplicatePageNumbers": [],
+          "pages": [
+            {
+              "page": 1,
+              "status": "unrecognized_text_present",
+              "nonEmptyLines": 9,
+              "recognizedRows": 1,
+              "unknownLines": [
+                {
+                  "line": 1,
+                  "reason": "unsupported_or_non_observation_text"
+                }
+              ],
+              "sections": [
+                {
+                  "kind": "unspecified",
+                  "startLine": 1,
+                  "endLine": 9,
+                  "recognizedRows": 1,
+                  "unrecognizedLines": [1]
+                }
+              ]
+            }
+          ]
+        },
+        "diagnostics": {
+          "valueMismatches": [],
+          "unitMismatches": [],
+          "provenanceMissing": [],
+          "pageMismatches": [],
+          "ambiguousProvenance": [],
+          "unmatchedPredictions": []
+        }
+      },
+      "wallMilliseconds": 9485,
+      "estimatedTokenCostUsd": 0.00016410000000000003
     },
     {
       "caseId": "dates-unambiguous-ddmm",
@@ -193,13 +3314,219 @@
       "tags": ["dates", "day_greater_than_12", "explicit_roles"],
       "pdfSha256": "19438ac446c4f59a2c9486daf3ecf1465a4712cf6c7ff8beb9146c156926d694",
       "expectedLegibleResults": 1,
-      "realV3Documents": 0,
-      "realV3Trials": 0,
-      "newD2Trials": 0,
-      "newD2Outcome": null,
-      "status": "pending_daily_quota",
-      "historicalSource": null,
-      "historicalResult": null
+      "sourceStage": "D.2",
+      "realV3Trials": 1,
+      "results": {
+        "expectedLegibleRows": 1,
+        "emittedRows": 1,
+        "matchedRows": 1,
+        "completeRows": 1,
+        "correctResults": 1,
+        "omittedRows": 0,
+        "unmatchedRows": 0,
+        "associationErrors": 0,
+        "resultRecall": 1,
+        "fields": {
+          "name": {
+            "expectedPositive": 1,
+            "emittedPositive": 1,
+            "correctPositive": 1,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 0,
+            "correctAbsent": 0,
+            "unresolved": 0,
+            "preservedUnresolved": 0
+          },
+          "result": {
+            "expectedPositive": 1,
+            "emittedPositive": 1,
+            "correctPositive": 1,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 0,
+            "correctAbsent": 0,
+            "unresolved": 0,
+            "preservedUnresolved": 0
+          },
+          "unit": {
+            "expectedPositive": 1,
+            "emittedPositive": 1,
+            "correctPositive": 1,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 0,
+            "correctAbsent": 0,
+            "unresolved": 0,
+            "preservedUnresolved": 0
+          },
+          "reference": {
+            "expectedPositive": 0,
+            "emittedPositive": 0,
+            "correctPositive": 0,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 0,
+            "correctAbsent": 1,
+            "unresolved": 0,
+            "preservedUnresolved": 0
+          },
+          "collectedOn": {
+            "expectedPositive": 1,
+            "emittedPositive": 1,
+            "correctPositive": 1,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 0,
+            "correctAbsent": 0,
+            "unresolved": 0,
+            "preservedUnresolved": 0
+          },
+          "reportedOn": {
+            "expectedPositive": 1,
+            "emittedPositive": 1,
+            "correctPositive": 1,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 0,
+            "correctAbsent": 0,
+            "unresolved": 0,
+            "preservedUnresolved": 0
+          },
+          "issuedOn": {
+            "expectedPositive": 1,
+            "emittedPositive": 1,
+            "correctPositive": 1,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 0,
+            "correctAbsent": 0,
+            "unresolved": 0,
+            "preservedUnresolved": 0
+          },
+          "laboratory": {
+            "expectedPositive": 0,
+            "emittedPositive": 0,
+            "correctPositive": 0,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 0,
+            "correctAbsent": 1,
+            "unresolved": 0,
+            "preservedUnresolved": 0
+          },
+          "method": {
+            "expectedPositive": 0,
+            "emittedPositive": 0,
+            "correctPositive": 0,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 0,
+            "correctAbsent": 1,
+            "unresolved": 0,
+            "preservedUnresolved": 0
+          },
+          "material": {
+            "expectedPositive": 0,
+            "emittedPositive": 0,
+            "correctPositive": 0,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 0,
+            "correctAbsent": 1,
+            "unresolved": 0,
+            "preservedUnresolved": 0
+          },
+          "sourcePage": {
+            "expectedPositive": 1,
+            "emittedPositive": 1,
+            "correctPositive": 1,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 0,
+            "correctAbsent": 0,
+            "unresolved": 0,
+            "preservedUnresolved": 0
+          }
+        },
+        "positiveExpected": 7,
+        "positiveEmitted": 7,
+        "positiveCorrect": 7,
+        "positivePrecision": 1,
+        "positiveRecall": 1,
+        "unreadable": {
+          "expectedMentions": 0,
+          "correctlyFlaggedUnreadable": 0,
+          "omittedUnreadableMentions": 0
+        },
+        "unresolvedDates": {
+          "rows": 0,
+          "fields": 0,
+          "preservedUnresolved": 0,
+          "signaledRows": 0
+        },
+        "verifier": {
+          "eligibleRows": 1,
+          "attentionRows": 0,
+          "reviewFraction": 0,
+          "incorrectRowsObserved": 0,
+          "unsafeLiteralMatches": 0,
+          "falseAlertCandidates": 0,
+          "correctButUnprovableRows": 0,
+          "silentUnresolvedAcceptance": 0,
+          "sensitivityToWrongResults": null
+        },
+        "errors": []
+      },
+      "inventory": {
+        "version": 2,
+        "scope": "recognizable_text_rows_only",
+        "completenessProven": false,
+        "recognizableRows": 1,
+        "possibleOmissions": [],
+        "coverage": {
+          "basis": "supplied_native_text_lines",
+          "coordinatesAvailable": false,
+          "independentTextAvailable": true,
+          "expectedPageCount": null,
+          "providedPages": [1],
+          "missingPages": null,
+          "duplicatePageNumbers": [],
+          "pages": [
+            {
+              "page": 1,
+              "status": "unrecognized_text_present",
+              "nonEmptyLines": 5,
+              "recognizedRows": 1,
+              "unknownLines": [
+                {
+                  "line": 1,
+                  "reason": "unsupported_or_non_observation_text"
+                }
+              ],
+              "sections": [
+                {
+                  "kind": "unspecified",
+                  "startLine": 1,
+                  "endLine": 5,
+                  "recognizedRows": 1,
+                  "unrecognizedLines": [1]
+                }
+              ]
+            }
+          ]
+        },
+        "diagnostics": {
+          "valueMismatches": [],
+          "unitMismatches": [],
+          "provenanceMissing": [],
+          "pageMismatches": [],
+          "ambiguousProvenance": [],
+          "unmatchedPredictions": []
+        }
+      },
+      "wallMilliseconds": 6101,
+      "estimatedTokenCostUsd": 0.000155
     },
     {
       "caseId": "dates-iso",
@@ -207,13 +3534,219 @@
       "tags": ["dates", "iso", "explicit_roles"],
       "pdfSha256": "4a4f2cb4613d3f5b334d7970464a22babde182b185036235216f5bb0cba33dba",
       "expectedLegibleResults": 1,
-      "realV3Documents": 0,
-      "realV3Trials": 0,
-      "newD2Trials": 0,
-      "newD2Outcome": null,
-      "status": "pending_daily_quota",
-      "historicalSource": null,
-      "historicalResult": null
+      "sourceStage": "D.2",
+      "realV3Trials": 1,
+      "results": {
+        "expectedLegibleRows": 1,
+        "emittedRows": 1,
+        "matchedRows": 1,
+        "completeRows": 1,
+        "correctResults": 1,
+        "omittedRows": 0,
+        "unmatchedRows": 0,
+        "associationErrors": 0,
+        "resultRecall": 1,
+        "fields": {
+          "name": {
+            "expectedPositive": 1,
+            "emittedPositive": 1,
+            "correctPositive": 1,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 0,
+            "correctAbsent": 0,
+            "unresolved": 0,
+            "preservedUnresolved": 0
+          },
+          "result": {
+            "expectedPositive": 1,
+            "emittedPositive": 1,
+            "correctPositive": 1,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 0,
+            "correctAbsent": 0,
+            "unresolved": 0,
+            "preservedUnresolved": 0
+          },
+          "unit": {
+            "expectedPositive": 1,
+            "emittedPositive": 1,
+            "correctPositive": 1,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 0,
+            "correctAbsent": 0,
+            "unresolved": 0,
+            "preservedUnresolved": 0
+          },
+          "reference": {
+            "expectedPositive": 0,
+            "emittedPositive": 0,
+            "correctPositive": 0,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 0,
+            "correctAbsent": 1,
+            "unresolved": 0,
+            "preservedUnresolved": 0
+          },
+          "collectedOn": {
+            "expectedPositive": 1,
+            "emittedPositive": 1,
+            "correctPositive": 1,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 0,
+            "correctAbsent": 0,
+            "unresolved": 0,
+            "preservedUnresolved": 0
+          },
+          "reportedOn": {
+            "expectedPositive": 1,
+            "emittedPositive": 1,
+            "correctPositive": 1,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 0,
+            "correctAbsent": 0,
+            "unresolved": 0,
+            "preservedUnresolved": 0
+          },
+          "issuedOn": {
+            "expectedPositive": 1,
+            "emittedPositive": 1,
+            "correctPositive": 1,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 0,
+            "correctAbsent": 0,
+            "unresolved": 0,
+            "preservedUnresolved": 0
+          },
+          "laboratory": {
+            "expectedPositive": 0,
+            "emittedPositive": 0,
+            "correctPositive": 0,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 0,
+            "correctAbsent": 1,
+            "unresolved": 0,
+            "preservedUnresolved": 0
+          },
+          "method": {
+            "expectedPositive": 0,
+            "emittedPositive": 0,
+            "correctPositive": 0,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 0,
+            "correctAbsent": 1,
+            "unresolved": 0,
+            "preservedUnresolved": 0
+          },
+          "material": {
+            "expectedPositive": 0,
+            "emittedPositive": 0,
+            "correctPositive": 0,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 0,
+            "correctAbsent": 1,
+            "unresolved": 0,
+            "preservedUnresolved": 0
+          },
+          "sourcePage": {
+            "expectedPositive": 1,
+            "emittedPositive": 1,
+            "correctPositive": 1,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 0,
+            "correctAbsent": 0,
+            "unresolved": 0,
+            "preservedUnresolved": 0
+          }
+        },
+        "positiveExpected": 7,
+        "positiveEmitted": 7,
+        "positiveCorrect": 7,
+        "positivePrecision": 1,
+        "positiveRecall": 1,
+        "unreadable": {
+          "expectedMentions": 0,
+          "correctlyFlaggedUnreadable": 0,
+          "omittedUnreadableMentions": 0
+        },
+        "unresolvedDates": {
+          "rows": 0,
+          "fields": 0,
+          "preservedUnresolved": 0,
+          "signaledRows": 0
+        },
+        "verifier": {
+          "eligibleRows": 1,
+          "attentionRows": 0,
+          "reviewFraction": 0,
+          "incorrectRowsObserved": 0,
+          "unsafeLiteralMatches": 0,
+          "falseAlertCandidates": 0,
+          "correctButUnprovableRows": 0,
+          "silentUnresolvedAcceptance": 0,
+          "sensitivityToWrongResults": null
+        },
+        "errors": []
+      },
+      "inventory": {
+        "version": 2,
+        "scope": "recognizable_text_rows_only",
+        "completenessProven": false,
+        "recognizableRows": 1,
+        "possibleOmissions": [],
+        "coverage": {
+          "basis": "supplied_native_text_lines",
+          "coordinatesAvailable": false,
+          "independentTextAvailable": true,
+          "expectedPageCount": null,
+          "providedPages": [1],
+          "missingPages": null,
+          "duplicatePageNumbers": [],
+          "pages": [
+            {
+              "page": 1,
+              "status": "unrecognized_text_present",
+              "nonEmptyLines": 5,
+              "recognizedRows": 1,
+              "unknownLines": [
+                {
+                  "line": 1,
+                  "reason": "unsupported_or_non_observation_text"
+                }
+              ],
+              "sections": [
+                {
+                  "kind": "unspecified",
+                  "startLine": 1,
+                  "endLine": 5,
+                  "recognizedRows": 1,
+                  "unrecognizedLines": [1]
+                }
+              ]
+            }
+          ]
+        },
+        "diagnostics": {
+          "valueMismatches": [],
+          "unitMismatches": [],
+          "provenanceMissing": [],
+          "pageMismatches": [],
+          "ambiguousProvenance": [],
+          "unmatchedPredictions": []
+        }
+      },
+      "wallMilliseconds": 5334,
+      "estimatedTokenCostUsd": 0.0001421
     },
     {
       "caseId": "dates-ambiguous-no-format",
@@ -221,19 +3754,157 @@
       "tags": ["dates", "ambiguous", "must_abstain"],
       "pdfSha256": "e51c1b65eb10791dd6368b5c96d3bf67c059ec442d0e8b4e61f378ecc28d7f77",
       "expectedLegibleResults": 1,
-      "realV3Documents": 1,
+      "sourceStage": "D.1",
       "realV3Trials": 1,
-      "newD2Trials": 0,
-      "newD2Outcome": null,
-      "status": "historical_real_v3_single_trial_only",
-      "historicalSource": "D.1",
-      "historicalResult": {
-        "readableRecovered": 1,
-        "positiveCorrect": 4,
-        "positiveExpected": 4,
+      "results": {
+        "expectedLegibleRows": 1,
+        "emittedRows": 1,
+        "matchedRows": 1,
+        "completeRows": 1,
+        "correctResults": 1,
         "omittedRows": 0,
+        "unmatchedRows": 0,
         "associationErrors": 0,
-        "errors": [],
+        "resultRecall": 1,
+        "fields": {
+          "name": {
+            "expectedPositive": 1,
+            "emittedPositive": 1,
+            "correctPositive": 1,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 0,
+            "correctAbsent": 0,
+            "unresolved": 0,
+            "preservedUnresolved": 0
+          },
+          "result": {
+            "expectedPositive": 1,
+            "emittedPositive": 1,
+            "correctPositive": 1,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 0,
+            "correctAbsent": 0,
+            "unresolved": 0,
+            "preservedUnresolved": 0
+          },
+          "unit": {
+            "expectedPositive": 1,
+            "emittedPositive": 1,
+            "correctPositive": 1,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 0,
+            "correctAbsent": 0,
+            "unresolved": 0,
+            "preservedUnresolved": 0
+          },
+          "reference": {
+            "expectedPositive": 0,
+            "emittedPositive": 0,
+            "correctPositive": 0,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 0,
+            "correctAbsent": 1,
+            "unresolved": 0,
+            "preservedUnresolved": 0
+          },
+          "collectedOn": {
+            "expectedPositive": 0,
+            "emittedPositive": 0,
+            "correctPositive": 0,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 0,
+            "correctAbsent": 0,
+            "unresolved": 1,
+            "preservedUnresolved": 1
+          },
+          "reportedOn": {
+            "expectedPositive": 0,
+            "emittedPositive": 0,
+            "correctPositive": 0,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 0,
+            "correctAbsent": 0,
+            "unresolved": 1,
+            "preservedUnresolved": 1
+          },
+          "issuedOn": {
+            "expectedPositive": 0,
+            "emittedPositive": 0,
+            "correctPositive": 0,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 0,
+            "correctAbsent": 0,
+            "unresolved": 1,
+            "preservedUnresolved": 1
+          },
+          "laboratory": {
+            "expectedPositive": 0,
+            "emittedPositive": 0,
+            "correctPositive": 0,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 0,
+            "correctAbsent": 1,
+            "unresolved": 0,
+            "preservedUnresolved": 0
+          },
+          "method": {
+            "expectedPositive": 0,
+            "emittedPositive": 0,
+            "correctPositive": 0,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 0,
+            "correctAbsent": 1,
+            "unresolved": 0,
+            "preservedUnresolved": 0
+          },
+          "material": {
+            "expectedPositive": 0,
+            "emittedPositive": 0,
+            "correctPositive": 0,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 0,
+            "correctAbsent": 1,
+            "unresolved": 0,
+            "preservedUnresolved": 0
+          },
+          "sourcePage": {
+            "expectedPositive": 1,
+            "emittedPositive": 1,
+            "correctPositive": 1,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 0,
+            "correctAbsent": 0,
+            "unresolved": 0,
+            "preservedUnresolved": 0
+          }
+        },
+        "positiveExpected": 4,
+        "positiveEmitted": 4,
+        "positiveCorrect": 4,
+        "positivePrecision": 1,
+        "positiveRecall": 1,
+        "unreadable": {
+          "expectedMentions": 0,
+          "correctlyFlaggedUnreadable": 0,
+          "omittedUnreadableMentions": 0
+        },
+        "unresolvedDates": {
+          "rows": 1,
+          "fields": 3,
+          "preservedUnresolved": 3,
+          "signaledRows": 1
+        },
         "verifier": {
           "eligibleRows": 0,
           "attentionRows": 1,
@@ -245,9 +3916,61 @@
           "silentUnresolvedAcceptance": 0,
           "sensitivityToWrongResults": null
         },
-        "httpMilliseconds": 8291,
-        "estimatedTokenCostUsd": 0.00018360000000000002
-      }
+        "errors": []
+      },
+      "inventory": {
+        "version": 2,
+        "scope": "recognizable_text_rows_only",
+        "completenessProven": false,
+        "recognizableRows": 1,
+        "possibleOmissions": [],
+        "coverage": {
+          "basis": "supplied_native_text_lines",
+          "coordinatesAvailable": false,
+          "independentTextAvailable": true,
+          "expectedPageCount": null,
+          "providedPages": [1],
+          "missingPages": null,
+          "duplicatePageNumbers": [],
+          "pages": [
+            {
+              "page": 1,
+              "status": "unrecognized_text_present",
+              "nonEmptyLines": 6,
+              "recognizedRows": 1,
+              "unknownLines": [
+                {
+                  "line": 1,
+                  "reason": "unsupported_or_non_observation_text"
+                },
+                {
+                  "line": 5,
+                  "reason": "unsupported_or_non_observation_text"
+                }
+              ],
+              "sections": [
+                {
+                  "kind": "unspecified",
+                  "startLine": 1,
+                  "endLine": 6,
+                  "recognizedRows": 1,
+                  "unrecognizedLines": [1, 5]
+                }
+              ]
+            }
+          ]
+        },
+        "diagnostics": {
+          "valueMismatches": [],
+          "unitMismatches": [],
+          "provenanceMissing": [],
+          "pageMismatches": [],
+          "ambiguousProvenance": [],
+          "unmatchedPredictions": []
+        }
+      },
+      "wallMilliseconds": 8291,
+      "estimatedTokenCostUsd": 0.00018360000000000002
     },
     {
       "caseId": "historical-dates-current-result",
@@ -255,13 +3978,243 @@
       "tags": ["dates", "historical_date", "current_previous"],
       "pdfSha256": "cdcd1685270e095e3909f220c37b1f14b4fa112fa275b11b1b8613991f633dc5",
       "expectedLegibleResults": 1,
-      "realV3Documents": 0,
-      "realV3Trials": 0,
-      "newD2Trials": 0,
-      "newD2Outcome": null,
-      "status": "pending_daily_quota",
-      "historicalSource": null,
-      "historicalResult": null
+      "sourceStage": "D.2",
+      "realV3Trials": 1,
+      "results": {
+        "expectedLegibleRows": 1,
+        "emittedRows": 2,
+        "matchedRows": 1,
+        "completeRows": 1,
+        "correctResults": 1,
+        "omittedRows": 0,
+        "unmatchedRows": 1,
+        "associationErrors": 0,
+        "resultRecall": 1,
+        "fields": {
+          "name": {
+            "expectedPositive": 1,
+            "emittedPositive": 2,
+            "correctPositive": 1,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 1,
+            "correctAbsent": 0,
+            "unresolved": 0,
+            "preservedUnresolved": 0
+          },
+          "result": {
+            "expectedPositive": 1,
+            "emittedPositive": 2,
+            "correctPositive": 1,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 1,
+            "correctAbsent": 0,
+            "unresolved": 0,
+            "preservedUnresolved": 0
+          },
+          "unit": {
+            "expectedPositive": 1,
+            "emittedPositive": 2,
+            "correctPositive": 1,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 1,
+            "correctAbsent": 0,
+            "unresolved": 0,
+            "preservedUnresolved": 0
+          },
+          "reference": {
+            "expectedPositive": 1,
+            "emittedPositive": 1,
+            "correctPositive": 1,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 0,
+            "correctAbsent": 0,
+            "unresolved": 0,
+            "preservedUnresolved": 0
+          },
+          "collectedOn": {
+            "expectedPositive": 1,
+            "emittedPositive": 1,
+            "correctPositive": 1,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 0,
+            "correctAbsent": 0,
+            "unresolved": 0,
+            "preservedUnresolved": 0
+          },
+          "reportedOn": {
+            "expectedPositive": 1,
+            "emittedPositive": 1,
+            "correctPositive": 1,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 0,
+            "correctAbsent": 0,
+            "unresolved": 0,
+            "preservedUnresolved": 0
+          },
+          "issuedOn": {
+            "expectedPositive": 1,
+            "emittedPositive": 1,
+            "correctPositive": 1,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 0,
+            "correctAbsent": 0,
+            "unresolved": 0,
+            "preservedUnresolved": 0
+          },
+          "laboratory": {
+            "expectedPositive": 0,
+            "emittedPositive": 0,
+            "correctPositive": 0,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 0,
+            "correctAbsent": 1,
+            "unresolved": 0,
+            "preservedUnresolved": 0
+          },
+          "method": {
+            "expectedPositive": 0,
+            "emittedPositive": 0,
+            "correctPositive": 0,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 0,
+            "correctAbsent": 1,
+            "unresolved": 0,
+            "preservedUnresolved": 0
+          },
+          "material": {
+            "expectedPositive": 0,
+            "emittedPositive": 0,
+            "correctPositive": 0,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 0,
+            "correctAbsent": 1,
+            "unresolved": 0,
+            "preservedUnresolved": 0
+          },
+          "sourcePage": {
+            "expectedPositive": 1,
+            "emittedPositive": 2,
+            "correctPositive": 1,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 1,
+            "correctAbsent": 0,
+            "unresolved": 0,
+            "preservedUnresolved": 0
+          }
+        },
+        "positiveExpected": 8,
+        "positiveEmitted": 12,
+        "positiveCorrect": 8,
+        "positivePrecision": 0.6666666666666666,
+        "positiveRecall": 1,
+        "unreadable": {
+          "expectedMentions": 0,
+          "correctlyFlaggedUnreadable": 0,
+          "omittedUnreadableMentions": 0
+        },
+        "unresolvedDates": {
+          "rows": 0,
+          "fields": 0,
+          "preservedUnresolved": 0,
+          "signaledRows": 0
+        },
+        "verifier": {
+          "eligibleRows": 1,
+          "attentionRows": 1,
+          "reviewFraction": 0.5,
+          "incorrectRowsObserved": 1,
+          "unsafeLiteralMatches": 0,
+          "falseAlertCandidates": 0,
+          "correctButUnprovableRows": 0,
+          "silentUnresolvedAcceptance": 0,
+          "sensitivityToWrongResults": null
+        },
+        "errors": [
+          {
+            "row": 1,
+            "field": "observation",
+            "kind": "unmatchedRow",
+            "expected": null,
+            "actual": "Glicose",
+            "verifierDetectedField": true
+          }
+        ]
+      },
+      "inventory": {
+        "version": 2,
+        "scope": "recognizable_text_rows_only",
+        "completenessProven": false,
+        "recognizableRows": 1,
+        "possibleOmissions": [],
+        "coverage": {
+          "basis": "supplied_native_text_lines",
+          "coordinatesAvailable": false,
+          "independentTextAvailable": true,
+          "expectedPageCount": null,
+          "providedPages": [1],
+          "missingPages": null,
+          "duplicatePageNumbers": [],
+          "pages": [
+            {
+              "page": 1,
+              "status": "unrecognized_text_present",
+              "nonEmptyLines": 8,
+              "recognizedRows": 1,
+              "unknownLines": [
+                {
+                  "line": 1,
+                  "reason": "unsupported_or_non_observation_text"
+                }
+              ],
+              "sections": [
+                {
+                  "kind": "unspecified",
+                  "startLine": 1,
+                  "endLine": 5,
+                  "recognizedRows": 1,
+                  "unrecognizedLines": [1]
+                },
+                {
+                  "kind": "historical",
+                  "startLine": 6,
+                  "endLine": 8,
+                  "recognizedRows": 0,
+                  "unrecognizedLines": []
+                }
+              ]
+            }
+          ]
+        },
+        "diagnostics": {
+          "valueMismatches": [],
+          "unitMismatches": [],
+          "provenanceMissing": [],
+          "pageMismatches": [],
+          "ambiguousProvenance": [],
+          "unmatchedPredictions": [
+            {
+              "predictionIndex": 1,
+              "name": "Glicose",
+              "result": "120",
+              "sourcePage": 1,
+              "reason": "no_remaining_recognizable_source"
+            }
+          ]
+        }
+      },
+      "wallMilliseconds": 6396,
+      "estimatedTokenCostUsd": 0.00020240000000000001
     },
     {
       "caseId": "reference-formats-qualitative",
@@ -269,13 +4222,223 @@
       "tags": ["qualitative", "comparators", "reference_formats", "multiline_reference"],
       "pdfSha256": "0f752f467f70742f79df1a336ceaf8bdc185fa17b02e0e43c358639293885a48",
       "expectedLegibleResults": 3,
-      "realV3Documents": 0,
-      "realV3Trials": 0,
-      "newD2Trials": 0,
-      "newD2Outcome": null,
-      "status": "pending_daily_quota",
-      "historicalSource": null,
-      "historicalResult": null
+      "sourceStage": "D.2",
+      "realV3Trials": 1,
+      "results": {
+        "expectedLegibleRows": 3,
+        "emittedRows": 3,
+        "matchedRows": 3,
+        "completeRows": 3,
+        "correctResults": 3,
+        "omittedRows": 0,
+        "unmatchedRows": 0,
+        "associationErrors": 0,
+        "resultRecall": 1,
+        "fields": {
+          "name": {
+            "expectedPositive": 3,
+            "emittedPositive": 3,
+            "correctPositive": 3,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 0,
+            "correctAbsent": 0,
+            "unresolved": 0,
+            "preservedUnresolved": 0
+          },
+          "result": {
+            "expectedPositive": 3,
+            "emittedPositive": 3,
+            "correctPositive": 3,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 0,
+            "correctAbsent": 0,
+            "unresolved": 0,
+            "preservedUnresolved": 0
+          },
+          "unit": {
+            "expectedPositive": 2,
+            "emittedPositive": 2,
+            "correctPositive": 2,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 0,
+            "correctAbsent": 1,
+            "unresolved": 0,
+            "preservedUnresolved": 0
+          },
+          "reference": {
+            "expectedPositive": 3,
+            "emittedPositive": 3,
+            "correctPositive": 3,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 0,
+            "correctAbsent": 0,
+            "unresolved": 0,
+            "preservedUnresolved": 0
+          },
+          "collectedOn": {
+            "expectedPositive": 0,
+            "emittedPositive": 0,
+            "correctPositive": 0,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 0,
+            "correctAbsent": 3,
+            "unresolved": 0,
+            "preservedUnresolved": 0
+          },
+          "reportedOn": {
+            "expectedPositive": 0,
+            "emittedPositive": 0,
+            "correctPositive": 0,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 0,
+            "correctAbsent": 3,
+            "unresolved": 0,
+            "preservedUnresolved": 0
+          },
+          "issuedOn": {
+            "expectedPositive": 0,
+            "emittedPositive": 0,
+            "correctPositive": 0,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 0,
+            "correctAbsent": 3,
+            "unresolved": 0,
+            "preservedUnresolved": 0
+          },
+          "laboratory": {
+            "expectedPositive": 0,
+            "emittedPositive": 0,
+            "correctPositive": 0,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 0,
+            "correctAbsent": 3,
+            "unresolved": 0,
+            "preservedUnresolved": 0
+          },
+          "method": {
+            "expectedPositive": 0,
+            "emittedPositive": 0,
+            "correctPositive": 0,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 0,
+            "correctAbsent": 3,
+            "unresolved": 0,
+            "preservedUnresolved": 0
+          },
+          "material": {
+            "expectedPositive": 0,
+            "emittedPositive": 0,
+            "correctPositive": 0,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 0,
+            "correctAbsent": 3,
+            "unresolved": 0,
+            "preservedUnresolved": 0
+          },
+          "sourcePage": {
+            "expectedPositive": 3,
+            "emittedPositive": 3,
+            "correctPositive": 3,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 0,
+            "correctAbsent": 0,
+            "unresolved": 0,
+            "preservedUnresolved": 0
+          }
+        },
+        "positiveExpected": 14,
+        "positiveEmitted": 14,
+        "positiveCorrect": 14,
+        "positivePrecision": 1,
+        "positiveRecall": 1,
+        "unreadable": {
+          "expectedMentions": 0,
+          "correctlyFlaggedUnreadable": 0,
+          "omittedUnreadableMentions": 0
+        },
+        "unresolvedDates": {
+          "rows": 0,
+          "fields": 0,
+          "preservedUnresolved": 0,
+          "signaledRows": 0
+        },
+        "verifier": {
+          "eligibleRows": 2,
+          "attentionRows": 1,
+          "reviewFraction": 0.3333333333333333,
+          "incorrectRowsObserved": 0,
+          "unsafeLiteralMatches": 0,
+          "falseAlertCandidates": 1,
+          "correctButUnprovableRows": 0,
+          "silentUnresolvedAcceptance": 0,
+          "sensitivityToWrongResults": null
+        },
+        "errors": []
+      },
+      "inventory": {
+        "version": 2,
+        "scope": "recognizable_text_rows_only",
+        "completenessProven": false,
+        "recognizableRows": 3,
+        "possibleOmissions": [],
+        "coverage": {
+          "basis": "supplied_native_text_lines",
+          "coordinatesAvailable": false,
+          "independentTextAvailable": true,
+          "expectedPageCount": null,
+          "providedPages": [1],
+          "missingPages": null,
+          "duplicatePageNumbers": [],
+          "pages": [
+            {
+              "page": 1,
+              "status": "unrecognized_text_present",
+              "nonEmptyLines": 5,
+              "recognizedRows": 3,
+              "unknownLines": [
+                {
+                  "line": 1,
+                  "reason": "unsupported_or_non_observation_text"
+                },
+                {
+                  "line": 5,
+                  "reason": "unsupported_or_non_observation_text"
+                }
+              ],
+              "sections": [
+                {
+                  "kind": "unspecified",
+                  "startLine": 1,
+                  "endLine": 5,
+                  "recognizedRows": 3,
+                  "unrecognizedLines": [1, 5]
+                }
+              ]
+            }
+          ]
+        },
+        "diagnostics": {
+          "valueMismatches": [],
+          "unitMismatches": [],
+          "provenanceMissing": [],
+          "pageMismatches": [],
+          "ambiguousProvenance": [],
+          "unmatchedPredictions": []
+        }
+      },
+      "wallMilliseconds": 6493,
+      "estimatedTokenCostUsd": 0.00024019999999999998
     },
     {
       "caseId": "similar-names-distinct-units",
@@ -283,13 +4446,219 @@
       "tags": ["similar_names", "different_units", "no_unit_conversion"],
       "pdfSha256": "ee4aa15b3938609be1cca4d73d8eae95a01827b74d9b794939a3ce939b49c9d9",
       "expectedLegibleResults": 4,
-      "realV3Documents": 0,
-      "realV3Trials": 0,
-      "newD2Trials": 0,
-      "newD2Outcome": null,
-      "status": "pending_daily_quota",
-      "historicalSource": null,
-      "historicalResult": null
+      "sourceStage": "D.2",
+      "realV3Trials": 1,
+      "results": {
+        "expectedLegibleRows": 4,
+        "emittedRows": 4,
+        "matchedRows": 4,
+        "completeRows": 4,
+        "correctResults": 4,
+        "omittedRows": 0,
+        "unmatchedRows": 0,
+        "associationErrors": 0,
+        "resultRecall": 1,
+        "fields": {
+          "name": {
+            "expectedPositive": 4,
+            "emittedPositive": 4,
+            "correctPositive": 4,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 0,
+            "correctAbsent": 0,
+            "unresolved": 0,
+            "preservedUnresolved": 0
+          },
+          "result": {
+            "expectedPositive": 4,
+            "emittedPositive": 4,
+            "correctPositive": 4,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 0,
+            "correctAbsent": 0,
+            "unresolved": 0,
+            "preservedUnresolved": 0
+          },
+          "unit": {
+            "expectedPositive": 4,
+            "emittedPositive": 4,
+            "correctPositive": 4,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 0,
+            "correctAbsent": 0,
+            "unresolved": 0,
+            "preservedUnresolved": 0
+          },
+          "reference": {
+            "expectedPositive": 0,
+            "emittedPositive": 0,
+            "correctPositive": 0,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 0,
+            "correctAbsent": 4,
+            "unresolved": 0,
+            "preservedUnresolved": 0
+          },
+          "collectedOn": {
+            "expectedPositive": 0,
+            "emittedPositive": 0,
+            "correctPositive": 0,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 0,
+            "correctAbsent": 4,
+            "unresolved": 0,
+            "preservedUnresolved": 0
+          },
+          "reportedOn": {
+            "expectedPositive": 0,
+            "emittedPositive": 0,
+            "correctPositive": 0,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 0,
+            "correctAbsent": 4,
+            "unresolved": 0,
+            "preservedUnresolved": 0
+          },
+          "issuedOn": {
+            "expectedPositive": 0,
+            "emittedPositive": 0,
+            "correctPositive": 0,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 0,
+            "correctAbsent": 4,
+            "unresolved": 0,
+            "preservedUnresolved": 0
+          },
+          "laboratory": {
+            "expectedPositive": 0,
+            "emittedPositive": 0,
+            "correctPositive": 0,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 0,
+            "correctAbsent": 4,
+            "unresolved": 0,
+            "preservedUnresolved": 0
+          },
+          "method": {
+            "expectedPositive": 0,
+            "emittedPositive": 0,
+            "correctPositive": 0,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 0,
+            "correctAbsent": 4,
+            "unresolved": 0,
+            "preservedUnresolved": 0
+          },
+          "material": {
+            "expectedPositive": 0,
+            "emittedPositive": 0,
+            "correctPositive": 0,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 0,
+            "correctAbsent": 4,
+            "unresolved": 0,
+            "preservedUnresolved": 0
+          },
+          "sourcePage": {
+            "expectedPositive": 4,
+            "emittedPositive": 4,
+            "correctPositive": 4,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 0,
+            "correctAbsent": 0,
+            "unresolved": 0,
+            "preservedUnresolved": 0
+          }
+        },
+        "positiveExpected": 16,
+        "positiveEmitted": 16,
+        "positiveCorrect": 16,
+        "positivePrecision": 1,
+        "positiveRecall": 1,
+        "unreadable": {
+          "expectedMentions": 0,
+          "correctlyFlaggedUnreadable": 0,
+          "omittedUnreadableMentions": 0
+        },
+        "unresolvedDates": {
+          "rows": 0,
+          "fields": 0,
+          "preservedUnresolved": 0,
+          "signaledRows": 0
+        },
+        "verifier": {
+          "eligibleRows": 4,
+          "attentionRows": 0,
+          "reviewFraction": 0,
+          "incorrectRowsObserved": 0,
+          "unsafeLiteralMatches": 0,
+          "falseAlertCandidates": 0,
+          "correctButUnprovableRows": 0,
+          "silentUnresolvedAcceptance": 0,
+          "sensitivityToWrongResults": null
+        },
+        "errors": []
+      },
+      "inventory": {
+        "version": 2,
+        "scope": "recognizable_text_rows_only",
+        "completenessProven": false,
+        "recognizableRows": 4,
+        "possibleOmissions": [],
+        "coverage": {
+          "basis": "supplied_native_text_lines",
+          "coordinatesAvailable": false,
+          "independentTextAvailable": true,
+          "expectedPageCount": null,
+          "providedPages": [1],
+          "missingPages": null,
+          "duplicatePageNumbers": [],
+          "pages": [
+            {
+              "page": 1,
+              "status": "unrecognized_text_present",
+              "nonEmptyLines": 5,
+              "recognizedRows": 4,
+              "unknownLines": [
+                {
+                  "line": 1,
+                  "reason": "unsupported_or_non_observation_text"
+                }
+              ],
+              "sections": [
+                {
+                  "kind": "unspecified",
+                  "startLine": 1,
+                  "endLine": 5,
+                  "recognizedRows": 4,
+                  "unrecognizedLines": [1]
+                }
+              ]
+            }
+          ]
+        },
+        "diagnostics": {
+          "valueMismatches": [],
+          "unitMismatches": [],
+          "provenanceMissing": [],
+          "pageMismatches": [],
+          "ambiguousProvenance": [],
+          "unmatchedPredictions": []
+        }
+      },
+      "wallMilliseconds": 8357,
+      "estimatedTokenCostUsd": 0.0002508
     },
     {
       "caseId": "scan-partially-masked",
@@ -297,19 +4666,157 @@
       "tags": ["scanned", "partially_illegible", "masked_result", "must_abstain"],
       "pdfSha256": "5b82d8f3d95b810407f71cad86ed6ca8cfb629e3272631c7f2320a1bb68d4713",
       "expectedLegibleResults": 1,
-      "realV3Documents": 1,
+      "sourceStage": "D.1",
       "realV3Trials": 1,
-      "newD2Trials": 0,
-      "newD2Outcome": null,
-      "status": "historical_real_v3_single_trial_only",
-      "historicalSource": "D.1",
-      "historicalResult": {
-        "readableRecovered": 1,
-        "positiveCorrect": 5,
-        "positiveExpected": 5,
+      "results": {
+        "expectedLegibleRows": 1,
+        "emittedRows": 2,
+        "matchedRows": 1,
+        "completeRows": 1,
+        "correctResults": 1,
         "omittedRows": 0,
+        "unmatchedRows": 0,
         "associationErrors": 0,
-        "errors": [],
+        "resultRecall": 1,
+        "fields": {
+          "name": {
+            "expectedPositive": 1,
+            "emittedPositive": 1,
+            "correctPositive": 1,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 0,
+            "correctAbsent": 0,
+            "unresolved": 0,
+            "preservedUnresolved": 0
+          },
+          "result": {
+            "expectedPositive": 1,
+            "emittedPositive": 1,
+            "correctPositive": 1,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 0,
+            "correctAbsent": 0,
+            "unresolved": 0,
+            "preservedUnresolved": 0
+          },
+          "unit": {
+            "expectedPositive": 1,
+            "emittedPositive": 1,
+            "correctPositive": 1,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 0,
+            "correctAbsent": 0,
+            "unresolved": 0,
+            "preservedUnresolved": 0
+          },
+          "reference": {
+            "expectedPositive": 1,
+            "emittedPositive": 1,
+            "correctPositive": 1,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 0,
+            "correctAbsent": 0,
+            "unresolved": 0,
+            "preservedUnresolved": 0
+          },
+          "collectedOn": {
+            "expectedPositive": 0,
+            "emittedPositive": 0,
+            "correctPositive": 0,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 0,
+            "correctAbsent": 1,
+            "unresolved": 0,
+            "preservedUnresolved": 0
+          },
+          "reportedOn": {
+            "expectedPositive": 0,
+            "emittedPositive": 0,
+            "correctPositive": 0,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 0,
+            "correctAbsent": 1,
+            "unresolved": 0,
+            "preservedUnresolved": 0
+          },
+          "issuedOn": {
+            "expectedPositive": 0,
+            "emittedPositive": 0,
+            "correctPositive": 0,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 0,
+            "correctAbsent": 1,
+            "unresolved": 0,
+            "preservedUnresolved": 0
+          },
+          "laboratory": {
+            "expectedPositive": 0,
+            "emittedPositive": 0,
+            "correctPositive": 0,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 0,
+            "correctAbsent": 1,
+            "unresolved": 0,
+            "preservedUnresolved": 0
+          },
+          "method": {
+            "expectedPositive": 0,
+            "emittedPositive": 0,
+            "correctPositive": 0,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 0,
+            "correctAbsent": 1,
+            "unresolved": 0,
+            "preservedUnresolved": 0
+          },
+          "material": {
+            "expectedPositive": 0,
+            "emittedPositive": 0,
+            "correctPositive": 0,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 0,
+            "correctAbsent": 1,
+            "unresolved": 0,
+            "preservedUnresolved": 0
+          },
+          "sourcePage": {
+            "expectedPositive": 1,
+            "emittedPositive": 1,
+            "correctPositive": 1,
+            "omittedPositive": 0,
+            "wrongPositive": 0,
+            "inventedPositive": 0,
+            "correctAbsent": 0,
+            "unresolved": 0,
+            "preservedUnresolved": 0
+          }
+        },
+        "positiveExpected": 5,
+        "positiveEmitted": 5,
+        "positiveCorrect": 5,
+        "positivePrecision": 1,
+        "positiveRecall": 1,
+        "unreadable": {
+          "expectedMentions": 1,
+          "correctlyFlaggedUnreadable": 1,
+          "omittedUnreadableMentions": 0
+        },
+        "unresolvedDates": {
+          "rows": 0,
+          "fields": 0,
+          "preservedUnresolved": 0,
+          "signaledRows": 0
+        },
         "verifier": {
           "eligibleRows": 0,
           "attentionRows": 2,
@@ -321,35 +4828,32 @@
           "silentUnresolvedAcceptance": 0,
           "sensitivityToWrongResults": null
         },
-        "httpMilliseconds": 13413,
-        "estimatedTokenCostUsd": 0.0004094
-      }
+        "errors": []
+      },
+      "inventory": {
+        "scope": "no_independent_text",
+        "completenessProven": false,
+        "recognizableRows": null,
+        "possibleOmissions": null
+      },
+      "wallMilliseconds": 13413,
+      "estimatedTokenCostUsd": 0.0004094
     }
   ],
-  "pendingPriorities": [
-    "similar-names-distinct-units",
-    "scan-degraded",
-    "historical-dates-current-result",
-    "reference-formats-qualitative",
-    "dates-unambiguous-ddmm",
-    "dates-iso"
-  ],
-  "repetitionPlan": {
-    "scheduled": false,
-    "increaseQuota": false,
-    "initialMissingPdfs": 6,
-    "subsequentReplicatesPerPdf": 0,
-    "totalPlannedImports": 6,
-    "minimumHourlyWindows": 1,
-    "grouping": "per_pdf_hash_trial_index_and_hour_not_independent_documents",
-    "precondition": "fresh_deployment_scope_quota_budget_preflight_before_each_window"
+  "pendingInferenceCases": [],
+  "humanStudy": {
+    "status": "not_conducted_by_user_decision",
+    "participantsMeasured": 0,
+    "performanceMetrics": null,
+    "timeSavingsEstimate": null
   },
-  "completeHomologation": false,
   "limitations": [
-    "D.2 did not execute a new inference; pending is not a zero-error result.",
-    "All real measurements are explicitly historical D/D.1, not D.2 observations.",
-    "Model revision behind the alias is not fixed; future repeats need fresh provenance.",
-    "Controlled study mutations and browser smoke tests are never provider inference.",
-    "Human study excluded from this phase by the user; human outcomes and time savings are not measured."
+    "Technical completion is not clinical validation or approval for automatic publication.",
+    "One synthetic trial per PDF; no population accuracy, model stability or human productivity claim.",
+    "Unmatched-row inventedPositive means outside the current-result reference; adjudicate source existence before calling it a hallucination.",
+    "Historical costs are reused and were not incurred again; only currentRound.allAttemptUsage is D.2 expenditure.",
+    "No equivalent v2 runs for the six new PDFs; no before/after extractor gain can be inferred.",
+    "Inventory remains offline and cannot prove completeness; scans lack independent text.",
+    "Alias model revision is not pinned; token costs are estimates, not an observed invoice."
   ]
 }
