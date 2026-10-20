@@ -1,0 +1,461 @@
+{
+  "benchmark": "stage-c-real-openai",
+  "evaluation": "offline_adjudicated_reference_v1",
+  "providerCallsPerformedByReporter": 0,
+  "adjudications": [
+    "Use live rows only; fixture.predictions and fixture.trust are never evaluated.",
+    "Add issuedOn=2026-01-05 to dates-and-metadata reference; existing golden predates this field.",
+    "Allow redundant reference unit only when identical to the same row unit; preserve comparator, value and scale.",
+    "Exclude deliberately unreadable value from legible clinical recall; count safe abstention separately.",
+    "Scanned result manually checked against scan.png; source-unavailable caution is legitimate, not a false alert.",
+    "Date omissions are relative to corpus DD/MM convention; prompt does not explicitly declare locale, so abstention is conservative, not a proven unsafe date misreading."
+  ],
+  "summary": {
+    "expectedLegibleObservations": 8,
+    "emittedRows": 9,
+    "matched": 8,
+    "completeRows": 7,
+    "omittedRows": 0,
+    "inventedRows": 0
+  },
+  "fields": {
+    "name": {
+      "expectedPositive": 8,
+      "emittedPositive": 8,
+      "correctPositive": 8,
+      "omittedPositive": 0,
+      "wrongPositive": 0,
+      "inventedPositive": 0,
+      "correctAbsent": 0
+    },
+    "result": {
+      "expectedPositive": 8,
+      "emittedPositive": 8,
+      "correctPositive": 8,
+      "omittedPositive": 0,
+      "wrongPositive": 0,
+      "inventedPositive": 0,
+      "correctAbsent": 0
+    },
+    "unit": {
+      "expectedPositive": 7,
+      "emittedPositive": 7,
+      "correctPositive": 7,
+      "omittedPositive": 0,
+      "wrongPositive": 0,
+      "inventedPositive": 0,
+      "correctAbsent": 1
+    },
+    "reference": {
+      "expectedPositive": 4,
+      "emittedPositive": 4,
+      "correctPositive": 4,
+      "omittedPositive": 0,
+      "wrongPositive": 0,
+      "inventedPositive": 0,
+      "correctAbsent": 4
+    },
+    "collectedOn": {
+      "expectedPositive": 1,
+      "emittedPositive": 0,
+      "correctPositive": 0,
+      "omittedPositive": 1,
+      "wrongPositive": 0,
+      "inventedPositive": 0,
+      "correctAbsent": 7
+    },
+    "reportedOn": {
+      "expectedPositive": 1,
+      "emittedPositive": 0,
+      "correctPositive": 0,
+      "omittedPositive": 1,
+      "wrongPositive": 0,
+      "inventedPositive": 0,
+      "correctAbsent": 7
+    },
+    "issuedOn": {
+      "expectedPositive": 1,
+      "emittedPositive": 0,
+      "correctPositive": 0,
+      "omittedPositive": 1,
+      "wrongPositive": 0,
+      "inventedPositive": 0,
+      "correctAbsent": 7
+    },
+    "laboratory": {
+      "expectedPositive": 1,
+      "emittedPositive": 1,
+      "correctPositive": 1,
+      "omittedPositive": 0,
+      "wrongPositive": 0,
+      "inventedPositive": 0,
+      "correctAbsent": 7
+    },
+    "method": {
+      "expectedPositive": 1,
+      "emittedPositive": 1,
+      "correctPositive": 1,
+      "omittedPositive": 0,
+      "wrongPositive": 0,
+      "inventedPositive": 0,
+      "correctAbsent": 7
+    },
+    "material": {
+      "expectedPositive": 1,
+      "emittedPositive": 1,
+      "correctPositive": 1,
+      "omittedPositive": 0,
+      "wrongPositive": 0,
+      "inventedPositive": 0,
+      "correctAbsent": 7
+    },
+    "sourcePage": {
+      "expectedPositive": 8,
+      "emittedPositive": 8,
+      "correctPositive": 8,
+      "omittedPositive": 0,
+      "wrongPositive": 0,
+      "inventedPositive": 0,
+      "correctAbsent": 0
+    }
+  },
+  "cases": [
+    {
+      "caseId": "multiple-pages",
+      "format": "digital",
+      "pages": 2,
+      "inferencePathExpectedFromSource": "original_pdf",
+      "expectedLegibleObservations": 2,
+      "emittedRows": 2,
+      "matched": 2,
+      "completeRows": 2,
+      "omittedRows": 0,
+      "inventedRows": 0,
+      "errors": [],
+      "unreadable": null,
+      "verifier": {
+        "eligible": 2,
+        "attention": 0,
+        "unsafeLiteralMatches": 0,
+        "falseAlertCandidates": 0,
+        "issues": [[], []]
+      },
+      "inventory": {
+        "scope": "recognizable_text_rows_only",
+        "completenessProven": false,
+        "recognizableRows": 2,
+        "possibleOmissions": []
+      },
+      "wallMilliseconds": 9666,
+      "telemetry": {
+        "model": "openai/gpt-6-luna",
+        "failures": 0,
+        "provider": "openai",
+        "costBasis": "unavailable",
+        "durationMs": 5440,
+        "inputTokens": 638,
+        "pricingAsOf": null,
+        "outputTokens": 214,
+        "extractedRows": 2,
+        "promptVersion": "lab-transcription-2",
+        "usageComplete": true,
+        "divergenceRows": 0,
+        "pipelineVersion": "lab-pipeline-2",
+        "reasoningTokens": 31,
+        "startedRequests": 1,
+        "verifierVersion": 2,
+        "divergenceFields": 0,
+        "estimatedCostUsd": null,
+        "cachedInputTokens": 0,
+        "completedRequests": 1,
+        "processingMilliseconds": 6853
+      }
+    },
+    {
+      "caseId": "scanned",
+      "format": "scanned",
+      "pages": 1,
+      "inferencePathExpectedFromSource": "original_pdf",
+      "expectedLegibleObservations": 1,
+      "emittedRows": 1,
+      "matched": 1,
+      "completeRows": 1,
+      "omittedRows": 0,
+      "inventedRows": 0,
+      "errors": [],
+      "unreadable": null,
+      "verifier": {
+        "eligible": 0,
+        "attention": 1,
+        "unsafeLiteralMatches": 0,
+        "falseAlertCandidates": 0,
+        "issues": [["INDEPENDENT_SOURCE_UNAVAILABLE"]]
+      },
+      "inventory": {
+        "scope": "no_independent_text",
+        "completenessProven": false,
+        "recognizableRows": null,
+        "possibleOmissions": null
+      },
+      "wallMilliseconds": 8203,
+      "telemetry": {
+        "model": "openai/gpt-6-luna",
+        "failures": 0,
+        "provider": "openai",
+        "costBasis": "unavailable",
+        "durationMs": 4765,
+        "inputTokens": 1339,
+        "pricingAsOf": null,
+        "outputTokens": 137,
+        "extractedRows": 1,
+        "promptVersion": "lab-transcription-2",
+        "usageComplete": true,
+        "divergenceRows": 1,
+        "pipelineVersion": "lab-pipeline-2",
+        "reasoningTokens": 0,
+        "startedRequests": 1,
+        "verifierVersion": 2,
+        "divergenceFields": 4,
+        "estimatedCostUsd": null,
+        "cachedInputTokens": 0,
+        "completedRequests": 1,
+        "processingMilliseconds": 6093
+      }
+    },
+    {
+      "caseId": "multi-column",
+      "format": "digital",
+      "pages": 1,
+      "inferencePathExpectedFromSource": "native_text",
+      "expectedLegibleObservations": 2,
+      "emittedRows": 2,
+      "matched": 2,
+      "completeRows": 2,
+      "omittedRows": 0,
+      "inventedRows": 0,
+      "errors": [],
+      "unreadable": null,
+      "verifier": {
+        "eligible": 2,
+        "attention": 0,
+        "unsafeLiteralMatches": 0,
+        "falseAlertCandidates": 0,
+        "issues": [[], []]
+      },
+      "inventory": {
+        "scope": "recognizable_text_rows_only",
+        "completenessProven": false,
+        "recognizableRows": 2,
+        "possibleOmissions": []
+      },
+      "wallMilliseconds": 7657,
+      "telemetry": {
+        "model": "openai/gpt-6-luna",
+        "failures": 0,
+        "provider": "openai",
+        "costBasis": "unavailable",
+        "durationMs": 4234,
+        "inputTokens": 666,
+        "pricingAsOf": null,
+        "outputTokens": 235,
+        "extractedRows": 2,
+        "promptVersion": "lab-transcription-2",
+        "usageComplete": true,
+        "divergenceRows": 0,
+        "pipelineVersion": "lab-pipeline-2",
+        "reasoningTokens": 31,
+        "startedRequests": 1,
+        "verifierVersion": 2,
+        "divergenceFields": 0,
+        "estimatedCostUsd": null,
+        "cachedInputTokens": 0,
+        "completedRequests": 1,
+        "processingMilliseconds": 5546
+      }
+    },
+    {
+      "caseId": "similar-names-equal-values",
+      "format": "digital",
+      "pages": 1,
+      "inferencePathExpectedFromSource": "original_pdf",
+      "expectedLegibleObservations": 2,
+      "emittedRows": 2,
+      "matched": 2,
+      "completeRows": 2,
+      "omittedRows": 0,
+      "inventedRows": 0,
+      "errors": [],
+      "unreadable": null,
+      "verifier": {
+        "eligible": 2,
+        "attention": 0,
+        "unsafeLiteralMatches": 0,
+        "falseAlertCandidates": 0,
+        "issues": [[], []]
+      },
+      "inventory": {
+        "scope": "recognizable_text_rows_only",
+        "completenessProven": false,
+        "recognizableRows": 2,
+        "possibleOmissions": []
+      },
+      "wallMilliseconds": 8140,
+      "telemetry": {
+        "model": "openai/gpt-6-luna",
+        "failures": 0,
+        "provider": "openai",
+        "costBasis": "unavailable",
+        "durationMs": 4466,
+        "inputTokens": 618,
+        "pricingAsOf": null,
+        "outputTokens": 170,
+        "extractedRows": 2,
+        "promptVersion": "lab-transcription-2",
+        "usageComplete": true,
+        "divergenceRows": 0,
+        "pipelineVersion": "lab-pipeline-2",
+        "reasoningTokens": 0,
+        "startedRequests": 1,
+        "verifierVersion": 2,
+        "divergenceFields": 0,
+        "estimatedCostUsd": null,
+        "cachedInputTokens": 0,
+        "completedRequests": 1,
+        "processingMilliseconds": 6022
+      }
+    },
+    {
+      "caseId": "dates-and-metadata",
+      "format": "digital",
+      "pages": 1,
+      "inferencePathExpectedFromSource": "native_text",
+      "expectedLegibleObservations": 1,
+      "emittedRows": 1,
+      "matched": 1,
+      "completeRows": 0,
+      "omittedRows": 0,
+      "inventedRows": 0,
+      "errors": [
+        {
+          "row": 0,
+          "field": "collectedOn",
+          "kind": "omittedPositive",
+          "expected": "2026-01-02",
+          "actual": null
+        },
+        {
+          "row": 0,
+          "field": "reportedOn",
+          "kind": "omittedPositive",
+          "expected": "2026-01-04",
+          "actual": null
+        },
+        {
+          "row": 0,
+          "field": "issuedOn",
+          "kind": "omittedPositive",
+          "expected": "2026-01-05",
+          "actual": null
+        }
+      ],
+      "unreadable": null,
+      "verifier": {
+        "eligible": 0,
+        "attention": 1,
+        "unsafeLiteralMatches": 0,
+        "falseAlertCandidates": 0,
+        "issues": [["MODEL_UNCERTAINTY", "FIELD_OMITTED"]]
+      },
+      "inventory": {
+        "scope": "recognizable_text_rows_only",
+        "completenessProven": false,
+        "recognizableRows": 1,
+        "possibleOmissions": []
+      },
+      "wallMilliseconds": 8314,
+      "telemetry": {
+        "model": "openai/gpt-6-luna",
+        "failures": 0,
+        "provider": "openai",
+        "costBasis": "unavailable",
+        "durationMs": 4923,
+        "inputTokens": 675,
+        "pricingAsOf": null,
+        "outputTokens": 316,
+        "extractedRows": 1,
+        "promptVersion": "lab-transcription-2",
+        "usageComplete": true,
+        "divergenceRows": 1,
+        "pipelineVersion": "lab-pipeline-2",
+        "reasoningTokens": 124,
+        "startedRequests": 1,
+        "verifierVersion": 2,
+        "divergenceFields": 3,
+        "estimatedCostUsd": null,
+        "cachedInputTokens": 0,
+        "completedRequests": 1,
+        "processingMilliseconds": 6220
+      }
+    },
+    {
+      "caseId": "partially-legible",
+      "format": "digital",
+      "pages": 1,
+      "inferencePathExpectedFromSource": "original_pdf",
+      "expectedLegibleObservations": 0,
+      "emittedRows": 1,
+      "matched": 0,
+      "completeRows": 0,
+      "omittedRows": 0,
+      "inventedRows": 0,
+      "errors": [],
+      "unreadable": {
+        "mentions": 1,
+        "safelyMarked": true
+      },
+      "verifier": {
+        "eligible": 0,
+        "attention": 1,
+        "unsafeLiteralMatches": 0,
+        "falseAlertCandidates": 0,
+        "issues": [["MODEL_UNCERTAINTY", "ASSOCIATION_UNPROVEN"]]
+      },
+      "inventory": {
+        "scope": "recognizable_text_rows_only",
+        "completenessProven": false,
+        "recognizableRows": 0,
+        "possibleOmissions": []
+      },
+      "wallMilliseconds": 6499,
+      "telemetry": {
+        "model": "openai/gpt-6-luna",
+        "failures": 0,
+        "provider": "openai",
+        "costBasis": "unavailable",
+        "durationMs": 2854,
+        "inputTokens": 604,
+        "pricingAsOf": null,
+        "outputTokens": 152,
+        "extractedRows": 1,
+        "promptVersion": "lab-transcription-2",
+        "usageComplete": true,
+        "divergenceRows": 1,
+        "pipelineVersion": "lab-pipeline-2",
+        "reasoningTokens": 55,
+        "startedRequests": 1,
+        "verifierVersion": 2,
+        "divergenceFields": 3,
+        "estimatedCostUsd": null,
+        "cachedInputTokens": 0,
+        "completedRequests": 1,
+        "processingMilliseconds": 4383
+      }
+    }
+  ],
+  "limitations": [
+    "Small synthetic single-trial sample; not clinical accuracy validation.",
+    "Zero observed unsafe matches does not establish verifier sensitivity: no incorrect numeric/unit outputs occurred.",
+    "Inventory shares conservative textual recognizers; zero divergence never proves completeness.",
+    "No measured human review time or observed invoice cost; runtime telemetry cost may remain null."
+  ]
+}
