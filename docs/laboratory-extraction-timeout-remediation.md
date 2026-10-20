@@ -53,3 +53,11 @@ A checagem independente marcou 6 evidências como correspondência literal e 46 
 Também foi observada perda da resposta HTTP, embora o servidor tenha persistido a conclusão. A interface agora consulta o estado versionado depois de falha de transporte/JSON, sem reenviar a extração. Se ainda estiver processando, continua acompanhando; se concluída, apresenta o rascunho. Erros 4xx de autorização/conflito não são tratados como sucesso. Consultas atrasadas não sobrescrevem edição local ou uma versão mais nova.
 
 Após essa recuperação de interface: 504 testes unitários/interface aprovados em 76 arquivos. Incluem resposta perdida, JSON inválido, processo ainda ativo, consulta atrasada após edição e acesso negado. Nenhuma chamada adicional paga foi necessária para esses testes.
+
+## Verificação da interface publicada
+
+O candidato `237796e32f9c13b97f845e322bde2607de8b592f`, implantação `dpl_Hcwf451YiQC3ie8rD23FyxLeY2DR`, ficou `READY` e foi associado ao endereço fixo do Preview: https://allik-one-git-feature-allik-patients-atp-mkt.vercel.app.
+
+Em Chromium contra essa implantação, a abertura da conferência recebeu um estado anterior de falha simulado somente no navegador. A requisição de extração foi interrompida pelo teste antes de chegar ao servidor. A interface consultou o estado real persistido, recuperou as 52 linhas e exibiu a mensagem de conclusão. O teste passou sem nova inferência, sem salvar rascunho e sem confirmar resultados.
+
+Após o teste: estado `READY_REVIEW`, versão 6, 52 candidatas, 37 resultados confirmados anteriores e uma versão clínica. O original mantém o mesmo hash. O endereço de produção continuou na implantação `dpl_4ag81mHUxsDZ7VaKqnrKKHqKrFkp`.
