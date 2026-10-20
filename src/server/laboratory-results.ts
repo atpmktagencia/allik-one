@@ -29,6 +29,8 @@ import {
   laboratoryRowEvidenceIdentity,
   type LaboratorySourceChecks,
 } from "../lib/laboratory-review-checks";
+import { LABORATORY_VERIFIER_VERSION } from "../lib/laboratory-pipeline-version";
+import type { LaboratoryExtractionTelemetry } from "../lib/laboratory-telemetry";
 
 type Actor = AuthContext & { user: AuthContext["user"] & { id: string } };
 type Job = {
@@ -117,6 +119,11 @@ async function event(
   j: Job,
   action: string,
   sourceChecks?: LaboratorySourceChecks,
+  telemetry?: LaboratoryExtractionTelemetry & {
+    processingMilliseconds: number;
+    divergenceRows: number;
+    divergenceFields: number;
+  },
 ) {
   await c.query(
     "INSERT INTO inventory_laboratory_import_events(import_id,organization_id,unit_id,patient_id,actor_user_id,action,metadata) VALUES($1,$2,$3,$4,$5,$6,$7)",
@@ -133,6 +140,7 @@ async function event(
         attemptId: j.attempt_id ?? null,
         failureCode: j.failure_code ?? null,
         ...(sourceChecks ? { sourceChecks } : {}),
+        ...(telemetry ? { telemetry } : {}),
       },
     ],
   );
@@ -151,6 +159,11 @@ async function change(
     extracted?: unknown;
     review?: string;
     sourceChecks?: LaboratorySourceChecks;
+    telemetry?: LaboratoryExtractionTelemetry & {
+      processingMilliseconds: number;
+      divergenceRows: number;
+      divergenceFields: number;
+    };
   } = {},
 ) {
   const next = (
@@ -169,7 +182,7 @@ async function change(
       ],
     )
   ).rows[0];
-  await event(c, a, next, action, options.sourceChecks);
+  await event(c, a, next, action, options.sourceChecks, options.telemetry);
   return next as Job;
 }
 async function view(a: Actor, s: Source, reviewId?: string) {
@@ -287,6 +300,8 @@ async function finishExtraction(
     failure: string | null = null;
   let stage: "SOURCE" | "PROVIDER" = "SOURCE";
   let sourceChecks: LaboratorySourceChecks | undefined;
+  let telemetry: LaboratoryExtractionTelemetry | undefined;
+  const processingStarted = Date.now();
   try {
     const original = await patientDocumentFileResponse(
       new Request(
@@ -312,11 +327,15 @@ async function finishExtraction(
       throw Error("SOURCE_INTEGRITY");
     stage = "PROVIDER";
     const text = await extractLaboratoryPdfText(bytes);
-    draft = laboratoryDraft.parse(await extractLaboratoryPdf(bytes, model, text));
+    draft = laboratoryDraft.parse(
+      await extractLaboratoryPdf(bytes, model, text, (summary) => {
+        telemetry = summary;
+      }),
+    );
     draft.patientConfirmed = false;
     draft.rows = draft.rows.map((r) => ({ ...r, verified: false }));
     sourceChecks = {
-      version: 1,
+      version: LABORATORY_VERIFIER_VERSION,
       parserStatus: text.status,
       totalPages: text.status === "available" ? text.totalPages : 0,
       rows: draft.rows.map((row) =>
@@ -359,6 +378,25 @@ async function finishExtraction(
         failure,
         extracted: failure ? null : draft,
         ...(sourceChecks && !failure ? { sourceChecks } : {}),
+        ...(telemetry
+          ? {
+              telemetry: {
+                ...telemetry,
+                processingMilliseconds: Date.now() - processingStarted,
+                divergenceRows:
+                  sourceChecks?.rows.filter((r) => r.status === "attention").length ?? 0,
+                divergenceFields:
+                  sourceChecks?.rows.reduce(
+                    (n, r) =>
+                      n +
+                      Object.values(r.fields ?? {}).filter((f) =>
+                        ["insufficient", "contradictory"].includes(f.status),
+                      ).length,
+                    0,
+                  ) ?? 0,
+              },
+            }
+          : {}),
       },
     );
     await c.query("COMMIT");

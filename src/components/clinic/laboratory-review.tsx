@@ -366,8 +366,11 @@ export function LaboratoryReview({
       !!row.name.trim() &&
       !!row.result.trim() &&
       !row.uncertainty?.trim() &&
+      data?.evidenceChecks?.version === 2 &&
       check?.basis === "source_text" &&
-      check.status === "literal_match"
+      check.status === "literal_match" &&
+      check.fields?.["name"]?.status === "supported" &&
+      check.fields?.["result"]?.status === "supported"
     );
   };
   const bulkCount = shownDraft.rows.filter(
@@ -677,8 +680,9 @@ export function LaboratoryReview({
                     ))}
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    A checagem compara trechos literais ao texto do PDF; não comprova completude nem
-                    interpretação clínica. Confira o original antes de confirmar em lote.
+                    A checagem verifica associações textuais e a origem dos campos; não comprova
+                    completude nem interpretação clínica. Confira o original antes de confirmar em
+                    lote.
                     {data?.evidenceChecks?.parserStatus !== "available" &&
                       " Sem texto independente disponível: faça a conferência individual pelo original."}
                   </p>
@@ -794,6 +798,7 @@ export function LaboratoryReview({
                               <div className="mt-2 grid gap-2 sm:grid-cols-2">
                                 {field(row, index, "collectedOn", "Coleta", "date")}
                                 {field(row, index, "reportedOn", "Resultado em", "date")}
+                                {field(row, index, "issuedOn", "Emissão", "date")}
                                 {field(row, index, "laboratory", "Laboratório")}
                                 {field(row, index, "method", "Método")}
                                 {field(row, index, "material", "Material")}

@@ -19,6 +19,7 @@ export const laboratoryRow = z
     reference: nullable(500),
     collectedOn: laboratoryDate.nullable(),
     reportedOn: laboratoryDate.nullable(),
+    issuedOn: laboratoryDate.nullable().optional(),
     laboratory: nullable(200),
     method: nullable(200),
     material: nullable(200),

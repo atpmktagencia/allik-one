@@ -42,3 +42,4 @@ playwright-report/
 .env*
 .agents/
 skills-lock.json
+work/

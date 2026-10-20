@@ -108,7 +108,7 @@ it("reviews beside the original, saves before validation and preserves literal r
   expect(screen.getByRole("button", { name: "Corrigir resultados" })).toBeInTheDocument();
 });
 
-async function openExtractedReview() {
+async function openExtractedReview(version = 2) {
   const rows = [
     { ...emptyLaboratoryRow(), name: "TSH", result: "<0,1", evidence: "TSH <0,1", sourcePage: 1 },
     {
@@ -141,14 +141,24 @@ async function openExtractedReview() {
     extractionAvailable: true,
     extractionMessage: null,
     evidenceChecks: {
-      version: 1,
+      version,
       parserStatus: "available",
       totalPages: 1,
       rows: [
-        { status: "literal_match", basis: "source_text", issues: [] },
+        {
+          status: "literal_match",
+          basis: "source_text",
+          issues: [],
+          fields: { name: { status: "supported" }, result: { status: "supported" } },
+        },
         { status: "attention", basis: "source_text", issues: ["MODEL_UNCERTAINTY"] },
         { status: "literal_match", basis: "model_evidence", issues: [] },
-        { status: "literal_match", basis: "source_text", issues: [] },
+        {
+          status: "literal_match",
+          basis: "source_text",
+          issues: [],
+          fields: { name: { status: "supported" }, result: { status: "supported" } },
+        },
       ],
     },
   };
@@ -159,11 +169,12 @@ async function openExtractedReview() {
   render(<LaboratoryReview patientId="patient" documentId="doc" />);
   fireEvent.click(screen.getByRole("button", { name: "Conferir resultados laboratoriais" }));
   await screen.findByDisplayValue("Ferritina");
-  await waitFor(() =>
-    expect(
-      screen.getByRole("button", { name: "Conferi as 2 linhas sem pendências" }),
-    ).toBeEnabled(),
-  );
+  if (version === 2)
+    await waitFor(() =>
+      expect(
+        screen.getByRole("button", { name: "Conferi as 2 linhas sem pendências" }),
+      ).toBeEnabled(),
+    );
 }
 
 it("bulk confirmation only marks independently matched rows and still requires patient confirmation", async () => {
@@ -373,4 +384,12 @@ it("does not reconcile a forbidden extraction as a transport failure", async () 
   fireEvent.click(await screen.findByRole("button", { name: "Extrair resultados com IA" }));
   expect(await screen.findByRole("alert")).toHaveTextContent("Acesso revogado");
   expect(reads).toBe(0);
+});
+
+it("keeps legacy evidence readable without granting current bulk eligibility", async () => {
+  await openExtractedReview(1);
+  expect(screen.getByRole("button", { name: /Conferi as 0/ })).toBeDisabled();
+  expect(screen.getByLabelText("Conferir linha 1")).not.toBeChecked();
+  fireEvent.click(screen.getByLabelText("Conferir linha 1"));
+  expect(screen.getByLabelText("Conferir linha 1")).toBeChecked();
 });

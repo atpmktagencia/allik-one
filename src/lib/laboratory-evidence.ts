@@ -1,4 +1,10 @@
 import type { LaboratoryRow } from "./laboratory-results";
+import {
+  laboratoryAssociations,
+  laboratoryMetadata,
+  laboratoryUnitKey,
+  normalizeLaboratoryText,
+} from "./laboratory-source-association";
 
 export type LaboratoryEvidenceIssue =
   | "MISSING_EVIDENCE"
@@ -8,84 +14,204 @@ export type LaboratoryEvidenceIssue =
   | "REFERENCE_NOT_FOUND"
   | "SOURCE_PAGE_MISSING"
   | "EVIDENCE_NOT_IN_SOURCE"
-  | "MODEL_UNCERTAINTY";
-
+  | "MODEL_UNCERTAINTY"
+  | "INDEPENDENT_SOURCE_UNAVAILABLE"
+  | "ASSOCIATION_UNPROVEN"
+  | "DATE_UNSUPPORTED"
+  | "DATE_CONTRADICTION"
+  | "METADATA_UNSUPPORTED"
+  | "METADATA_CONTRADICTION"
+  | "FIELD_OMITTED";
 export type LaboratorySourcePage = { page: number; text: string };
+export type LaboratoryEvidenceField =
+  | "name"
+  | "result"
+  | "unit"
+  | "reference"
+  | "collectedOn"
+  | "reportedOn"
+  | "issuedOn"
+  | "laboratory"
+  | "method"
+  | "material";
+export type LaboratoryFieldCheck = {
+  status: "supported" | "absent" | "insufficient" | "contradictory";
+  page?: number;
+  line?: number;
+};
 export type LaboratoryEvidenceCheck = {
-  /** Literal consistency is not clinical validation or proof of correct row association. */
+  /** Structural text consistency only; never clinical validation or proof of completeness. */
   status: "attention" | "literal_match";
   basis: "model_evidence" | "source_text";
   issues: LaboratoryEvidenceIssue[];
+  fields: Record<LaboratoryEvidenceField, LaboratoryFieldCheck>;
 };
-
-// Only typographic whitespace and Unicode composition are normalized. In particular,
-// decimal separators, inequality signs, case-sensitive units and exponents stay intact.
-const normalize = (text: string) => text.normalize("NFC").replace(/\s+/gu, " ").trim();
-const tokenCharacter = /[\p{L}\p{N}.,+−\-<>≤≥=/%µμ^]/u;
-
-function containsLiteral(haystack: string, needle: string, foldCase = false, result = false) {
-  let source = normalize(haystack);
-  let target = normalize(needle);
-  if (!target) return false;
-  if (foldCase) {
-    source = source.toLocaleLowerCase("pt-BR");
-    target = target.toLocaleLowerCase("pt-BR");
-  }
-  let offset = 0;
-  while (offset <= source.length - target.length) {
-    const index = source.indexOf(target, offset);
-    if (index < 0) return false;
-    const before = source.slice(0, index).trimEnd().at(-1);
-    const after = source
-      .slice(index + target.length)
-      .trimStart()
-      .at(0);
-    // An immediately adjacent token must never turn 15 into 5, or <5 into 5.
-    const adjacentBefore = source[index - 1];
-    const adjacentAfter = source[index + target.length];
-    const joinedBefore = adjacentBefore && tokenCharacter.test(adjacentBefore);
-    const joinedAfter = adjacentAfter && tokenCharacter.test(adjacentAfter);
-    const detachedComparator = before && /[<>≤≥=+−-]/u.test(before);
-    const detachedExponent = after === "^";
-    const negated = result && /(?:^|\s)(?:não|nao|non|not|sem)\s+$/iu.test(source.slice(0, index));
-    if (!joinedBefore && !joinedAfter && !detachedComparator && !detachedExponent && !negated)
-      return true;
-    offset = index + 1;
-  }
-  return false;
+const keys: LaboratoryEvidenceField[] = [
+  "name",
+  "result",
+  "unit",
+  "reference",
+  "collectedOn",
+  "reportedOn",
+  "issuedOn",
+  "laboratory",
+  "method",
+  "material",
+];
+const fold = (s: string) => normalizeLaboratoryText(s).toLocaleLowerCase("pt-BR");
+function sourceDate(s: string) {
+  const match = s.match(
+    /^(\d{4}-\d{2}-\d{2}|\d{2}\/\d{2}\/\d{4})(?:\s+(?:às\s*)?\d{2}:\d{2}(?::\d{2})?)?$/u,
+  );
+  if (!match) return null;
+  const value = match[1]!;
+  const iso = value.includes("/") ? value.split("/").reverse().join("-") : value;
+  return Number.isFinite(Date.parse(iso)) && new Date(iso).toISOString().slice(0, 10) === iso
+    ? iso
+    : null;
 }
-
-/**
- * Checks transcription consistency without changing any row or granting confirmation.
- * Pass independently extracted source pages to check evidence provenance. Omitting
- * them explicitly means the evidence was supplied by the same model as the values.
- * A match cannot prove patient identity, completeness, method compatibility, or that
- * a number belongs to the result rather than another column. Human review remains.
- */
+/** Independent source and explicit textual association are required for eligibility.
+ * No row changes, fuzzy names, unit conversion, inferred geometry, or publication. */
 export function checkLaboratoryEvidence(
   row: LaboratoryRow,
   sourcePages?: readonly LaboratorySourcePage[],
 ): LaboratoryEvidenceCheck {
   const issues: LaboratoryEvidenceIssue[] = [];
-  const evidence = normalize(row.evidence ?? "");
-  if (!evidence) issues.push("MISSING_EVIDENCE");
-  else {
-    if (!containsLiteral(evidence, row.name, true)) issues.push("NAME_NOT_FOUND");
-    if (!containsLiteral(evidence, row.result, false, true)) issues.push("RESULT_NOT_FOUND");
-    if (row.unit && !containsLiteral(evidence, row.unit)) issues.push("UNIT_NOT_FOUND");
-    if (row.reference && !containsLiteral(evidence, row.reference))
-      issues.push("REFERENCE_NOT_FOUND");
+  const fields = Object.fromEntries(
+    keys.map((key) => [key, { status: row[key] ? "insufficient" : "absent" }]),
+  ) as Record<LaboratoryEvidenceField, LaboratoryFieldCheck>;
+  const page = sourcePages?.find((p) => p.page === row.sourcePage);
+  const add = (issue: LaboratoryEvidenceIssue) => {
+    if (!issues.includes(issue)) issues.push(issue);
+  };
+  if (row.uncertainty?.trim()) add("MODEL_UNCERTAINTY");
+  if (!sourcePages) add("INDEPENDENT_SOURCE_UNAVAILABLE");
+  if (!page) {
+    if (sourcePages) add("SOURCE_PAGE_MISSING");
+    if (!row.evidence?.trim()) add("MISSING_EVIDENCE");
+    return {
+      status: "attention",
+      basis: sourcePages ? "source_text" : "model_evidence",
+      issues,
+      fields,
+    };
   }
-  if (row.uncertainty?.trim()) issues.push("MODEL_UNCERTAINTY");
-  if (sourcePages !== undefined) {
-    const page = sourcePages.find((candidate) => candidate.page === row.sourcePage);
-    if (!page) issues.push("SOURCE_PAGE_MISSING");
-    else if (evidence && !normalize(page.text).includes(evidence))
-      issues.push("EVIDENCE_NOT_IN_SOURCE");
+  const lines = page.text.split(/\r?\n/u);
+  const associations = laboratoryAssociations(lines, row.name);
+  const association = associations.length === 1 ? associations[0] : undefined;
+  if (!association) {
+    add("ASSOCIATION_UNPROVEN");
+    fields.name = { status: "insufficient" };
+  } else {
+    const location = { page: page.page, line: association.line };
+    fields.name = { status: "supported", ...location };
+    const valueMatches =
+      fold(row.result).replace(/([<>≤≥])\s+/gu, "$1") === fold(association.result);
+    fields.result = { status: valueMatches ? "supported" : "contradictory", ...location };
+    if (!valueMatches) add("RESULT_NOT_FOUND");
+    const unitMatches =
+      row.unit &&
+      association.unit &&
+      laboratoryUnitKey(row.unit) === laboratoryUnitKey(association.unit);
+    fields.unit = {
+      status:
+        !row.unit && !association.unit
+          ? "absent"
+          : unitMatches
+            ? "supported"
+            : row.unit && association.unit
+              ? "contradictory"
+              : "insufficient",
+      ...location,
+    };
+    if (fields.unit.status === "contradictory" || fields.unit.status === "insufficient")
+      add(row.unit ? "UNIT_NOT_FOUND" : "FIELD_OMITTED");
+    let sourceReference = association.reference;
+    if (
+      sourceReference &&
+      row.reference &&
+      row.unit &&
+      laboratoryUnitKey(sourceReference) !== laboratoryUnitKey(row.reference)
+    ) {
+      const ending = sourceReference.match(/\s+(\S+)$/u);
+      if (ending && laboratoryUnitKey(ending[1]!) === laboratoryUnitKey(row.unit))
+        sourceReference = sourceReference.slice(0, ending.index).trim();
+    }
+    const referenceMatches =
+      row.reference &&
+      sourceReference &&
+      laboratoryUnitKey(row.reference) === laboratoryUnitKey(sourceReference);
+    fields.reference = {
+      status:
+        !row.reference && !sourceReference
+          ? "absent"
+          : referenceMatches
+            ? "supported"
+            : row.reference && sourceReference
+              ? "contradictory"
+              : "insufficient",
+      ...location,
+    };
+    if (["contradictory", "insufficient"].includes(fields.reference.status))
+      add(row.reference ? "REFERENCE_NOT_FOUND" : "FIELD_OMITTED");
   }
+  const metadata = laboratoryMetadata(lines, association);
+  for (const key of [
+    "collectedOn",
+    "reportedOn",
+    "issuedOn",
+    "laboratory",
+    "method",
+    "material",
+  ] as const) {
+    if (key === "issuedOn" && !(key in row)) continue;
+    const values = metadata[key] ?? [];
+    const isDate = key.endsWith("On");
+    const normalized = values.map((v) => (isDate ? sourceDate(v.value) : fold(v.value)));
+    const unique = [...new Set(normalized)];
+    const actual = row[key];
+    if (!actual && !values.length) continue;
+    if (!actual) {
+      fields[key] = { status: "insufficient" };
+      add("FIELD_OMITTED");
+      continue;
+    }
+    const match =
+      unique.length === 1 && unique[0] !== null && unique[0] === (isDate ? actual : fold(actual));
+    fields[key] = {
+      status: match ? "supported" : values.length ? "contradictory" : "insufficient",
+      ...(values.length === 1 ? { page: page.page, line: values[0]!.line } : {}),
+    };
+    if (!match)
+      add(
+        isDate
+          ? values.length
+            ? "DATE_CONTRADICTION"
+            : "DATE_UNSUPPORTED"
+          : values.length
+            ? "METADATA_CONTRADICTION"
+            : "METADATA_UNSUPPORTED",
+      );
+  }
+  if (
+    (row.collectedOn && row.reportedOn && row.collectedOn > row.reportedOn) ||
+    (row.issuedOn &&
+      ((row.reportedOn && row.reportedOn > row.issuedOn) ||
+        (row.collectedOn && row.collectedOn > row.issuedOn)))
+  ) {
+    add("DATE_CONTRADICTION");
+    for (const key of ["collectedOn", "reportedOn", "issuedOn"] as const)
+      if (row[key]) fields[key] = { status: "contradictory" };
+  }
+  if (
+    row.evidence?.trim() &&
+    !normalizeLaboratoryText(page.text).includes(normalizeLaboratoryText(row.evidence))
+  )
+    add("EVIDENCE_NOT_IN_SOURCE");
   return {
     status: issues.length ? "attention" : "literal_match",
-    basis: sourcePages === undefined ? "model_evidence" : "source_text",
+    basis: "source_text",
     issues,
+    fields,
   };
 }

@@ -13,6 +13,7 @@ import {
   LABORATORY_VERIFIER_VERSION,
 } from "../lib/laboratory-pipeline-version";
 import { extractLaboratoryPdfText } from "./laboratory-pdf-text";
+import { experimentLaboratoryInventory } from "../lib/laboratory-completeness-experiment";
 
 const directory = new URL("../test/fixtures/laboratory-pdfs/", import.meta.url);
 const hashes = JSON.parse(await readFile(new URL("sha256.json", directory), "utf8"));
@@ -33,11 +34,22 @@ it.each(laboratoryBenchmarkCases)("evaluates a verified synthetic original: $id"
     checkLaboratoryEvidence(r, source.status === "available" ? source.pages : undefined),
   );
   const trusted = checks.map((c) => c.basis === "source_text" && c.status === "literal_match");
+  if (!supplied) expect(trusted).toEqual(item.trust);
+  const inventory = experimentLaboratoryInventory(
+    source.status === "available" ? source.pages : [],
+    predictions,
+  );
   report.push({
     id: item.id,
     format: item.format,
     sourceSha256: hashes[item.id],
     extraction,
+    experimentalInventory: {
+      scope: inventory.scope,
+      completenessProven: inventory.completenessProven,
+      recognizableRows: inventory.recognizableRows,
+      possibleOmissions: inventory.possibleOmissions.length,
+    },
     verifier: supplied
       ? { trusted: trusted.filter(Boolean).length, falseAlerts: null, unsafeTrusted: null }
       : {
@@ -117,11 +129,39 @@ afterAll(async () => {
         promptVersion: LABORATORY_PROMPT_VERSION,
         verifierVersion: LABORATORY_VERIFIER_VERSION,
         sourceCommit: execFileSync("git", ["rev-parse", "HEAD"], { encoding: "utf8" }).trim(),
+        sourceWorkingTreeDirty: !!execFileSync("git", ["status", "--porcelain"], {
+          encoding: "utf8",
+        }).trim(),
+        referenceSha256: createHash("sha256")
+          .update(JSON.stringify(laboratoryBenchmarkCases))
+          .digest("hex"),
+        implementationSha256: createHash("sha256")
+          .update(
+            JSON.stringify(
+              await Promise.all(
+                [
+                  "../lib/laboratory-evidence.ts",
+                  "../lib/laboratory-source-association.ts",
+                  "../lib/laboratory-results.ts",
+                  "./laboratory-pdf-text.ts",
+                  "./laboratory-extraction.ts",
+                ].map(async (p) => ({
+                  path: p,
+                  source: await readFile(new URL(p, import.meta.url), "utf8").catch(() => null),
+                })),
+              ),
+            ),
+          )
+          .digest("hex"),
         outputOrigin: supplied
           ? "supplied-candidates-not-live-inference"
           : "synthetic-controlled-not-live-inference",
         documents: report.length,
-        totals,
+        totals: {
+          ...totals,
+          falseAlerts: supplied ? null : totals.falseAlerts,
+          unsafeTrusted: supplied ? null : totals.unsafeTrusted,
+        },
         cases: report,
       },
       null,

@@ -23,6 +23,7 @@ const extractedRow = () => {
     ...emptyLaboratoryRow(),
     name: "Exame",
     result: "Não reagente",
+    issuedOn: null,
   };
   delete row.verified;
   return row;
@@ -114,6 +115,28 @@ it("uses direct Responses with storage disabled and preserves required human con
   expect(call.providerOptions).toEqual({ openai: { store: false, reasoningEffort: "low" } });
   expect(result.patientConfirmed).toBe(false);
   expect(result.rows[0]?.verified).toBe(false);
+});
+it("reports only sanitized aggregate usage through the extraction boundary", async () => {
+  vi.stubEnv("LAB_EXTRACTION_PROVIDER", "openai");
+  vi.stubEnv("LAB_EXTRACTION_MODEL", "openai/synthetic");
+  vi.stubEnv("OPENAI_API_KEY", "synthetic-not-a-credential");
+  const observed = vi.fn();
+  sdk.generate.mockResolvedValue({
+    output: { notes: "PRIVATE SYNTHETIC NOTE", rows: [extractedRow()] },
+    totalUsage: { inputTokens: 123, outputTokens: 45, raw: { arbitrary: "DO_NOT_STORE" } },
+  });
+  await extractLaboratoryPdf(new Uint8Array(), "openai/synthetic", undefined, observed);
+  expect(observed).toHaveBeenCalledWith(
+    expect.objectContaining({
+      inputTokens: 123,
+      outputTokens: 45,
+      pipelineVersion: "lab-pipeline-2",
+      promptVersion: "lab-transcription-2",
+      extractedRows: 1,
+      estimatedCostUsd: null,
+    }),
+  );
+  expect(JSON.stringify(observed.mock.calls)).not.toMatch(/PRIVATE|DO_NOT_STORE|credential/);
 });
 
 const sourcePages = (count: number) => ({

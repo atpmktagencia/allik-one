@@ -531,3 +531,7 @@ O **Paciente360º** reúne o contexto clínico e evolui os questionários existe
 ### Atendimento e Paciente360º — interface dos mockups aprovados (Preview)
 
 O espaço clínico usa barra global compacta, cabeçalho horizontal e navegação em cinco etapas independentes: Anamnese, Exames, Prescrição, Solicitações e Revisão. Os editores permanecem montados, e a troca de unidade é bloqueada durante alterações ou salvamento pendente. A visão geral reúne os dados existentes do paciente. Consulte [medidas, comparação visual, diferenças técnicas e evidências](docs/clinical-mockups-implementation.md). A tabela terapêutica e a receita preservam registros distintos, com inserção explícita dos itens salvos no documento. Sem migração ou alteração de produção.
+
+### Qualidade da extração laboratorial
+
+Execute `npm run benchmark:labs` para avaliar o corpus sintético sem chamar provedores. A [Etapa 2 de qualidade e evidências](docs/laboratory-quality-stage2.md) registra referência, comparação antes/depois, telemetria e limitações. Elegibilidade textual continua distinta de confirmação clínica.

@@ -182,7 +182,7 @@ export const laboratoryBenchmarkCases: LaboratoryBenchmarkCase[] = [
   sample(
     "partially-legible",
     ["TSH: [ilegível] mUI/L"],
-    [tsh],
+    [row({ name: "TSH", result: "[ilegível]", unit: "mUI/L", evidence: "TSH: [ilegível] mUI/L" })],
     [{ ...tsh, evidence: "TSH: [ilegível] mUI/L" }],
     [false],
   ),

@@ -7,6 +7,7 @@ import { hashToken } from "./auth";
 import * as accessAudit from "./clinical-access-audit";
 import { laboratoryResultsResponse } from "./laboratory-results";
 import { emptyLaboratoryRow } from "../lib/laboratory-results";
+import { createLaboratoryTelemetry } from "../lib/laboratory-telemetry";
 const ai = vi.hoisted(() => ({ extract: vi.fn() }));
 const pdfText = vi.hoisted(() => ({ extract: vi.fn() }));
 vi.mock("./laboratory-pdf-text", () => ({
@@ -322,8 +323,15 @@ describe("laboratory import, review and isolation", () => {
     const extracted = confirmed();
     extracted.rows[0]!.sourcePage = 1;
     extracted.rows[0]!.evidence = "TSH <0,1 µUI/mL Referência: 0,27–4,2";
-    const sourceText = "Cabeçalho exclusivo do PDF fictício\n" + extracted.rows[0]!.evidence;
-    ai.extract.mockResolvedValue(extracted);
+    const sourceText =
+      "Cabeçalho exclusivo do PDF fictício\nColeta: 02/01/2026\n" + extracted.rows[0]!.evidence;
+    ai.extract.mockImplementation(async (_bytes, _model, _text, observe) => {
+      const t = createLaboratoryTelemetry("openai", "synthetic/model");
+      t.start();
+      t.complete({ inputTokens: 100, outputTokens: 30 });
+      observe(t.finish(10, null, extracted.rows.length));
+      return extracted;
+    });
     pdfText.extract.mockResolvedValue({
       status: "available",
       totalPages: 1,
@@ -338,6 +346,7 @@ describe("laboratory import, review and isolation", () => {
       new TextEncoder().encode(f.bytes),
       expect.any(String),
       expect.objectContaining({ status: "available", pages: [{ page: 1, text: sourceText }] }),
+      expect.any(Function),
     );
     expect(pdfText.extract.mock.invocationCallOrder[0]).toBeLessThan(
       ai.extract.mock.invocationCallOrder[0]!,
@@ -345,11 +354,18 @@ describe("laboratory import, review and isolation", () => {
     expect(d.import.draft.patientConfirmed).toBe(false);
     expect(d.import.draft.rows[0].verified).toBe(false);
     expect(d.import.extracted_payload.rows[0].result).toBe("<0,1");
-    expect(d.evidenceChecks).toEqual({
-      version: 1,
+    expect(d.evidenceChecks).toMatchObject({
+      version: 2,
       parserStatus: "available",
       totalPages: 1,
-      rows: [{ status: "literal_match", basis: "source_text", issues: [] }],
+      rows: [
+        {
+          status: "literal_match",
+          basis: "source_text",
+          issues: [],
+          fields: { result: { status: "supported" }, collectedOn: { status: "supported" } },
+        },
+      ],
     });
     const metadata = (
       await f.db.query(
@@ -358,6 +374,15 @@ describe("laboratory import, review and isolation", () => {
       )
     ).rows[0].metadata;
     expect(metadata.sourceChecks).toEqual(d.evidenceChecks);
+    expect(metadata.telemetry).toMatchObject({
+      inputTokens: 100,
+      outputTokens: 30,
+      extractedRows: 1,
+      divergenceRows: 0,
+      divergenceFields: 0,
+      estimatedCostUsd: null,
+      pipelineVersion: "lab-pipeline-2",
+    });
     expect(JSON.stringify(metadata)).not.toContain(sourceText);
     expect(JSON.stringify(metadata)).not.toContain(extracted.rows[0]!.evidence);
     expect(

@@ -2,16 +2,19 @@
   "pipelineVersion": "lab-pipeline-1",
   "promptVersion": "lab-transcription-1",
   "verifierVersion": 1,
-  "sourceCommit": "7d350a6b2b6f96e86e3e9a36bff60192ebe1721b",
+  "sourceCommit": "f6ef4a3bf19c0596eebabf5deb1d6e5852af74c9",
+  "sourceWorkingTreeDirty": true,
+  "referenceSha256": "d7ed5509c1f6c013efa0db552642c591f2d10252271c5dbf7aedf3c5e287f145",
+  "implementationSha256": "0a1366c4c89d3ef54704b49f8e73458c4e78272b4ac15d2db245f17ada870e52",
   "outputOrigin": "synthetic-controlled-not-live-inference",
   "documents": 21,
   "totals": {
     "expected": 28,
     "predicted": 28,
-    "correctRows": 19,
+    "correctRows": 18,
     "omitted": 1,
     "invented": 1,
-    "associationCorrect": 23,
+    "associationCorrect": 22,
     "trusted": 19,
     "falseAlerts": 3,
     "unsafeTrusted": 6
@@ -69,7 +72,7 @@
         "falseAlerts": 1,
         "unsafeTrusted": 0
       },
-      "localProcessingMilliseconds": 77.60115000000002,
+      "localProcessingMilliseconds": 69.76553100000001,
       "inferenceMilliseconds": null,
       "costUsd": null,
       "tokens": null
@@ -126,7 +129,7 @@
         "falseAlerts": 0,
         "unsafeTrusted": 0
       },
-      "localProcessingMilliseconds": 4.1050539999999955,
+      "localProcessingMilliseconds": 3.551247999999987,
       "inferenceMilliseconds": null,
       "costUsd": null,
       "tokens": null
@@ -183,7 +186,7 @@
         "falseAlerts": 0,
         "unsafeTrusted": 1
       },
-      "localProcessingMilliseconds": 3.5407330000000456,
+      "localProcessingMilliseconds": 2.9014869999999746,
       "inferenceMilliseconds": null,
       "costUsd": null,
       "tokens": null
@@ -240,7 +243,7 @@
         "falseAlerts": 0,
         "unsafeTrusted": 0
       },
-      "localProcessingMilliseconds": 4.465047999999911,
+      "localProcessingMilliseconds": 4.060557000000017,
       "inferenceMilliseconds": null,
       "costUsd": null,
       "tokens": null
@@ -297,7 +300,7 @@
         "falseAlerts": 0,
         "unsafeTrusted": 0
       },
-      "localProcessingMilliseconds": 3.242121999999995,
+      "localProcessingMilliseconds": 3.0491499999999405,
       "inferenceMilliseconds": null,
       "costUsd": null,
       "tokens": null
@@ -354,7 +357,7 @@
         "falseAlerts": 0,
         "unsafeTrusted": 1
       },
-      "localProcessingMilliseconds": 2.7109909999999218,
+      "localProcessingMilliseconds": 4.420180000000073,
       "inferenceMilliseconds": null,
       "costUsd": null,
       "tokens": null
@@ -411,7 +414,7 @@
         "falseAlerts": 1,
         "unsafeTrusted": 0
       },
-      "localProcessingMilliseconds": 2.6167279999999664,
+      "localProcessingMilliseconds": 3.1861070000001064,
       "inferenceMilliseconds": null,
       "costUsd": null,
       "tokens": null
@@ -468,7 +471,7 @@
         "falseAlerts": 1,
         "unsafeTrusted": 0
       },
-      "localProcessingMilliseconds": 2.140119000000027,
+      "localProcessingMilliseconds": 2.207842000000028,
       "inferenceMilliseconds": null,
       "costUsd": null,
       "tokens": null
@@ -525,7 +528,7 @@
         "falseAlerts": 0,
         "unsafeTrusted": 0
       },
-      "localProcessingMilliseconds": 2.7909610000000384,
+      "localProcessingMilliseconds": 2.5418549999999414,
       "inferenceMilliseconds": null,
       "costUsd": null,
       "tokens": null
@@ -582,7 +585,7 @@
         "falseAlerts": 0,
         "unsafeTrusted": 0
       },
-      "localProcessingMilliseconds": 2.4816540000000487,
+      "localProcessingMilliseconds": 2.4944229999999834,
       "inferenceMilliseconds": null,
       "costUsd": null,
       "tokens": null
@@ -639,7 +642,7 @@
         "falseAlerts": 0,
         "unsafeTrusted": 0
       },
-      "localProcessingMilliseconds": 2.7505499999999756,
+      "localProcessingMilliseconds": 2.8327339999999595,
       "inferenceMilliseconds": null,
       "costUsd": null,
       "tokens": null
@@ -696,7 +699,7 @@
         "falseAlerts": 0,
         "unsafeTrusted": 1
       },
-      "localProcessingMilliseconds": 2.3754450000000134,
+      "localProcessingMilliseconds": 5.14334000000008,
       "inferenceMilliseconds": null,
       "costUsd": null,
       "tokens": null
@@ -753,7 +756,7 @@
         "falseAlerts": 0,
         "unsafeTrusted": 1
       },
-      "localProcessingMilliseconds": 2.9208419999999933,
+      "localProcessingMilliseconds": 2.119607999999971,
       "inferenceMilliseconds": null,
       "costUsd": null,
       "tokens": null
@@ -810,7 +813,7 @@
         "falseAlerts": 0,
         "unsafeTrusted": 0
       },
-      "localProcessingMilliseconds": 1.6746669999999995,
+      "localProcessingMilliseconds": 1.7409470000000056,
       "inferenceMilliseconds": null,
       "costUsd": null,
       "tokens": null
@@ -867,7 +870,7 @@
         "falseAlerts": 0,
         "unsafeTrusted": 1
       },
-      "localProcessingMilliseconds": 1.470107999999982,
+      "localProcessingMilliseconds": 1.272059000000013,
       "inferenceMilliseconds": null,
       "costUsd": null,
       "tokens": null
@@ -924,7 +927,7 @@
         "falseAlerts": 0,
         "unsafeTrusted": 0
       },
-      "localProcessingMilliseconds": 2.2160630000000765,
+      "localProcessingMilliseconds": 2.424769000000083,
       "inferenceMilliseconds": null,
       "costUsd": null,
       "tokens": null
@@ -981,7 +984,7 @@
         "falseAlerts": 0,
         "unsafeTrusted": 0
       },
-      "localProcessingMilliseconds": 1.4128619999999046,
+      "localProcessingMilliseconds": 1.502787000000012,
       "inferenceMilliseconds": null,
       "costUsd": null,
       "tokens": null
@@ -1038,7 +1041,7 @@
         "falseAlerts": 0,
         "unsafeTrusted": 0
       },
-      "localProcessingMilliseconds": 1.4247489999999061,
+      "localProcessingMilliseconds": 1.2103060000000596,
       "inferenceMilliseconds": null,
       "costUsd": null,
       "tokens": null
@@ -1095,7 +1098,7 @@
         "falseAlerts": 0,
         "unsafeTrusted": 1
       },
-      "localProcessingMilliseconds": 1.4280449999999973,
+      "localProcessingMilliseconds": 1.3270219999999426,
       "inferenceMilliseconds": null,
       "costUsd": null,
       "tokens": null
@@ -1108,13 +1111,13 @@
         "expected": 1,
         "predicted": 1,
         "matched": 1,
-        "correctRows": 1,
+        "correctRows": 0,
         "omitted": 0,
         "invented": 0,
-        "associationCorrect": 1,
+        "associationCorrect": 0,
         "fields": {
           "result": {
-            "correct": 1,
+            "correct": 0,
             "compared": 1
           },
           "unit": {
@@ -1130,7 +1133,7 @@
             "compared": 0
           },
           "reference": {
-            "correct": 1,
+            "correct": 0,
             "compared": 1
           },
           "laboratory": {
@@ -1152,7 +1155,7 @@
         "falseAlerts": 0,
         "unsafeTrusted": 0
       },
-      "localProcessingMilliseconds": 1.2315679999999247,
+      "localProcessingMilliseconds": 1.1451079999999365,
       "inferenceMilliseconds": null,
       "costUsd": null,
       "tokens": null
@@ -1209,7 +1212,7 @@
         "falseAlerts": 0,
         "unsafeTrusted": 0
       },
-      "localProcessingMilliseconds": 1.3325509999999667,
+      "localProcessingMilliseconds": 1.5265329999999722,
       "inferenceMilliseconds": null,
       "costUsd": null,
       "tokens": null
