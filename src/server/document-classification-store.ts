@@ -2,6 +2,13 @@ import "@tanstack/react-start/server-only";
 import { z } from "zod";
 import type { PoolClient } from "pg";
 import { authenticate, can, type AuthContext } from "./auth";
+import {
+  classificationBoundary,
+  classificationConfiguration,
+  classifierEnabled,
+} from "./document-classifier";
+import { recordClinicalAccess } from "./clinical-access-audit";
+import { randomUUID } from "node:crypto";
 import { getPool } from "./db";
 import {
   classificationWrite,
@@ -55,7 +62,7 @@ async function scopedDocument(
   if (!member) throw new ClassificationError(403);
   return row;
 }
-async function append(
+export async function appendClassificationEvent(
   client: PoolClient,
   data: ClassificationWrite,
   organizationId: string,
@@ -169,7 +176,7 @@ export async function appendSystemClassification(organizationId: string, raw: un
       )
     ).rows[0];
     if (!doc) throw new ClassificationError(404);
-    const result = await append(client, data, doc.organization_id, doc.sha256, {
+    const result = await appendClassificationEvent(client, data, doc.organization_id, doc.sha256, {
       kind: "SYSTEM",
       userId: null,
     });
@@ -190,8 +197,9 @@ const scope = z
   })
   .strict();
 const responseHeaders = { "Cache-Control": "private, no-store", Vary: "Cookie, Authorization" };
-/** Ready for local authorization testing, deliberately not mounted in application routing. */
+/** Authenticated human/read boundary. System commands are never accepted from HTTP. */
 export async function documentClassificationResponse(request: Request) {
+  if (!classificationBoundary()) return new Response(null, { status: 404 });
   const auth = await authenticate(request);
   if (!auth)
     return Response.json({ error: "Acesso negado" }, { status: 401, headers: responseHeaders });
@@ -200,27 +208,130 @@ export async function documentClassificationResponse(request: Request) {
   if (request.method === "POST" && request.headers.get("origin") !== url.origin)
     return new Response(null, { status: 403 });
   const client = await getPool().connect();
+  let released = false;
   try {
     await client.query("BEGIN");
     if (request.method === "GET") {
       const input = scope.parse(Object.fromEntries(url.searchParams));
       await scopedDocument(client, auth, input);
       const result = await client.query(
-        `SELECT * FROM inventory_patient_document_classification_events WHERE document_id=$1 AND organization_id=$2 AND patient_id=$3 AND unit_id=$4 ORDER BY revision`,
+        `SELECT * FROM inventory_patient_document_classification_events WHERE document_id=$1 AND organization_id=$2 AND patient_id=$3 AND unit_id=$4 ORDER BY revision DESC LIMIT 21`,
         [input.documentId, auth.organizationId, input.patientId, input.unitId],
       );
+      await recordClinicalAccess(
+        auth,
+        {
+          patientId: input.patientId,
+          unitId: input.unitId,
+          sourceKind: "GENERAL_DOCUMENT",
+          sourceId: input.documentId,
+          action: "READ",
+          resourceIds: [input.documentId],
+        },
+        client,
+      );
       await client.query("COMMIT");
-      return Response.json({ events: result.rows }, { headers: responseHeaders });
+      return Response.json(
+        {
+          data: {
+            events: result.rows.slice(0, 20).reverse(),
+            hasMore: result.rows.length > 20,
+            configuration: {
+              ...classificationConfiguration(),
+              enabled: classifierEnabled(),
+              execution: "vercel-waitUntil-or-awaited",
+            },
+          },
+        },
+        { headers: responseHeaders },
+      );
     }
-    const data = classificationWrite.parse(await request.json());
+    const text = await request.text();
+    if (text.length > 65536) throw new ClassificationError(413);
+    const raw = JSON.parse(text);
+    if (raw.action === "RESUME" || raw.action === "RECOVER") {
+      const input = z
+        .object({
+          action: z.enum(["RESUME", "RECOVER"]),
+          documentId: z.string().uuid(),
+          patientId: z.string().uuid(),
+          unitId: z.string().uuid(),
+          expectedRevision: z.number().int().min(1),
+        })
+        .strict()
+        .parse(raw);
+      const doc = await scopedDocument(client, auth, input);
+      const last = (
+        await client.query(
+          "SELECT * FROM inventory_patient_document_classification_events WHERE document_id=$1 ORDER BY revision DESC LIMIT 1",
+          [input.documentId],
+        )
+      ).rows[0];
+      if (!last || last.revision !== input.expectedRevision) throw new ClassificationError(409);
+      if (input.action === "RECOVER") {
+        if (last.action !== "STARTED" || Date.now() - new Date(last.created_at).getTime() < 180000)
+          throw new ClassificationError(409);
+        await appendClassificationEvent(
+          client,
+          {
+            ...input,
+            operationId: randomUUID(),
+            attemptId: last.attempt_id,
+            command: {
+              action: "FAILED",
+              payload: { schemaVersion: 1, failureCode: "AMBIGUOUS_RESPONSE" },
+            },
+          },
+          auth.organizationId,
+          doc.sha256,
+          { kind: "SYSTEM", userId: null },
+        );
+      } else if (!["RECEIVED", "RETRY_REQUESTED"].includes(last.action))
+        throw new ClassificationError(409);
+      await client.query("COMMIT");
+      client.release();
+      released = true;
+      if (input.action === "RESUME")
+        await (
+          await import("./document-classification-worker")
+        ).dispatchClassification(request, input.documentId);
+      return Response.json({ data: { ok: true } }, { headers: responseHeaders });
+    }
+    const data = classificationWrite.parse(raw);
     humanClassificationCommand.parse(data.command);
     const doc = await scopedDocument(client, auth, data);
-    const event = await append(client, data, auth.organizationId, doc.sha256, {
+    if (
+      data.expectedRevision === 0 &&
+      data.command.action === "MANUAL_CLASSIFIED" &&
+      !(
+        await client.query(
+          "SELECT 1 FROM inventory_patient_document_classification_events WHERE document_id=$1 LIMIT 1",
+          [data.documentId],
+        )
+      ).rowCount
+    ) {
+      await registerClassificationReceipt(
+        client,
+        auth.organizationId,
+        data.documentId,
+        data.patientId,
+        data.unitId,
+        doc.sha256,
+      );
+      data.expectedRevision = 1;
+    }
+    const event = await appendClassificationEvent(client, data, auth.organizationId, doc.sha256, {
       kind: "HUMAN",
       userId: auth.user.id,
     });
     await client.query("COMMIT");
-    return Response.json({ event }, { headers: responseHeaders });
+    client.release();
+    released = true;
+    if (data.command.action === "RETRY_REQUESTED")
+      await (
+        await import("./document-classification-worker")
+      ).dispatchClassification(request, data.documentId);
+    return Response.json({ data: { event } }, { headers: responseHeaders });
   } catch (e) {
     await client.query("ROLLBACK");
     const status =
@@ -234,6 +345,31 @@ export async function documentClassificationResponse(request: Request) {
       { status, headers: responseHeaders },
     );
   } finally {
-    client.release();
+    if (!released) client.release();
   }
+}
+
+export async function registerClassificationReceipt(
+  client: PoolClient,
+  organizationId: string,
+  documentId: string,
+  patientId: string,
+  unitId: string,
+  hash: string,
+) {
+  return appendClassificationEvent(
+    client,
+    {
+      documentId,
+      patientId,
+      unitId,
+      operationId: documentId,
+      expectedRevision: 0,
+      attemptId: null,
+      command: { action: "RECEIVED", payload: { schemaVersion: 1 } },
+    },
+    organizationId,
+    hash,
+    { kind: "SYSTEM", userId: null },
+  );
 }

@@ -1,4 +1,5 @@
 import "@tanstack/react-start/server-only";
+import type { PoolClient } from "pg";
 import type { AuthContext } from "./auth";
 import { getPool } from "./db";
 
@@ -16,8 +17,9 @@ export async function recordClinicalAccess(
       "READ" | "PRINT" | "PDF_SOURCE" | "SIGNED_DOWNLOAD" | "DOCUMENT_OPEN" | "DOCUMENT_DOWNLOAD";
     resourceIds?: string[];
   },
+  client?: PoolClient,
 ) {
-  await getPool().query(
+  await (client ?? getPool()).query(
     `INSERT INTO inventory_clinical_access_events
       (organization_id,unit_id,patient_id,appointment_id,document_id,actor_user_id,preview_actor,action,resource_ids,source_kind,source_id)
      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`,

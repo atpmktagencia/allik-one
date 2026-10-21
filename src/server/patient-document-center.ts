@@ -1,5 +1,8 @@
 import "@tanstack/react-start/server-only";
 import { createHash, randomUUID } from "node:crypto";
+import { classifierEnabled, classificationBoundary } from "./document-classifier";
+import { registerClassificationReceipt } from "./document-classification-store";
+import { dispatchClassification } from "./document-classification-worker";
 import { OriginalIntegrityError, verifiedOriginal } from "./private-original";
 import { PATIENT_DOCUMENT_MAX_BYTES } from "../data/patient-document-upload";
 import { z } from "zod";
@@ -154,8 +157,19 @@ export async function patientDocumentsResponse(request: Request) {
     return fail("Origem não autorizada.", 403);
   try {
     if (request.method === "POST") {
-      if (request.headers.get("content-type")?.startsWith("multipart/form-data"))
-        return await upload(request, auth);
+      if (request.headers.get("content-type")?.startsWith("multipart/form-data")) {
+        const response = await upload(request, auth);
+        if (response.status === 201 && classifierEnabled()) {
+          const body = await response.clone().json();
+          const telemetry = await dispatchClassification(request, body.data.id);
+          if (telemetry)
+            return Response.json(
+              { ...body, classificationTelemetry: telemetry },
+              { status: 201, headers },
+            );
+        }
+        return response;
+      }
       if (!["SUPER_ADMIN", "PARTNER_ADMIN"].includes(auth.role))
         return fail("Somente administradores podem criar categorias.", 403);
       const body = z
@@ -206,10 +220,20 @@ export async function patientDocumentsResponse(request: Request) {
       f.search ?? "",
       f.documentId ?? null,
     ];
+    const classificationProjection = classificationBoundary();
+    const sourceUnion = classificationProjection
+      ? union.replace(
+          "d.title,d.categories,coalesce(d.issued_on",
+          `d.title,coalesce((SELECT CASE WHEN e.action IN ('CONFIRMED','CORRECTED','MANUAL_CLASSIFIED') THEN ARRAY(SELECT jsonb_array_elements_text(e.payload->'categories')) WHEN e.action='SUGGESTED' THEN ARRAY(SELECT x->>'category' FROM jsonb_array_elements(e.payload->'result'->'categories') x) ELSE NULL END FROM inventory_patient_document_classification_events e WHERE e.document_id=d.id AND e.organization_id=d.organization_id ORDER BY e.revision DESC LIMIT 1),d.categories),coalesce(d.issued_on`,
+        )
+      : union;
+    const classificationField = classificationProjection
+      ? `(SELECT to_jsonb(ce) FROM inventory_patient_document_classification_events ce WHERE ce.document_id=s.source_id AND ce.organization_id=$2 AND s.source_kind='GENERAL_DOCUMENT' ORDER BY ce.revision DESC LIMIT 1)`
+      : "NULL::jsonb";
     const matching = `($8::text IS NULL OR s.title ILIKE $8 OR s.professional_name ILIKE $8) AND ($9::text IS NULL OR $9=ANY(s.categories)) AND ($10::date IS NULL OR (s.occurred_at AT TIME ZONE 'America/Fortaleza')::date >= $10::date) AND ($11::date IS NULL OR (s.occurred_at AT TIME ZONE 'America/Fortaleza')::date <= $11::date) AND ($12::uuid IS NULL OR s.professional_id=$12) AND ($13::text IS NULL OR s.source_kind=$13) AND ($17::text IS NULL OR s.categories&&ARRAY['EXAM_REQUEST','LAB_RESULT','IMAGE_REPORT']) AND ($19::uuid IS NULL OR (s.source_kind='GENERAL_DOCUMENT' AND s.source_id=$19))`;
     const rows = (
       await getPool().query(
-        `WITH sources AS (${union}), matching AS(SELECT s.* FROM sources s WHERE ${matching}) SELECT s.*,l.status laboratory_status,(SELECT d.created_at FROM inventory_patient_documents d WHERE d.id=s.source_id AND d.organization_id=$2 AND s.source_kind='GENERAL_DOCUMENT') received_at,(SELECT e.metadata->>'intent'='RECEIPT' FROM inventory_patient_document_events e WHERE e.document_id=s.source_id AND e.organization_id=$2 AND e.action='UPLOADED' AND s.source_kind='GENERAL_DOCUMENT' LIMIT 1) classification_pending,u.name unit_name,(SELECT q.appointment_id FROM inventory_encounter_quotes q WHERE s.source_kind='LEGACY_QUOTE' AND q.id=s.source_id AND q.organization_id=$2) origin_appointment,count(*) OVER()::int total FROM matching s JOIN inventory_units u ON u.id=s.unit_id AND u.organization_id=$2 LEFT JOIN inventory_laboratory_imports l ON l.document_id=s.source_id AND l.organization_id=$2 AND s.source_kind='GENERAL_DOCUMENT' ORDER BY CASE WHEN $16='relevance' THEN CASE WHEN lower(s.title)=lower($18) THEN 0 WHEN lower(left(s.title,length($18)))=lower($18) THEN 1 ELSE 2 END ELSE 0 END,s.occurred_at DESC,s.source_kind,s.source_id DESC,s.revision DESC LIMIT $14 OFFSET $15`,
+        `WITH sources AS (${sourceUnion}), matching AS(SELECT s.* FROM sources s WHERE ${matching}) SELECT s.*,${classificationField} classification_event,l.status laboratory_status,(SELECT d.created_at FROM inventory_patient_documents d WHERE d.id=s.source_id AND d.organization_id=$2 AND s.source_kind='GENERAL_DOCUMENT') received_at,(SELECT e.metadata->>'intent'='RECEIPT' FROM inventory_patient_document_events e WHERE e.document_id=s.source_id AND e.organization_id=$2 AND e.action='UPLOADED' AND s.source_kind='GENERAL_DOCUMENT' LIMIT 1) classification_pending,u.name unit_name,(SELECT q.appointment_id FROM inventory_encounter_quotes q WHERE s.source_kind='LEGACY_QUOTE' AND q.id=s.source_id AND q.organization_id=$2) origin_appointment,count(*) OVER()::int total FROM matching s JOIN inventory_units u ON u.id=s.unit_id AND u.organization_id=$2 LEFT JOIN inventory_laboratory_imports l ON l.document_id=s.source_id AND l.organization_id=$2 AND s.source_kind='GENERAL_DOCUMENT' ORDER BY CASE WHEN $16='relevance' THEN CASE WHEN lower(s.title)=lower($18) THEN 0 WHEN lower(left(s.title,length($18)))=lower($18) THEN 1 ELSE 2 END ELSE 0 END,s.occurred_at DESC,s.source_kind,s.source_id DESC,s.revision DESC LIMIT $14 OFFSET $15`,
         params,
       )
     ).rows;
@@ -232,7 +256,22 @@ export async function patientDocumentsResponse(request: Request) {
           categories: r.categories,
           occurredAt: r.occurred_at,
           receivedAt: r.received_at ?? null,
-          classificationPending: r.classification_pending === true,
+          classificationPending:
+            r.classification_pending === true &&
+            !["SUGGESTED", "CONFIRMED", "CORRECTED", "MANUAL_CLASSIFIED"].includes(
+              r.classification_event?.action,
+            ),
+          classification: r.classification_event
+            ? {
+                id: r.classification_event.id,
+                revision: r.classification_event.revision,
+                action: r.classification_event.action,
+                payload: r.classification_event.payload,
+                attemptId: r.classification_event.attempt_id,
+                createdAt: r.classification_event.created_at,
+              }
+            : null,
+          classificationAvailable: classificationProjection,
           professionalId: r.professional_id,
           professionalName: r.professional_name,
           unitId: r.unit_id,
@@ -505,6 +544,15 @@ async function upload(request: Request, auth: AuthContext) {
         },
       ],
     );
+    if (classifierEnabled())
+      await registerClassificationReceipt(
+        client,
+        auth.organizationId,
+        id,
+        d.patientId,
+        c.patient.primary_unit_id,
+        sha256,
+      );
     commitAttempted = true;
     await client.query("COMMIT");
     return Response.json({ data: { id } }, { status: 201, headers });

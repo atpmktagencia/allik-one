@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { createHash, randomUUID } from "node:crypto";
 import { migrate } from "drizzle-orm/node-postgres/migrator";
 import { hashToken } from "./auth";
@@ -6,6 +6,13 @@ import { getDb, getPool } from "./db";
 import { patientDocumentsResponse, patientDocumentFileResponse } from "./patient-document-center";
 import { preconsultationResponse, preconsultationPublicResponse } from "./preconsultation";
 
+import PDFDocument from "pdfkit";
+import { documentClassificationResponse } from "./document-classification-store";
+const model = vi.hoisted(() => ({ generateText: vi.fn() }));
+vi.mock("ai", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("ai")>()),
+  generateText: model.generateText,
+}));
 const storage = vi.hoisted(() => ({ put: vi.fn(), get: vi.fn(), del: vi.fn() }));
 vi.mock("@vercel/blob", () => storage);
 const origin = "http://localhost:4317";
@@ -644,4 +651,234 @@ it("receives neutral originals without creating laboratory imports and reopens t
   const repeated = await postUpload(f, form);
   expect(repeated.status).toBe(200);
   expect((await repeated.json()).data.id).toBe(data.id);
+});
+
+async function classificationPdf(patientName: string, mixed = false) {
+  const pdf = new PDFDocument();
+  const chunks: Buffer[] = [];
+  const done = new Promise<Buffer>((resolve) => {
+    pdf.on("data", (b: Buffer) => chunks.push(b));
+    pdf.on("end", () => resolve(Buffer.concat(chunks)));
+  });
+  pdf
+    .fontSize(12)
+    .text(`Paciente: ${patientName}`)
+    .text("Pedido de exames")
+    .text("Solicito hemograma");
+  if (mixed) pdf.addPage().text("Laudo de imagem").text("Ultrassonografia abdominal");
+  pdf.end();
+  return done;
+}
+function controlledClassification(mixed = false) {
+  return {
+    output: {
+      categories: [
+        { category: "EXAM_REQUEST", evidence: [{ page: 1, quote: "Solicito hemograma" }] },
+        ...(mixed
+          ? [
+              {
+                category: "IMAGE_REPORT",
+                evidence: [{ page: 2, quote: "Ultrassonografia abdominal" }],
+              },
+            ]
+          : []),
+      ],
+      abstention: "NONE",
+    },
+    usage: { inputTokens: 100, outputTokens: 30 },
+    response: { modelId: "gpt-6-luna" },
+  };
+}
+describe("F2 upload-to-classification with controlled provider (no paid inference)", () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    model.generateText.mockReset();
+  });
+  async function prepare(patientName = "Synthetic document patient", mixed = false) {
+    const f = await fixture();
+    const bytes = await classificationPdf(patientName, mixed);
+    vi.stubEnv("DOCUMENT_CLASSIFICATION_ENABLED", "true");
+    vi.stubEnv("LAB_EXTRACTION_PROVIDER", "openai");
+    vi.stubEnv("LAB_EXTRACTION_MODEL", "openai/gpt-6-luna");
+    vi.stubEnv("OPENAI_API_KEY", "synthetic-test-never-sent");
+    storage.put.mockImplementation(async (path: string) => ({ pathname: path }));
+    storage.get.mockImplementation(async () => ({
+      statusCode: 200,
+      stream: new ReadableStream({
+        start(c) {
+          c.enqueue(new Uint8Array(bytes));
+          c.close();
+        },
+      }),
+    }));
+    const id = randomUUID();
+    const send = () => {
+      const form = uploadForm(f.patient, "", {
+        id,
+        categories: JSON.stringify(["OTHER"]),
+        intent: "RECEIPT",
+      });
+      form.set(
+        "file",
+        new File([new Uint8Array(bytes)], "neutral.pdf", { type: "application/pdf" }),
+      );
+      return postUpload(f, form);
+    };
+    const events = async () =>
+      (
+        await getPool().query(
+          "SELECT * FROM inventory_patient_document_classification_events WHERE document_id=$1 ORDER BY revision",
+          [id],
+        )
+      ).rows;
+    const change = (action: string, revision: number, payload: unknown) =>
+      documentClassificationResponse(
+        new Request(origin + "/api/v1/inventory/document-classifications", {
+          method: "POST",
+          headers: { ...f.headers, "Content-Type": "application/json" },
+          body: JSON.stringify({
+            documentId: id,
+            patientId: f.patient,
+            unitId: f.unit,
+            operationId: randomUUID(),
+            attemptId: null,
+            expectedRevision: revision,
+            command: { action, payload },
+          }),
+        }),
+      );
+    return { ...f, id, bytes, send, events, change };
+  }
+  it("classifies after commit; replay and GET cannot initiate another request", async () => {
+    const f = await prepare();
+    model.generateText.mockResolvedValue(controlledClassification());
+    expect((await f.send()).status).toBe(201);
+    expect((await f.events()).map((e) => e.action)).toEqual(["RECEIVED", "STARTED", "SUGGESTED"]);
+    expect((await f.send()).status).toBe(200);
+    await f.read();
+    await f.read();
+    expect(model.generateText).toHaveBeenCalledTimes(1);
+    const doc = (
+      await getPool().query(
+        "SELECT categories,sha256 FROM inventory_patient_documents WHERE id=$1",
+        [f.id],
+      )
+    ).rows[0];
+    expect(doc.categories).toEqual(["OTHER"]);
+    expect(doc.sha256).toBe(createHash("sha256").update(f.bytes).digest("hex"));
+    const list = await f.read("&category=EXAM_REQUEST");
+    expect((await list.json()).data.documents[0].sourceId).toBe(f.id);
+  });
+  it("preserves mixed pages in one original and one provider request", async () => {
+    const f = await prepare("Synthetic document patient", true);
+    model.generateText.mockResolvedValue(controlledClassification(true));
+    await f.send();
+    const e = (await f.events()).at(-1);
+    expect(e.action).toBe("SUGGESTED");
+    expect(e.payload.result.categories.map((c: { category: string }) => c.category)).toEqual([
+      "EXAM_REQUEST",
+      "IMAGE_REPORT",
+    ]);
+    expect(e.payload.result.categories[1].evidence[0].page).toBe(2);
+    expect(model.generateText).toHaveBeenCalledTimes(1);
+  });
+  it("flags identity divergence, and correction is human and immutable", async () => {
+    const f = await prepare("Another synthetic patient");
+    model.generateText.mockResolvedValue(controlledClassification());
+    await f.send();
+    expect((await f.events()).at(-1).payload.evidenceStatus).toBe("IDENTITY_MISMATCH");
+    expect(
+      (
+        await f.change("CORRECTED", 3, {
+          schemaVersion: 1,
+          categories: ["EXAM_REQUEST"],
+          reason: "Original sintético conferido pelo profissional",
+          originalReviewed: true,
+          identityConfirmed: true,
+        })
+      ).status,
+    ).toBe(200);
+    const e = await f.events();
+    expect(e.at(-1).actor_kind).toBe("HUMAN");
+    expect(e[2].action).toBe("NEEDS_REVIEW");
+  });
+  it("provider failure preserves source, explicit retry is limited and audited", async () => {
+    const f = await prepare();
+    model.generateText
+      .mockRejectedValueOnce(Error("TIMEOUT"))
+      .mockResolvedValue(controlledClassification());
+    expect((await f.send()).status).toBe(201);
+    expect((await f.events()).at(-1).payload.failureCode).toBe("TIMEOUT");
+    expect(
+      (
+        await f.change("RETRY_REQUESTED", 3, {
+          schemaVersion: 1,
+          reason: "Nova tentativa autorizada pelo profissional",
+        })
+      ).status,
+    ).toBe(200);
+    expect((await f.events()).map((e) => e.action)).toEqual([
+      "RECEIVED",
+      "STARTED",
+      "FAILED",
+      "RETRY_REQUESTED",
+      "STARTED",
+      "SUGGESTED",
+    ]);
+    expect(model.generateText).toHaveBeenCalledTimes(2);
+    expect((await f.file(f.id)).status).toBe(200);
+  });
+  it("late result cannot replace manual decision during a provider request", async () => {
+    const f = await prepare();
+    let resolve: (r: ReturnType<typeof controlledClassification>) => void = () => {};
+    model.generateText.mockImplementation(
+      () =>
+        new Promise((r) => {
+          resolve = r;
+        }),
+    );
+    const request = f.send();
+    for (let i = 0; i < 150 && (await f.events()).at(-1)?.action !== "STARTED"; i++)
+      await new Promise((r) => setTimeout(r, 10));
+    expect(
+      (
+        await f.change("MANUAL_CLASSIFIED", 2, {
+          schemaVersion: 1,
+          categories: ["EXAM_REQUEST"],
+          reason: "Classificação manual antes da resposta do modelo",
+          originalReviewed: true,
+          identityConfirmed: true,
+        })
+      ).status,
+    ).toBe(200);
+    resolve(controlledClassification());
+    expect((await request).status).toBe(201);
+    expect((await f.events()).at(-1).action).toBe("MANUAL_CLASSIFIED");
+  });
+  it("bounds provider concurrency to two across organizations", async () => {
+    const a = await prepare(),
+      b = await prepare(),
+      c = await prepare();
+    let release: () => void = () => {};
+    const gate = new Promise<void>((r) => {
+      release = r;
+    });
+    let active = 0,
+      max = 0;
+    model.generateText.mockImplementation(async () => {
+      active++;
+      max = Math.max(max, active);
+      await gate;
+      active--;
+      return controlledClassification();
+    });
+    const uploads = [a.send(), b.send(), c.send()];
+    for (let i = 0; i < 150 && model.generateText.mock.calls.length < 2; i++)
+      await new Promise((r) => setTimeout(r, 10));
+    expect(model.generateText.mock.calls.length).toBe(2);
+    release();
+    expect((await Promise.all(uploads)).map((r) => r.status)).toEqual([201, 201, 201]);
+    expect(max).toBe(2);
+    expect(model.generateText).toHaveBeenCalledTimes(3);
+  });
 });

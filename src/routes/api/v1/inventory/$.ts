@@ -1,3 +1,4 @@
+import { documentClassificationResponse } from "@/server/document-classification-store";
 import { clinicalRequestsResponse } from "@/server/clinical-requests";
 import {
   patientDocumentsResponse,
@@ -79,6 +80,11 @@ export const Route = createFileRoute("/api/v1/inventory/$")({
           "/api/v1/inventory/composer-plan-options"
         )
           return composerPlanOptionsResponse(request);
+        if (
+          new URL(request.url).pathname.replace(/\/$/, "") ===
+          "/api/v1/inventory/document-classifications"
+        )
+          return documentClassificationResponse(request);
         if (
           new URL(request.url).pathname.replace(/\/$/, "") === "/api/v1/inventory/patient-documents"
         )
@@ -215,6 +221,11 @@ export const Route = createFileRoute("/api/v1/inventory/$")({
           "/api/v1/inventory/composer-plan-options"
         )
           return composerPlanOptionsResponse(request);
+        if (
+          new URL(request.url).pathname.replace(/\/$/, "") ===
+          "/api/v1/inventory/document-classifications"
+        )
+          return documentClassificationResponse(request);
         if (
           new URL(request.url).pathname.replace(/\/$/, "") === "/api/v1/inventory/patient-documents"
         )
