@@ -1,0 +1,39 @@
+{
+  "date": "2026-10-21",
+  "timezone": "America/Fortaleza",
+  "environment": "DISPOSABLE_LOCAL_POSTGRESQL_16",
+  "remoteDatabaseAccess": false,
+  "paidProviderCalls": 0,
+  "runtimeRoutesMounted": false,
+  "migrationJournalChanged": false,
+  "newF2IntegrationTests": 37,
+  "checks": {
+    "integration": {
+      "files": 40,
+      "passed": 501,
+      "seconds": 81.85
+    },
+    "runtimeProvisioning": {
+      "passed": 3
+    },
+    "unitAndUI": {
+      "files": 82,
+      "passed": 597,
+      "seconds": 90.87
+    },
+    "typecheck": "passed",
+    "editedTypeScriptEslint": "passed"
+  },
+  "hashes": {
+    "docs/proposals/patient-f2/persistence.sql": "451ee65e6014f5a6c085b3a14ea784770196a694f8c856ffcbd24101dddb5c0d",
+    "src/lib/document-classification-events.ts": "f2a2f70b9cf7406448e6836d0572ca2fe8fec0e43679f3c7816c4267334d8f97",
+    "src/server/document-classification-store.ts": "ec06c1678181d1a6a7e70635b58742b0493ed84e6e694a14ad0929ec95ef5f27",
+    "src/server/document-classification-store.test.ts": "8f8afee3bec5a2fab9f6e901911b82c55e14c4220abeb8c02e96d200a2ae3380"
+  },
+  "limitations": [
+    "Controlled synthetic events, no real model inference",
+    "No Preview migration or deployment",
+    "No OCR or F3-F5",
+    "SQL support metadata is producer attestation, not independent PDF proof"
+  ]
+}

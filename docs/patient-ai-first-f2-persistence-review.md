@@ -1,128 +1,69 @@
-# F2 — primeiro incremento e revisão da persistência
+# F2 — persistência append-only revisada
 
-Estado: contrato offline implementado; runtime, banco, chamadas pagas e deployment
-não alterados. Este documento não declara F2 entregue nem benchmark realizado.
+**Candidato para aprovação; não aplicado no Preview ou em produção.**
+A proposta conceitual `b8d861e` foi revisada conforme os seis pontos solicitados.
+Somente ajustes de código e testes locais foram executados, sem chamadas pagas.
 
-## Diagnóstico e decisão proposta
+- [SQL completo revisado](proposals/patient-f2/persistence.sql).
+- [Relatório técnico, testes, limites e reprodução](patient-ai-first-f2-local-validation.md).
+- [Evidências resumidas e hashes dos arquivos testados](benchmarks/patient-f2-local-validation.json).
 
-Foram lidos integralmente F1, proposta F2 e encerramento D.2. A F1 conserva o original
-em `inventory_patient_documents`, com categorias imutáveis. `0070` permite apenas
-`UPLOADED` na tabela de eventos; exige o autor original e tem índice único
-`(document_id,action)`. `0074` adiciona metadata mas não remove essas restrições.
-Eventos laboratoriais são vinculados a imports e versões clínicas; usá-los para
-classificar qualquer arquivo criaria importações falsas. Auditoria de acesso não é
-um diário de processamento. Nenhum desses mecanismos deve ser sobrecarregado.
+## Preservação e isolamento
 
-**Proposta mínima: uma tabela append-only de eventos de classificação**, ligada ao
-mesmo UUID e SHA. Não há nova biblioteca, blob, import laboratorial ou tabela de fila.
-A última revisão do stream é o estado; o histórico guarda sugestões e correções.
-Reutiliza os padrões de imutabilidade, autorização e revisão do sistema atual.
+Uma única tabela append-only, vinculada ao mesmo documento por UUID, SHA-256,
+organização, paciente e unidade. Metadados originais e UPLOADED não são modificados.
+Não há novo blob, biblioteca, import laboratorial ou reprocessamento histórico.
 
-[Diff SQL proposto](proposals/patient-f2/persistence.sql), fora de `drizzle/` e do
-journal: uma tabela, três índices explícitos, uma função guard e três triggers.
-Não altera tabelas existentes, não insere registros e não faz backfill.
+O backend autentica e valida permissões e escopo de leitura/escrita, com rechecagem
+de membership e das unidades original/atual. O trigger é uma segunda defesa de
+consistência; não substitui autorização de backend. Não foi adicionada RLS.
 
-O guard valida origem/tenant/paciente/unidade/hash, autor clínico ativo e unidades,
-serializa revisões pelo original, recusa transições inválidas, duplica inicialização
-no máximo uma vez por versão e limita duas tentativas explícitas por documento.
-Isso é proteção por tentativa, não cota por hora/dia. O backend ainda precisa validar
-payloads Zod, escopo de leitura, permissões efetivas e os motivos das correções.
-A correspondência literal de uma frase não prova que a categoria está correta.
+## Máquina de estados e autoria
 
-## Contrato já preparado
+- **CONFIRMED** só sucede SUGGESTED verificável, referenciando o mesmo evento e
+  categorias, com autoria profissional, motivo e conferência do original/identidade.
+- **MANUAL_CLASSIFIED** é operação humana distinta, permitida durante STARTED ou
+  após FAILED. Não simula confirmação de IA sem resultado.
+- **CORRECTED** acrescenta evento; não sobrescreve decisões anteriores.
+- Eventos automáticos usam SYSTEM, identidade `document-classifier` e usuário nulo.
+  Decisões humanas usam o usuário autenticado, sem identidade de sistema.
+- Payloads estritos e versionados são validados no backend e no SQL. A API humana
+  recusa eventos automáticos e campos de autoria/tenant enviados pelo cliente.
 
-`src/lib/patient-document-classification.ts` define categorias existentes, evidências
-por página, abstenção e versão. A saída do modelo não aceita confirmação, confiança
-ou instruções operacionais adicionais. O verificador offline checa presença literal
-na página indicada e exige revisão sem fonte independente ou identidade resolvida.
-Não confirma categoria, não prova completude e não extrai valores laboratoriais.
-O contrato não é ainda um classificador semântico nem está conectado à interface.
+Evidência com página/trecho não é prova de verdade clínica. A futura integração do
+classificador deve verificar os trechos contra o original antes de declarar suporte;
+essa integração não foi habilitada nesta revisão.
 
-A classificação sugerida pode organizar a lista com identificação “Sugerida”. Somente
-ação humana autenticada gera “Confirmada”. Ambiguidade, conflito pedido/resultado,
-identidade divergente e scans sem evidência independente geram “Revisar categoria”.
-PDFs mistos mantêm categorias com suas páginas, nunca originais duplicados.
+## Concorrência e idempotência
 
-## Acionamento proposto e controles a implementar
+Lock consultivo transacional por documento, revisões sequenciais e expectedRevision.
+Não exige UPDATE na tabela imutável dos originais. operation_id reconcilia repetição
+idêntica e rejeita reutilização alterada. attempt_id vincula resposta à tentativa.
+Decisão humana impede que resposta tardia substitua a classificação. Limite de duas
+tentativas por documento com retry explícito; sem restaurar cotas horárias/diárias.
 
-No commit do upload novo, registrar RECEIVED na mesma transação, somente com F2
-habilitada no Preview sintético. O dispatcher pós-resposta usa o mecanismo suportado
-pelo runtime; deve ser comprovado antes de habilitar. Não usar fetch desacoplado sem
-ciclo de vida garantido. RECEIVED pendente continua visível se o dispatcher falhar;
-recuperação operacional explícita não depende de abrir a lista nem dispara pelo GET.
+## Rollback após o primeiro uso
 
-Antes da chamada, claim STARTED persistido com attempt UUID e lock. Um slot global
-transacional limita dois documentos concorrentes. Timeout ou resultado de provedor
-ambíguo não é repetido automaticamente. Retry solicitado por profissional, até uma
-repetição, conserva documento/hash e registra nova tentativa. Chegada tardia não
-sobrescreve correção humana. Leases expiradas exigem resolver a tentativa anterior;
-expiração não comprova que a chamada deixou de ser cobrada.
+**Preservar integralmente tabela e eventos, inclusive sugestões, correções,
+confirmações, evidências, autoria e datas.** Não há down migration destrutiva.
+Suspender trabalhos e voltar ao código F1 não exclui classificações; pode apenas
+retirar sua exibição. Reconciliar tentativas em voo antes de reativar.
 
-Reutilizar OpenAI autorizado, sem nova credencial/exportação; requests sem filename
-como evidência, sem ferramentas, PDF como dado não confiável, timeout e saída
-limitados, sem retries do SDK. Verificar tamanho/páginas antes de enviar; até 4 MB,
-até 20 páginas por classificação inicial, saída máxima 4.000 tokens e deadline 60 s.
-Acima disso, preservar original e pedir revisão, sem truncar silenciosamente.
-Limites de entrada/saída e concorrência não garantem teto monetário no fornecedor.
+Não executar DROP, DELETE, TRUNCATE, desativação de triggers ou restauração integral
+anterior para reverter F2. Exportação não autoriza exclusão. Uma remoção estrutural
+só poderia ser avaliada antes do primeiro uso, com tabela comprovadamente vazia,
+produtores parados e manutenção explicitamente autorizada. Não está implementada.
 
-Leituras usam escopo original; filtro de categoria considera projeção sugerida/corrigida
-sem reescrever categorias históricas. Mudanças de categoria não concedem acesso,
-não associam outro paciente e não habilitam extração automática.
+## Validação e limite desta entrega
 
-## Aplicação e rollback propostos
+SQL aplicado somente em PostgreSQL 16 descartável: **501 testes de integração**, dos
+quais **37 novos da F2**, e **3 verificações de provisionamento** passaram. Também
+passaram **597 testes unitários/interface**, typecheck e lint dos arquivos alterados.
+O relatório distingue as execuções e documenta as falhas iniciais de fixture corrigidas.
 
-Antes de aplicar: apresentar este diff; confirmar SHA/URL imutável, Preview sintético,
-branch Neon e papel restrito; snapshot de resultados/digest e produção. Testar o SQL
-em PostgreSQL descartável, incluindo cross-tenant, cross-unit, autores, corrida de
-revision/claim, rollback do upload, correção durante execução e falha de auditoria.
-Adicionar schema/journal apenas depois da aprovação; nenhum build executa manutenção.
+O SQL permanece fora de `drizzle/` e do journal. Serviços são testáveis localmente,
+mas não estão montados em rotas, upload ou worker. Não há migration remota, F2
+operacional no Preview, inferência paga, extração automática ou publicação clínica.
 
-Aplicação restrita à branch de Preview, com F2 desabilitada até schema, grants e runtime
-compatíveis. Não executar este arquivo diretamente em produção.
-
-Rollback operacional preferido: desligar F2 e voltar ao código F1; originais continuam
-acessíveis. **Preservar tabela e eventos** para não apagar auditoria. Antes do primeiro
-uso, rollback estrutural pode remover tabela, seus índices/triggers e função
-`inventory_guard_document_classification()`. Depois de eventos, remoção estrutural
-exige exportação auditada e nova aprovação; não desabilitar triggers para apagar história.
-
-## Escopo proposto do benchmark pago (ainda não executado)
-
-Doze PDFs sintéticos distintos, referências independentes fixadas antes das respostas:
-2 resultados laboratoriais, 2 pedidos, receita, laudo de imagem, relatório, atestado,
-PDF misto multipágina, scan, ilegível e adversarial com identidade divergente.
-Uma chamada por PDF, sequencial, **máximo 12 chamadas**, zero retries automáticos.
-Sem repetir acervo histórico. Incluir controles determinísticos adicionais sem cobrança.
-
-Antes de iniciar: conferir versão do deployment, isolamento, modelo autorizado e preço
-vigente. Propor envelope total de US$ 0,50 para o experimento; não iniciar se o custo
-máximo conservador do lote não couber nesse envelope. Parar diante de erro/uso não
-mensurável/custo inesperado. Não prometer teto na fatura de chamadas em andamento.
-Preço indisponível impede benchmark até revisão; custo observado e estimado separados.
-
-Métricas por documento/categoria/página: precisão e recall multilabel, confusão
-pedido/resultado, abstenções, associações de página, falhas, duplicações, tokens,
-custo e latência. Não contabilizar páginas como documentos independentes. Critério
-para esta rodada: zero pedido classificado como resultado sem sinalização, zero
-identidade divergente tratada como confirmada, zero chamadas por GET/reload, original
-e histórico preservados. Corpus pequeno não comprova acurácia clínica ou economia humana.
-
-## Próximos incrementos após revisão
-
-1. Persistência testada e autorizada; contrato de claim e dispatcher demonstrado.
-2. OpenAI e corpus, sem extração laboratorial.
-3. Recebimento único, listagem/estados e correção auditada.
-4. Benchmark limitado e homologação visual no Preview; relatório, capturas e commit.
-5. Proposta detalhada de F3, sem implementação.
-
-A implementação operacional ainda está pendente. Não existem métricas reais de F2,
-classificações no Preview ou screenshots novas nesta entrega preparatória.
-
-## Validação deste incremento
-
-- `npx vitest run src/test/patient-document-classification.test.ts`: 11 testes passaram.
-- `npm run typecheck`: passou.
-- ESLint dos dois arquivos TypeScript novos: passou.
-- SQL proposto ainda não foi aplicado nem validado em PostgreSQL. Não é migration liberada.
-- Zero inferências reais nesta rodada; custo, latência e precisão do classificador não medidos.
-- Sem alterações de banco, histórico clínico, configuração remota ou deployment.
+A aplicação no Preview aguarda revisão final e autorização do responsável. Produção
+e F3–F5 permanecem fora do escopo.
