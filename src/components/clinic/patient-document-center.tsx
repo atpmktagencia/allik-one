@@ -1,3 +1,5 @@
+import { DocumentClassification } from "./document-classification";
+import { classificationLabel, type ClassificationView } from "@/lib/document-classification-view";
 import { useQueryClient } from "@tanstack/react-query";
 import { LaboratoryHistory, type LaboratoryHistoryViewState } from "./laboratory-history";
 import { PrivateDocumentPreview } from "./private-document-preview";
@@ -22,6 +24,8 @@ export type PatientDocument = {
   occurredAt: string;
   receivedAt?: string | null;
   classificationPending?: boolean;
+  classification?: ClassificationView | null;
+  classificationAvailable?: boolean;
   professionalId: string | null;
   professionalName: string;
   unitId?: string;
@@ -219,8 +223,17 @@ export function PatientDocumentCenter({
   if (requestedUnitId !== undefined) params.set("unitId", requestedUnitId);
   const query = useInventory<PatientDocumentsPayload>(`patient-documents?${params}`, {
     enabled: active,
+    refetchInterval: (q) =>
+      active &&
+      q.state.data?.documents.some((d) =>
+        ["RECEIVED", "STARTED", "RETRY_REQUESTED"].includes(d.classification?.action ?? ""),
+      )
+        ? 2000
+        : false,
   });
   const data = query.data;
+  const selectedView = data?.documents.find((d) => d.id === selected?.id) ?? selected;
+  const [reviewDocumentId, setReviewDocumentId] = useState<string | null>(null);
   function filter(key: keyof typeof filters, value: string) {
     setFilters((previous) => ({ ...previous, [key]: value }));
     setOffset(0);
@@ -503,11 +516,15 @@ export function PatientDocumentCenter({
                         {document.professionalName || "Profissional não informado"}
                       </span>
                       <span className="block text-xs text-slate-600">
-                        {document.classificationPending
-                          ? "Sem classificação"
-                          : document.categories
-                              .map((category) => categories.get(category) ?? "Categoria")
-                              .join(" · ")}{" "}
+                        {document.classification
+                          ? classificationLabel(document.classification) +
+                            " · " +
+                            document.categories.map((c) => categories.get(c) ?? c).join(" · ")
+                          : document.classificationPending
+                            ? "Sem classificação"
+                            : document.categories
+                                .map((category) => categories.get(category) ?? "Categoria")
+                                .join(" · ")}{" "}
                         · {sourceNames[document.sourceKind]} ·{" "}
                         {statusNames[document.laboratoryStatus ?? document.status] ??
                           document.status}
@@ -562,11 +579,15 @@ export function PatientDocumentCenter({
                         </td>
                         <td className="p-2">{document.professionalName || "Não informado"}</td>
                         <td className="p-2">
-                          {document.classificationPending
-                            ? "Sem classificação"
-                            : document.categories
-                                .map((category) => categories.get(category) ?? "Categoria")
-                                .join(" · ")}
+                          {document.classification
+                            ? classificationLabel(document.classification) +
+                              " · " +
+                              document.categories.map((c) => categories.get(c) ?? c).join(" · ")
+                            : document.classificationPending
+                              ? "Sem classificação"
+                              : document.categories
+                                  .map((category) => categories.get(category) ?? "Categoria")
+                                  .join(" · ")}
                         </td>
                         <td className="p-2">
                           {sourceNames[document.sourceKind] ?? "Registro do paciente"}
@@ -634,68 +655,95 @@ export function PatientDocumentCenter({
             className="min-w-0 space-y-4 border-t border-slate-200 pt-4 xl:sticky xl:top-4 xl:border-l xl:border-t-0 xl:pl-4 xl:pt-0"
             key={`${patientId}:${unitId}`}
           >
-            {selected ? (
+            {selectedView ? (
               <>
                 <Button type="button" size="sm" variant="ghost" onClick={() => setSelected(null)}>
                   Fechar prévia
                 </Button>
                 <div className="space-y-2">
-                  <h3 className="break-words font-semibold">{selected.title}</h3>
+                  <h3 className="break-words font-semibold">{selectedView.title}</h3>
                   <p className="text-xs text-muted-foreground">
-                    {sourceNames[selected.sourceKind] ?? "Registro do paciente"} ·{" "}
+                    {sourceNames[selectedView.sourceKind] ?? "Registro do paciente"} ·{" "}
                     {statusNames[
-                      data.documents.find((d) => d.id === selected.id)?.laboratoryStatus ??
-                        selected.status
-                    ] ?? selected.status}
-                    {selected.revision !== null ? ` · versão ${selected.revision}` : ""}
+                      data.documents.find((d) => d.id === selectedView.id)?.laboratoryStatus ??
+                        selectedView.status
+                    ] ?? selectedView.status}
+                    {selectedView.revision !== null ? ` · versão ${selectedView.revision}` : ""}
                   </p>
                   <p className="text-sm">
-                    {dateLabel(selected.occurredAt)} ·{" "}
-                    {selected.professionalName || "Profissional não informado"}
+                    {dateLabel(selectedView.occurredAt)} ·{" "}
+                    {selectedView.professionalName || "Profissional não informado"}
                     <br />
-                    {selected.unitName}
+                    {selectedView.unitName}
                   </p>
                   <div className="flex flex-wrap gap-1">
-                    {selected.classificationPending ? (
+                    {selectedView.classificationPending ? (
                       <span className="rounded bg-slate-100 px-2 py-1 text-xs">
                         Sem classificação
                       </span>
                     ) : (
-                      selected.categories.map((category) => (
+                      selectedView.categories.map((category) => (
                         <span key={category} className="rounded bg-slate-100 px-2 py-1 text-xs">
                           {categories.get(category) ?? "Categoria"}
                         </span>
                       ))
                     )}
                   </div>
-                  {selected.sizeBytes !== null && (
+                  {selectedView.sizeBytes !== null && (
                     <p className="text-xs text-muted-foreground">
-                      Original · {Math.ceil(selected.sizeBytes / 1024)} KB
+                      Original · {Math.ceil(selectedView.sizeBytes / 1024)} KB
                     </p>
                   )}
                 </div>
-                <PrivateDocumentPreview key={selected.id} document={selected} />
+                <PrivateDocumentPreview key={selectedView.id} document={selectedView} />
                 {data.canUpload &&
-                  selected.sourceKind === "GENERAL_DOCUMENT" &&
-                  selected.contentType === "application/pdf" &&
-                  !selected.classificationPending && (
-                    <LaboratoryReview
-                      key={patientId + selected.id}
+                  selectedView.sourceKind === "GENERAL_DOCUMENT" &&
+                  selectedView.classificationAvailable && (
+                    <DocumentClassification
+                      key={selectedView.sourceId}
                       patientId={patientId}
-                      documentId={selected.sourceId}
-                      unitId={selected.unitId ?? requestedUnitId}
+                      documentId={selectedView.sourceId}
+                      unitId={selectedView.unitId ?? requestedUnitId ?? ""}
                       onChanged={() => {
                         void query.refetch();
                       }}
                     />
                   )}
-                {safeUrl(selected.previewUrl) &&
+                {data.canUpload &&
+                  selectedView.sourceKind === "GENERAL_DOCUMENT" &&
+                  selectedView.contentType === "application/pdf" &&
+                  selectedView.categories.includes("LAB_RESULT") &&
+                  !selectedView.classificationPending &&
+                  (!selectedView.classification ||
+                    ["CONFIRMED", "CORRECTED", "MANUAL_CLASSIFIED"].includes(
+                      selectedView.classification.action,
+                    )) &&
+                  (selectedView.classification && reviewDocumentId !== selectedView.id ? (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setReviewDocumentId(selectedView.id)}
+                    >
+                      Conferir resultados laboratoriais
+                    </Button>
+                  ) : (
+                    <LaboratoryReview
+                      key={patientId + selectedView.id}
+                      patientId={patientId}
+                      documentId={selectedView.sourceId}
+                      unitId={selectedView.unitId ?? requestedUnitId}
+                      onChanged={() => {
+                        void query.refetch();
+                      }}
+                    />
+                  ))}
+                {safeUrl(selectedView.previewUrl) &&
                   !["application/pdf", "image/jpeg", "image/png"].includes(
-                    selected.contentType ?? "",
+                    selectedView.contentType ?? "",
                   ) && (
                     <Button asChild type="button" variant="outline">
                       <a
-                        href={safeUrl(selected.previewUrl)!}
+                        href={safeUrl(selectedView.previewUrl)!}
                         target="_blank"
                         rel="noopener noreferrer"
                       >
@@ -704,10 +752,10 @@ export function PatientDocumentCenter({
                     </Button>
                   )}
                 <div className="flex flex-wrap gap-2">
-                  {safeUrl(selected.downloadUrl) && (
+                  {safeUrl(selectedView.downloadUrl) && (
                     <Button asChild type="button" variant="outline">
                       <a
-                        href={safeUrl(selected.downloadUrl)!}
+                        href={safeUrl(selectedView.downloadUrl)!}
                         target="_blank"
                         rel="noopener noreferrer"
                       >
@@ -715,11 +763,12 @@ export function PatientDocumentCenter({
                       </a>
                     </Button>
                   )}
-                  {selected.originUrl?.startsWith("/") && !selected.originUrl.startsWith("//") && (
-                    <Button asChild type="button" variant="outline">
-                      <a href={selected.originUrl}>Abrir registro de origem</a>
-                    </Button>
-                  )}
+                  {selectedView.originUrl?.startsWith("/") &&
+                    !selectedView.originUrl.startsWith("//") && (
+                      <Button asChild type="button" variant="outline">
+                        <a href={selectedView.originUrl}>Abrir registro de origem</a>
+                      </Button>
+                    )}
                 </div>
                 <p className="text-xs text-muted-foreground">
                   Acesso privado. O documento original permanece na fonte de origem.

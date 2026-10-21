@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, type UseQueryOptions } from "@tanstack/react-query";
 import { withSelectedUnit } from "./unit-context";
 export type InventoryPosition = {
   id: string;
@@ -90,7 +90,10 @@ export async function fetchInventory<T>(resource: string): Promise<T> {
   const body = await readInventoryResponse<T>(response, "Não foi possível consultar os dados.");
   return body.data as T;
 }
-export function useInventory<T>(resource: string, options?: { enabled?: boolean }) {
+export function useInventory<T>(
+  resource: string,
+  options?: { enabled?: boolean; refetchInterval?: UseQueryOptions<T>["refetchInterval"] },
+) {
   const patientResource =
     resource.startsWith("patient-") ||
     resource.startsWith("laboratory-history") ||
@@ -107,6 +110,7 @@ export function useInventory<T>(resource: string, options?: { enabled?: boolean 
   const requestPath = withSelectedUnit(`/api/v1/inventory/${resource}`);
   return useQuery<T>({
     enabled: options?.enabled ?? true,
+    refetchInterval: options?.refetchInterval ?? false,
     queryKey: ["inventory", requestPath],
     queryFn: async () => {
       const response = await fetch(requestPath, { credentials: "same-origin" });
