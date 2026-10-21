@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { randomUUID } from "node:crypto";
-import { readFile } from "node:fs/promises";
+import { createHash, randomUUID } from "node:crypto";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { migrate } from "drizzle-orm/node-postgres/migrator";
 import { getDb, getPool } from "./db";
 import { hashToken } from "./auth";
@@ -15,7 +15,19 @@ beforeAll(async () => {
   if (!["127.0.0.1", "localhost"].includes(url.hostname) || !url.pathname.endsWith("_test"))
     throw Error("Disposable local PostgreSQL required");
   await migrate(getDb(), { migrationsFolder: "./drizzle" });
-  await getPool().query(await readFile("docs/proposals/patient-f2/persistence.sql", "utf8"));
+  await mkdir("work", { recursive: true });
+  await writeFile(
+    "work/f2-local-compatibility.json",
+    JSON.stringify(
+      (await getPool().query(await readFile("scripts/patient-f2-compatibility.sql", "utf8")))
+        .rows[0],
+      null,
+      2,
+    ),
+  );
+  expect(await readFile("drizzle/0077_patient_document_classification_events.sql", "utf8")).toBe(
+    await readFile("docs/proposals/patient-f2/persistence.sql", "utf8"),
+  );
 });
 afterAll(async () => {
   await getPool().end();
@@ -599,5 +611,22 @@ describe("F2 revised SQL, backend authorization and concurrency (no provider)", 
     } finally {
       client.release();
     }
+  });
+  it("re-running the official migration is a no-op and preserves persisted events", async () => {
+    const f = await fixture();
+    const before = await f.events();
+    await migrate(getDb(), { migrationsFolder: "./drizzle" });
+    expect(await f.events()).toEqual(before);
+    const journal = (
+      await getPool().query(
+        "SELECT hash,created_at::text FROM drizzle.__drizzle_migrations ORDER BY created_at DESC LIMIT 1",
+      )
+    ).rows[0];
+    expect(journal).toEqual({
+      hash: createHash("sha256")
+        .update(await readFile("drizzle/0077_patient_document_classification_events.sql"))
+        .digest("hex"),
+      created_at: "1794272400034",
+    });
   });
 });

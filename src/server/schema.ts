@@ -13,6 +13,8 @@ import {
   text,
   timestamp,
   uniqueIndex,
+  unique,
+  foreignKey,
   uuid,
 } from "drizzle-orm/pg-core";
 
@@ -3342,5 +3344,104 @@ export const clinicalRequestEvents = pgTable(
       t.version,
     ),
     index("clinical_request_encounter").on(t.organizationId, t.appointmentId, t.createdAt),
+  ],
+);
+
+// F2 remains operationally disabled. This declaration tracks only approved persistence.
+export const patientDocumentClassificationEvents = pgTable(
+  "inventory_patient_document_classification_events",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    documentId: uuid("document_id").notNull(),
+    organizationId: uuid("organization_id").notNull(),
+    unitId: uuid("unit_id").notNull(),
+    patientId: uuid("patient_id").notNull(),
+    sourceSha256: text("source_sha256").notNull(),
+    classifierVersion: text("classifier_version").notNull(),
+    revision: integer("revision").notNull(),
+    operationId: uuid("operation_id")
+      .notNull()
+      .unique("inventory_patient_document_classification_even_operation_id_key"),
+    actorKind: text("actor_kind").notNull(),
+    actorUserId: uuid("actor_user_id"),
+    systemIdentity: text("system_identity"),
+    action: text("action").notNull(),
+    attemptId: uuid("attempt_id"),
+    payload: jsonb("payload").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    foreignKey({
+      columns: [t.documentId],
+      foreignColumns: [patientDocuments.id],
+      name: "inventory_patient_document_classification_even_document_id_fkey",
+    }),
+    foreignKey({
+      columns: [t.organizationId],
+      foreignColumns: [organizations.id],
+      name: "inventory_patient_document_classification__organization_id_fkey",
+    }),
+    foreignKey({
+      columns: [t.unitId],
+      foreignColumns: [units.id],
+      name: "inventory_patient_document_classification_events_unit_id_fkey",
+    }),
+    foreignKey({
+      columns: [t.patientId],
+      foreignColumns: [patients.id],
+      name: "inventory_patient_document_classification_event_patient_id_fkey",
+    }),
+    foreignKey({
+      columns: [t.actorUserId],
+      foreignColumns: [users.id],
+      name: "inventory_patient_document_classification_ev_actor_user_id_fkey",
+    }),
+
+    unique("inventory_patient_document_classificat_document_id_revision_key").on(
+      t.documentId,
+      t.revision,
+    ),
+    index("patient_document_classification_scope").on(
+      t.organizationId,
+      t.patientId,
+      t.unitId,
+      t.documentId,
+      t.revision.desc().nullsFirst(),
+    ),
+    uniqueIndex("patient_document_classification_received_once")
+      .on(t.documentId, t.classifierVersion)
+      .where(sql`${t.action}='RECEIVED'`),
+    uniqueIndex("patient_document_classification_attempt_once")
+      .on(t.attemptId)
+      .where(sql`${t.action}='STARTED'`),
+    check(
+      "inventory_patient_document_classification_e_source_sha256_check",
+      sql`${t.sourceSha256} ~ '^[0-9a-f]{64}$'`,
+    ),
+    check(
+      "inventory_patient_document_classificat_classifier_version_check",
+      sql`${t.classifierVersion}='document-classifier-1'`,
+    ),
+    check("inventory_patient_document_classification_events_revision_check", sql`${t.revision}>0`),
+    check(
+      "inventory_patient_document_classification_even_actor_kind_check",
+      sql`${t.actorKind} IN ('SYSTEM','HUMAN')`,
+    ),
+    check(
+      "inventory_patient_document_classification_events_action_check",
+      sql`${t.action} IN ('RECEIVED','STARTED','SUGGESTED','NEEDS_REVIEW','FAILED','CONFIRMED','MANUAL_CLASSIFIED','CORRECTED','RETRY_REQUESTED')`,
+    ),
+    check(
+      "inventory_patient_document_classification_events_check",
+      sql`octet_length(${t.payload}::text)<=65536 AND coalesce(inventory_classification_payload_valid(${t.action},${t.payload}),false)`,
+    ),
+    check(
+      "inventory_patient_document_classification_events_check1",
+      sql`(${t.actorKind}='SYSTEM' AND ${t.actorUserId} IS NULL AND ${t.systemIdentity} IS NOT DISTINCT FROM 'document-classifier' AND ${t.action} IN ('RECEIVED','STARTED','SUGGESTED','NEEDS_REVIEW','FAILED')) OR (${t.actorKind}='HUMAN' AND ${t.actorUserId} IS NOT NULL AND ${t.systemIdentity} IS NULL AND ${t.action} IN ('CONFIRMED','MANUAL_CLASSIFIED','CORRECTED','RETRY_REQUESTED'))`,
+    ),
+    check(
+      "inventory_patient_document_classification_events_check2",
+      sql`(${t.action} IN ('STARTED','SUGGESTED','NEEDS_REVIEW','FAILED') AND ${t.attemptId} IS NOT NULL) OR (${t.action} NOT IN ('STARTED','SUGGESTED','NEEDS_REVIEW','FAILED') AND ${t.attemptId} IS NULL)`,
+    ),
   ],
 );
