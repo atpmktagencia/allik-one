@@ -1,0 +1,20 @@
+{
+  "checked_at": "2026-10-21T11:28:45.322Z",
+  "current_user": "allik_runtime",
+  "branch_id": "br-winter-hill-b69uz195",
+  "endpoint_id": "ep-hidden-cloud-b6hskjjt",
+  "documents": "42",
+  "prior_documents_digest": "eab17a1685885aa625b638958041b3a5",
+  "results": "88",
+  "results_digest": "713f44bd5c8fa62783847475c61a3525",
+  "versions": "2",
+  "versions_digest": "3787eba7f8d71a12604c9a5c2a283708",
+  "classification_calls": "12",
+  "can_mutate": false,
+  "prior_document_events_digest": "6fe5c6c3dcf368bf1edbea222932b714",
+  "extractions": "25",
+  "migration_0077_hash": "451ee65e6014f5a6c085b3a14ea784770196a694f8c856ffcbd24101dddb5c0d",
+  "journalEntries": 78,
+  "productionDeployment": "dpl_4ag81mHUxsDZ7VaKqnrKKHqKrFkp",
+  "productionSha": "091612549723e484d41bd3c984e877ddd19365e6"
+}

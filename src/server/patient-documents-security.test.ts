@@ -689,6 +689,7 @@ function controlledClassification(mixed = false) {
     response: { modelId: "gpt-6-luna" },
   };
 }
+const workerOriginals = new Map<string, Uint8Array>();
 describe("F2 upload-to-classification with controlled provider (no paid inference)", () => {
   afterEach(() => {
     vi.unstubAllEnvs();
@@ -701,12 +702,15 @@ describe("F2 upload-to-classification with controlled provider (no paid inferenc
     vi.stubEnv("LAB_EXTRACTION_PROVIDER", "openai");
     vi.stubEnv("LAB_EXTRACTION_MODEL", "openai/gpt-6-luna");
     vi.stubEnv("OPENAI_API_KEY", "synthetic-test-never-sent");
-    storage.put.mockImplementation(async (path: string) => ({ pathname: path }));
-    storage.get.mockImplementation(async () => ({
+    storage.put.mockImplementation(async (path: string, actual: Uint8Array) => {
+      workerOriginals.set(path, new Uint8Array(actual));
+      return { pathname: path };
+    });
+    storage.get.mockImplementation(async (path: string) => ({
       statusCode: 200,
       stream: new ReadableStream({
         start(c) {
-          c.enqueue(new Uint8Array(bytes));
+          c.enqueue(workerOriginals.get(path) ?? new Uint8Array(bytes));
           c.close();
         },
       }),
@@ -875,8 +879,9 @@ describe("F2 upload-to-classification with controlled provider (no paid inferenc
     const uploads = [a.send(), b.send(), c.send()];
     for (let i = 0; i < 150 && model.generateText.mock.calls.length < 2; i++)
       await new Promise((r) => setTimeout(r, 10));
-    expect(model.generateText.mock.calls.length).toBe(2);
+    const startedCalls = model.generateText.mock.calls.length;
     release();
+    expect(startedCalls).toBe(2);
     expect((await Promise.all(uploads)).map((r) => r.status)).toEqual([201, 201, 201]);
     expect(max).toBe(2);
     expect(model.generateText).toHaveBeenCalledTimes(3);

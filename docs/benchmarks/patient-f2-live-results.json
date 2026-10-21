@@ -1,0 +1,1558 @@
+{
+  "deploymentSha": "3af80f97a4b337ad3714299fc71e79d7c5cb99c5",
+  "url": "https://allik-1pp89wxtx-atp-mkt.vercel.app",
+  "startedAt": "2026-10-21T11:23:36.198Z",
+  "attempts": [
+    {
+      "id": "lab-numeric",
+      "filename": "documento-f2-01.pdf",
+      "attemptedAt": "2026-10-21T11:23:42.769Z",
+      "state": "COMPLETED",
+      "operationId": "8fc25df1-656e-438d-8c22-e45fff456bae"
+    },
+    {
+      "id": "lab-qualitative",
+      "filename": "documento-f2-02.pdf",
+      "attemptedAt": "2026-10-21T11:23:42.769Z",
+      "state": "COMPLETED",
+      "operationId": "8ed09d61-b9b9-4e40-9202-7bc387f8f162"
+    },
+    {
+      "id": "request-basic",
+      "filename": "documento-f2-03.pdf",
+      "operationId": "8425f73c-7126-440f-a962-abb0dce57b79",
+      "attemptedAt": "2026-10-21T11:24:30.377Z",
+      "state": "COMPLETED"
+    },
+    {
+      "id": "request-panel",
+      "filename": "documento-f2-04.pdf",
+      "operationId": "bfa63712-b304-4d06-8d50-4c2c053c2015",
+      "attemptedAt": "2026-10-21T11:24:37.815Z",
+      "state": "COMPLETED"
+    },
+    {
+      "id": "prescription",
+      "filename": "documento-f2-05.pdf",
+      "operationId": "3694dc3a-525e-4956-b930-1ba929aa9050",
+      "attemptedAt": "2026-10-21T11:24:45.787Z",
+      "state": "COMPLETED"
+    },
+    {
+      "id": "image-report",
+      "filename": "documento-f2-06.pdf",
+      "operationId": "5b0eb130-86c3-4ce1-883a-14e5826ec65d",
+      "attemptedAt": "2026-10-21T11:24:52.838Z",
+      "state": "COMPLETED"
+    },
+    {
+      "id": "report",
+      "filename": "documento-f2-07.pdf",
+      "operationId": "8be8fd11-9b5a-46b5-8d70-99622d04d28b",
+      "attemptedAt": "2026-10-21T11:25:00.857Z",
+      "state": "COMPLETED"
+    },
+    {
+      "id": "certificate",
+      "filename": "documento-f2-08.pdf",
+      "operationId": "2d688e0a-f802-4d73-af98-d8f8dba1f524",
+      "attemptedAt": "2026-10-21T11:25:08.919Z",
+      "state": "COMPLETED"
+    },
+    {
+      "id": "mixed",
+      "filename": "documento-f2-09.pdf",
+      "operationId": "046771f2-7f1b-4450-9f7e-9947b2d1c7ae",
+      "attemptedAt": "2026-10-21T11:25:16.114Z",
+      "state": "COMPLETED"
+    },
+    {
+      "id": "scan",
+      "filename": "documento-f2-10.pdf",
+      "operationId": "b1109b8d-4631-4acd-acc2-bbf29ba222cd",
+      "attemptedAt": "2026-10-21T11:25:25.192Z",
+      "state": "COMPLETED"
+    },
+    {
+      "id": "illegible",
+      "filename": "documento-f2-11.pdf",
+      "operationId": "53593b07-5f72-4514-8f0b-c3eba7b8d049",
+      "attemptedAt": "2026-10-21T11:25:34.322Z",
+      "state": "COMPLETED"
+    },
+    {
+      "id": "adversarial-mismatch",
+      "filename": "documento-f2-12.pdf",
+      "operationId": "d77b3e86-bbdc-44cf-9f64-6e53c69fc83d",
+      "attemptedAt": "2026-10-21T11:25:43.821Z",
+      "state": "COMPLETED"
+    }
+  ],
+  "records": [
+    {
+      "id": "lab-numeric",
+      "documentId": "8fc25df1-656e-438d-8c22-e45fff456bae",
+      "uploadStatus": 201,
+      "events": [
+        {
+          "id": "672d298d-ed2f-43e3-8372-143b9470a8e7",
+          "document_id": "8fc25df1-656e-438d-8c22-e45fff456bae",
+          "organization_id": "a1100000-0000-4000-8000-000000000001",
+          "unit_id": "a1100000-0000-4000-8000-000000000101",
+          "patient_id": "90319847-c7a6-4adc-a08a-47cf5e2aef21",
+          "source_sha256": "f3fd4066add8bd8b9a92a002bbafdad92ad3fc775a78a96bfcf14f6017d88e44",
+          "classifier_version": "document-classifier-1",
+          "revision": 1,
+          "operation_id": "8fc25df1-656e-438d-8c22-e45fff456bae",
+          "actor_kind": "SYSTEM",
+          "actor_user_id": null,
+          "system_identity": "document-classifier",
+          "action": "RECEIVED",
+          "attempt_id": null,
+          "payload": {
+            "schemaVersion": 1
+          },
+          "created_at": "2026-10-21T11:23:43.396Z"
+        },
+        {
+          "id": "c13e49e6-8ea9-4032-970d-1ccbfc58b7f6",
+          "document_id": "8fc25df1-656e-438d-8c22-e45fff456bae",
+          "organization_id": "a1100000-0000-4000-8000-000000000001",
+          "unit_id": "a1100000-0000-4000-8000-000000000101",
+          "patient_id": "90319847-c7a6-4adc-a08a-47cf5e2aef21",
+          "source_sha256": "f3fd4066add8bd8b9a92a002bbafdad92ad3fc775a78a96bfcf14f6017d88e44",
+          "classifier_version": "document-classifier-1",
+          "revision": 2,
+          "operation_id": "a2a5943d-dbe3-4873-aa24-fab0e6f3741d",
+          "actor_kind": "SYSTEM",
+          "actor_user_id": null,
+          "system_identity": "document-classifier",
+          "action": "STARTED",
+          "attempt_id": "4077816f-841b-451b-85da-fd9efbb45bd4",
+          "payload": {
+            "model": "openai/gpt-6-luna",
+            "schemaVersion": 1
+          },
+          "created_at": "2026-10-21T11:23:45.829Z"
+        },
+        {
+          "id": "4e3a2f80-d1f9-4499-93b2-6595a1e87c89",
+          "document_id": "8fc25df1-656e-438d-8c22-e45fff456bae",
+          "organization_id": "a1100000-0000-4000-8000-000000000001",
+          "unit_id": "a1100000-0000-4000-8000-000000000101",
+          "patient_id": "90319847-c7a6-4adc-a08a-47cf5e2aef21",
+          "source_sha256": "f3fd4066add8bd8b9a92a002bbafdad92ad3fc775a78a96bfcf14f6017d88e44",
+          "classifier_version": "document-classifier-1",
+          "revision": 3,
+          "operation_id": "70ae1143-4330-4ccf-989a-2a9faf6e0ade",
+          "actor_kind": "SYSTEM",
+          "actor_user_id": null,
+          "system_identity": "document-classifier",
+          "action": "SUGGESTED",
+          "attempt_id": "4077816f-841b-451b-85da-fd9efbb45bd4",
+          "payload": {
+            "result": {
+              "abstention": "NONE",
+              "categories": [
+                {
+                  "category": "LAB_RESULT",
+                  "evidence": [
+                    {
+                      "page": 1,
+                      "quote": "RESULTADOS LABORATORIAIS"
+                    }
+                  ]
+                }
+              ]
+            },
+            "schemaVersion": 1,
+            "evidenceStatus": "SUPPORTED"
+          },
+          "created_at": "2026-10-21T11:23:50.358Z"
+        }
+      ],
+      "telemetry": {
+        "event": "DOCUMENT_CLASSIFICATION_TELEMETRY",
+        "documentId": "8fc25df1-656e-438d-8c22-e45fff456bae",
+        "attemptId": "4077816f-841b-451b-85da-fd9efbb45bd4",
+        "provider": "openai",
+        "model": "gpt-6-luna",
+        "promptVersion": "document-classification-prompt-1",
+        "inputTokens": 424,
+        "outputTokens": 111,
+        "estimatedCostUsd": 9.790000000000001e-5,
+        "pricingAsOf": "2026-10-20",
+        "durationMs": 3606,
+        "requests": 1,
+        "pages": 1,
+        "source": "NATIVE_TEXT",
+        "issues": []
+      }
+    },
+    {
+      "id": "lab-qualitative",
+      "documentId": "8ed09d61-b9b9-4e40-9202-7bc387f8f162",
+      "uploadStatus": 201,
+      "events": [
+        {
+          "id": "2209c406-0765-424a-a5e2-ee333b591639",
+          "document_id": "8ed09d61-b9b9-4e40-9202-7bc387f8f162",
+          "organization_id": "a1100000-0000-4000-8000-000000000001",
+          "unit_id": "a1100000-0000-4000-8000-000000000101",
+          "patient_id": "90319847-c7a6-4adc-a08a-47cf5e2aef21",
+          "source_sha256": "0d20d1d3a5f957961a6aabbf97109d8bb254b3c6462a565176cb7e66b74a2eec",
+          "classifier_version": "document-classifier-1",
+          "revision": 1,
+          "operation_id": "8ed09d61-b9b9-4e40-9202-7bc387f8f162",
+          "actor_kind": "SYSTEM",
+          "actor_user_id": null,
+          "system_identity": "document-classifier",
+          "action": "RECEIVED",
+          "attempt_id": null,
+          "payload": {
+            "schemaVersion": 1
+          },
+          "created_at": "2026-10-21T11:23:46.109Z"
+        },
+        {
+          "id": "0f7620b3-f037-4881-a81d-54e2df710378",
+          "document_id": "8ed09d61-b9b9-4e40-9202-7bc387f8f162",
+          "organization_id": "a1100000-0000-4000-8000-000000000001",
+          "unit_id": "a1100000-0000-4000-8000-000000000101",
+          "patient_id": "90319847-c7a6-4adc-a08a-47cf5e2aef21",
+          "source_sha256": "0d20d1d3a5f957961a6aabbf97109d8bb254b3c6462a565176cb7e66b74a2eec",
+          "classifier_version": "document-classifier-1",
+          "revision": 2,
+          "operation_id": "7a6609de-29a5-4fc6-8405-999356b8c156",
+          "actor_kind": "SYSTEM",
+          "actor_user_id": null,
+          "system_identity": "document-classifier",
+          "action": "STARTED",
+          "attempt_id": "114d171e-33b1-46f6-85de-8c02acd091a9",
+          "payload": {
+            "model": "openai/gpt-6-luna",
+            "schemaVersion": 1
+          },
+          "created_at": "2026-10-21T11:23:48.468Z"
+        },
+        {
+          "id": "89b8951b-b814-4b26-be37-50a4050d3f73",
+          "document_id": "8ed09d61-b9b9-4e40-9202-7bc387f8f162",
+          "organization_id": "a1100000-0000-4000-8000-000000000001",
+          "unit_id": "a1100000-0000-4000-8000-000000000101",
+          "patient_id": "90319847-c7a6-4adc-a08a-47cf5e2aef21",
+          "source_sha256": "0d20d1d3a5f957961a6aabbf97109d8bb254b3c6462a565176cb7e66b74a2eec",
+          "classifier_version": "document-classifier-1",
+          "revision": 3,
+          "operation_id": "1da04b04-4ea6-4686-9387-16dd7cbea59d",
+          "actor_kind": "SYSTEM",
+          "actor_user_id": null,
+          "system_identity": "document-classifier",
+          "action": "SUGGESTED",
+          "attempt_id": "114d171e-33b1-46f6-85de-8c02acd091a9",
+          "payload": {
+            "result": {
+              "abstention": "NONE",
+              "categories": [
+                {
+                  "category": "LAB_RESULT",
+                  "evidence": [
+                    {
+                      "page": 1,
+                      "quote": "RESULTADOS LABORATORIAIS"
+                    }
+                  ]
+                }
+              ]
+            },
+            "schemaVersion": 1,
+            "evidenceStatus": "SUPPORTED"
+          },
+          "created_at": "2026-10-21T11:23:52.617Z"
+        }
+      ],
+      "telemetry": {
+        "documentId": "8ed09d61-b9b9-4e40-9202-7bc387f8f162",
+        "attemptId": "114d171e-33b1-46f6-85de-8c02acd091a9",
+        "provider": "openai",
+        "model": "gpt-6-luna",
+        "promptVersion": "document-classification-prompt-1",
+        "inputTokens": 417,
+        "outputTokens": 124,
+        "estimatedCostUsd": 0.0001037,
+        "pricingAsOf": "2026-10-20",
+        "durationMs": 3240,
+        "requests": 1,
+        "pages": 1,
+        "source": "NATIVE_TEXT",
+        "issues": []
+      }
+    },
+    {
+      "id": "request-basic",
+      "documentId": "8425f73c-7126-440f-a962-abb0dce57b79",
+      "uploadStatus": 201,
+      "httpMs": 7437,
+      "events": [
+        {
+          "id": "6cb022f9-9702-4f38-be1f-58c55d6ac02c",
+          "document_id": "8425f73c-7126-440f-a962-abb0dce57b79",
+          "organization_id": "a1100000-0000-4000-8000-000000000001",
+          "unit_id": "a1100000-0000-4000-8000-000000000101",
+          "patient_id": "90319847-c7a6-4adc-a08a-47cf5e2aef21",
+          "source_sha256": "b40c5bbc00f637899eee76dddd7004679a2d13b3b8aa99838ea746d066733897",
+          "classifier_version": "document-classifier-1",
+          "revision": 1,
+          "operation_id": "8425f73c-7126-440f-a962-abb0dce57b79",
+          "actor_kind": "SYSTEM",
+          "actor_user_id": null,
+          "system_identity": "document-classifier",
+          "action": "RECEIVED",
+          "attempt_id": null,
+          "payload": {
+            "schemaVersion": 1
+          },
+          "created_at": "2026-10-21T11:24:30.917Z"
+        },
+        {
+          "id": "17011d17-1e90-4910-9a96-d8cbc7b31f78",
+          "document_id": "8425f73c-7126-440f-a962-abb0dce57b79",
+          "organization_id": "a1100000-0000-4000-8000-000000000001",
+          "unit_id": "a1100000-0000-4000-8000-000000000101",
+          "patient_id": "90319847-c7a6-4adc-a08a-47cf5e2aef21",
+          "source_sha256": "b40c5bbc00f637899eee76dddd7004679a2d13b3b8aa99838ea746d066733897",
+          "classifier_version": "document-classifier-1",
+          "revision": 2,
+          "operation_id": "81cf7adf-586d-4e93-8741-c22465f667b8",
+          "actor_kind": "SYSTEM",
+          "actor_user_id": null,
+          "system_identity": "document-classifier",
+          "action": "STARTED",
+          "attempt_id": "37f93ac8-57ca-4cd5-88d6-90d0dee495f3",
+          "payload": {
+            "model": "openai/gpt-6-luna",
+            "schemaVersion": 1
+          },
+          "created_at": "2026-10-21T11:24:33.539Z"
+        },
+        {
+          "id": "8e70d4b4-d454-4bdd-b3fd-33aae5167152",
+          "document_id": "8425f73c-7126-440f-a962-abb0dce57b79",
+          "organization_id": "a1100000-0000-4000-8000-000000000001",
+          "unit_id": "a1100000-0000-4000-8000-000000000101",
+          "patient_id": "90319847-c7a6-4adc-a08a-47cf5e2aef21",
+          "source_sha256": "b40c5bbc00f637899eee76dddd7004679a2d13b3b8aa99838ea746d066733897",
+          "classifier_version": "document-classifier-1",
+          "revision": 3,
+          "operation_id": "2560788a-8d3e-45be-be65-2dfe4a9be21e",
+          "actor_kind": "SYSTEM",
+          "actor_user_id": null,
+          "system_identity": "document-classifier",
+          "action": "SUGGESTED",
+          "attempt_id": "37f93ac8-57ca-4cd5-88d6-90d0dee495f3",
+          "payload": {
+            "result": {
+              "abstention": "NONE",
+              "categories": [
+                {
+                  "category": "EXAM_REQUEST",
+                  "evidence": [
+                    {
+                      "page": 1,
+                      "quote": "PEDIDO DE EXAMES"
+                    },
+                    {
+                      "page": 1,
+                      "quote": "Solicito hemograma completo, glicemia e TSH."
+                    }
+                  ]
+                }
+              ]
+            },
+            "schemaVersion": 1,
+            "evidenceStatus": "SUPPORTED"
+          },
+          "created_at": "2026-10-21T11:24:36.120Z"
+        }
+      ],
+      "telemetry": {
+        "documentId": "8425f73c-7126-440f-a962-abb0dce57b79",
+        "attemptId": "37f93ac8-57ca-4cd5-88d6-90d0dee495f3",
+        "provider": "openai",
+        "model": "gpt-6-luna",
+        "promptVersion": "document-classification-prompt-1",
+        "inputTokens": 419,
+        "outputTokens": 90,
+        "estimatedCostUsd": 8.690000000000001e-5,
+        "pricingAsOf": "2026-10-20",
+        "durationMs": 1733,
+        "requests": 1,
+        "pages": 1,
+        "source": "NATIVE_TEXT",
+        "issues": []
+      }
+    },
+    {
+      "id": "request-panel",
+      "documentId": "bfa63712-b304-4d06-8d50-4c2c053c2015",
+      "uploadStatus": 201,
+      "httpMs": 7972,
+      "events": [
+        {
+          "id": "d92d8307-173b-443f-8982-4687b0eb628f",
+          "document_id": "bfa63712-b304-4d06-8d50-4c2c053c2015",
+          "organization_id": "a1100000-0000-4000-8000-000000000001",
+          "unit_id": "a1100000-0000-4000-8000-000000000101",
+          "patient_id": "90319847-c7a6-4adc-a08a-47cf5e2aef21",
+          "source_sha256": "fc5c59d477cc7356aa78240d7898e47b814c646e352d39cceea9cdf4cf82e936",
+          "classifier_version": "document-classifier-1",
+          "revision": 1,
+          "operation_id": "bfa63712-b304-4d06-8d50-4c2c053c2015",
+          "actor_kind": "SYSTEM",
+          "actor_user_id": null,
+          "system_identity": "document-classifier",
+          "action": "RECEIVED",
+          "attempt_id": null,
+          "payload": {
+            "schemaVersion": 1
+          },
+          "created_at": "2026-10-21T11:24:38.362Z"
+        },
+        {
+          "id": "340699c7-54ca-452c-887e-a827c9512cb0",
+          "document_id": "bfa63712-b304-4d06-8d50-4c2c053c2015",
+          "organization_id": "a1100000-0000-4000-8000-000000000001",
+          "unit_id": "a1100000-0000-4000-8000-000000000101",
+          "patient_id": "90319847-c7a6-4adc-a08a-47cf5e2aef21",
+          "source_sha256": "fc5c59d477cc7356aa78240d7898e47b814c646e352d39cceea9cdf4cf82e936",
+          "classifier_version": "document-classifier-1",
+          "revision": 2,
+          "operation_id": "e3c6ce5e-b0ab-43ec-84b7-8687e3b9d5ee",
+          "actor_kind": "SYSTEM",
+          "actor_user_id": null,
+          "system_identity": "document-classifier",
+          "action": "STARTED",
+          "attempt_id": "22d47ea4-f79d-435b-a73c-cedeab835b3d",
+          "payload": {
+            "model": "openai/gpt-6-luna",
+            "schemaVersion": 1
+          },
+          "created_at": "2026-10-21T11:24:40.937Z"
+        },
+        {
+          "id": "b0b6e296-b382-49a5-bfa7-7a498d4c80bd",
+          "document_id": "bfa63712-b304-4d06-8d50-4c2c053c2015",
+          "organization_id": "a1100000-0000-4000-8000-000000000001",
+          "unit_id": "a1100000-0000-4000-8000-000000000101",
+          "patient_id": "90319847-c7a6-4adc-a08a-47cf5e2aef21",
+          "source_sha256": "fc5c59d477cc7356aa78240d7898e47b814c646e352d39cceea9cdf4cf82e936",
+          "classifier_version": "document-classifier-1",
+          "revision": 3,
+          "operation_id": "5ac0f046-becf-4aec-bf8b-0b699b2de443",
+          "actor_kind": "SYSTEM",
+          "actor_user_id": null,
+          "system_identity": "document-classifier",
+          "action": "SUGGESTED",
+          "attempt_id": "22d47ea4-f79d-435b-a73c-cedeab835b3d",
+          "payload": {
+            "result": {
+              "abstention": "NONE",
+              "categories": [
+                {
+                  "category": "EXAM_REQUEST",
+                  "evidence": [
+                    {
+                      "page": 1,
+                      "quote": "SOLICITAÇÃO DE EXAMES LABORATORIAIS"
+                    },
+                    {
+                      "page": 1,
+                      "quote": "Solicito colesterol total, HDL e triglicerídeos."
+                    }
+                  ]
+                }
+              ]
+            },
+            "schemaVersion": 1,
+            "evidenceStatus": "SUPPORTED"
+          },
+          "created_at": "2026-10-21T11:24:44.094Z"
+        }
+      ],
+      "telemetry": {
+        "documentId": "bfa63712-b304-4d06-8d50-4c2c053c2015",
+        "attemptId": "22d47ea4-f79d-435b-a73c-cedeab835b3d",
+        "provider": "openai",
+        "model": "gpt-6-luna",
+        "promptVersion": "document-classification-prompt-1",
+        "inputTokens": 424,
+        "outputTokens": 93,
+        "estimatedCostUsd": 8.89e-5,
+        "pricingAsOf": "2026-10-20",
+        "durationMs": 2315,
+        "requests": 1,
+        "pages": 1,
+        "source": "NATIVE_TEXT",
+        "issues": []
+      }
+    },
+    {
+      "id": "prescription",
+      "documentId": "3694dc3a-525e-4956-b930-1ba929aa9050",
+      "uploadStatus": 201,
+      "httpMs": 7051,
+      "events": [
+        {
+          "id": "bc765aee-6155-413e-a356-01b71898a0cb",
+          "document_id": "3694dc3a-525e-4956-b930-1ba929aa9050",
+          "organization_id": "a1100000-0000-4000-8000-000000000001",
+          "unit_id": "a1100000-0000-4000-8000-000000000101",
+          "patient_id": "90319847-c7a6-4adc-a08a-47cf5e2aef21",
+          "source_sha256": "24bc85fe874c7e886d72226c4e148668d3a47b6296619db9f67acaac14484eb4",
+          "classifier_version": "document-classifier-1",
+          "revision": 1,
+          "operation_id": "3694dc3a-525e-4956-b930-1ba929aa9050",
+          "actor_kind": "SYSTEM",
+          "actor_user_id": null,
+          "system_identity": "document-classifier",
+          "action": "RECEIVED",
+          "attempt_id": null,
+          "payload": {
+            "schemaVersion": 1
+          },
+          "created_at": "2026-10-21T11:24:46.322Z"
+        },
+        {
+          "id": "c0f86518-6ac0-4c62-a2a4-537fe7f894ca",
+          "document_id": "3694dc3a-525e-4956-b930-1ba929aa9050",
+          "organization_id": "a1100000-0000-4000-8000-000000000001",
+          "unit_id": "a1100000-0000-4000-8000-000000000101",
+          "patient_id": "90319847-c7a6-4adc-a08a-47cf5e2aef21",
+          "source_sha256": "24bc85fe874c7e886d72226c4e148668d3a47b6296619db9f67acaac14484eb4",
+          "classifier_version": "document-classifier-1",
+          "revision": 2,
+          "operation_id": "a3139b39-2d8f-4584-bb47-dc4ef0f1ca7d",
+          "actor_kind": "SYSTEM",
+          "actor_user_id": null,
+          "system_identity": "document-classifier",
+          "action": "STARTED",
+          "attempt_id": "d2c1d655-def9-45b9-ae86-dc149e6e9987",
+          "payload": {
+            "model": "openai/gpt-6-luna",
+            "schemaVersion": 1
+          },
+          "created_at": "2026-10-21T11:24:48.936Z"
+        },
+        {
+          "id": "9446d1b5-e288-4a2f-b70f-fc5027f167f8",
+          "document_id": "3694dc3a-525e-4956-b930-1ba929aa9050",
+          "organization_id": "a1100000-0000-4000-8000-000000000001",
+          "unit_id": "a1100000-0000-4000-8000-000000000101",
+          "patient_id": "90319847-c7a6-4adc-a08a-47cf5e2aef21",
+          "source_sha256": "24bc85fe874c7e886d72226c4e148668d3a47b6296619db9f67acaac14484eb4",
+          "classifier_version": "document-classifier-1",
+          "revision": 3,
+          "operation_id": "6b878262-5adb-45fe-83fe-aa8de5448ecc",
+          "actor_kind": "SYSTEM",
+          "actor_user_id": null,
+          "system_identity": "document-classifier",
+          "action": "SUGGESTED",
+          "attempt_id": "d2c1d655-def9-45b9-ae86-dc149e6e9987",
+          "payload": {
+            "result": {
+              "abstention": "NONE",
+              "categories": [
+                {
+                  "category": "MEDICAL_PRESCRIPTION",
+                  "evidence": [
+                    {
+                      "page": 1,
+                      "quote": "RECEITA MÉDICA ANTERIOR"
+                    }
+                  ]
+                }
+              ]
+            },
+            "schemaVersion": 1,
+            "evidenceStatus": "SUPPORTED"
+          },
+          "created_at": "2026-10-21T11:24:51.137Z"
+        }
+      ],
+      "telemetry": {
+        "documentId": "3694dc3a-525e-4956-b930-1ba929aa9050",
+        "attemptId": "d2c1d655-def9-45b9-ae86-dc149e6e9987",
+        "provider": "openai",
+        "model": "gpt-6-luna",
+        "promptVersion": "document-classification-prompt-1",
+        "inputTokens": 429,
+        "outputTokens": 47,
+        "estimatedCostUsd": 6.64e-5,
+        "pricingAsOf": "2026-10-20",
+        "durationMs": 1357,
+        "requests": 1,
+        "pages": 1,
+        "source": "NATIVE_TEXT",
+        "issues": []
+      }
+    },
+    {
+      "id": "image-report",
+      "documentId": "5b0eb130-86c3-4ce1-883a-14e5826ec65d",
+      "uploadStatus": 201,
+      "httpMs": 8019,
+      "events": [
+        {
+          "id": "e8d85fc0-f4b0-41d8-9b57-686764696b2f",
+          "document_id": "5b0eb130-86c3-4ce1-883a-14e5826ec65d",
+          "organization_id": "a1100000-0000-4000-8000-000000000001",
+          "unit_id": "a1100000-0000-4000-8000-000000000101",
+          "patient_id": "90319847-c7a6-4adc-a08a-47cf5e2aef21",
+          "source_sha256": "539318591b635b4bffc6cedfe1cad14ec6824a5cf17042c4ab7ccf7d0346ca55",
+          "classifier_version": "document-classifier-1",
+          "revision": 1,
+          "operation_id": "5b0eb130-86c3-4ce1-883a-14e5826ec65d",
+          "actor_kind": "SYSTEM",
+          "actor_user_id": null,
+          "system_identity": "document-classifier",
+          "action": "RECEIVED",
+          "attempt_id": null,
+          "payload": {
+            "schemaVersion": 1
+          },
+          "created_at": "2026-10-21T11:24:53.380Z"
+        },
+        {
+          "id": "b6db931b-e4f7-4c8c-bb5e-07928bf9e198",
+          "document_id": "5b0eb130-86c3-4ce1-883a-14e5826ec65d",
+          "organization_id": "a1100000-0000-4000-8000-000000000001",
+          "unit_id": "a1100000-0000-4000-8000-000000000101",
+          "patient_id": "90319847-c7a6-4adc-a08a-47cf5e2aef21",
+          "source_sha256": "539318591b635b4bffc6cedfe1cad14ec6824a5cf17042c4ab7ccf7d0346ca55",
+          "classifier_version": "document-classifier-1",
+          "revision": 2,
+          "operation_id": "8bca2d34-76a5-42a6-b203-28509c71c496",
+          "actor_kind": "SYSTEM",
+          "actor_user_id": null,
+          "system_identity": "document-classifier",
+          "action": "STARTED",
+          "attempt_id": "1da11600-1448-4090-ae88-13b202545863",
+          "payload": {
+            "model": "openai/gpt-6-luna",
+            "schemaVersion": 1
+          },
+          "created_at": "2026-10-21T11:24:55.954Z"
+        },
+        {
+          "id": "caeeaf37-904c-4e55-a75d-602877b47623",
+          "document_id": "5b0eb130-86c3-4ce1-883a-14e5826ec65d",
+          "organization_id": "a1100000-0000-4000-8000-000000000001",
+          "unit_id": "a1100000-0000-4000-8000-000000000101",
+          "patient_id": "90319847-c7a6-4adc-a08a-47cf5e2aef21",
+          "source_sha256": "539318591b635b4bffc6cedfe1cad14ec6824a5cf17042c4ab7ccf7d0346ca55",
+          "classifier_version": "document-classifier-1",
+          "revision": 3,
+          "operation_id": "7f03d9b2-f1ea-4d16-9f7f-f6fda8e86cd1",
+          "actor_kind": "SYSTEM",
+          "actor_user_id": null,
+          "system_identity": "document-classifier",
+          "action": "SUGGESTED",
+          "attempt_id": "1da11600-1448-4090-ae88-13b202545863",
+          "payload": {
+            "result": {
+              "abstention": "NONE",
+              "categories": [
+                {
+                  "category": "IMAGE_REPORT",
+                  "evidence": [
+                    {
+                      "page": 1,
+                      "quote": "LAUDO DE IMAGEM"
+                    }
+                  ]
+                }
+              ]
+            },
+            "schemaVersion": 1,
+            "evidenceStatus": "SUPPORTED"
+          },
+          "created_at": "2026-10-21T11:24:59.145Z"
+        }
+      ],
+      "telemetry": {
+        "documentId": "5b0eb130-86c3-4ce1-883a-14e5826ec65d",
+        "attemptId": "1da11600-1448-4090-ae88-13b202545863",
+        "provider": "openai",
+        "model": "gpt-6-luna",
+        "promptVersion": "document-classification-prompt-1",
+        "inputTokens": 419,
+        "outputTokens": 79,
+        "estimatedCostUsd": 8.14e-5,
+        "pricingAsOf": "2026-10-20",
+        "durationMs": 2339,
+        "requests": 1,
+        "pages": 1,
+        "source": "NATIVE_TEXT",
+        "issues": []
+      }
+    },
+    {
+      "id": "report",
+      "documentId": "8be8fd11-9b5a-46b5-8d70-99622d04d28b",
+      "uploadStatus": 201,
+      "httpMs": 8062,
+      "events": [
+        {
+          "id": "994e957a-6115-422e-9cbd-f784b45c6646",
+          "document_id": "8be8fd11-9b5a-46b5-8d70-99622d04d28b",
+          "organization_id": "a1100000-0000-4000-8000-000000000001",
+          "unit_id": "a1100000-0000-4000-8000-000000000101",
+          "patient_id": "90319847-c7a6-4adc-a08a-47cf5e2aef21",
+          "source_sha256": "1d0604e3374e98da8cdea4f547626ce77ff1214661222304cf4850645a0144e2",
+          "classifier_version": "document-classifier-1",
+          "revision": 1,
+          "operation_id": "8be8fd11-9b5a-46b5-8d70-99622d04d28b",
+          "actor_kind": "SYSTEM",
+          "actor_user_id": null,
+          "system_identity": "document-classifier",
+          "action": "RECEIVED",
+          "attempt_id": null,
+          "payload": {
+            "schemaVersion": 1
+          },
+          "created_at": "2026-10-21T11:25:01.400Z"
+        },
+        {
+          "id": "1751f8c6-d099-4749-a447-9e6d0a6c5bd3",
+          "document_id": "8be8fd11-9b5a-46b5-8d70-99622d04d28b",
+          "organization_id": "a1100000-0000-4000-8000-000000000001",
+          "unit_id": "a1100000-0000-4000-8000-000000000101",
+          "patient_id": "90319847-c7a6-4adc-a08a-47cf5e2aef21",
+          "source_sha256": "1d0604e3374e98da8cdea4f547626ce77ff1214661222304cf4850645a0144e2",
+          "classifier_version": "document-classifier-1",
+          "revision": 2,
+          "operation_id": "d05892ab-0219-4e80-af79-395fa496afa8",
+          "actor_kind": "SYSTEM",
+          "actor_user_id": null,
+          "system_identity": "document-classifier",
+          "action": "STARTED",
+          "attempt_id": "50ad6264-0a64-4ce8-bbe3-0acecd6ce113",
+          "payload": {
+            "model": "openai/gpt-6-luna",
+            "schemaVersion": 1
+          },
+          "created_at": "2026-10-21T11:25:04.035Z"
+        },
+        {
+          "id": "f61a12d5-1777-4305-b30f-24611100d34e",
+          "document_id": "8be8fd11-9b5a-46b5-8d70-99622d04d28b",
+          "organization_id": "a1100000-0000-4000-8000-000000000001",
+          "unit_id": "a1100000-0000-4000-8000-000000000101",
+          "patient_id": "90319847-c7a6-4adc-a08a-47cf5e2aef21",
+          "source_sha256": "1d0604e3374e98da8cdea4f547626ce77ff1214661222304cf4850645a0144e2",
+          "classifier_version": "document-classifier-1",
+          "revision": 3,
+          "operation_id": "8caec128-41c9-4056-9407-1a6f2fb2842b",
+          "actor_kind": "SYSTEM",
+          "actor_user_id": null,
+          "system_identity": "document-classifier",
+          "action": "SUGGESTED",
+          "attempt_id": "50ad6264-0a64-4ce8-bbe3-0acecd6ce113",
+          "payload": {
+            "result": {
+              "abstention": "NONE",
+              "categories": [
+                {
+                  "category": "MEDICAL_REPORT",
+                  "evidence": [
+                    {
+                      "page": 1,
+                      "quote": "RELATÓRIO MÉDICO"
+                    },
+                    {
+                      "page": 1,
+                      "quote": "Relato do acompanhamento clínico sintético."
+                    }
+                  ]
+                }
+              ]
+            },
+            "schemaVersion": 1,
+            "evidenceStatus": "SUPPORTED"
+          },
+          "created_at": "2026-10-21T11:25:07.221Z"
+        }
+      ],
+      "telemetry": {
+        "documentId": "8be8fd11-9b5a-46b5-8d70-99622d04d28b",
+        "attemptId": "50ad6264-0a64-4ce8-bbe3-0acecd6ce113",
+        "provider": "openai",
+        "model": "gpt-6-luna",
+        "promptVersion": "document-classification-prompt-1",
+        "inputTokens": 420,
+        "outputTokens": 93,
+        "estimatedCostUsd": 8.85e-5,
+        "pricingAsOf": "2026-10-20",
+        "durationMs": 2336,
+        "requests": 1,
+        "pages": 1,
+        "source": "NATIVE_TEXT",
+        "issues": []
+      }
+    },
+    {
+      "id": "certificate",
+      "documentId": "2d688e0a-f802-4d73-af98-d8f8dba1f524",
+      "uploadStatus": 201,
+      "httpMs": 7195,
+      "events": [
+        {
+          "id": "212bcd5b-5b15-493b-960b-457f5fb19ad6",
+          "document_id": "2d688e0a-f802-4d73-af98-d8f8dba1f524",
+          "organization_id": "a1100000-0000-4000-8000-000000000001",
+          "unit_id": "a1100000-0000-4000-8000-000000000101",
+          "patient_id": "90319847-c7a6-4adc-a08a-47cf5e2aef21",
+          "source_sha256": "353667f06704b8e0cbda05f39e55549daff574bf549929824c0c209d118fb6a3",
+          "classifier_version": "document-classifier-1",
+          "revision": 1,
+          "operation_id": "2d688e0a-f802-4d73-af98-d8f8dba1f524",
+          "actor_kind": "SYSTEM",
+          "actor_user_id": null,
+          "system_identity": "document-classifier",
+          "action": "RECEIVED",
+          "attempt_id": null,
+          "payload": {
+            "schemaVersion": 1
+          },
+          "created_at": "2026-10-21T11:25:09.466Z"
+        },
+        {
+          "id": "d2b61ed8-6371-447a-8661-29a912419b5c",
+          "document_id": "2d688e0a-f802-4d73-af98-d8f8dba1f524",
+          "organization_id": "a1100000-0000-4000-8000-000000000001",
+          "unit_id": "a1100000-0000-4000-8000-000000000101",
+          "patient_id": "90319847-c7a6-4adc-a08a-47cf5e2aef21",
+          "source_sha256": "353667f06704b8e0cbda05f39e55549daff574bf549929824c0c209d118fb6a3",
+          "classifier_version": "document-classifier-1",
+          "revision": 2,
+          "operation_id": "52598231-50ef-47d3-b0a5-f7654fbb00e3",
+          "actor_kind": "SYSTEM",
+          "actor_user_id": null,
+          "system_identity": "document-classifier",
+          "action": "STARTED",
+          "attempt_id": "2fb15bce-e618-4d71-87a0-6cfcb1bfc070",
+          "payload": {
+            "model": "openai/gpt-6-luna",
+            "schemaVersion": 1
+          },
+          "created_at": "2026-10-21T11:25:12.064Z"
+        },
+        {
+          "id": "33c958cc-4a57-4776-ad64-ab2d44642453",
+          "document_id": "2d688e0a-f802-4d73-af98-d8f8dba1f524",
+          "organization_id": "a1100000-0000-4000-8000-000000000001",
+          "unit_id": "a1100000-0000-4000-8000-000000000101",
+          "patient_id": "90319847-c7a6-4adc-a08a-47cf5e2aef21",
+          "source_sha256": "353667f06704b8e0cbda05f39e55549daff574bf549929824c0c209d118fb6a3",
+          "classifier_version": "document-classifier-1",
+          "revision": 3,
+          "operation_id": "a3d6b26b-9c69-4379-8f43-20f193bb3d9b",
+          "actor_kind": "SYSTEM",
+          "actor_user_id": null,
+          "system_identity": "document-classifier",
+          "action": "SUGGESTED",
+          "attempt_id": "2fb15bce-e618-4d71-87a0-6cfcb1bfc070",
+          "payload": {
+            "result": {
+              "abstention": "NONE",
+              "categories": [
+                {
+                  "category": "MEDICAL_CERTIFICATE",
+                  "evidence": [
+                    {
+                      "page": 1,
+                      "quote": "ATESTADO MÉDICO"
+                    },
+                    {
+                      "page": 1,
+                      "quote": "Atesto comparecimento nesta data para consulta."
+                    }
+                  ]
+                }
+              ]
+            },
+            "schemaVersion": 1,
+            "evidenceStatus": "SUPPORTED"
+          },
+          "created_at": "2026-10-21T11:25:14.420Z"
+        }
+      ],
+      "telemetry": {
+        "documentId": "2d688e0a-f802-4d73-af98-d8f8dba1f524",
+        "attemptId": "2fb15bce-e618-4d71-87a0-6cfcb1bfc070",
+        "provider": "openai",
+        "model": "gpt-6-luna",
+        "promptVersion": "document-classification-prompt-1",
+        "inputTokens": 414,
+        "outputTokens": 87,
+        "estimatedCostUsd": 8.49e-5,
+        "pricingAsOf": "2026-10-20",
+        "durationMs": 1514,
+        "requests": 1,
+        "pages": 1,
+        "source": "NATIVE_TEXT",
+        "issues": []
+      }
+    },
+    {
+      "id": "mixed",
+      "documentId": "046771f2-7f1b-4450-9f7e-9947b2d1c7ae",
+      "uploadStatus": 201,
+      "httpMs": 9077,
+      "events": [
+        {
+          "id": "8196ac70-b988-4adb-b678-5bf5a330f1f2",
+          "document_id": "046771f2-7f1b-4450-9f7e-9947b2d1c7ae",
+          "organization_id": "a1100000-0000-4000-8000-000000000001",
+          "unit_id": "a1100000-0000-4000-8000-000000000101",
+          "patient_id": "90319847-c7a6-4adc-a08a-47cf5e2aef21",
+          "source_sha256": "5758eecc8a24491a2d34a9d499532b93dcfbc31b15237ebf39d941bf726d5a2d",
+          "classifier_version": "document-classifier-1",
+          "revision": 1,
+          "operation_id": "046771f2-7f1b-4450-9f7e-9947b2d1c7ae",
+          "actor_kind": "SYSTEM",
+          "actor_user_id": null,
+          "system_identity": "document-classifier",
+          "action": "RECEIVED",
+          "attempt_id": null,
+          "payload": {
+            "schemaVersion": 1
+          },
+          "created_at": "2026-10-21T11:25:16.870Z"
+        },
+        {
+          "id": "5e7cc49a-254b-49b4-a6b1-04b6221fc348",
+          "document_id": "046771f2-7f1b-4450-9f7e-9947b2d1c7ae",
+          "organization_id": "a1100000-0000-4000-8000-000000000001",
+          "unit_id": "a1100000-0000-4000-8000-000000000101",
+          "patient_id": "90319847-c7a6-4adc-a08a-47cf5e2aef21",
+          "source_sha256": "5758eecc8a24491a2d34a9d499532b93dcfbc31b15237ebf39d941bf726d5a2d",
+          "classifier_version": "document-classifier-1",
+          "revision": 2,
+          "operation_id": "093442c4-dfec-409b-a5a0-3320ad02f38e",
+          "actor_kind": "SYSTEM",
+          "actor_user_id": null,
+          "system_identity": "document-classifier",
+          "action": "STARTED",
+          "attempt_id": "3b78af43-ea9e-474d-92f6-171cf622edba",
+          "payload": {
+            "model": "openai/gpt-6-luna",
+            "schemaVersion": 1
+          },
+          "created_at": "2026-10-21T11:25:19.497Z"
+        },
+        {
+          "id": "7561767d-eee6-4885-9417-c4954dfc4ebe",
+          "document_id": "046771f2-7f1b-4450-9f7e-9947b2d1c7ae",
+          "organization_id": "a1100000-0000-4000-8000-000000000001",
+          "unit_id": "a1100000-0000-4000-8000-000000000101",
+          "patient_id": "90319847-c7a6-4adc-a08a-47cf5e2aef21",
+          "source_sha256": "5758eecc8a24491a2d34a9d499532b93dcfbc31b15237ebf39d941bf726d5a2d",
+          "classifier_version": "document-classifier-1",
+          "revision": 3,
+          "operation_id": "8838bf50-2d08-4be5-b6c6-ba198a81aaca",
+          "actor_kind": "SYSTEM",
+          "actor_user_id": null,
+          "system_identity": "document-classifier",
+          "action": "SUGGESTED",
+          "attempt_id": "3b78af43-ea9e-474d-92f6-171cf622edba",
+          "payload": {
+            "result": {
+              "abstention": "NONE",
+              "categories": [
+                {
+                  "category": "LAB_RESULT",
+                  "evidence": [
+                    {
+                      "page": 1,
+                      "quote": "RESULTADOS LABORATORIAIS"
+                    }
+                  ]
+                },
+                {
+                  "category": "IMAGE_REPORT",
+                  "evidence": [
+                    {
+                      "page": 2,
+                      "quote": "LAUDO DE IMAGEM"
+                    }
+                  ]
+                },
+                {
+                  "category": "MEDICAL_PRESCRIPTION",
+                  "evidence": [
+                    {
+                      "page": 3,
+                      "quote": "RECEITA MÉDICA ANTERIOR"
+                    }
+                  ]
+                },
+                {
+                  "category": "OTHER",
+                  "evidence": [
+                    {
+                      "page": 4,
+                      "quote": "COMPROVANTE ADMINISTRATIVO"
+                    }
+                  ]
+                }
+              ]
+            },
+            "schemaVersion": 1,
+            "evidenceStatus": "SUPPORTED"
+          },
+          "created_at": "2026-10-21T11:25:23.490Z"
+        }
+      ],
+      "telemetry": {
+        "documentId": "046771f2-7f1b-4450-9f7e-9947b2d1c7ae",
+        "attemptId": "3b78af43-ea9e-474d-92f6-171cf622edba",
+        "provider": "openai",
+        "model": "gpt-6-luna",
+        "promptVersion": "document-classification-prompt-1",
+        "inputTokens": 595,
+        "outputTokens": 227,
+        "estimatedCostUsd": 0.000173,
+        "pricingAsOf": "2026-10-20",
+        "durationMs": 3138,
+        "requests": 1,
+        "pages": 4,
+        "source": "NATIVE_TEXT",
+        "issues": []
+      }
+    },
+    {
+      "id": "scan",
+      "documentId": "b1109b8d-4631-4acd-acc2-bbf29ba222cd",
+      "uploadStatus": 201,
+      "httpMs": 9130,
+      "events": [
+        {
+          "id": "ff534157-178f-421c-864a-a48851a51a4c",
+          "document_id": "b1109b8d-4631-4acd-acc2-bbf29ba222cd",
+          "organization_id": "a1100000-0000-4000-8000-000000000001",
+          "unit_id": "a1100000-0000-4000-8000-000000000101",
+          "patient_id": "90319847-c7a6-4adc-a08a-47cf5e2aef21",
+          "source_sha256": "dec84a107c25021579103352b70c9bd3c6c4aa842a80e49927091e9dcd23b5dd",
+          "classifier_version": "document-classifier-1",
+          "revision": 1,
+          "operation_id": "b1109b8d-4631-4acd-acc2-bbf29ba222cd",
+          "actor_kind": "SYSTEM",
+          "actor_user_id": null,
+          "system_identity": "document-classifier",
+          "action": "RECEIVED",
+          "attempt_id": null,
+          "payload": {
+            "schemaVersion": 1
+          },
+          "created_at": "2026-10-21T11:25:25.765Z"
+        },
+        {
+          "id": "bed3db22-9aef-4394-b7e3-cb112ecf8669",
+          "document_id": "b1109b8d-4631-4acd-acc2-bbf29ba222cd",
+          "organization_id": "a1100000-0000-4000-8000-000000000001",
+          "unit_id": "a1100000-0000-4000-8000-000000000101",
+          "patient_id": "90319847-c7a6-4adc-a08a-47cf5e2aef21",
+          "source_sha256": "dec84a107c25021579103352b70c9bd3c6c4aa842a80e49927091e9dcd23b5dd",
+          "classifier_version": "document-classifier-1",
+          "revision": 2,
+          "operation_id": "22983d4b-524d-4130-b711-bc5c7c3e957d",
+          "actor_kind": "SYSTEM",
+          "actor_user_id": null,
+          "system_identity": "document-classifier",
+          "action": "STARTED",
+          "attempt_id": "8207e9dc-f892-4aa9-9bb1-2a3101a9ea3f",
+          "payload": {
+            "model": "openai/gpt-6-luna",
+            "schemaVersion": 1
+          },
+          "created_at": "2026-10-21T11:25:28.354Z"
+        },
+        {
+          "id": "194ff4a9-24eb-4264-a193-6b49a2be6b6a",
+          "document_id": "b1109b8d-4631-4acd-acc2-bbf29ba222cd",
+          "organization_id": "a1100000-0000-4000-8000-000000000001",
+          "unit_id": "a1100000-0000-4000-8000-000000000101",
+          "patient_id": "90319847-c7a6-4adc-a08a-47cf5e2aef21",
+          "source_sha256": "dec84a107c25021579103352b70c9bd3c6c4aa842a80e49927091e9dcd23b5dd",
+          "classifier_version": "document-classifier-1",
+          "revision": 3,
+          "operation_id": "c279e7d3-34da-4161-b195-478cfeca9b4a",
+          "actor_kind": "SYSTEM",
+          "actor_user_id": null,
+          "system_identity": "document-classifier",
+          "action": "NEEDS_REVIEW",
+          "attempt_id": "8207e9dc-f892-4aa9-9bb1-2a3101a9ea3f",
+          "payload": {
+            "result": {
+              "abstention": "NONE",
+              "categories": [
+                {
+                  "category": "IMAGE_REPORT",
+                  "evidence": [
+                    {
+                      "page": 1,
+                      "quote": "LAUDO DE IMAGEM"
+                    },
+                    {
+                      "page": 1,
+                      "quote": "Ultrassonografia abdominal"
+                    }
+                  ]
+                }
+              ]
+            },
+            "schemaVersion": 1,
+            "evidenceStatus": "UNAVAILABLE"
+          },
+          "created_at": "2026-10-21T11:25:32.630Z"
+        }
+      ],
+      "telemetry": {
+        "documentId": "b1109b8d-4631-4acd-acc2-bbf29ba222cd",
+        "attemptId": "8207e9dc-f892-4aa9-9bb1-2a3101a9ea3f",
+        "provider": "openai",
+        "model": "gpt-6-luna",
+        "promptVersion": "document-classification-prompt-1",
+        "inputTokens": 2691,
+        "outputTokens": 89,
+        "estimatedCostUsd": 0.00031360000000000003,
+        "pricingAsOf": "2026-10-20",
+        "durationMs": 3302,
+        "requests": 1,
+        "pages": 1,
+        "source": "VISUAL",
+        "issues": ["IDENTITY_UNRESOLVED", "INDEPENDENT_SOURCE_UNAVAILABLE", "PAGE_MISSING"]
+      }
+    },
+    {
+      "id": "illegible",
+      "documentId": "53593b07-5f72-4514-8f0b-c3eba7b8d049",
+      "uploadStatus": 201,
+      "httpMs": 9498,
+      "events": [
+        {
+          "id": "a3cdc5a9-88af-4542-94ce-56fc26a6a1d5",
+          "document_id": "53593b07-5f72-4514-8f0b-c3eba7b8d049",
+          "organization_id": "a1100000-0000-4000-8000-000000000001",
+          "unit_id": "a1100000-0000-4000-8000-000000000101",
+          "patient_id": "90319847-c7a6-4adc-a08a-47cf5e2aef21",
+          "source_sha256": "1840368b08392e895be45bd568011739d0e2e1bb1a7781bca6e18e1d497951ec",
+          "classifier_version": "document-classifier-1",
+          "revision": 1,
+          "operation_id": "53593b07-5f72-4514-8f0b-c3eba7b8d049",
+          "actor_kind": "SYSTEM",
+          "actor_user_id": null,
+          "system_identity": "document-classifier",
+          "action": "RECEIVED",
+          "attempt_id": null,
+          "payload": {
+            "schemaVersion": 1
+          },
+          "created_at": "2026-10-21T11:25:34.879Z"
+        },
+        {
+          "id": "69497d84-6074-4677-b117-050031a58e59",
+          "document_id": "53593b07-5f72-4514-8f0b-c3eba7b8d049",
+          "organization_id": "a1100000-0000-4000-8000-000000000001",
+          "unit_id": "a1100000-0000-4000-8000-000000000101",
+          "patient_id": "90319847-c7a6-4adc-a08a-47cf5e2aef21",
+          "source_sha256": "1840368b08392e895be45bd568011739d0e2e1bb1a7781bca6e18e1d497951ec",
+          "classifier_version": "document-classifier-1",
+          "revision": 2,
+          "operation_id": "fc5b06a5-5738-47d4-bfe9-3e313fe83e9f",
+          "actor_kind": "SYSTEM",
+          "actor_user_id": null,
+          "system_identity": "document-classifier",
+          "action": "STARTED",
+          "attempt_id": "d2260c39-b198-4997-8b6c-2bf85b5ac1db",
+          "payload": {
+            "model": "openai/gpt-6-luna",
+            "schemaVersion": 1
+          },
+          "created_at": "2026-10-21T11:25:37.252Z"
+        },
+        {
+          "id": "1e9ab83d-8025-418b-a0bc-c5373ce15866",
+          "document_id": "53593b07-5f72-4514-8f0b-c3eba7b8d049",
+          "organization_id": "a1100000-0000-4000-8000-000000000001",
+          "unit_id": "a1100000-0000-4000-8000-000000000101",
+          "patient_id": "90319847-c7a6-4adc-a08a-47cf5e2aef21",
+          "source_sha256": "1840368b08392e895be45bd568011739d0e2e1bb1a7781bca6e18e1d497951ec",
+          "classifier_version": "document-classifier-1",
+          "revision": 3,
+          "operation_id": "df645552-698c-4b08-b1ef-7aff9aa5270f",
+          "actor_kind": "SYSTEM",
+          "actor_user_id": null,
+          "system_identity": "document-classifier",
+          "action": "NEEDS_REVIEW",
+          "attempt_id": "d2260c39-b198-4997-8b6c-2bf85b5ac1db",
+          "payload": {
+            "result": {
+              "abstention": "ILLEGIBLE",
+              "categories": []
+            },
+            "schemaVersion": 1,
+            "evidenceStatus": "UNAVAILABLE"
+          },
+          "created_at": "2026-10-21T11:25:42.103Z"
+        }
+      ],
+      "telemetry": {
+        "documentId": "53593b07-5f72-4514-8f0b-c3eba7b8d049",
+        "attemptId": "d2260c39-b198-4997-8b6c-2bf85b5ac1db",
+        "provider": "openai",
+        "model": "gpt-6-luna",
+        "promptVersion": "document-classification-prompt-1",
+        "inputTokens": 2691,
+        "outputTokens": 78,
+        "estimatedCostUsd": 0.0003081,
+        "pricingAsOf": "2026-10-20",
+        "durationMs": 4004,
+        "requests": 1,
+        "pages": 1,
+        "source": "VISUAL",
+        "issues": ["IDENTITY_UNRESOLVED", "MODEL_ABSTENTION", "INDEPENDENT_SOURCE_UNAVAILABLE"]
+      }
+    },
+    {
+      "id": "adversarial-mismatch",
+      "documentId": "d77b3e86-bbdc-44cf-9f64-6e53c69fc83d",
+      "uploadStatus": 201,
+      "httpMs": 7551,
+      "events": [
+        {
+          "id": "18db7496-ee53-4774-9fd3-a6abf25b71cc",
+          "document_id": "d77b3e86-bbdc-44cf-9f64-6e53c69fc83d",
+          "organization_id": "a1100000-0000-4000-8000-000000000001",
+          "unit_id": "a1100000-0000-4000-8000-000000000101",
+          "patient_id": "90319847-c7a6-4adc-a08a-47cf5e2aef21",
+          "source_sha256": "d5f897841db4b32da6c04112a8604cfdb09b8003bef284e869c3ce779e0eb080",
+          "classifier_version": "document-classifier-1",
+          "revision": 1,
+          "operation_id": "d77b3e86-bbdc-44cf-9f64-6e53c69fc83d",
+          "actor_kind": "SYSTEM",
+          "actor_user_id": null,
+          "system_identity": "document-classifier",
+          "action": "RECEIVED",
+          "attempt_id": null,
+          "payload": {
+            "schemaVersion": 1
+          },
+          "created_at": "2026-10-21T11:25:44.356Z"
+        },
+        {
+          "id": "a5d534ee-aa14-423b-b65e-1c78174ddf9b",
+          "document_id": "d77b3e86-bbdc-44cf-9f64-6e53c69fc83d",
+          "organization_id": "a1100000-0000-4000-8000-000000000001",
+          "unit_id": "a1100000-0000-4000-8000-000000000101",
+          "patient_id": "90319847-c7a6-4adc-a08a-47cf5e2aef21",
+          "source_sha256": "d5f897841db4b32da6c04112a8604cfdb09b8003bef284e869c3ce779e0eb080",
+          "classifier_version": "document-classifier-1",
+          "revision": 2,
+          "operation_id": "957439bb-9adf-44dc-8e98-50a1804da0fe",
+          "actor_kind": "SYSTEM",
+          "actor_user_id": null,
+          "system_identity": "document-classifier",
+          "action": "STARTED",
+          "attempt_id": "45b157e3-e83a-4547-8542-c3983074a99b",
+          "payload": {
+            "model": "openai/gpt-6-luna",
+            "schemaVersion": 1
+          },
+          "created_at": "2026-10-21T11:25:46.963Z"
+        },
+        {
+          "id": "297e8618-700c-493d-8549-6ce7e1379d58",
+          "document_id": "d77b3e86-bbdc-44cf-9f64-6e53c69fc83d",
+          "organization_id": "a1100000-0000-4000-8000-000000000001",
+          "unit_id": "a1100000-0000-4000-8000-000000000101",
+          "patient_id": "90319847-c7a6-4adc-a08a-47cf5e2aef21",
+          "source_sha256": "d5f897841db4b32da6c04112a8604cfdb09b8003bef284e869c3ce779e0eb080",
+          "classifier_version": "document-classifier-1",
+          "revision": 3,
+          "operation_id": "d7f66094-6222-4b27-992e-dafc457fb9e0",
+          "actor_kind": "SYSTEM",
+          "actor_user_id": null,
+          "system_identity": "document-classifier",
+          "action": "NEEDS_REVIEW",
+          "attempt_id": "45b157e3-e83a-4547-8542-c3983074a99b",
+          "payload": {
+            "result": {
+              "abstention": "NONE",
+              "categories": [
+                {
+                  "category": "EXAM_REQUEST",
+                  "evidence": [
+                    {
+                      "page": 1,
+                      "quote": "PEDIDO DE EXAMES"
+                    },
+                    {
+                      "page": 1,
+                      "quote": "Solicito hemograma completo."
+                    }
+                  ]
+                }
+              ]
+            },
+            "schemaVersion": 1,
+            "evidenceStatus": "IDENTITY_MISMATCH"
+          },
+          "created_at": "2026-10-21T11:25:49.676Z"
+        }
+      ],
+      "telemetry": {
+        "documentId": "d77b3e86-bbdc-44cf-9f64-6e53c69fc83d",
+        "attemptId": "45b157e3-e83a-4547-8542-c3983074a99b",
+        "provider": "openai",
+        "model": "gpt-6-luna",
+        "promptVersion": "document-classification-prompt-1",
+        "inputTokens": 440,
+        "outputTokens": 95,
+        "estimatedCostUsd": 9.15e-5,
+        "pricingAsOf": "2026-10-20",
+        "durationMs": 1863,
+        "requests": 1,
+        "pages": 1,
+        "source": "NATIVE_TEXT",
+        "issues": ["IDENTITY_UNRESOLVED"]
+      }
+    }
+  ],
+  "checks": [
+    "Real multi-file UI receipt; first uses waitUntil; terminal classification observed",
+    "12 documents, no retries",
+    "Mixed original SHA-256 verified",
+    "Human correction and confirmation through actual UI",
+    "Reload only reads; no processing requests",
+    "No automatic laboratory write"
+  ],
+  "blockedLabWrites": 0,
+  "manualCorrection": {
+    "documentId": "b1109b8d-4631-4acd-acc2-bbf29ba222cd",
+    "events": [
+      {
+        "id": "ff534157-178f-421c-864a-a48851a51a4c",
+        "document_id": "b1109b8d-4631-4acd-acc2-bbf29ba222cd",
+        "organization_id": "a1100000-0000-4000-8000-000000000001",
+        "unit_id": "a1100000-0000-4000-8000-000000000101",
+        "patient_id": "90319847-c7a6-4adc-a08a-47cf5e2aef21",
+        "source_sha256": "dec84a107c25021579103352b70c9bd3c6c4aa842a80e49927091e9dcd23b5dd",
+        "classifier_version": "document-classifier-1",
+        "revision": 1,
+        "operation_id": "b1109b8d-4631-4acd-acc2-bbf29ba222cd",
+        "actor_kind": "SYSTEM",
+        "actor_user_id": null,
+        "system_identity": "document-classifier",
+        "action": "RECEIVED",
+        "attempt_id": null,
+        "payload": {
+          "schemaVersion": 1
+        },
+        "created_at": "2026-10-21T11:25:25.765Z"
+      },
+      {
+        "id": "bed3db22-9aef-4394-b7e3-cb112ecf8669",
+        "document_id": "b1109b8d-4631-4acd-acc2-bbf29ba222cd",
+        "organization_id": "a1100000-0000-4000-8000-000000000001",
+        "unit_id": "a1100000-0000-4000-8000-000000000101",
+        "patient_id": "90319847-c7a6-4adc-a08a-47cf5e2aef21",
+        "source_sha256": "dec84a107c25021579103352b70c9bd3c6c4aa842a80e49927091e9dcd23b5dd",
+        "classifier_version": "document-classifier-1",
+        "revision": 2,
+        "operation_id": "22983d4b-524d-4130-b711-bc5c7c3e957d",
+        "actor_kind": "SYSTEM",
+        "actor_user_id": null,
+        "system_identity": "document-classifier",
+        "action": "STARTED",
+        "attempt_id": "8207e9dc-f892-4aa9-9bb1-2a3101a9ea3f",
+        "payload": {
+          "model": "openai/gpt-6-luna",
+          "schemaVersion": 1
+        },
+        "created_at": "2026-10-21T11:25:28.354Z"
+      },
+      {
+        "id": "194ff4a9-24eb-4264-a193-6b49a2be6b6a",
+        "document_id": "b1109b8d-4631-4acd-acc2-bbf29ba222cd",
+        "organization_id": "a1100000-0000-4000-8000-000000000001",
+        "unit_id": "a1100000-0000-4000-8000-000000000101",
+        "patient_id": "90319847-c7a6-4adc-a08a-47cf5e2aef21",
+        "source_sha256": "dec84a107c25021579103352b70c9bd3c6c4aa842a80e49927091e9dcd23b5dd",
+        "classifier_version": "document-classifier-1",
+        "revision": 3,
+        "operation_id": "c279e7d3-34da-4161-b195-478cfeca9b4a",
+        "actor_kind": "SYSTEM",
+        "actor_user_id": null,
+        "system_identity": "document-classifier",
+        "action": "NEEDS_REVIEW",
+        "attempt_id": "8207e9dc-f892-4aa9-9bb1-2a3101a9ea3f",
+        "payload": {
+          "result": {
+            "abstention": "NONE",
+            "categories": [
+              {
+                "category": "IMAGE_REPORT",
+                "evidence": [
+                  {
+                    "page": 1,
+                    "quote": "LAUDO DE IMAGEM"
+                  },
+                  {
+                    "page": 1,
+                    "quote": "Ultrassonografia abdominal"
+                  }
+                ]
+              }
+            ]
+          },
+          "schemaVersion": 1,
+          "evidenceStatus": "UNAVAILABLE"
+        },
+        "created_at": "2026-10-21T11:25:32.630Z"
+      },
+      {
+        "id": "2734834f-1656-412a-95d7-074498b8d720",
+        "document_id": "b1109b8d-4631-4acd-acc2-bbf29ba222cd",
+        "organization_id": "a1100000-0000-4000-8000-000000000001",
+        "unit_id": "a1100000-0000-4000-8000-000000000101",
+        "patient_id": "90319847-c7a6-4adc-a08a-47cf5e2aef21",
+        "source_sha256": "dec84a107c25021579103352b70c9bd3c6c4aa842a80e49927091e9dcd23b5dd",
+        "classifier_version": "document-classifier-1",
+        "revision": 4,
+        "operation_id": "c1f353ff-3faf-4a9f-8e44-b0075f4cb6a3",
+        "actor_kind": "HUMAN",
+        "actor_user_id": "f394c45e-cdf3-4355-b522-7d06437c3c5b",
+        "system_identity": null,
+        "action": "CORRECTED",
+        "attempt_id": null,
+        "payload": {
+          "reason": "Classificação ajustada após conferência do documento original",
+          "categories": ["IMAGE_REPORT"],
+          "schemaVersion": 1,
+          "originalReviewed": true,
+          "identityConfirmed": true
+        },
+        "created_at": "2026-10-21T11:25:58.277Z"
+      }
+    ]
+  },
+  "humanConfirmation": {
+    "documentId": "8fc25df1-656e-438d-8c22-e45fff456bae",
+    "events": [
+      {
+        "id": "672d298d-ed2f-43e3-8372-143b9470a8e7",
+        "document_id": "8fc25df1-656e-438d-8c22-e45fff456bae",
+        "organization_id": "a1100000-0000-4000-8000-000000000001",
+        "unit_id": "a1100000-0000-4000-8000-000000000101",
+        "patient_id": "90319847-c7a6-4adc-a08a-47cf5e2aef21",
+        "source_sha256": "f3fd4066add8bd8b9a92a002bbafdad92ad3fc775a78a96bfcf14f6017d88e44",
+        "classifier_version": "document-classifier-1",
+        "revision": 1,
+        "operation_id": "8fc25df1-656e-438d-8c22-e45fff456bae",
+        "actor_kind": "SYSTEM",
+        "actor_user_id": null,
+        "system_identity": "document-classifier",
+        "action": "RECEIVED",
+        "attempt_id": null,
+        "payload": {
+          "schemaVersion": 1
+        },
+        "created_at": "2026-10-21T11:23:43.396Z"
+      },
+      {
+        "id": "c13e49e6-8ea9-4032-970d-1ccbfc58b7f6",
+        "document_id": "8fc25df1-656e-438d-8c22-e45fff456bae",
+        "organization_id": "a1100000-0000-4000-8000-000000000001",
+        "unit_id": "a1100000-0000-4000-8000-000000000101",
+        "patient_id": "90319847-c7a6-4adc-a08a-47cf5e2aef21",
+        "source_sha256": "f3fd4066add8bd8b9a92a002bbafdad92ad3fc775a78a96bfcf14f6017d88e44",
+        "classifier_version": "document-classifier-1",
+        "revision": 2,
+        "operation_id": "a2a5943d-dbe3-4873-aa24-fab0e6f3741d",
+        "actor_kind": "SYSTEM",
+        "actor_user_id": null,
+        "system_identity": "document-classifier",
+        "action": "STARTED",
+        "attempt_id": "4077816f-841b-451b-85da-fd9efbb45bd4",
+        "payload": {
+          "model": "openai/gpt-6-luna",
+          "schemaVersion": 1
+        },
+        "created_at": "2026-10-21T11:23:45.829Z"
+      },
+      {
+        "id": "4e3a2f80-d1f9-4499-93b2-6595a1e87c89",
+        "document_id": "8fc25df1-656e-438d-8c22-e45fff456bae",
+        "organization_id": "a1100000-0000-4000-8000-000000000001",
+        "unit_id": "a1100000-0000-4000-8000-000000000101",
+        "patient_id": "90319847-c7a6-4adc-a08a-47cf5e2aef21",
+        "source_sha256": "f3fd4066add8bd8b9a92a002bbafdad92ad3fc775a78a96bfcf14f6017d88e44",
+        "classifier_version": "document-classifier-1",
+        "revision": 3,
+        "operation_id": "70ae1143-4330-4ccf-989a-2a9faf6e0ade",
+        "actor_kind": "SYSTEM",
+        "actor_user_id": null,
+        "system_identity": "document-classifier",
+        "action": "SUGGESTED",
+        "attempt_id": "4077816f-841b-451b-85da-fd9efbb45bd4",
+        "payload": {
+          "result": {
+            "abstention": "NONE",
+            "categories": [
+              {
+                "category": "LAB_RESULT",
+                "evidence": [
+                  {
+                    "page": 1,
+                    "quote": "RESULTADOS LABORATORIAIS"
+                  }
+                ]
+              }
+            ]
+          },
+          "schemaVersion": 1,
+          "evidenceStatus": "SUPPORTED"
+        },
+        "created_at": "2026-10-21T11:23:50.358Z"
+      },
+      {
+        "id": "90b3c982-f376-4679-8527-0fa4895b4a0a",
+        "document_id": "8fc25df1-656e-438d-8c22-e45fff456bae",
+        "organization_id": "a1100000-0000-4000-8000-000000000001",
+        "unit_id": "a1100000-0000-4000-8000-000000000101",
+        "patient_id": "90319847-c7a6-4adc-a08a-47cf5e2aef21",
+        "source_sha256": "f3fd4066add8bd8b9a92a002bbafdad92ad3fc775a78a96bfcf14f6017d88e44",
+        "classifier_version": "document-classifier-1",
+        "revision": 4,
+        "operation_id": "ffc6a847-83e7-4282-8f61-69821bd54c7a",
+        "actor_kind": "HUMAN",
+        "actor_user_id": "f394c45e-cdf3-4355-b522-7d06437c3c5b",
+        "system_identity": null,
+        "action": "CONFIRMED",
+        "attempt_id": null,
+        "payload": {
+          "reason": "Classificação ajustada após conferência do documento original",
+          "categories": ["LAB_RESULT"],
+          "resultEventId": "4e3a2f80-d1f9-4499-93b2-6595a1e87c89",
+          "schemaVersion": 1,
+          "originalReviewed": true,
+          "identityConfirmed": true
+        },
+        "created_at": "2026-10-21T11:26:03.075Z"
+      }
+    ]
+  },
+  "completedAt": "2026-10-21T11:26:12.735Z"
+}
