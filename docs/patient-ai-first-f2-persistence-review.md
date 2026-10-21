@@ -1,6 +1,10 @@
 # F2 — persistência append-only revisada
 
-**Candidato para aprovação; não aplicado no Preview ou em produção.**
+**Atualização: persistência aprovada e aplicada somente no Preview pela migration 0077.**
+[Relatório da aplicação e preservação](patient-ai-first-f2-preview-migration.md).
+O classificador continua desabilitado; produção não foi alterada.
+
+O texto abaixo documenta o candidato de persistência submetido à revisão.
 A proposta conceitual `b8d861e` foi revisada conforme os seis pontos solicitados.
 Somente ajustes de código e testes locais foram executados, sem chamadas pagas.
 
@@ -65,5 +69,5 @@ O SQL permanece fora de `drizzle/` e do journal. Serviços são testáveis local
 mas não estão montados em rotas, upload ou worker. Não há migration remota, F2
 operacional no Preview, inferência paga, extração automática ou publicação clínica.
 
-A aplicação no Preview aguarda revisão final e autorização do responsável. Produção
-e F3–F5 permanecem fora do escopo.
+A autorização posterior de aplicação e seu resultado estão no relatório vinculado
+acima. Classificador operacional, produção e F3–F5 continuam fora deste incremento.

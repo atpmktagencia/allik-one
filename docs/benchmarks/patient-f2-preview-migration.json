@@ -1,0 +1,211 @@
+{
+  "approvedPersistenceCommit": "ea21ecc27ef94103779c73d5915de5417c634969",
+  "migrationCodeCommit": "549b5e8",
+  "migration": {
+    "file": "drizzle/0077_patient_document_classification_events.sql",
+    "hash": "451ee65e6014f5a6c085b3a14ea784770196a694f8c856ffcbd24101dddb5c0d",
+    "journalCreatedAt": "1794272400034",
+    "previousCount": 77,
+    "currentCount": 78,
+    "allHashesMatch": true,
+    "pendingCount": 0,
+    "sqlIdenticalToApprovedProposal": true,
+    "executor": "Neon connector, explicit branch/compute, atomic transaction, Drizzle-compatible journal; no exported connection credentials"
+  },
+  "scope": {
+    "project": "little-dust-61663559",
+    "branch": "br-winter-hill-b69uz195",
+    "branchName": "preview/feature/allik-patients",
+    "compute": "ep-hidden-cloud-b6hskjjt",
+    "database": "neondb",
+    "serverVersion": "18.6 (fd34222)",
+    "environment": "preview",
+    "dataClassification": "synthetic"
+  },
+  "before": {
+    "checked_at": "2026-10-21T09:43:34.167Z",
+    "database_name": "neondb",
+    "current_user": "neondb_owner",
+    "branch_id": "br-winter-hill-b69uz195",
+    "endpoint_id": "ep-hidden-cloud-b6hskjjt",
+    "documents": "30",
+    "documents_digest": "eab17a1685885aa625b638958041b3a5",
+    "document_events": "30",
+    "document_events_digest": "6fe5c6c3dcf368bf1edbea222932b714",
+    "clinical_results": "88",
+    "clinical_results_digest": "713f44bd5c8fa62783847475c61a3525",
+    "clinical_versions": "2",
+    "clinical_versions_digest": "3787eba7f8d71a12604c9a5c2a283708",
+    "extractions": "25",
+    "classifier_categories_function": null,
+    "classifier_payload_function": null,
+    "classifier_guard": null,
+    "immutable_guard": "inventory_reject_history_change()"
+  },
+  "after": {
+    "checked_at": "2026-10-21T09:55:10.205Z",
+    "database_name": "neondb",
+    "current_user": "neondb_owner",
+    "branch_id": "br-winter-hill-b69uz195",
+    "endpoint_id": "ep-hidden-cloud-b6hskjjt",
+    "documents": "30",
+    "documents_digest": "eab17a1685885aa625b638958041b3a5",
+    "document_events": "30",
+    "document_events_digest": "6fe5c6c3dcf368bf1edbea222932b714",
+    "clinical_results": "88",
+    "clinical_results_digest": "713f44bd5c8fa62783847475c61a3525",
+    "clinical_versions": "2",
+    "clinical_versions_digest": "3787eba7f8d71a12604c9a5c2a283708",
+    "extractions": "25",
+    "classifier_categories_function": "inventory_classification_categories_valid(jsonb)",
+    "classifier_payload_function": "inventory_classification_payload_valid(text,jsonb)",
+    "classifier_guard": "inventory_guard_document_classification()",
+    "immutable_guard": "inventory_reject_history_change()"
+  },
+  "unchangedFields": [
+    "documents",
+    "documents_digest",
+    "document_events",
+    "document_events_digest",
+    "clinical_results",
+    "clinical_results_digest",
+    "clinical_versions",
+    "clinical_versions_digest",
+    "extractions"
+  ],
+  "roleBefore": {
+    "current_user": "allik_runtime",
+    "session_user": "allik_runtime",
+    "current_database": "neondb",
+    "branch_id": "br-winter-hill-b69uz195",
+    "endpoint_id": "ep-hidden-cloud-b6hskjjt",
+    "rolsuper": false,
+    "rolbypassrls": false,
+    "rolcreaterole": false,
+    "rolcreatedb": false,
+    "rolreplication": false,
+    "schema_create": false,
+    "original_select": true,
+    "original_insert": true,
+    "original_update": false,
+    "original_delete": false,
+    "original_truncate": false,
+    "preview_actor_matches": "1"
+  },
+  "roleAfter": {
+    "checked_at": "2026-10-21T09:53:30.190Z",
+    "current_user": "allik_runtime",
+    "session_user": "allik_runtime",
+    "branch_id": "br-winter-hill-b69uz195",
+    "endpoint_id": "ep-hidden-cloud-b6hskjjt",
+    "can_select": true,
+    "can_insert": true,
+    "can_update": false,
+    "can_delete": false,
+    "can_truncate": false,
+    "events": "0",
+    "triggers": [
+      {
+        "name": "patient_document_classification_guard",
+        "enabled": "O",
+        "function": "inventory_guard_document_classification"
+      },
+      {
+        "name": "patient_document_classification_immutable",
+        "enabled": "O",
+        "function": "inventory_reject_history_change"
+      },
+      {
+        "name": "patient_document_classification_no_truncate",
+        "enabled": "O",
+        "function": "inventory_reject_history_change"
+      }
+    ]
+  },
+  "existingSchema": {
+    "relations": 7,
+    "semanticDifferences": 0,
+    "immutableGuardMatches": true,
+    "normalization": "JSON key order; PostgreSQL 18 NOT NULL pg_constraint entries excluded because column attnotnull is checked against PostgreSQL 16 separately"
+  },
+  "previewBefore": {
+    "id": "dpl_8eMtsBpW533oxeD2kDZGUHo89rmn",
+    "url": "allik-h1z8fw0b6-atp-mkt.vercel.app",
+    "sha": "a99712079deff8a1fc0df6d7260f2183b8f27218",
+    "branch": "feature/allik-patients",
+    "target": null
+  },
+  "previewAfter": {
+    "id": "dpl_8eMtsBpW533oxeD2kDZGUHo89rmn",
+    "url": "allik-h1z8fw0b6-atp-mkt.vercel.app",
+    "sha": "a99712079deff8a1fc0df6d7260f2183b8f27218",
+    "branch": "feature/allik-patients",
+    "target": null
+  },
+  "productionBefore": {
+    "id": "dpl_4ag81mHUxsDZ7VaKqnrKKHqKrFkp",
+    "url": "allik-cz2dk6vej-atp-mkt.vercel.app",
+    "sha": "091612549723e484d41bd3c984e877ddd19365e6",
+    "branch": "feature/allik-patients",
+    "target": "production"
+  },
+  "productionAfter": {
+    "id": "dpl_4ag81mHUxsDZ7VaKqnrKKHqKrFkp",
+    "url": "allik-cz2dk6vej-atp-mkt.vercel.app",
+    "sha": "091612549723e484d41bd3c984e877ddd19365e6",
+    "branch": "feature/allik-patients",
+    "target": "production"
+  },
+  "remoteSmoke": {
+    "executedAs": "allik_runtime",
+    "result": [
+      [],
+      [],
+      [],
+      [
+        {
+          "checked_at": "2026-10-21T09:54:32.955Z",
+          "current_user": "allik_runtime",
+          "branch_id": "br-winter-hill-b69uz195",
+          "classification_events_after_rolled_back_smoke": "0"
+        }
+      ]
+    ],
+    "persistedEvents": 0,
+    "checks": [
+      "SYSTEM received/start",
+      "confirmation without suggestion rejected",
+      "manual event during processing",
+      "late output rejected",
+      "cross-organization rejected",
+      "invalid payload rejected",
+      "duplicate operation rejected",
+      "system actor never uploader",
+      "all test events rolled back"
+    ]
+  },
+  "tests": {
+    "localIntegration": 502,
+    "newF2Integration": 38,
+    "restrictedRoleChecks": 3,
+    "previewGuard": 8,
+    "typecheck": "passed",
+    "editedFilesLint": "passed",
+    "drizzleGenerateAfterSnapshot": "No schema changes"
+  },
+  "operational": {
+    "classifierEnabled": false,
+    "routesMounted": false,
+    "workersEnabled": false,
+    "newPaidAiCalls": 0,
+    "automaticLabExtractionEnabled": false,
+    "deploymentChanged": false,
+    "productionDatabaseConnected": false,
+    "automaticClinicalPublicationEnabled": false
+  },
+  "limitations": [
+    "Backend authorization and real concurrent writes tested in disposable PostgreSQL, not through an unmounted Preview route",
+    "Native source binaries not downloaded again; original metadata hashes/digests unchanged and no storage operations performed",
+    "Runtime cannot read maintenance schema drizzle; journal checked with maintenance identity, no extra grant"
+  ]
+}
