@@ -34,3 +34,13 @@ A tabela longitudinal agora possui uma linha principal por identidade visual de 
 ## Limitações
 
 O histórico continua paginado em até 500 resultados por consulta, com aviso de comparação limitada à página. O agrupamento não implica completude do histórico nem normalização clínica de nomenclaturas arbitrárias. Modalidades/aliases não reconhecidos com segurança devem continuar explícitos para revisão; biomarcadores clinicamente distintos não são fundidos.
+
+## Publicação exclusivamente no Preview
+
+- Código: `2c1d39a53235f486104a273a4dec21d8a4c8007e`, tag `f25-biomarker-modalities`, branch de contexto `feature/allik-patients`. Publicação por tag e deployment explícito, sem push da branch conectada de produção.
+- Deployment `dpl_HtVddvDbLaaXKd9CBA9D8EHs6BdY`, target Preview (`staging` na API), READY, SHA e projeto conferidos.
+- URL imutável: https://allik-2wy2u9an0-atp-mkt.vercel.app
+- URL fixa: https://allik-one-git-feature-allik-patients-atp-mkt.vercel.app
+- GET autenticado do histórico longitudinal no novo deployment: HTTP 200, 123 registros confirmados retornados, sem paginação adicional para o paciente sintético consultado. Essa contagem não é um novo benchmark de extração.
+- Nenhum POST de classificação, upload, extração ou resultado foi executado no Preview nesta rodada; os testes com escrita ocorreram exclusivamente no PostgreSQL local descartável. As capturas acima são do ambiente local.
+- A produção permanece em `dpl_4ag81mHUxsDZ7VaKqnrKKHqKrFkp`, SHA `091612549723e484d41bd3c984e877ddd19365e6`. Nenhuma conexão SQL remota foi necessária.
