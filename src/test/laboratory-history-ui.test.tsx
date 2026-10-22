@@ -155,7 +155,7 @@ it("windows dates and progressively reveals more parameters without dropping row
   expect(screen.getByText(/50 de 60 exames/)).toBeInTheDocument();
   expect(
     within(screen.getByRole("table").querySelector("thead")!).getAllByRole("columnheader"),
-  ).toHaveLength(15);
+  ).toHaveLength(16);
   expect(screen.getByRole("button", { name: "Datas mais recentes" })).toBeDisabled();
   fireEvent.click(screen.getByRole("button", { name: "Datas anteriores" }));
   expect(screen.getByRole("button", { name: "Datas mais recentes" })).toBeEnabled();
@@ -246,4 +246,107 @@ it("filters clinical display groups without normalizing incompatible measurement
   expect(within(dialog).getByText("0,2 a 4")).toBeInTheDocument();
   expect(within(dialog).getByText("01/01/2026")).toBeInTheDocument();
   expect(within(dialog).getByText(/Dados do laboratório e origem/)).toBeInTheDocument();
+});
+
+function modalitiesSetup() {
+  const rows = [
+    { name: "Basófilos (%)", unit: "%", result: "1", reference: "0 a 2" },
+    { name: "Basófilos (absoluto)", unit: "/mm³", result: "300", reference: "0 a 100" },
+    { name: "Basófilos com unidade não informada", unit: null, result: "7", reference: "0 a 10" },
+  ].map((p, i) => ({
+    id: `modality-${i}`,
+    reviewId: "r",
+    documentId: "d",
+    documentTitle: "Original sintético",
+    previewUrl: "/original",
+    payload: {
+      ...emptyLaboratoryRow(),
+      collectedOn: "2026-01-01",
+      method: "Método A",
+      material: "Sangue",
+      laboratory: "Lab",
+      ...p,
+    },
+  }));
+  mock.useInventory.mockReturnValue({
+    data: { rows, hasMore: false },
+    isPending: false,
+    error: null,
+    refetch: vi.fn(),
+  });
+  return rows;
+}
+it("keeps one biomarker row, expands inline and changes the main modality with its reference and colors", () => {
+  const rows = modalitiesSetup();
+  const snapshot = JSON.stringify(rows);
+  const { container } = render(<LaboratoryHistory patientId="patient" compact />);
+  expect(container.querySelectorAll('tr[data-main-row="true"]')).toHaveLength(1);
+  expect(screen.getByRole("button", { name: "Basófilos" })).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "Detalhes de Basófilos: 1" })).toBeInTheDocument();
+  expect(
+    screen.queryByRole("button", { name: "Detalhes de Basófilos: 300" }),
+  ).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "Modalidades de Basófilos" }));
+  expect(container.querySelectorAll('tr[data-biomarker="basofilos"]')).toHaveLength(3);
+  const select = screen.getByLabelText("Modalidade principal de Basófilos");
+  const absolute = within(select).getByRole("option", {
+    name: "Contagem absoluta (/mm³)",
+  }) as HTMLOptionElement;
+  fireEvent.change(select, { target: { value: absolute.value } });
+  const main = container.querySelector('tr[data-main-row="true"]') as HTMLElement;
+  expect(within(main).getByText("/mm³")).toBeInTheDocument();
+  expect(within(main).getByText("0 a 100")).toBeInTheDocument();
+  expect(within(main).getByText("Sem meta definida")).toBeInTheDocument();
+  expect(within(main).getByText("Acima da referência laboratorial")).toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "Modalidades de Basófilos" }));
+  expect(container.querySelectorAll('tr[data-biomarker="basofilos"]')).toHaveLength(1);
+  expect(JSON.stringify(rows)).toBe(snapshot);
+});
+it("switches the graph with the selected modality and does not color or plot unresolved measurements", () => {
+  modalitiesSetup();
+  const { container } = render(<LaboratoryHistory patientId="patient" compact />);
+  fireEvent.click(screen.getByRole("button", { name: "Basófilos" }));
+  expect(screen.getByRole("img", { name: "Evolução de Basófilos, unidade %" })).toBeInTheDocument();
+  expect(container.querySelectorAll("circle")).toHaveLength(1);
+  expect(container.querySelector("circle title")).toHaveTextContent(": 1 %");
+  const graphSelect = screen.getByLabelText("Modalidade do gráfico de Basófilos");
+  const abs = within(graphSelect).getByRole("option", {
+    name: "Contagem absoluta (/mm³)",
+  }) as HTMLOptionElement;
+  fireEvent.change(graphSelect, { target: { value: abs.value } });
+  expect(
+    screen.getByRole("img", { name: "Evolução de Basófilos, unidade /mm³" }),
+  ).toBeInTheDocument();
+  expect(container.querySelector("circle title")).toHaveTextContent(": 300 /mm³");
+  const unknown = within(screen.getByLabelText("Modalidade principal de Basófilos")).getByRole(
+    "option",
+    { name: /Modalidade não resolvida/ },
+  ) as HTMLOptionElement;
+  fireEvent.change(screen.getByLabelText("Modalidade principal de Basófilos"), {
+    target: { value: unknown.value },
+  });
+  expect(screen.queryByRole("img")).not.toBeInTheDocument();
+  expect(screen.getByText(/gráfico indisponível/)).toBeInTheDocument();
+  expect(screen.getByText("Referência não comparável automaticamente")).toBeInTheDocument();
+});
+it("restores the professional's selected modality and inline expansion when returning to the workspace", () => {
+  modalitiesSetup();
+  const state = {
+    current: null as
+      import("@/components/clinic/laboratory-history").LaboratoryHistoryViewState | null,
+  };
+  const first = render(<LaboratoryHistory patientId="patient" viewState={state} />);
+  const select = screen.getByLabelText("Modalidade principal de Basófilos");
+  const absolute = within(select).getByRole("option", {
+    name: "Contagem absoluta (/mm³)",
+  }) as HTMLOptionElement;
+  fireEvent.change(select, { target: { value: absolute.value } });
+  fireEvent.click(screen.getByRole("button", { name: "Modalidades de Basófilos" }));
+  first.unmount();
+  render(<LaboratoryHistory patientId="patient" viewState={state} />);
+  expect(screen.getByLabelText("Modalidade principal de Basófilos")).toHaveValue(absolute.value);
+  expect(screen.getByRole("button", { name: "Modalidades de Basófilos" })).toHaveAttribute(
+    "aria-expanded",
+    "true",
+  );
 });

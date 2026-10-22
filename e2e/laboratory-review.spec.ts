@@ -29,6 +29,9 @@ test("Paciente360º preserves laboratory review, conditional preconsultation and
     doc.text("EXAME SINTETICO - SOMENTE TESTE");
     doc.text("TSH: <0,1 uUI/mL");
     doc.text("Referencia: 0,27 a 4,2");
+    doc.text("Basofilos (%): 1 %, referencia 0 a 2");
+    doc.text("Basofilos (absoluto): 300 /mm3, referencia 0 a 100");
+    doc.text("Basofilos sem unidade: 7, referencia 0 a 10; unidade ausente");
     doc.end();
   });
   try {
@@ -132,6 +135,26 @@ test("Paciente360º preserves laboratory review, conditional preconsultation and
     await dialog.locator("summary").filter({ hasText: "Datas, método" }).nth(1).click();
     await dialog.getByLabel("Coleta da linha 2", { exact: true }).fill("2026-10-01");
     await dialog.getByLabel("Conferir linha 2", { exact: true }).check();
+    for (const [index, fixture] of [
+      [3, { name: "Basófilos (%)", unit: "%", result: "1", reference: "0 a 2" }],
+      [4, { name: "Basófilos (absoluto)", unit: "/mm³", result: "300", reference: "0 a 100" }],
+      [5, { name: "Basófilos sem unidade", unit: "", result: "7", reference: "0 a 10" }],
+    ] as const) {
+      await dialog.getByRole("button", { name: "Adicionar resultado" }).click();
+      await dialog.getByLabel(`Exame da linha ${index}`, { exact: true }).fill(fixture.name);
+      await dialog.getByLabel(`Resultado da linha ${index}`, { exact: true }).fill(fixture.result);
+      await dialog.getByLabel(`Unidade da linha ${index}`, { exact: true }).fill(fixture.unit);
+      await dialog
+        .getByLabel(`Referência da linha ${index}`, { exact: true })
+        .fill(fixture.reference);
+      await dialog
+        .locator("summary")
+        .filter({ hasText: "Datas, método" })
+        .nth(index - 1)
+        .click();
+      await dialog.getByLabel(`Coleta da linha ${index}`, { exact: true }).fill("2026-10-01");
+      await dialog.getByLabel(`Conferir linha ${index}`, { exact: true }).check();
+    }
     await dialog.getByLabel("Confirmei que o PDF corresponde ao paciente selecionado.").check();
     await dialog.getByLabel("Conferir linha 1", { exact: true }).check();
     await page.screenshot({
@@ -146,7 +169,7 @@ test("Paciente360º preserves laboratory review, conditional preconsultation and
         patient,
       ])
     ).rows;
-    expect(result).toHaveLength(2);
+    expect(result).toHaveLength(5);
     expect(result.map((row) => row.payload.result)).toContain("<0,1");
     await dialog.getByRole("button", { name: "Corrigir resultados" }).click();
     await expect(
@@ -194,6 +217,51 @@ test("Paciente360º preserves laboratory review, conditional preconsultation and
       path: testInfo.outputPath("laboratory-history-desktop.png"),
       fullPage: false,
     });
+    const biomarkerRow = history.locator('tr[data-biomarker="basofilos"][data-main-row="true"]');
+    await expect(biomarkerRow).toHaveCount(1);
+    await expect(
+      biomarkerRow.getByRole("button", { name: "Detalhes de Basófilos: 1" }),
+    ).toBeVisible();
+    await history.getByRole("button", { name: "Modalidades de Basófilos" }).click();
+    await expect(history.locator('tr[data-biomarker="basofilos"]')).toHaveCount(3);
+    await page.screenshot({
+      path: testInfo.outputPath("biomarker-modalities-expanded.png"),
+      fullPage: false,
+    });
+    await biomarkerRow
+      .getByLabel("Modalidade principal de Basófilos")
+      .selectOption({ label: "Contagem absoluta (/mm³)" });
+    await expect(biomarkerRow.getByRole("cell", { name: /^0 a 100/ })).toBeVisible();
+    await biomarkerRow.getByRole("button", { name: "Basófilos", exact: true }).click();
+    const absoluteGraph = history.getByRole("img", { name: "Evolução de Basófilos, unidade /mm³" });
+    await expect(absoluteGraph).toBeVisible();
+    await expect(absoluteGraph.locator("circle")).toHaveCount(1);
+    await expect(absoluteGraph.locator("circle title")).toContainText(": 300 /mm³");
+    await history
+      .getByLabel("Modalidade do gráfico de Basófilos")
+      .selectOption({ label: "Percentual (%)" });
+    await expect(
+      history.getByRole("img", { name: "Evolução de Basófilos, unidade %" }),
+    ).toBeVisible();
+    await expect(
+      history
+        .getByRole("img", { name: "Evolução de Basófilos, unidade %" })
+        .locator("circle title"),
+    ).toContainText(": 1 %");
+    await history
+      .getByLabel("Modalidade principal de Basófilos")
+      .selectOption({ label: "Modalidade não resolvida · unidade não informada" });
+    await expect(history.getByText(/gráfico indisponível/)).toBeVisible();
+    await page.screenshot({
+      path: testInfo.outputPath("biomarker-unresolved.png"),
+      fullPage: false,
+    });
+    const afterPresentation = (
+      await pool.query("SELECT payload FROM inventory_laboratory_results WHERE patient_id=$1", [
+        patient,
+      ])
+    ).rows;
+    expect(afterPresentation).toEqual(result);
     // Continue the same patient journey. Setup uses the authorized application API;
     // public answers use a separate context with no clinician session or real message.
     const postQuestionnaire = async (data: Record<string, unknown>) => {
@@ -422,6 +490,8 @@ test("Paciente360º preserves laboratory review, conditional preconsultation and
     await dialog.getByLabel("Resultado da linha 1", { exact: true }).fill("0,2");
     await dialog.getByLabel("Conferir linha 1", { exact: true }).check();
     await dialog.getByLabel("Conferir linha 2", { exact: true }).check();
+    for (const index of [3, 4, 5])
+      await dialog.getByLabel(`Conferir linha ${index}`, { exact: true }).check();
     await dialog.getByLabel("Confirmei que o PDF corresponde ao paciente selecionado.").check();
     await dialog.getByRole("button", { name: "Confirmar resultados", exact: true }).click();
     await expect(dialog.getByText("Validado", { exact: true })).toBeVisible();
@@ -606,7 +676,7 @@ test("Paciente360º preserves laboratory review, conditional preconsultation and
     const lastHistory = await context.request.get(
       `${baseURL}/api/v1/inventory/laboratory-history?patientId=${patient}`,
     );
-    expect((await lastHistory.json()).data.rows).toHaveLength(2);
+    expect((await lastHistory.json()).data.rows).toHaveLength(5);
   } finally {
     await pool.end();
   }
