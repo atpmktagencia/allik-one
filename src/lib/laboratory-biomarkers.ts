@@ -1,3 +1,4 @@
+import { resolveLaboratoryCatalog } from "./laboratory-catalog";
 import type { LaboratoryHistoryGroup } from "./laboratory-history";
 
 export type LaboratoryModality = LaboratoryHistoryGroup & {
@@ -34,7 +35,8 @@ function identity(name: string) {
     .replace(suffix, "")
     .replace(/^contagem (?:absoluta )?de /i, "")
     .trim();
-  const base = fold(originalBase);
+  const canonical = resolveLaboratoryCatalog(originalBase);
+  const base = canonical?.id ?? fold(originalBase);
   const hint = fold(
     matched?.[1] ??
       matched?.[2] ??
@@ -42,10 +44,11 @@ function identity(name: string) {
       (name.toLowerCase().startsWith("contagem absoluta de ") ? "absoluta" : ""),
   );
   const cell =
+    canonical?.modalities.includes("ABSOLUTE") ||
     /^(?:basofilos|eosinofilos|neutrofilos|linfocitos(?: atipicos)?|monocitos|plaquetas|leucocitos(?:\s*-?\s*global)?|eritrocitos|hemacias|reticulocitos)$/.test(
       base,
     );
-  return { id: base, name: cells[base] ?? originalBase, cell, hint };
+  return { id: base, name: canonical?.name ?? cells[base] ?? originalBase, cell, hint };
 }
 function modality(group: LaboratoryHistoryGroup, cell: boolean, hint: string) {
   const unit = (group.unit ?? "")

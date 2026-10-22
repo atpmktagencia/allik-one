@@ -351,3 +351,40 @@ it("opens Ideal editor, validates and holds a draft without recoloring confirmed
   );
   expect(container.querySelector('[data-result-color="green"]')).not.toBeInTheDocument();
 });
+
+it("renders observations at group end with dates and provenance, never as biomarker rows", () => {
+  const original = (id: string, name: string, result: string, collectedOn: string) => ({
+    id,
+    reviewId: "r",
+    documentId: "d",
+    documentTitle: "Sintético.pdf",
+    previewUrl: "/original",
+    payload: { ...emptyLaboratoryRow(), name, result, unit: null, sourcePage: 2, collectedOn },
+  });
+  const rows = [
+    original("h", "Hemácias", "4,630", "2026-01-01"),
+    original("o", "Obs", "Hemácias normocíticas.", "2026-01-01"),
+    original("p", "Obs", "Conferir documento.", "2026-02-01"),
+  ];
+  mock.useInventory.mockReturnValue({
+    data: { rows, hasMore: false },
+    isPending: false,
+    error: null,
+    refetch: vi.fn(),
+  });
+  render(<LaboratoryHistory patientId="patient" />);
+  const table = screen.getByRole("table", { name: "Tabela longitudinal de exames" });
+  expect(table.querySelectorAll('[data-main-row="true"]')).toHaveLength(1);
+  expect(screen.queryByRole("button", { name: /^Obs$/ })).not.toBeInTheDocument();
+  const observations = screen.getByRole("region", { name: "Observações de Hematologia" });
+  expect(within(observations).getByText("Hemácias normocíticas.")).toBeInTheDocument();
+  expect(within(observations).getByText("01/01/2026")).toBeInTheDocument();
+  const unknown = screen.getByRole("region", { name: "Observações documentais não classificadas" });
+  expect(within(unknown).getByText("01/02/2026")).toBeInTheDocument();
+  fireEvent.click(within(observations).getByRole("button"));
+  expect(screen.getByRole("dialog", { name: "Observação laboratorial" })).toBeInTheDocument();
+  expect(screen.getByRole("link", { name: "Sintético.pdf" })).toHaveAttribute(
+    "href",
+    "/original?unitId=unit#page=2",
+  );
+});

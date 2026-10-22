@@ -1,3 +1,4 @@
+import { laboratoryScaleReview } from "./laboratory-scale";
 import { z } from "zod";
 import { laboratoryDate } from "./laboratory-results";
 import {
@@ -159,6 +160,8 @@ export function laboratoryResultColor(
       color: "neutral",
       explanation: "Unidade ou modalidade não resolvida; classificação não demonstrável.",
     };
+  const scale = laboratoryScaleReview(entry);
+  if (scale.needsReview) return { color: "neutral", explanation: scale.reason! };
   const normal = applicableLaboratoryReference(entry);
   if (normal === "low" || normal === "high")
     return {

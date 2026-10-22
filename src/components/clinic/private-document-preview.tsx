@@ -7,12 +7,23 @@ function safeUrl(value: string | null) {
 export function PrivateDocumentPreview({
   document,
 }: {
-  document: { title: string; contentType: string | null; previewUrl: string | null };
+  document: {
+    title: string;
+    contentType: string | null;
+    previewUrl: string | null;
+    initialPage?: number | undefined;
+  };
 }) {
   const [preview, setPreview] = useState<{ url: string; type: string } | null>(null);
   const [error, setError] = useState("");
   const [pending, setPending] = useState(false);
   const url = safeUrl(document.previewUrl);
+  const pageAnchor =
+    Number.isInteger(document.initialPage) &&
+    document.initialPage! >= 1 &&
+    document.initialPage! <= 1000
+      ? `#page=${document.initialPage}`
+      : "";
   useEffect(() => {
     setPreview(null);
     setError("");
@@ -83,7 +94,7 @@ export function PrivateDocumentPreview({
         ) : (
           <iframe
             title={`Prévia privada: ${document.title}`}
-            src={preview.url}
+            src={`${preview.url}${pageAnchor}`}
             referrerPolicy="no-referrer"
             className="h-[60dvh] min-h-80 w-full rounded-md border bg-white"
           />

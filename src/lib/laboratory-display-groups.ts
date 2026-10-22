@@ -1,17 +1,9 @@
 /** Presentation grouping only. Does not normalize units, methods or clinical reference ranges. */
-export const laboratoryDisplayGroups = [
-  "Hematologia",
-  "Metabolismo glicídico",
-  "Perfil lipídico",
-  "Função renal",
-  "Função hepática",
-  "Tireoide",
-  "Hormônios",
-  "Vitaminas e minerais",
-  "Inflamação",
-  "Outros",
-] as const;
+import { laboratoryClinicalGroups, resolveLaboratoryCatalog } from "./laboratory-catalog";
+export const laboratoryDisplayGroups = laboratoryClinicalGroups;
 export function laboratoryDisplayGroup(name: string): (typeof laboratoryDisplayGroups)[number] {
+  const canonical = resolveLaboratoryCatalog(name);
+  if (canonical) return canonical.group;
   const text = name
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")

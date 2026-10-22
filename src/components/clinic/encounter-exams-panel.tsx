@@ -38,6 +38,7 @@ type Props = {
 type ExamSource = Pick<PatientDocument, "title" | "contentType" | "previewUrl"> & {
   documentId: string;
   canReview: boolean;
+  initialPage?: number | undefined;
 };
 const processingLabels: Record<string, string> = {
   WAITING: "Aguardando processamento",
@@ -73,6 +74,7 @@ export function EncounterExamsPanel({ patientId, unitId, active = true }: Props)
       scope,
       source: {
         documentId: entry.documentId,
+        initialPage: entry.payload.sourcePage ?? undefined,
         title: entry.documentTitle,
         previewUrl: entry.previewUrl,
         contentType: "application/pdf",
@@ -295,7 +297,7 @@ export function EncounterExamsPanel({ patientId, unitId, active = true }: Props)
                       document={source}
                     />
                     <a
-                      href={url}
+                      href={`${url}${source.initialPage ? `#page=${source.initialPage}` : ""}`}
                       target="_blank"
                       rel="noreferrer"
                       className="flex items-center justify-center gap-2 rounded-lg border border-slate-200 bg-slate-50 py-2 text-xs text-slate-700"

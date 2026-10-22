@@ -1,3 +1,8 @@
+import { laboratoryScaleReview } from "@/lib/laboratory-scale";
+import {
+  projectLaboratoryObservations,
+  isLaboratoryObservation,
+} from "@/lib/laboratory-observations";
 import { Fragment, memo, useEffect, useMemo, useRef, useState, type MutableRefObject } from "react";
 import { laboratoryDisplayGroup, laboratoryDisplayGroups } from "@/lib/laboratory-display-groups";
 import {
@@ -86,7 +91,7 @@ function Source({
   return (
     <a
       className="text-xs text-primary underline underline-offset-2"
-      href={withSelectedUnit(entry.previewUrl)}
+      href={`${withSelectedUnit(entry.previewUrl)}${entry.payload.sourcePage ? `#page=${entry.payload.sourcePage}` : ""}`}
       target="_blank"
       rel="noreferrer"
     >
@@ -309,7 +314,53 @@ export function LaboratoryHistory({
       tableScroll.current.scrollLeft = position.current.left;
     }
   }, [query.data]);
-  const history = useMemo(() => buildLaboratoryHistory(query.data?.rows ?? []), [query.data]);
+  const projection = useMemo(
+    () => projectLaboratoryObservations(query.data?.rows ?? []),
+    [query.data],
+  );
+  const history = useMemo(() => buildLaboratoryHistory(projection.results), [projection]);
+  const observationBlocks = (clinicalGroup: string | null) => {
+    const observations = projection.observations.filter(
+      ({ entry, group }) =>
+        group === clinicalGroup &&
+        (!category || group === category) &&
+        (!search.trim() ||
+          [entry.payload.result, entry.payload.name].some((text) =>
+            text.toLocaleLowerCase("pt-BR").includes(search.trim().toLocaleLowerCase("pt-BR")),
+          )),
+    );
+    if (!observations.length) return null;
+    return (
+      <section
+        aria-label={
+          clinicalGroup
+            ? `Observações de ${clinicalGroup}`
+            : "Observações documentais não classificadas"
+        }
+        className="space-y-2 px-3 py-3 text-xs text-slate-600"
+      >
+        <h4 className="font-medium text-slate-700">
+          {clinicalGroup ? "Observações" : "Observações documentais não classificadas"}
+        </h4>
+        {observations.map(({ entry }) => (
+          <div key={entry.id} className="flex flex-wrap items-start gap-x-3 gap-y-1">
+            <span className="shrink-0 text-slate-500">
+              {labelDate(laboratoryHistoryDate(entry) ?? "undated")}
+            </span>
+            <p className="min-w-0 flex-1 whitespace-pre-wrap">{entry.payload.result}</p>
+            <button
+              type="button"
+              className="shrink-0 text-teal-700 hover:underline"
+              onClick={() => setSelectedResultId(entry.id)}
+              aria-label={`Ver observação de ${labelDate(laboratoryHistoryDate(entry) ?? "undated")}`}
+            >
+              Ver origem{entry.payload.sourcePage ? ` · p. ${entry.payload.sourcePage}` : ""}
+            </button>
+          </div>
+        ))}
+      </section>
+    );
+  };
   const biomarkers = useMemo(() => groupLaboratoryBiomarkers(history.groups), [history.groups]);
   const modesByBiomarker = useMemo(
     () => new Map(biomarkers.map((b) => [b.id, longitudinalModes(b)])),
@@ -760,6 +811,16 @@ export function LaboratoryHistory({
                             </td>
                           </tr>
                         )}
+                        {!hidden &&
+                          (groupIndex === Math.min(groups.length, groupLimit) - 1 ||
+                            laboratoryDisplayGroup(groups[groupIndex + 1]!.name) !==
+                              laboratoryDisplayGroup(biomarker.name)) && (
+                            <tr>
+                              <td colSpan={visibleDates.length + 4}>
+                                {observationBlocks(laboratoryDisplayGroup(biomarker.name))}
+                              </td>
+                            </tr>
+                          )}
                       </Fragment>
                     );
                   })}
@@ -774,6 +835,16 @@ export function LaboratoryHistory({
           )}
         </>
       )}
+      {laboratoryDisplayGroups
+        .filter(
+          (name) =>
+            !groups.slice(0, groupLimit).some((b) => laboratoryDisplayGroup(b.name) === name) &&
+            !collapsedCategories.includes(name),
+        )
+        .map((name) => (
+          <Fragment key={name}>{observationBlocks(name)}</Fragment>
+        ))}
+      {observationBlocks(null)}
       <Dialog
         open={Boolean(selectedResult)}
         onOpenChange={(open) => {
@@ -782,7 +853,11 @@ export function LaboratoryHistory({
       >
         <DialogContent className="clinical-workspace sm:max-w-lg">
           <DialogHeader>
-            <DialogTitle>Resultado confirmado</DialogTitle>
+            <DialogTitle>
+              {selectedResult && isLaboratoryObservation(selectedResult)
+                ? "Observação laboratorial"
+                : "Resultado confirmado"}
+            </DialogTitle>
             <DialogDescription>
               Dados do laboratório e origem preservada, sem interpretação automática.
             </DialogDescription>
@@ -817,6 +892,11 @@ export function LaboratoryHistory({
                 <dt>Material</dt>
                 <dd>{selectedResult.payload.material ?? "Não informado"}</dd>
               </dl>
+              {laboratoryScaleReview(selectedResult).needsReview && (
+                <p className="text-xs text-amber-800" role="status">
+                  {laboratoryScaleReview(selectedResult).reason}
+                </p>
+              )}
               <ReferenceStatus
                 entry={selectedResult}
                 status={
