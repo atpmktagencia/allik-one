@@ -1,0 +1,32 @@
+{
+  "before": {
+    "source": "https://allik-2wy2u9an0-atp-mkt.vercel.app",
+    "commit": "2c1d39a53235f486104a273a4dec21d8a4c8007e",
+    "rows": 50,
+    "minHeight": 145,
+    "maxHeight": 337,
+    "uniqueBiomarkers": 50,
+    "colors": {},
+    "normalVaries": 0,
+    "atypicalLymphocyteRows": 1,
+    "plateletRows": 1,
+    "blockedPaidOrClinicalWrites": 0
+  },
+  "after": {
+    "source": "https://allik-9lwnlt798-atp-mkt.vercel.app",
+    "commit": "9bc0149b6ed0d88df0ae45f81b097f322ae1581e",
+    "rows": 38,
+    "minHeight": 44,
+    "maxHeight": 44,
+    "uniqueBiomarkers": 38,
+    "colors": {
+      "neutral": 54,
+      "red": 8
+    },
+    "normalVaries": 1,
+    "selectorOptions": ["Percentual", "Absoluto", "Não resolvido"],
+    "atypicalLymphocyteRows": 1,
+    "plateletRows": 1,
+    "blockedPaidOrClinicalWrites": 0
+  }
+}
