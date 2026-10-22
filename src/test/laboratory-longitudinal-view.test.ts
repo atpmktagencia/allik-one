@@ -4,6 +4,7 @@ import { buildLaboratoryHistory, type LaboratoryHistoryEntry } from "@/lib/labor
 import { groupLaboratoryBiomarkers } from "@/lib/laboratory-biomarkers";
 import {
   longitudinalModes,
+  longitudinalGraphSeries,
   laboratoryResultColor,
   normalReference,
   laboratoryProvenanceLabel,
@@ -122,4 +123,37 @@ it("does not color missing units, qualitative or missing dates against an ideal"
       ideal,
     ).color,
   ).toBe("neutral");
+});
+
+it("reads explicit same-unit range annotations and uppercase separators without changing originals", () => {
+  const a = row("a");
+  a.payload.name = "Hemoglobina";
+  a.payload.unit = "g/dl";
+  a.payload.result = "11,9";
+  a.payload.reference = "12,0 A 16,0 g/dl";
+  const before = JSON.stringify(a);
+  expect(laboratoryResultColor(a, mode([a]), "hemoglobina").color).toBe("red");
+  expect(JSON.stringify(a)).toBe(before);
+});
+it("never applies an absolute count reference to a percentage result", () => {
+  const a = row("a");
+  a.payload.result = "0%";
+  a.payload.reference = "ATE 200/mm3";
+  expect(laboratoryResultColor(a, mode([a]), "basofilos").color).toBe("neutral");
+  a.payload.reference = "0 A 2 %";
+  expect(laboratoryResultColor(a, mode([a]), "basofilos", ideal).color).toBe("green");
+});
+
+it("plots explicitly unit-annotated values using derived numbers while retaining source payloads", () => {
+  const a = row("a");
+  a.payload.result = "0%";
+  const b = row("b");
+  b.payload.result = "1%";
+  b.payload.collectedOn = "2026-10-02";
+  const before = JSON.stringify([a, b]);
+  const series = longitudinalGraphSeries(mode([a, b]).series[0]!);
+  expect(series.points.map((p) => p.value)).toEqual([0, 1]);
+  expect(series.points[0]!.entry.payload.result).toBe("0%");
+  expect(series.segments).toHaveLength(1);
+  expect(JSON.stringify([a, b])).toBe(before);
 });

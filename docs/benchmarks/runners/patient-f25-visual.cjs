@@ -43,6 +43,8 @@ assert(!base.includes("cz2dk6vej"));
       path: "screenshots/" + phase + "-preview.jpg",
       type: "jpeg",
       quality: 45,
+      mask: phase === "before" ? [table.locator("a")] : [],
+      maskColor: "#e2e8f0",
     });
     const geometry = await table.locator('tr[data-main-row="true"]').evaluateAll((rows) =>
       rows.map((e) => ({
@@ -58,6 +60,13 @@ assert(!base.includes("cz2dk6vej"));
       geometry,
       blockedPaidOrClinicalWrites: blocked,
     };
+    snapshot.colors = await table.locator("[data-result-color]").evaluateAll((points) =>
+      points.reduce((counts, p) => {
+        counts[p.dataset.resultColor] = (counts[p.dataset.resultColor] ?? 0) + 1;
+        return counts;
+      }, {}),
+    );
+    snapshot.normalVaries = await table.getByText("Varia por coleta", { exact: true }).count();
     if (phase === "after") {
       assert(geometry.length > 0);
       assert(

@@ -14,14 +14,14 @@ import { withSelectedUnit } from "@/data/unit-context";
 import {
   buildLaboratoryHistory,
   laboratoryHistoryDate,
-  laboratoryHistorySeries,
-  laboratoryHistoryReference,
   type LaboratoryHistoryEntry,
   type LaboratoryHistoryGroup,
 } from "@/lib/laboratory-history";
 import { groupLaboratoryBiomarkers, type LaboratoryBiomarker } from "@/lib/laboratory-biomarkers";
 import {
   longitudinalModes,
+  applicableLaboratoryReference,
+  longitudinalGraphSeries,
   normalReference,
   laboratoryResultColor,
   laboratoryProvenanceLabel,
@@ -36,10 +36,10 @@ const labelDate = (date: string) =>
   date === "undated" ? "Sem data de exame" : date.split("-").reverse().join("/");
 function ReferenceStatus({
   entry,
-  status = laboratoryHistoryReference(entry),
+  status = applicableLaboratoryReference(entry),
 }: {
   entry: LaboratoryHistoryEntry;
-  status?: ReturnType<typeof laboratoryHistoryReference> | undefined;
+  status?: ReturnType<typeof applicableLaboratoryReference> | undefined;
 }) {
   const labels = {
     low: "Abaixo da referência laboratorial",
@@ -104,14 +104,14 @@ const HistoryGraph = memo(function HistoryGraph({
   onOpenOriginal?: ((entry: LaboratoryHistoryEntry) => void) | undefined;
 }) {
   const { points, segments } = useMemo(() => {
-    const series = (compatibilityGroups ?? [group]).map(laboratoryHistorySeries);
+    const series = (compatibilityGroups ?? [group]).map(longitudinalGraphSeries);
     return {
       points: series.flatMap((s) => s.points).sort((a, b) => a.date.localeCompare(b.date)),
       segments: series.flatMap((s) => s.segments),
     };
   }, [group, compatibilityGroups]);
   const referenceStatuses = useMemo(
-    () => new Map(group.entries.map((entry) => [entry.id, laboratoryHistoryReference(entry)])),
+    () => new Map(group.entries.map((entry) => [entry.id, applicableLaboratoryReference(entry)])),
     [group],
   );
   if (!points.length)
@@ -825,7 +825,7 @@ export function LaboratoryHistory({
                     .find((m) => m.entries.some((e) => e.id === selectedResult.id))?.modality ===
                   "UNRESOLVED"
                     ? "unknown"
-                    : laboratoryHistoryReference(selectedResult)
+                    : applicableLaboratoryReference(selectedResult)
                 }
               />
               <Source

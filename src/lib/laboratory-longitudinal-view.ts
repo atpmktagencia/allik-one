@@ -3,7 +3,7 @@ import { laboratoryDate } from "./laboratory-results";
 import {
   laboratoryHistoryDate,
   laboratoryHistoryNumber,
-  laboratoryHistoryReference,
+  laboratoryHistorySeries,
   type LaboratoryHistoryEntry,
   type LaboratoryHistoryGroup,
 } from "./laboratory-history";
@@ -84,6 +84,68 @@ export type ApplicableIdealTarget = IdealTargetDraft & {
   authorId: string;
   persisted: true;
 };
+const unitText = (s: string) =>
+  s
+    .normalize("NFKC")
+    .replace(/μ/g, "µ")
+    .replace(/\s/g, "")
+    .replace(/\/(d|m|u|µ)?l$/i, (_, prefix: string | undefined) => `/${prefix ?? ""}L`);
+/** Explicit same-unit annotations only; no unit conversion or inferred interval. */
+export function applicableLaboratoryNumber(value: string, unit: string): number | null {
+  const number = laboratoryHistoryNumber(value);
+  if (number !== null) return number;
+  const match = value.trim().match(/^([+-]?\d+(?:[.,]\d+)?)\s*(.+)$/);
+  return match && unitText(match[2]!) === unitText(unit)
+    ? laboratoryHistoryNumber(match[1]!)
+    : null;
+}
+/** Derived graph numbers retain the original entry for provenance and never write payloads. */
+export function longitudinalGraphSeries(group: LaboratoryHistoryGroup) {
+  const originals = new Map(group.entries.map((e) => [e.id, e]));
+  const series = laboratoryHistorySeries({
+    ...group,
+    entries: group.entries.map((entry) => {
+      const value = entry.payload.unit
+        ? applicableLaboratoryNumber(entry.payload.result, entry.payload.unit)
+        : laboratoryHistoryNumber(entry.payload.result);
+      return value === null
+        ? entry
+        : { ...entry, payload: { ...entry.payload, result: String(value) } };
+    }),
+  });
+  return { ...series, points: series.points.map((p) => ({ ...p, entry: originals.get(p.id)! })) };
+}
+export function applicableLaboratoryReference(
+  entry: LaboratoryHistoryEntry,
+): "low" | "within" | "high" | "unknown" {
+  const unit = entry.payload.unit;
+  if (!unit) return "unknown";
+  const value = applicableLaboratoryNumber(entry.payload.result, unit);
+  if (value === null) return "unknown";
+  const ref = entry.payload.reference?.trim() ?? "";
+  const range = ref.match(
+    /^([+-]?\d+(?:[.,]\d+)?)\s*(?:a|até|–|—|-)\s*([+-]?\d+(?:[.,]\d+)?)\s*(.*?)$/i,
+  );
+  if (range) {
+    const low = laboratoryHistoryNumber(range[1]!),
+      high = laboratoryHistoryNumber(range[2]!);
+    if (
+      low === null ||
+      high === null ||
+      low > high ||
+      (range[3] && unitText(range[3]) !== unitText(unit))
+    )
+      return "unknown";
+    return value < low ? "low" : value > high ? "high" : "within";
+  }
+  const upper = ref.match(/^(?:até|ate|<=|≤)\s*([+-]?\d+(?:[.,]\d+)?)\s*(.*?)$/i);
+  if (upper) {
+    const high = laboratoryHistoryNumber(upper[1]!);
+    if (high === null || (upper[2] && unitText(upper[2]) !== unitText(unit))) return "unknown";
+    return value > high ? "high" : "within";
+  }
+  return "unknown";
+}
 export type ResultColor = { color: "green" | "yellow" | "red" | "neutral"; explanation: string };
 /** A draft is deliberately not accepted here. Caller must resolve authorized scope first. */
 export function laboratoryResultColor(
@@ -97,7 +159,7 @@ export function laboratoryResultColor(
       color: "neutral",
       explanation: "Unidade ou modalidade não resolvida; classificação não demonstrável.",
     };
-  const normal = laboratoryHistoryReference(entry);
+  const normal = applicableLaboratoryReference(entry);
   if (normal === "low" || normal === "high")
     return {
       color: "red",
@@ -127,7 +189,7 @@ export function laboratoryResultColor(
       explanation:
         "Dentro da referência laboratorial; sem meta ideal válida aplicável a esta coleta.",
     };
-  const value = laboratoryHistoryNumber(entry.payload.result)!;
+  const value = applicableLaboratoryNumber(entry.payload.result, mode.unit!)!;
   return value >= target.minimum && value <= target.maximum
     ? { color: "green", explanation: "Dentro da referência laboratorial e da meta ideal válida." }
     : {
