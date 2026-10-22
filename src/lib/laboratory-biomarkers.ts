@@ -25,29 +25,29 @@ const cells: Record<string, string> = {
   monocitos: "Monócitos",
 };
 function identity(name: string) {
-  const text = fold(name);
-  const match = text.match(
-    /^(?:contagem (?:absoluta )?de )?(basofilos|eosinofilos|neutrofilos|linfocitos|monocitos)(?:\s*(?:\(([^)]+)\)|[-–:]\s*(.+)|(%|percentual|absolutos?|contagem(?: absoluta)?|relativos?|(?:com )?unidade nao informada|sem unidade)))?$/,
+  // Only display modality suffixes are removed. Clinical qualifiers remain in the base.
+  const suffix =
+    /\s*(?:\((%|percentual|absolutos?|absolutas?|contagem(?: absoluta)?|relativos?|relativas?|(?:com )?unidade n[aã]o informada|sem unidade|\/mm[³3]|\/[uµμ]l)\)|[-–:]\s*(%|percentual|absolutos?|absolutas?|contagem(?: absoluta)?|relativos?|relativas?|(?:com )?unidade n[aã]o informada|sem unidade)|\s+(%|percentual|absolutos?|absolutas?|contagem(?: absoluta)?|relativos?|relativas?|(?:com )?unidade n[aã]o informada|sem unidade))$/i;
+  const matched = name.trim().match(suffix);
+  const originalBase = name
+    .trim()
+    .replace(suffix, "")
+    .replace(/^contagem (?:absoluta )?de /i, "")
+    .trim();
+  const base = fold(originalBase);
+  const hint = fold(
+    matched?.[1] ??
+      matched?.[2] ??
+      matched?.[3] ??
+      (name.toLowerCase().startsWith("contagem absoluta de ") ? "absoluta" : ""),
   );
-  if (!match) return { id: text, name: name.trim(), cell: false, hint: "" };
-  const suffix = (match[2] ?? match[3] ?? match[4] ?? "").trim();
-  // Only explicitly known display suffixes. Never strip clinically meaningful qualifiers.
-  if (
-    suffix &&
-    !/^(?:%|percentual|relativos?|absolutos?|contagem(?: absoluta)?|(?:com )?unidade nao informada|sem unidade|\/mm[³3]|\/u[lL]|celulas\/mm[³3])$/.test(
-      suffix,
-    )
-  )
-    return { id: text, name: name.trim(), cell: false, hint: "" };
-  return {
-    id: match[1]!,
-    name: cells[match[1]!]!,
-    cell: true,
-    hint: text.startsWith("contagem absoluta de ") ? "absoluta" : suffix,
-  };
+  const cell =
+    /^(?:basofilos|eosinofilos|neutrofilos|linfocitos(?: atipicos)?|monocitos|plaquetas|leucocitos(?:\s*-?\s*global)?|eritrocitos|hemacias|reticulocitos)$/.test(
+      base,
+    );
+  return { id: base, name: cells[base] ?? originalBase, cell, hint };
 }
 function modality(group: LaboratoryHistoryGroup, cell: boolean, hint: string) {
-  if (!cell) return { kind: "LITERAL" as const, label: group.unit ?? "Unidade não informada" };
   const unit = (group.unit ?? "")
     .normalize("NFKC")
     .replace(/μ/g, "µ")
@@ -59,10 +59,11 @@ function modality(group: LaboratoryHistoryGroup, cell: boolean, hint: string) {
     /^(?:10\^?3|103|mil)\/(?:µl|ul|mm3)$/.test(unit) ||
     /^(?:10\^?9|109)\/l$/.test(unit);
   const saysPercent = /%|percentual|relativ/.test(hint);
-  const saysAbsolute = /absolut|contagem/.test(hint);
+  const saysAbsolute = /absolut|contagem|\/(?:mm[³3]|[uµμ]l)/.test(hint);
   if (percentage && !saysAbsolute) return { kind: "PERCENTAGE" as const, label: "Percentual (%)" };
   if (absolute && !saysPercent)
     return { kind: "ABSOLUTE" as const, label: `Contagem absoluta (${group.unit})` };
+  if (!cell && !hint && unit) return { kind: "LITERAL" as const, label: group.unit! };
   return {
     kind: "UNRESOLVED" as const,
     label: group.unit

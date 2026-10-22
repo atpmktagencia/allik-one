@@ -108,3 +108,30 @@ it("builds a graph only from the chosen exact modality, preserving dates and ori
   expect(series.points.map((p) => p.entry.documentId)).toEqual(["d", "d"]);
   expect(series.segments).toHaveLength(1);
 });
+
+it.each(["Linfócitos atípicos", "Plaquetas"])(
+  "groups %s display suffixes without losing the clinical base",
+  (name) => {
+    const b = group([
+      entry("a", name, "/mm³"),
+      entry("b", name + " (contagem)", "/mm³"),
+      entry("p", name + " (percentual)", "%"),
+    ]);
+    expect(b).toHaveLength(1);
+    expect(b[0]!.name).toBe(name);
+    expect(b[0]!.modalities).toHaveLength(2);
+    expect(b[0]!.modalities.find((m) => m.modality === "ABSOLUTE")!.entries).toHaveLength(2);
+  },
+);
+it("keeps platelet unit scales separate inside one visual biomarker", () => {
+  const b = group([entry("a", "PLAQUETAS", "/mm3"), entry("b", "Plaquetas - contagem", "10^9/L")]);
+  expect(b).toHaveLength(1);
+  expect(b[0]!.modalities).toHaveLength(2);
+  expect(b[0]!.modalities.map((m) => m.unit)).toEqual(expect.arrayContaining(["/mm3", "10^9/L"]));
+});
+
+it("rejects a count-unit name paired with a percentage unit", () => {
+  expect(group([entry("x", "Basófilos (/mm³)", "%")])[0]!.modalities[0]!.modality).toBe(
+    "UNRESOLVED",
+  );
+});

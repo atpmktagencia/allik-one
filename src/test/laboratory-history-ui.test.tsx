@@ -26,6 +26,7 @@ function setup() {
           payload: {
             ...emptyLaboratoryRow(),
             name: "TSH",
+            unit: "µUI/mL",
             result: "0,25",
             collectedOn: "2026-01-01",
             reference: "0,2 a 4",
@@ -37,7 +38,7 @@ function setup() {
           documentId: "doc",
           documentTitle: "Original privado.pdf",
           previewUrl: "/private-file",
-          payload: { ...emptyLaboratoryRow(), name: "TSH", result: "<0,1" },
+          payload: { ...emptyLaboratoryRow(), name: "TSH", unit: "µUI/mL", result: "<0,1" },
         },
         {
           id: "three",
@@ -69,9 +70,7 @@ it("shows literal values, undated results and private source links without fetch
   expect(screen.getByText("<0,1")).toBeInTheDocument();
   expect(screen.queryByRole("link", { name: "Original privado.pdf" })).not.toBeInTheDocument();
   fireEvent.click(screen.getByRole("button", { name: "TSH" }));
-  expect(
-    screen.getByRole("img", { name: "Evolução de TSH, unidade não informada" }),
-  ).toBeInTheDocument();
+  expect(screen.getByRole("img", { name: "Evolução de TSH, unidade µUI/mL" })).toBeInTheDocument();
   expect(screen.queryByText(/Método não informado: comparação limitada/)).not.toBeInTheDocument();
 });
 it("searches parameters and exposes empty search feedback", () => {
