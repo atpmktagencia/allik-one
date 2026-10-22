@@ -1,0 +1,39 @@
+{
+  "before": {
+    "source": "https://allik-9lwnlt798-atp-mkt.vercel.app",
+    "commit": "9bc0149b6ed0d88df0ae45f81b097f322ae1581e",
+    "rows": 38,
+    "uniqueBiomarkers": 38,
+    "minHeight": 44,
+    "maxHeight": 44,
+    "colors": {
+      "neutral": 54,
+      "red": 8
+    },
+    "blockedPaidOrClinicalWrites": 0,
+    "observations": null
+  },
+  "after": {
+    "source": "https://allik-cd5sbj7w8-atp-mkt.vercel.app",
+    "commit": "6767dcf6030bd71d8eda90ba8415c7c5483fc7f4",
+    "rows": 37,
+    "uniqueBiomarkers": 37,
+    "minHeight": 44,
+    "maxHeight": 44,
+    "colors": {
+      "neutral": 49,
+      "red": 8
+    },
+    "blockedPaidOrClinicalWrites": 0,
+    "observations": {
+      "hematologyBlocks": 1,
+      "datedEntries": 5
+    },
+    "coagulationRows": 3,
+    "electrolyteRows": 2
+  },
+  "screenshotHashes": {
+    "after-preview.jpg": "e212cd205d9d7b7b9ef3ea1ed2fcdbe277d546caca6adae86559fcff6b1df59f",
+    "observations-preview.jpg": "4d9f7a28e84d0c4918ba7590885134c7e588672d82ba358a895aba9c02d00d7f"
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "method": "Leitura independente do texto nativo e posições PDF.js/unpdf; sem IA e sem reprocessamento clínico",
+  "pcr": {
+    "page": 1,
+    "literalTitle": "PROTEINA C REATIVA 1",
+    "titleGeometry": { "x": 43, "y": 651, "height": 10 },
+    "finding": "O sufixo está no próprio título do PDF, no mesmo item de texto. Não foi introduzido pelo extrator.",
+    "unresolved": "A origem semântica do 1 não está demonstrada. Não removido nem fundido com PCR sem sufixo."
+  },
+  "erythrocytes": {
+    "page": 2,
+    "literalResult": "4,630",
+    "literalUnit": "/mm3",
+    "literalReference": "3.800.000 A 4.800.000/mm3",
+    "geometry": { "resultX": 157, "unitX": 218, "referenceX": 334, "baselineY": 603 },
+    "finding": "A linha do original contém valor, unidade e referência como persistidos. Nenhuma escala em milhões foi declarada nessa linha.",
+    "conversionApplied": false,
+    "unresolved": "Escala/separador não demonstrados; neutro, com alerta e sem ponto numérico no gráfico."
+  },
+  "privacy": "Somente trechos necessários e coordenadas; sem nomes de pacientes, títulos de arquivos ou cópias dos originais."
+}

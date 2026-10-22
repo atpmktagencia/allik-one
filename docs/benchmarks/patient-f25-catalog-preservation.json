@@ -1,0 +1,28 @@
+{
+  "before": {
+    "current_user": "allik_runtime",
+    "branch_id": "br-winter-hill-b69uz195",
+    "originals": "43",
+    "originals_hash": "c8b5a2785969ec4dafc7f2162c94e766",
+    "results": "123",
+    "results_hash": "411985d4909003863d6c8f1cf6a5ea4a",
+    "versions": "3",
+    "versions_hash": "accd7a8a774c0b70fcb98586fbda68e2"
+  },
+  "after": {
+    "current_user": "allik_runtime",
+    "branch_id": "br-winter-hill-b69uz195",
+    "originals": "43",
+    "originals_hash": "c8b5a2785969ec4dafc7f2162c94e766",
+    "results": "123",
+    "results_hash": "411985d4909003863d6c8f1cf6a5ea4a",
+    "versions": "3",
+    "versions_hash": "accd7a8a774c0b70fcb98586fbda68e2"
+  },
+  "unchanged": true,
+  "production": {
+    "unchanged": true,
+    "deployment": "dpl_4ag81mHUxsDZ7VaKqnrKKHqKrFkp",
+    "sha": "091612549723e484d41bd3c984e877ddd19365e6"
+  }
+}
