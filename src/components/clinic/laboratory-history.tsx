@@ -19,11 +19,15 @@ import {
   type LaboratoryHistoryEntry,
   type LaboratoryHistoryGroup,
 } from "@/lib/laboratory-history";
+import { groupLaboratoryBiomarkers, type LaboratoryBiomarker } from "@/lib/laboratory-biomarkers";
 import {
-  groupLaboratoryBiomarkers,
-  laboratoryModalityLabel,
-  type LaboratoryBiomarker,
-} from "@/lib/laboratory-biomarkers";
+  longitudinalModes,
+  normalReference,
+  laboratoryResultColor,
+  laboratoryProvenanceLabel,
+  type IdealTargetDraft,
+} from "@/lib/laboratory-longitudinal-view";
+import { LaboratoryIdealEditor } from "./laboratory-ideal-editor";
 import { laboratoryDate } from "@/lib/laboratory-results";
 import { InventoryState } from "./inventory-state";
 
@@ -47,11 +51,11 @@ function ReferenceStatus({
     <p
       className={
         status === "low"
-          ? "text-xs text-sky-800"
+          ? "text-xs text-red-700"
           : status === "high"
-            ? "text-xs text-amber-800"
+            ? "text-xs text-red-700"
             : status === "within"
-              ? "text-xs text-teal-800"
+              ? "text-xs text-muted-foreground"
               : "text-xs text-muted-foreground"
       }
     >
@@ -93,11 +97,19 @@ function Source({
 const HistoryGraph = memo(function HistoryGraph({
   group,
   onOpenOriginal,
+  compatibilityGroups,
 }: {
   group: LaboratoryHistoryGroup;
+  compatibilityGroups?: LaboratoryHistoryGroup[];
   onOpenOriginal?: ((entry: LaboratoryHistoryEntry) => void) | undefined;
 }) {
-  const { points, segments } = useMemo(() => laboratoryHistorySeries(group), [group]);
+  const { points, segments } = useMemo(() => {
+    const series = (compatibilityGroups ?? [group]).map(laboratoryHistorySeries);
+    return {
+      points: series.flatMap((s) => s.points).sort((a, b) => a.date.localeCompare(b.date)),
+      segments: series.flatMap((s) => s.segments),
+    };
+  }, [group, compatibilityGroups]);
   const referenceStatuses = useMemo(
     () => new Map(group.entries.map((entry) => [entry.id, laboratoryHistoryReference(entry)])),
     [group],
@@ -199,6 +211,7 @@ export type LaboratoryHistoryViewState = {
   dateOrder?: "asc" | "desc";
   selectedModalities?: Record<string, string>;
   expandedBiomarkers?: string[];
+  idealDrafts?: Record<string, IdealTargetDraft>;
 };
 export function LaboratoryHistory({
   patientId,
@@ -244,6 +257,12 @@ export function LaboratoryHistory({
   const [expandedBiomarkers, setExpandedBiomarkers] = useState<string[]>(
     remembered?.expandedBiomarkers ?? [],
   );
+  const [idealDrafts, setIdealDrafts] = useState<Record<string, IdealTargetDraft>>(
+    remembered?.idealDrafts ?? {},
+  );
+  const [editingIdeal, setEditingIdeal] = useState<{ biomarkerId: string; modeId: string } | null>(
+    null,
+  );
   const [selectedResultId, setSelectedResultId] = useState<string | null>(null);
   const selectedResult = query.data?.rows.find((entry) => entry.id === selectedResultId);
   const [groupLimit, setGroupLimit] = useState(remembered?.groupLimit ?? 50);
@@ -261,6 +280,7 @@ export function LaboratoryHistory({
         dateOrder,
         selectedModalities,
         expandedBiomarkers,
+        idealDrafts,
         groupLimit,
         dateOffset,
         expanded,
@@ -278,6 +298,7 @@ export function LaboratoryHistory({
     dateOrder,
     selectedModalities,
     expandedBiomarkers,
+    idealDrafts,
     groupLimit,
     dateOffset,
     expanded,
@@ -290,43 +311,19 @@ export function LaboratoryHistory({
   }, [query.data]);
   const history = useMemo(() => buildLaboratoryHistory(query.data?.rows ?? []), [query.data]);
   const biomarkers = useMemo(() => groupLaboratoryBiomarkers(history.groups), [history.groups]);
-  const selectModality = (biomarker: LaboratoryBiomarker, id: string) => {
-    setSelectedModalities((current) => ({ ...current, [biomarker.id]: id }));
-    setExpanded((current) =>
-      biomarker.modalities.some((mode) => mode.id === current) ? id : current,
-    );
-  };
-  const indexed = useMemo(
-    () =>
-      new Map(
-        biomarkers
-          .flatMap((b) => b.modalities)
-          .map((group) => {
-            const byDate = new Map<string, LaboratoryHistoryEntry[]>();
-            const referenceStatuses = new Map<
-              string,
-              ReturnType<typeof laboratoryHistoryReference>
-            >();
-            const references = new Set<string>();
-            for (const entry of group.entries) {
-              const date = laboratoryHistoryDate(entry) ?? "undated";
-              const bucket = byDate.get(date) ?? [];
-              bucket.push(entry);
-              byDate.set(date, bucket);
-              references.add(entry.payload.reference ?? "Não informada");
-              referenceStatuses.set(
-                entry.id,
-                group.modality === "UNRESOLVED" ? "unknown" : laboratoryHistoryReference(entry),
-              );
-            }
-            return [
-              group.id,
-              { byDate, references: [...references].join(" · "), referenceStatuses },
-            ] as const;
-          }),
-      ),
+  const modesByBiomarker = useMemo(
+    () => new Map(biomarkers.map((b) => [b.id, longitudinalModes(b)])),
     [biomarkers],
   );
+  const selectModality = (biomarker: LaboratoryBiomarker, id: string) => {
+    setSelectedModalities((current) => ({ ...current, [biomarker.id]: id }));
+  };
+  const idealKey = (biomarkerId: string, modeId: string) =>
+    JSON.stringify([patientId, biomarkerId, modeId]);
+  const editingBiomarker = biomarkers.find((b) => b.id === editingIdeal?.biomarkerId);
+  const editingMode = editingBiomarker
+    ? modesByBiomarker.get(editingBiomarker.id)?.find((m) => m.id === editingIdeal?.modeId)
+    : undefined;
   const groups = useMemo(
     () =>
       biomarkers
@@ -348,11 +345,13 @@ export function LaboratoryHistory({
   const relevantDates = useMemo(() => {
     const dates = new Set(
       groups.flatMap((b) =>
-        b.modalities.flatMap((group) => [...indexed.get(group.id)!.byDate.keys()]),
+        modesByBiomarker
+          .get(b.id)!
+          .flatMap((m) => m.entries.map((e) => laboratoryHistoryDate(e) ?? "undated")),
       ),
     );
     return history.dates.filter((date) => dates.has(date));
-  }, [groups, history.dates, indexed]);
+  }, [groups, history.dates, modesByBiomarker]);
   const endDate = Math.max(
     1,
     relevantDates.length - Math.min(dateOffset, Math.max(0, relevantDates.length - 1)),
@@ -364,8 +363,8 @@ export function LaboratoryHistory({
     <section
       className={
         compact
-          ? "min-w-0 space-y-3 [&_input]:h-8 [&_input]:text-xs [&_button]:text-xs"
-          : "min-w-0 space-y-4"
+          ? "min-w-0 overflow-x-clip space-y-3 [&_input]:h-8 [&_input]:text-xs [&_button]:text-xs"
+          : "min-w-0 overflow-x-clip space-y-4"
       }
       aria-label="Histórico longitudinal de exames"
     >
@@ -374,8 +373,7 @@ export function LaboratoryHistory({
           {compact ? "Histórico de resultados" : "Resultados laboratoriais"}
         </h3>
         <p className={compact ? "text-xs text-muted-foreground" : "text-sm text-muted-foreground"}>
-          Somente resultados confirmados. Unidades, métodos, material e laboratórios diferentes
-          permanecem separados.
+          Somente resultados confirmados. Clique em um valor para consultar a origem.
         </p>
       </div>
       <div className="flex flex-wrap items-end gap-2">
@@ -548,326 +546,222 @@ export function LaboratoryHistory({
                   viewState.current.scrollLeft = position.current.left;
                 }
               }}
-              className="max-h-[70vh] overflow-auto rounded-xl border"
+              className="max-h-[70vh] w-full min-w-0 max-w-full overflow-auto rounded-xl border"
             >
               <table
-                className={
-                  compact
-                    ? "w-full min-w-[720px] text-left text-xs [&_td]:p-2.5 [&_th]:p-2.5"
-                    : "w-full min-w-[800px] text-left text-sm"
-                }
+                className="w-full min-w-[760px] table-fixed text-left text-xs"
                 aria-label="Tabela longitudinal de exames"
               >
                 <thead className="sticky top-0 z-20 bg-white">
-                  <tr>
-                    <th
-                      className={
-                        compact
-                          ? "sticky left-0 z-30 w-40 min-w-40 max-w-40 bg-white p-3"
-                          : "sticky left-0 z-30 w-56 min-w-56 max-w-56 bg-white p-3"
-                      }
-                    >
-                      Exame
-                    </th>
-                    <th
-                      className={
-                        compact
-                          ? "md:sticky md:left-40 z-30 w-20 min-w-20 max-w-20 bg-white p-3"
-                          : "md:sticky md:left-56 z-30 w-28 min-w-28 max-w-28 bg-white p-3"
-                      }
-                    >
-                      Unidade
-                    </th>
-                    <th
-                      className={
-                        compact
-                          ? "md:sticky md:left-60 z-30 w-32 min-w-32 max-w-32 bg-white p-3"
-                          : "md:sticky md:left-[21rem] z-30 w-48 min-w-48 max-w-48 bg-white p-3"
-                      }
-                    >
-                      Normal (laboratório)
-                    </th>
-                    <th className="min-w-32 bg-white p-3">Ideal</th>
+                  <tr className="h-11 border-b text-slate-600">
+                    <th className="sticky left-0 z-30 w-44 bg-white px-3 font-medium">Exame</th>
+                    <th className="w-20 px-3 font-medium">Unidade</th>
+                    <th className="w-32 px-3 font-medium">Normal</th>
+                    <th className="w-32 px-3 font-medium">Ideal</th>
                     {visibleDates.map((date) => (
-                      <th className={compact ? "min-w-28 p-3" : "min-w-44 p-3"} key={date}>
+                      <th className="w-28 px-3 font-medium" key={date}>
                         {labelDate(date)}
                       </th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
-                  {groups.slice(0, groupLimit).flatMap((biomarker, groupIndex) => {
+                  {groups.slice(0, groupLimit).map((biomarker, groupIndex) => {
+                    const modes = modesByBiomarker.get(biomarker.id)!;
                     const main =
-                      biomarker.modalities.find((m) => m.id === selectedModalities[biomarker.id]) ??
-                      biomarker.modalities[0]!;
-                    const modes = expandedBiomarkers.includes(biomarker.id)
-                      ? [main, ...biomarker.modalities.filter((m) => m.id !== main.id)]
-                      : [main];
-                    return modes.map((group, modalityIndex) => (
-                      <Fragment key={modalityIndex === 0 ? `${biomarker.id}:main` : group.id}>
-                        {modalityIndex === 0 &&
-                          (groupIndex === 0 ||
-                            laboratoryDisplayGroup(groups[groupIndex - 1]!.name) !==
-                              laboratoryDisplayGroup(group.name)) && (
-                            <tr className="border-t bg-teal-50/60">
-                              <th colSpan={visibleDates.length + 4} className="p-2 text-left">
-                                <button
-                                  type="button"
-                                  className="flex items-center gap-2 text-xs font-semibold text-teal-800"
-                                  aria-expanded={
-                                    !collapsedCategories.includes(
-                                      laboratoryDisplayGroup(group.name),
-                                    )
-                                  }
-                                  onClick={() =>
-                                    setCollapsedCategories((previous) =>
-                                      previous.includes(laboratoryDisplayGroup(group.name))
-                                        ? previous.filter(
-                                            (name) => name !== laboratoryDisplayGroup(group.name),
-                                          )
-                                        : [...previous, laboratoryDisplayGroup(group.name)],
-                                    )
-                                  }
-                                >
-                                  {collapsedCategories.includes(laboratoryDisplayGroup(group.name))
-                                    ? "›"
-                                    : "⌄"}{" "}
-                                  {laboratoryDisplayGroup(group.name)}
-                                </button>
-                              </th>
-                            </tr>
-                          )}
-                        <tr
-                          hidden={collapsedCategories.includes(laboratoryDisplayGroup(group.name))}
-                          data-biomarker={biomarker.id}
-                          data-modality={group.modality}
-                          data-main-row={modalityIndex === 0}
-                          className={
-                            modalityIndex === 0
-                              ? "border-t align-top"
-                              : "border-t align-top bg-slate-50/50"
-                          }
-                        >
-                          <th
-                            scope="row"
-                            className={
-                              compact
-                                ? "sticky left-0 z-10 w-40 min-w-40 max-w-40 bg-white p-3"
-                                : "sticky left-0 z-10 w-56 min-w-56 max-w-56 bg-white p-3"
-                            }
-                          >
-                            {modalityIndex === 0 && biomarker.modalities.length > 1 && (
+                      modes.find((m) => m.id === selectedModalities[biomarker.id]) ?? modes[0]!;
+                    const hidden = collapsedCategories.includes(
+                      laboratoryDisplayGroup(biomarker.name),
+                    );
+                    const expandedModes = expandedBiomarkers.includes(biomarker.id);
+                    const draft = idealDrafts[idealKey(biomarker.id, main.id)];
+                    const byDate = new Map<string, LaboratoryHistoryEntry[]>();
+                    for (const entry of main.entries) {
+                      const key = laboratoryHistoryDate(entry) ?? "undated";
+                      byDate.set(key, [...(byDate.get(key) ?? []), entry]);
+                    }
+                    const toggle = () =>
+                      setExpandedBiomarkers((current) =>
+                        current.includes(biomarker.id)
+                          ? current.filter((id) => id !== biomarker.id)
+                          : [...current, biomarker.id],
+                      );
+                    return (
+                      <Fragment key={biomarker.id}>
+                        {(groupIndex === 0 ||
+                          laboratoryDisplayGroup(groups[groupIndex - 1]!.name) !==
+                            laboratoryDisplayGroup(biomarker.name)) && (
+                          <tr className="h-8 border-t bg-teal-50/60">
+                            <th colSpan={visibleDates.length + 4} className="px-3 text-left">
                               <button
                                 type="button"
-                                className="mr-2 rounded px-1 text-teal-700"
-                                aria-label={`Modalidades de ${biomarker.name}`}
-                                aria-expanded={expandedBiomarkers.includes(biomarker.id)}
+                                className="text-xs font-medium text-teal-800"
+                                aria-expanded={!hidden}
                                 onClick={() =>
-                                  setExpandedBiomarkers((current) =>
-                                    current.includes(biomarker.id)
-                                      ? current.filter((id) => id !== biomarker.id)
-                                      : [...current, biomarker.id],
+                                  setCollapsedCategories((current) =>
+                                    hidden
+                                      ? current.filter(
+                                          (name) => name !== laboratoryDisplayGroup(biomarker.name),
+                                        )
+                                      : [...current, laboratoryDisplayGroup(biomarker.name)],
                                   )
                                 }
                               >
-                                {expandedBiomarkers.includes(biomarker.id) ? "⌄" : "›"}
+                                {hidden ? "›" : "⌄"} {laboratoryDisplayGroup(biomarker.name)}
                               </button>
-                            )}
-                            <Button
-                              className="h-auto whitespace-normal p-0 text-left"
-                              variant="link"
-                              aria-expanded={expanded === group.id}
-                              onClick={() => {
-                                if (modalityIndex > 0) selectModality(biomarker, group.id);
-                                setExpanded(expanded === group.id ? null : group.id);
-                              }}
-                            >
-                              {modalityIndex === 0
-                                ? biomarker.name
-                                : laboratoryModalityLabel(group, biomarker.modalities)}
-                            </Button>
-                            {modalityIndex === 0 && biomarker.modalities.length > 1 && (
-                              <select
-                                aria-label={`Modalidade principal de ${biomarker.name}`}
-                                className="mt-1 w-full rounded border bg-white px-1 py-1 text-xs font-normal"
-                                value={main.id}
-                                onChange={(event) => selectModality(biomarker, event.target.value)}
-                              >
-                                {biomarker.modalities.map((mode) => (
-                                  <option key={mode.id} value={mode.id}>
-                                    {laboratoryModalityLabel(mode, biomarker.modalities)}
-                                  </option>
-                                ))}
-                              </select>
-                            )}
-                            {group.modality === "UNRESOLVED" && (
-                              <p className="text-xs font-normal text-amber-800">
-                                Modalidade não resolvida
-                              </p>
-                            )}
-                            {modalityIndex > 0 && (
+                            </th>
+                          </tr>
+                        )}
+                        <tr
+                          hidden={hidden}
+                          data-main-row="true"
+                          data-biomarker={biomarker.id}
+                          data-modality={main.modality}
+                          className="h-11 border-t hover:bg-slate-50/60"
+                        >
+                          <th scope="row" className="sticky left-0 z-10 bg-white px-3 font-medium">
+                            <div className="flex min-w-0 items-center gap-1">
+                              {modes.length > 1 && (
+                                <button
+                                  type="button"
+                                  aria-label={`Modalidades de ${biomarker.name}`}
+                                  aria-expanded={expandedModes}
+                                  onClick={toggle}
+                                  className="shrink-0 rounded px-1 text-teal-700"
+                                >
+                                  {expandedModes ? "⌄" : "›"}
+                                </button>
+                              )}
                               <button
                                 type="button"
-                                className="block text-xs font-normal text-teal-700 underline"
-                                onClick={() => selectModality(biomarker, group.id)}
+                                className="truncate text-left text-teal-800 hover:underline"
+                                title={biomarker.name}
+                                aria-expanded={expanded === biomarker.id}
+                                onClick={() => {
+                                  setExpanded(expanded === biomarker.id ? null : biomarker.id);
+                                  if (modes.length > 1 && !expandedModes) toggle();
+                                }}
                               >
-                                Usar como principal
+                                {biomarker.name}
                               </button>
-                            )}
-                            <p
-                              title={`${group.method ?? "Método não informado"} · ${group.material ?? "Material não informado"} · ${group.laboratory ?? "Laboratório não informado"}`}
-                              className={
-                                compact
-                                  ? "mt-1 truncate text-[10px] font-normal text-muted-foreground"
-                                  : "mt-1 truncate text-xs font-normal text-muted-foreground"
-                              }
-                            >
-                              {group.method ?? "Método não informado: comparação limitada"}
-                              {group.material
-                                ? ` · ${group.material}`
-                                : " · Material não informado: comparação limitada"}
-                              {group.laboratory
-                                ? ` · ${group.laboratory}`
-                                : " · Laboratório não informado: comparação limitada"}
-                            </p>
+                            </div>
                           </th>
                           <td
-                            className={
-                              compact
-                                ? "md:sticky md:left-40 z-10 w-20 min-w-20 max-w-20 bg-white p-3"
-                                : "md:sticky md:left-56 z-10 w-28 min-w-28 max-w-28 bg-white p-3"
-                            }
+                            className="truncate px-3"
+                            title={main.unit ?? "Unidade não informada"}
                           >
-                            {group.unit ?? "Não informada"}
+                            {main.unit ?? "—"}
                           </td>
                           <td
-                            className={
-                              compact
-                                ? "md:sticky md:left-60 z-10 w-32 min-w-32 max-w-32 bg-white p-3 text-[10px]"
-                                : "md:sticky md:left-[21rem] z-10 w-48 min-w-48 max-w-48 bg-white p-3 text-xs"
+                            className="truncate px-3 text-slate-600"
+                            title={
+                              main.modality === "UNRESOLVED"
+                                ? "Referência não comparável: modalidade não resolvida"
+                                : normalReference(main.entries)
                             }
                           >
-                            {group.modality === "UNRESOLVED" ? "Referência não comparável · " : ""}
-                            {indexed.get(group.id)!.references}
-                            {!compact && (
-                              <p className="mt-1 text-muted-foreground">
-                                Confira a referência em cada resultado.
-                              </p>
-                            )}
+                            {normalReference(main.entries)}
                           </td>
-                          <td className="p-3 text-xs text-muted-foreground">Sem meta definida</td>
+                          <td className="px-3">
+                            <button
+                              type="button"
+                              aria-label={`Editar Ideal de ${biomarker.name}`}
+                              className="max-w-full truncate rounded px-1 py-1 text-left text-teal-700 hover:bg-teal-50"
+                              title={
+                                draft
+                                  ? "Rascunho não aplicado; persistência pendente"
+                                  : "Definir meta ideal"
+                              }
+                              onClick={() =>
+                                setEditingIdeal({ biomarkerId: biomarker.id, modeId: main.id })
+                              }
+                            >
+                              {draft?.active
+                                ? `${draft.minimum}–${draft.maximum} · rascunho`
+                                : "Definir meta"}
+                            </button>
+                          </td>
                           {visibleDates.map((date) => (
-                            <td key={date} className="p-3">
-                              {(indexed.get(group.id)!.byDate.get(date) ?? []).map((entry) => (
-                                <div
-                                  className={
-                                    compact
-                                      ? "mb-2 flex items-center gap-3 last:mb-0"
-                                      : "mb-3 space-y-1 last:mb-0"
-                                  }
-                                  key={entry.id}
-                                >
-                                  {compact ? (
-                                    <div
-                                      className="flex items-center gap-1.5"
-                                      title={`${entry.payload.collectedOn ? "Coleta" : entry.payload.reportedOn ? "Resultado" : "Sem data"} · Ref.: ${entry.payload.reference ?? "Não informada"}`}
+                            <td key={date} className="px-3 py-2">
+                              <div className="flex items-center gap-2 overflow-x-auto whitespace-nowrap [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                                {(byDate.get(date) ?? []).length === 0 && (
+                                  <span className="text-slate-300">—</span>
+                                )}
+                                {(byDate.get(date) ?? []).map((entry) => {
+                                  const status = laboratoryResultColor(entry, main, biomarker.id);
+                                  return (
+                                    <button
+                                      key={entry.id}
+                                      type="button"
+                                      className="relative inline-flex shrink-0 items-center gap-1.5 rounded py-1 hover:underline focus-visible:outline-teal-700"
+                                      aria-label={`Detalhes de ${biomarker.name}: ${entry.payload.result}`}
+                                      title={status.explanation}
+                                      onClick={() => setSelectedResultId(entry.id)}
                                     >
                                       <span
-                                        className={`h-1.5 w-1.5 shrink-0 rounded-full ${indexed.get(group.id)!.referenceStatuses.get(entry.id) === "within" ? "bg-emerald-600" : indexed.get(group.id)!.referenceStatuses.get(entry.id) === "unknown" ? "bg-slate-300" : indexed.get(group.id)!.referenceStatuses.get(entry.id) === "low" ? "bg-sky-500" : "bg-amber-500"}`}
+                                        aria-hidden="true"
+                                        data-result-color={status.color}
+                                        className={`h-1.5 w-1.5 shrink-0 rounded-full ${status.color === "green" ? "bg-emerald-500" : status.color === "yellow" ? "bg-amber-400" : status.color === "red" ? "bg-red-500" : "bg-slate-300"}`}
                                       />
-                                      <button
-                                        type="button"
-                                        className="font-medium underline-offset-2 hover:underline focus-visible:outline-teal-700"
-                                        aria-label={`Detalhes de ${group.name}: ${entry.payload.result}`}
-                                        onClick={() => setSelectedResultId(entry.id)}
-                                      >
-                                        {entry.payload.result}
-                                      </button>
-                                      <div className="sr-only">
-                                        <ReferenceStatus
-                                          entry={entry}
-                                          status={indexed
-                                            .get(group.id)!
-                                            .referenceStatuses.get(entry.id)}
-                                        />{" "}
-                                        Ref.: {entry.payload.reference ?? "Não informada"}
-                                      </div>
-                                    </div>
-                                  ) : (
-                                    <>
-                                      <button
-                                        type="button"
-                                        className="font-medium underline-offset-2 hover:underline"
-                                        aria-label={`Detalhes de ${group.name}: ${entry.payload.result}`}
-                                        onClick={() => setSelectedResultId(entry.id)}
-                                      >
-                                        {entry.payload.result}
-                                      </button>
-                                      <p className="text-xs text-muted-foreground">
-                                        {entry.payload.collectedOn
-                                          ? "Data de coleta"
-                                          : entry.payload.reportedOn
-                                            ? "Data do resultado"
-                                            : "Data não informada"}
-                                      </p>
-                                      <ReferenceStatus
-                                        entry={entry}
-                                        status={indexed
-                                          .get(group.id)!
-                                          .referenceStatuses.get(entry.id)}
-                                      />
-                                      <p className="text-xs text-muted-foreground">
-                                        Ref.: {entry.payload.reference ?? "Não informada"}
-                                      </p>
-                                    </>
-                                  )}
-                                  <Source
-                                    entry={entry}
-                                    compact={compact}
-                                    onOpenOriginal={onOpenOriginal}
-                                  />
-                                </div>
-                              ))}
+                                      <span>{entry.payload.result}</span>
+                                      <span className="sr-only">{status.explanation}</span>
+                                    </button>
+                                  );
+                                })}
+                              </div>
                             </td>
                           ))}
                         </tr>
-                        {expanded === group.id &&
-                          !collapsedCategories.includes(laboratoryDisplayGroup(group.name)) && (
-                            <tr>
-                              <td colSpan={visibleDates.length + 4}>
-                                {biomarker.modalities.length > 1 && (
-                                  <label className="block px-3 pt-3 text-xs">
-                                    Modalidade do gráfico
-                                    <select
-                                      aria-label={`Modalidade do gráfico de ${biomarker.name}`}
-                                      className="ml-2 rounded border p-1"
-                                      value={group.id}
-                                      onChange={(event) => {
-                                        selectModality(biomarker, event.target.value);
-                                        setExpanded(event.target.value);
-                                      }}
-                                    >
-                                      {biomarker.modalities.map((mode) => (
-                                        <option key={mode.id} value={mode.id}>
-                                          {laboratoryModalityLabel(mode, biomarker.modalities)}
-                                        </option>
-                                      ))}
-                                    </select>
-                                  </label>
-                                )}
-                                {group.modality === "UNRESOLVED" ? (
-                                  <p className="p-3 text-sm text-muted-foreground">
+                        {!hidden && expandedModes && modes.length > 1 && (
+                          <tr className="bg-teal-50/20">
+                            <td colSpan={visibleDates.length + 4} className="px-4 py-2">
+                              <div
+                                role="group"
+                                aria-label={`Modalidade principal de ${biomarker.name}`}
+                                className="flex flex-wrap items-center gap-1"
+                              >
+                                <span className="mr-2 font-medium">{biomarker.name}</span>
+                                {modes.map((mode) => (
+                                  <button
+                                    type="button"
+                                    aria-pressed={main.id === mode.id}
+                                    key={mode.id}
+                                    className={`rounded-md px-2.5 py-1 text-xs ${main.id === mode.id ? "bg-teal-100 text-teal-900" : "text-slate-600 hover:bg-slate-100"}`}
+                                    onClick={() => selectModality(biomarker, mode.id)}
+                                  >
+                                    {mode.label}
+                                  </button>
+                                ))}
+                              </div>
+                            </td>
+                          </tr>
+                        )}
+                        {!hidden && expanded === biomarker.id && (
+                          <tr>
+                            <td colSpan={visibleDates.length + 4}>
+                              <div className="border-t bg-slate-50/30 p-2">
+                                {main.modality === "UNRESOLVED" ? (
+                                  <p className="p-3 text-xs text-muted-foreground">
                                     Modalidade não resolvida: gráfico indisponível até a conferência
-                                    da unidade e modalidade no original.
+                                    da unidade no original.
                                   </p>
                                 ) : (
-                                  <HistoryGraph group={group} onOpenOriginal={onOpenOriginal} />
+                                  <HistoryGraph
+                                    group={{
+                                      ...main.series[0]!,
+                                      name: biomarker.name,
+                                      entries: main.entries,
+                                    }}
+                                    compatibilityGroups={main.series}
+                                    onOpenOriginal={onOpenOriginal}
+                                  />
                                 )}
-                              </td>
-                            </tr>
-                          )}
+                              </div>
+                            </td>
+                          </tr>
+                        )}
                       </Fragment>
-                    ));
+                    );
                   })}
                 </tbody>
               </table>
@@ -900,12 +794,24 @@ export function LaboratoryHistory({
                 {selectedResult.payload.unit ?? ""}
               </p>
               <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2">
+                <dt>Nome original</dt>
+                <dd>{selectedResult.payload.name}</dd>
+                <dt>Unidade de origem</dt>
+                <dd>{selectedResult.payload.unit ?? "Não informada"}</dd>
+                <dt>Meta ideal</dt>
+                <dd>Sem meta ideal persistida aplicável. Rascunhos não são utilizados.</dd>
+                <dt>Página de origem</dt>
+                <dd>{selectedResult.payload.sourcePage ?? "Não informada"}</dd>
                 <dt>Data</dt>
                 <dd>{labelDate(laboratoryHistoryDate(selectedResult) ?? "undated")}</dd>
                 <dt>Referência</dt>
                 <dd>{selectedResult.payload.reference ?? "Não informada"}</dd>
                 <dt>Laboratório</dt>
-                <dd>{selectedResult.payload.laboratory ?? "Não informado"}</dd>
+                <dd title={selectedResult.payload.laboratory ?? undefined}>
+                  {selectedResult.payload.laboratory
+                    ? laboratoryProvenanceLabel(selectedResult.payload.laboratory)
+                    : "Não informado"}
+                </dd>
                 <dt>Método</dt>
                 <dd>{selectedResult.payload.method ?? "Não informado"}</dd>
                 <dt>Material</dt>
@@ -937,6 +843,23 @@ export function LaboratoryHistory({
           )}
         </DialogContent>
       </Dialog>
+      {editingBiomarker && editingMode && (
+        <LaboratoryIdealEditor
+          key={idealKey(editingBiomarker.id, editingMode.id)}
+          biomarker={editingBiomarker.id}
+          name={editingBiomarker.name}
+          modality={editingMode.modality}
+          unit={editingMode.unit}
+          draft={idealDrafts[idealKey(editingBiomarker.id, editingMode.id)]}
+          onDraft={(draft) =>
+            setIdealDrafts((current) => ({
+              ...current,
+              [idealKey(editingBiomarker.id, editingMode.id)]: draft,
+            }))
+          }
+          onClose={() => setEditingIdeal(null)}
+        />
+      )}
     </section>
   );
 }

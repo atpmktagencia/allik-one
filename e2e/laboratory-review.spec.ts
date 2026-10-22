@@ -223,14 +223,15 @@ test("Paciente360º preserves laboratory review, conditional preconsultation and
       biomarkerRow.getByRole("button", { name: "Detalhes de Basófilos: 1" }),
     ).toBeVisible();
     await history.getByRole("button", { name: "Modalidades de Basófilos" }).click();
-    await expect(history.locator('tr[data-biomarker="basofilos"]')).toHaveCount(3);
+    await expect(history.locator('tr[data-biomarker="basofilos"]')).toHaveCount(1);
     await page.screenshot({
       path: testInfo.outputPath("biomarker-modalities-expanded.png"),
       fullPage: false,
     });
-    await biomarkerRow
-      .getByLabel("Modalidade principal de Basófilos")
-      .selectOption({ label: "Contagem absoluta (/mm³)" });
+    await history
+      .getByRole("group", { name: "Modalidade principal de Basófilos" })
+      .getByRole("button", { name: "Absoluto", exact: true })
+      .click();
     await expect(biomarkerRow.getByRole("cell", { name: /^0 a 100/ })).toBeVisible();
     await biomarkerRow.getByRole("button", { name: "Basófilos", exact: true }).click();
     const absoluteGraph = history.getByRole("img", { name: "Evolução de Basófilos, unidade /mm³" });
@@ -238,8 +239,9 @@ test("Paciente360º preserves laboratory review, conditional preconsultation and
     await expect(absoluteGraph.locator("circle")).toHaveCount(1);
     await expect(absoluteGraph.locator("circle title")).toContainText(": 300 /mm³");
     await history
-      .getByLabel("Modalidade do gráfico de Basófilos")
-      .selectOption({ label: "Percentual (%)" });
+      .getByRole("group", { name: "Modalidade principal de Basófilos" })
+      .getByRole("button", { name: "Percentual", exact: true })
+      .click();
     await expect(
       history.getByRole("img", { name: "Evolução de Basófilos, unidade %" }),
     ).toBeVisible();
@@ -249,13 +251,27 @@ test("Paciente360º preserves laboratory review, conditional preconsultation and
         .locator("circle title"),
     ).toContainText(": 1 %");
     await history
-      .getByLabel("Modalidade principal de Basófilos")
-      .selectOption({ label: "Modalidade não resolvida · unidade não informada" });
+      .getByRole("group", { name: "Modalidade principal de Basófilos" })
+      .getByRole("button", { name: "Não resolvido", exact: true })
+      .click();
     await expect(history.getByText(/gráfico indisponível/)).toBeVisible();
     await page.screenshot({
       path: testInfo.outputPath("biomarker-unresolved.png"),
       fullPage: false,
     });
+    await history
+      .getByRole("group", { name: "Modalidade principal de Basófilos" })
+      .getByRole("button", { name: "Percentual", exact: true })
+      .click();
+    await expect(biomarkerRow).toHaveCount(1);
+    const mainHeight = await biomarkerRow.boundingBox();
+    expect(mainHeight!.height).toBeLessThanOrEqual(48);
+    await expect(biomarkerRow.getByRole("link")).toHaveCount(0);
+    await history.getByRole("button", { name: "Editar Ideal de Basófilos" }).click();
+    const idealEditor = page.getByRole("dialog", { name: "Meta ideal · Basófilos" });
+    await expect(idealEditor.getByText(/Rascunho não aplicado/)).toBeVisible();
+    await page.screenshot({ path: testInfo.outputPath("ideal-editor-pending-persistence.png") });
+    await idealEditor.getByRole("button", { name: "Cancelar", exact: true }).click();
     const afterPresentation = (
       await pool.query("SELECT payload FROM inventory_laboratory_results WHERE patient_id=$1", [
         patient,

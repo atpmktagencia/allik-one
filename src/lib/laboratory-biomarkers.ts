@@ -13,6 +13,7 @@ const fold = (s: string) =>
   s
     .normalize("NFD")
     .replace(/\p{Diacritic}/gu, "")
+    .replace(/[.,;:]+/g, " ")
     .toLowerCase()
     .trim()
     .replace(/\s+/g, " ");

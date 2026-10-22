@@ -67,15 +67,12 @@ it("shows literal values, undated results and private source links without fetch
   });
   expect(screen.getByText("Sem data de exame")).toBeInTheDocument();
   expect(screen.getByText("<0,1")).toBeInTheDocument();
-  expect(screen.getAllByRole("link", { name: "Original privado.pdf" })[0]).toHaveAttribute(
-    "href",
-    "/private-file?unitId=unit",
-  );
+  expect(screen.queryByRole("link", { name: "Original privado.pdf" })).not.toBeInTheDocument();
   fireEvent.click(screen.getByRole("button", { name: "TSH" }));
   expect(
     screen.getByRole("img", { name: "Evolução de TSH, unidade não informada" }),
   ).toBeInTheDocument();
-  expect(screen.getAllByText(/Método não informado: comparação limitada/)).toHaveLength(2);
+  expect(screen.queryByText(/Método não informado: comparação limitada/)).not.toBeInTheDocument();
 });
 it("searches parameters and exposes empty search feedback", () => {
   setup();
@@ -95,8 +92,9 @@ it("opens the selected original in the contextual viewer without changing the co
   const onOpenOriginal = vi.fn();
   render(<LaboratoryHistory patientId="patient" compact onOpenOriginal={onOpenOriginal} />);
   expect(screen.getByRole("table", { name: "Tabela longitudinal de exames" })).toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "Detalhes de Ferritina: 30" }));
   fireEvent.click(
-    within(screen.getByRole("row", { name: /Ferritina/ })).getByRole("button", {
+    within(screen.getByRole("dialog")).getByRole("button", {
       name: "Ver original: Original privado.pdf",
     }),
   );
@@ -276,77 +274,81 @@ function modalitiesSetup() {
   });
   return rows;
 }
-it("keeps one biomarker row, expands inline and changes the main modality with its reference and colors", () => {
-  const rows = modalitiesSetup();
-  const snapshot = JSON.stringify(rows);
+
+it("shows one compact row without provenance or PDF links, with a simple inline switch", () => {
+  const rows = modalitiesSetup(),
+    snapshot = JSON.stringify(rows);
   const { container } = render(<LaboratoryHistory patientId="patient" compact />);
   expect(container.querySelectorAll('tr[data-main-row="true"]')).toHaveLength(1);
-  expect(screen.getByRole("button", { name: "Basófilos" })).toBeInTheDocument();
-  expect(screen.getByRole("button", { name: "Detalhes de Basófilos: 1" })).toBeInTheDocument();
-  expect(
-    screen.queryByRole("button", { name: "Detalhes de Basófilos: 300" }),
-  ).not.toBeInTheDocument();
+  expect(screen.queryByText(/Método A/)).not.toBeInTheDocument();
+  expect(screen.queryByRole("link")).not.toBeInTheDocument();
   fireEvent.click(screen.getByRole("button", { name: "Modalidades de Basófilos" }));
-  expect(container.querySelectorAll('tr[data-biomarker="basofilos"]')).toHaveLength(3);
-  const select = screen.getByLabelText("Modalidade principal de Basófilos");
-  const absolute = within(select).getByRole("option", {
-    name: "Contagem absoluta (/mm³)",
-  }) as HTMLOptionElement;
-  fireEvent.change(select, { target: { value: absolute.value } });
+  const modes = screen.getByRole("group", { name: "Modalidade principal de Basófilos" });
+  expect(
+    within(modes)
+      .getAllByRole("button")
+      .map((b) => b.textContent),
+  ).toEqual(["Percentual", "Absoluto", "Não resolvido"]);
+  fireEvent.click(within(modes).getByRole("button", { name: "Absoluto" }));
   const main = container.querySelector('tr[data-main-row="true"]') as HTMLElement;
   expect(within(main).getByText("/mm³")).toBeInTheDocument();
   expect(within(main).getByText("0 a 100")).toBeInTheDocument();
-  expect(within(main).getByText("Sem meta definida")).toBeInTheDocument();
-  expect(within(main).getByText("Acima da referência laboratorial")).toBeInTheDocument();
-  fireEvent.click(screen.getByRole("button", { name: "Modalidades de Basófilos" }));
-  expect(container.querySelectorAll('tr[data-biomarker="basofilos"]')).toHaveLength(1);
+  expect(within(main).getByRole("button", { name: "Detalhes de Basófilos: 300" })).toHaveAttribute(
+    "title",
+    "Acima da referência laboratorial desta coleta.",
+  );
+  expect(main.querySelector('[data-result-color="red"]')).toBeInTheDocument();
   expect(JSON.stringify(rows)).toBe(snapshot);
 });
-it("switches the graph with the selected modality and does not color or plot unresolved measurements", () => {
+it("switches graph modalities without mixing values and keeps unresolved values neutral", () => {
   modalitiesSetup();
   const { container } = render(<LaboratoryHistory patientId="patient" compact />);
   fireEvent.click(screen.getByRole("button", { name: "Basófilos" }));
   expect(screen.getByRole("img", { name: "Evolução de Basófilos, unidade %" })).toBeInTheDocument();
-  expect(container.querySelectorAll("circle")).toHaveLength(1);
-  expect(container.querySelector("circle title")).toHaveTextContent(": 1 %");
-  const graphSelect = screen.getByLabelText("Modalidade do gráfico de Basófilos");
-  const abs = within(graphSelect).getByRole("option", {
-    name: "Contagem absoluta (/mm³)",
-  }) as HTMLOptionElement;
-  fireEvent.change(graphSelect, { target: { value: abs.value } });
+  const modes = screen.getByRole("group", { name: "Modalidade principal de Basófilos" });
+  fireEvent.click(within(modes).getByRole("button", { name: "Absoluto" }));
   expect(
     screen.getByRole("img", { name: "Evolução de Basófilos, unidade /mm³" }),
   ).toBeInTheDocument();
   expect(container.querySelector("circle title")).toHaveTextContent(": 300 /mm³");
-  const unknown = within(screen.getByLabelText("Modalidade principal de Basófilos")).getByRole(
-    "option",
-    { name: /Modalidade não resolvida/ },
-  ) as HTMLOptionElement;
-  fireEvent.change(screen.getByLabelText("Modalidade principal de Basófilos"), {
-    target: { value: unknown.value },
-  });
+  fireEvent.click(within(modes).getByRole("button", { name: "Não resolvido" }));
   expect(screen.queryByRole("img")).not.toBeInTheDocument();
   expect(screen.getByText(/gráfico indisponível/)).toBeInTheDocument();
-  expect(screen.getByText("Referência não comparável automaticamente")).toBeInTheDocument();
+  expect(
+    container.querySelector('tr[data-main-row="true"] [data-result-color="neutral"]'),
+  ).toBeInTheDocument();
 });
-it("restores the professional's selected modality and inline expansion when returning to the workspace", () => {
+it("keeps modal selection and expansion when returning to the workspace", () => {
   modalitiesSetup();
   const state = {
     current: null as
       import("@/components/clinic/laboratory-history").LaboratoryHistoryViewState | null,
   };
   const first = render(<LaboratoryHistory patientId="patient" viewState={state} />);
-  const select = screen.getByLabelText("Modalidade principal de Basófilos");
-  const absolute = within(select).getByRole("option", {
-    name: "Contagem absoluta (/mm³)",
-  }) as HTMLOptionElement;
-  fireEvent.change(select, { target: { value: absolute.value } });
   fireEvent.click(screen.getByRole("button", { name: "Modalidades de Basófilos" }));
+  fireEvent.click(screen.getByRole("button", { name: "Absoluto" }));
   first.unmount();
   render(<LaboratoryHistory patientId="patient" viewState={state} />);
-  expect(screen.getByLabelText("Modalidade principal de Basófilos")).toHaveValue(absolute.value);
-  expect(screen.getByRole("button", { name: "Modalidades de Basófilos" })).toHaveAttribute(
-    "aria-expanded",
-    "true",
+  expect(screen.getByRole("button", { name: "Absoluto" })).toHaveAttribute("aria-pressed", "true");
+});
+it("opens Ideal editor, validates and holds a draft without recoloring confirmed results", () => {
+  modalitiesSetup();
+  const { container } = render(<LaboratoryHistory patientId="patient" compact />);
+  expect(container.querySelector('[data-result-color="green"]')).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "Editar Ideal de Basófilos" }));
+  const dialog = screen.getByRole("dialog");
+  expect(
+    within(dialog).getByText(/persistência com autoria e versão aguarda aprovação/),
+  ).toBeInTheDocument();
+  fireEvent.change(within(dialog).getByLabelText("Mínimo ideal"), { target: { value: "0" } });
+  fireEvent.change(within(dialog).getByLabelText("Máximo ideal"), { target: { value: "1" } });
+  fireEvent.change(within(dialog).getByLabelText("Justificativa da meta"), {
+    target: { value: "Rascunho sintético para revisão" },
+  });
+  fireEvent.click(within(dialog).getByRole("button", { name: "Guardar rascunho" }));
+  expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "Editar Ideal de Basófilos" })).toHaveTextContent(
+    "rascunho",
   );
+  expect(container.querySelector('[data-result-color="green"]')).not.toBeInTheDocument();
 });
