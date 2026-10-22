@@ -95,7 +95,7 @@ export const laboratoryCatalog: readonly LaboratoryCatalogItem[] = [
   coag(
     "tp",
     "Tempo de protrombina (TP)",
-    ["TP", "Tempo de protrombina", "Tempo de protrombina - TP"],
+    ["TP", "TAP", "TAP Tempo protrombina", "Tempo de protrombina", "Tempo de protrombina - TP"],
     ["s", "segundos"],
   ),
   coag("atividade de protrombina", "Atividade de protrombina", ["Atividade protrombínica"], ["%"]),

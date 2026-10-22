@@ -53,6 +53,9 @@ it.each(["Potássio", "K", "Na", "Cloreto", "Cálcio", "Magnésio", "Fósforo"])
 it("resolves explicit aliases without merging distinct analytes or legitimate numbers", () => {
   expect(resolveLaboratoryCatalog("PROTEINA C REATIVA")?.name).toBe("Proteína C-reativa (PCR)");
   expect(resolveLaboratoryCatalog("PCR")?.id).toBe("pcr");
+  expect(resolveLaboratoryCatalog("TAP Tempo protrombina")?.id).toBe("tp");
+  expect(laboratoryDisplayGroup("TAP Tempo protrombina")).toBe("Coagulação / Coagulograma");
+  expect(resolveLaboratoryCatalog("Atividade Protrombinica")?.id).not.toBe("tp");
   expect(resolveLaboratoryCatalog("PCR ultrassensível")?.id).not.toBe("pcr");
   expect(resolveLaboratoryCatalog("Proteína C reativa 2")).toBeUndefined();
   // The inspected original itself says PCR 1: its suffix is NOT proven spurious.
