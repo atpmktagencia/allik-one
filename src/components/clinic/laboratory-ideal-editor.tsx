@@ -87,7 +87,19 @@ export function LaboratoryIdealEditor({
             </label>
             <label className="text-xs">
               Modalidade
-              <Input value={modality} readOnly />
+              <Input
+                value={
+                  (
+                    {
+                      PERCENTAGE: "Percentual",
+                      ABSOLUTE: "Absoluto",
+                      UNRESOLVED: "Não resolvido",
+                      LITERAL: "Resultado",
+                    } as Record<string, string>
+                  )[modality] ?? modality
+                }
+                readOnly
+              />
             </label>
             <label className="text-xs">
               Valor mínimo
