@@ -1,0 +1,60 @@
+{
+  "environment": "disposable PostgreSQL 16 on 127.0.0.1, database suffix _test",
+  "sqlAppliedToPreview": false,
+  "sqlAppliedToProduction": false,
+  "automaticExtractionEnabled": false,
+  "paidInferences": 0,
+  "previousSqlFiles": 78,
+  "previousSqlFilesUnchanged": true,
+  "previousJournalPrefixUnchanged": true,
+  "previousJournalEntries": 78,
+  "currentJournalEntries": 79,
+  "newMigration": "0078_laboratory_automation_handoff",
+  "newMigrationSha256": "2a5888654b4e2ed6a3d7160bfdf5959f930e97a403d46f501d8bf68bfd2ff79d",
+  "tests": {
+    "unit": {
+      "passed": 688,
+      "files": 89
+    },
+    "integration": {
+      "passed": 555,
+      "files": 42
+    },
+    "f3Focused": {
+      "passed": 35,
+      "files": 1,
+      "subsetOfIntegration": true
+    },
+    "restrictedRole": {
+      "passed": 3
+    },
+    "buildAndJournalGuards": {
+      "passed": 8
+    },
+    "typecheck": "passed",
+    "eslintChangedFiles": "passed",
+    "drizzleSnapshots": "passed"
+  },
+  "evidence": {
+    "environment": "disposable-local-postgresql",
+    "providerCalls": 0,
+    "before": {
+      "originals_count": "2",
+      "results_count": "1",
+      "versions_count": "1",
+      "originals": "44b567583ac0486955576c5a4fe2eb6a",
+      "results": "7955c6b72f1db55edd95167d8199fb78",
+      "versions": "4f205a6ad2e6e772cf86b20c66528e5c"
+    },
+    "after": {
+      "originals_count": "2",
+      "results_count": "1",
+      "versions_count": "1",
+      "originals": "44b567583ac0486955576c5a4fe2eb6a",
+      "results": "7955c6b72f1db55edd95167d8199fb78",
+      "versions": "4f205a6ad2e6e772cf86b20c66528e5c"
+    },
+    "unchanged": true,
+    "preservedLiteral": "<0,1"
+  }
+}

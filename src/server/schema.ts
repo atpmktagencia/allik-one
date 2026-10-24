@@ -3445,3 +3445,91 @@ export const patientDocumentClassificationEvents = pgTable(
     ),
   ],
 );
+
+// F3 persistence only; automated dispatch remains disabled pending separate approval.
+export const laboratoryAutomationRequests = pgTable(
+  "inventory_laboratory_automation_requests",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    operationId: uuid("operation_id")
+      .notNull()
+      .unique("laboratory_automation_request_operation_once"),
+    documentId: uuid("document_id")
+      .notNull()
+      .references(() => patientDocuments.id),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id),
+    patientId: uuid("patient_id")
+      .notNull()
+      .references(() => patients.id),
+    unitId: uuid("unit_id")
+      .notNull()
+      .references(() => units.id),
+    sourceSha256: text("source_sha256").notNull(),
+    receiptEventId: uuid("receipt_event_id")
+      .notNull()
+      .references(() => patientDocumentClassificationEvents.id),
+    initiatedByUserId: uuid("initiated_by_user_id")
+      .notNull()
+      .references(() => users.id),
+    pipelineVersion: text("pipeline_version").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    unique("laboratory_automation_document_pipeline_once").on(t.documentId, t.pipelineVersion),
+    index("laboratory_automation_scope").on(t.organizationId, t.patientId, t.unitId, t.createdAt),
+    check("laboratory_automation_request_hash_valid", sql`${t.sourceSha256} ~ '^[0-9a-f]{64}$'`),
+    check(
+      "laboratory_automation_pipeline_valid",
+      sql`${t.pipelineVersion}='laboratory-automation-1'`,
+    ),
+  ],
+);
+export const laboratoryAutomationEvents = pgTable(
+  "inventory_laboratory_automation_events",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    requestId: uuid("request_id")
+      .notNull()
+      .references(() => laboratoryAutomationRequests.id),
+    operationId: uuid("operation_id")
+      .notNull()
+      .unique("laboratory_automation_event_operation_once"),
+    revision: integer("revision").notNull(),
+    action: text("action").notNull(),
+    classificationEventId: uuid("classification_event_id").references(
+      () => patientDocumentClassificationEvents.id,
+    ),
+    attemptId: uuid("attempt_id"),
+    actorKind: text("actor_kind").notNull(),
+    actorUserId: uuid("actor_user_id").references(() => users.id),
+    payload: jsonb("payload").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    unique("laboratory_automation_request_revision").on(t.requestId, t.revision),
+    uniqueIndex("laboratory_automation_attempt_once")
+      .on(t.attemptId)
+      .where(sql`${t.action}='STARTED'`),
+    index("laboratory_automation_latest").on(t.requestId, t.revision.desc()),
+    check("laboratory_automation_revision_positive", sql`${t.revision}>0`),
+    check(
+      "laboratory_automation_action_valid",
+      sql`${t.action} IN ('STARTED','READY','FAILED','CANCELLED','RETRY_REQUESTED')`,
+    ),
+    check("laboratory_automation_actor_kind_valid", sql`${t.actorKind} IN ('SYSTEM','HUMAN')`),
+    check(
+      "laboratory_automation_payload_shape",
+      sql`jsonb_typeof(${t.payload})='object' AND ${t.payload}->'schemaVersion' IS NOT DISTINCT FROM '1'::jsonb AND pg_column_size(${t.payload})<=8192`,
+    ),
+    check(
+      "laboratory_automation_actor_action",
+      sql`(${t.actorKind}='SYSTEM' AND ${t.actorUserId} IS NULL AND ${t.action} IN ('STARTED','READY','FAILED','CANCELLED')) OR (${t.actorKind}='HUMAN' AND ${t.actorUserId} IS NOT NULL AND ${t.action} IN ('RETRY_REQUESTED','CANCELLED'))`,
+    ),
+    check(
+      "laboratory_automation_attempt_shape",
+      sql`(${t.action} IN ('STARTED','READY','FAILED') AND ${t.attemptId} IS NOT NULL AND ${t.classificationEventId} IS NOT NULL) OR (${t.action} IN ('CANCELLED','RETRY_REQUESTED') AND ${t.attemptId} IS NULL AND ${t.classificationEventId} IS NULL)`,
+    ),
+  ],
+);

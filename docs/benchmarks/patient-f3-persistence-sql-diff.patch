@@ -1,0 +1,153 @@
+diff --git a/docs/proposals/patient-f3-handoff.sql b/drizzle/0078_laboratory_automation_handoff.sql
+index c6ae797..d27e2a1 100644
+--- a/docs/proposals/patient-f3-handoff.sql
++++ b/drizzle/0078_laboratory_automation_handoff.sql
+@@ -1,44 +1,59 @@
+--- REVIEW CANDIDATE ONLY. Not in drizzle/journal, not applied anywhere.
+--- Additive operational handoff; originals, imports, review versions and results are reused.
+--- After approval: test on disposable PostgreSQL before any Preview application.
+-BEGIN;
+-CREATE TABLE inventory_laboratory_automation_requests (
+- id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+- operation_id uuid NOT NULL UNIQUE,
+- document_id uuid NOT NULL REFERENCES inventory_patient_documents(id),
+- organization_id uuid NOT NULL REFERENCES inventory_organizations(id),
+- patient_id uuid NOT NULL REFERENCES inventory_patients(id),
+- unit_id uuid NOT NULL REFERENCES inventory_units(id),
+- source_sha256 text NOT NULL CHECK(source_sha256 ~ '^[0-9a-f]{64}$'),
+- receipt_event_id uuid NOT NULL REFERENCES inventory_patient_document_classification_events(id),
+- initiated_by_user_id uuid NOT NULL REFERENCES inventory_users(id),
+- pipeline_version text NOT NULL CHECK(pipeline_version='laboratory-automation-1'),
+- created_at timestamptz NOT NULL DEFAULT now(),
+- UNIQUE(document_id,pipeline_version)
++-- F3 persistence. Authorized for disposable local PostgreSQL validation only.
++-- No dispatch, extraction, provider call, backfill or clinical publication is enabled.
++-- The migrator owns the transaction; no destructive down migration.
++CREATE TABLE "inventory_laboratory_automation_events" (
++	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
++	"request_id" uuid NOT NULL,
++	"operation_id" uuid NOT NULL,
++	"revision" integer NOT NULL,
++	"action" text NOT NULL,
++	"classification_event_id" uuid,
++	"attempt_id" uuid,
++	"actor_kind" text NOT NULL,
++	"actor_user_id" uuid,
++	"payload" jsonb NOT NULL,
++	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
++	CONSTRAINT "laboratory_automation_event_operation_once" UNIQUE("operation_id"),
++	CONSTRAINT "laboratory_automation_request_revision" UNIQUE("request_id","revision"),
++	CONSTRAINT "laboratory_automation_revision_positive" CHECK ("inventory_laboratory_automation_events"."revision">0),
++	CONSTRAINT "laboratory_automation_action_valid" CHECK ("inventory_laboratory_automation_events"."action" IN ('STARTED','READY','FAILED','CANCELLED','RETRY_REQUESTED')),
++	CONSTRAINT "laboratory_automation_actor_kind_valid" CHECK ("inventory_laboratory_automation_events"."actor_kind" IN ('SYSTEM','HUMAN')),
++	CONSTRAINT "laboratory_automation_payload_shape" CHECK (jsonb_typeof("inventory_laboratory_automation_events"."payload")='object' AND "inventory_laboratory_automation_events"."payload"->'schemaVersion' IS NOT DISTINCT FROM '1'::jsonb AND pg_column_size("inventory_laboratory_automation_events"."payload")<=8192),
++	CONSTRAINT "laboratory_automation_actor_action" CHECK (("inventory_laboratory_automation_events"."actor_kind"='SYSTEM' AND "inventory_laboratory_automation_events"."actor_user_id" IS NULL AND "inventory_laboratory_automation_events"."action" IN ('STARTED','READY','FAILED','CANCELLED')) OR ("inventory_laboratory_automation_events"."actor_kind"='HUMAN' AND "inventory_laboratory_automation_events"."actor_user_id" IS NOT NULL AND "inventory_laboratory_automation_events"."action" IN ('RETRY_REQUESTED','CANCELLED'))),
++	CONSTRAINT "laboratory_automation_attempt_shape" CHECK (("inventory_laboratory_automation_events"."action" IN ('STARTED','READY','FAILED') AND "inventory_laboratory_automation_events"."attempt_id" IS NOT NULL AND "inventory_laboratory_automation_events"."classification_event_id" IS NOT NULL) OR ("inventory_laboratory_automation_events"."action" IN ('CANCELLED','RETRY_REQUESTED') AND "inventory_laboratory_automation_events"."attempt_id" IS NULL AND "inventory_laboratory_automation_events"."classification_event_id" IS NULL))
+ );
+-CREATE TABLE inventory_laboratory_automation_events (
+- id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+- request_id uuid NOT NULL REFERENCES inventory_laboratory_automation_requests(id),
+- operation_id uuid NOT NULL UNIQUE,
+- revision integer NOT NULL CHECK(revision>0),
+- action text NOT NULL CHECK(action IN ('STARTED','READY','FAILED','CANCELLED','RETRY_REQUESTED')),
+- classification_event_id uuid REFERENCES inventory_patient_document_classification_events(id),
+- attempt_id uuid,
+- actor_kind text NOT NULL CHECK(actor_kind IN ('SYSTEM','HUMAN')),
+- actor_user_id uuid REFERENCES inventory_users(id),
+- payload jsonb NOT NULL,
+- created_at timestamptz NOT NULL DEFAULT now(),
+- UNIQUE(request_id,revision),
+- CHECK(jsonb_typeof(payload)='object' AND payload->'schemaVersion' IS NOT DISTINCT FROM '1'::jsonb AND pg_column_size(payload)<=8192),
+- CHECK((actor_kind='SYSTEM' AND actor_user_id IS NULL AND action IN ('STARTED','READY','FAILED','CANCELLED')) OR
+-       (actor_kind='HUMAN' AND actor_user_id IS NOT NULL AND action IN ('RETRY_REQUESTED','CANCELLED'))),
+- CHECK((action IN ('STARTED','READY','FAILED') AND attempt_id IS NOT NULL AND classification_event_id IS NOT NULL) OR
+-       (action IN ('CANCELLED','RETRY_REQUESTED') AND attempt_id IS NULL AND classification_event_id IS NULL))
++--> statement-breakpoint
++CREATE TABLE "inventory_laboratory_automation_requests" (
++	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
++	"operation_id" uuid NOT NULL,
++	"document_id" uuid NOT NULL,
++	"organization_id" uuid NOT NULL,
++	"patient_id" uuid NOT NULL,
++	"unit_id" uuid NOT NULL,
++	"source_sha256" text NOT NULL,
++	"receipt_event_id" uuid NOT NULL,
++	"initiated_by_user_id" uuid NOT NULL,
++	"pipeline_version" text NOT NULL,
++	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
++	CONSTRAINT "laboratory_automation_request_operation_once" UNIQUE("operation_id"),
++	CONSTRAINT "laboratory_automation_document_pipeline_once" UNIQUE("document_id","pipeline_version"),
++	CONSTRAINT "laboratory_automation_request_hash_valid" CHECK ("inventory_laboratory_automation_requests"."source_sha256" ~ '^[0-9a-f]{64}$'),
++	CONSTRAINT "laboratory_automation_pipeline_valid" CHECK ("inventory_laboratory_automation_requests"."pipeline_version"='laboratory-automation-1')
+ );
+-CREATE UNIQUE INDEX laboratory_automation_attempt_once ON inventory_laboratory_automation_events(attempt_id) WHERE action='STARTED';
+-CREATE INDEX laboratory_automation_scope ON inventory_laboratory_automation_requests(organization_id,patient_id,unit_id,created_at);
+-CREATE INDEX laboratory_automation_latest ON inventory_laboratory_automation_events(request_id,revision DESC);
+-
++--> statement-breakpoint
++ALTER TABLE "inventory_laboratory_automation_events" ADD CONSTRAINT "inventory_laboratory_automation_events_request_id_inventory_laboratory_automation_requests_id_fk" FOREIGN KEY ("request_id") REFERENCES "public"."inventory_laboratory_automation_requests"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
++ALTER TABLE "inventory_laboratory_automation_events" ADD CONSTRAINT "inventory_laboratory_automation_events_classification_event_id_inventory_patient_document_classification_events_id_fk" FOREIGN KEY ("classification_event_id") REFERENCES "public"."inventory_patient_document_classification_events"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
++ALTER TABLE "inventory_laboratory_automation_events" ADD CONSTRAINT "inventory_laboratory_automation_events_actor_user_id_inventory_users_id_fk" FOREIGN KEY ("actor_user_id") REFERENCES "public"."inventory_users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
++ALTER TABLE "inventory_laboratory_automation_requests" ADD CONSTRAINT "inventory_laboratory_automation_requests_document_id_inventory_patient_documents_id_fk" FOREIGN KEY ("document_id") REFERENCES "public"."inventory_patient_documents"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
++ALTER TABLE "inventory_laboratory_automation_requests" ADD CONSTRAINT "inventory_laboratory_automation_requests_organization_id_inventory_organizations_id_fk" FOREIGN KEY ("organization_id") REFERENCES "public"."inventory_organizations"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
++ALTER TABLE "inventory_laboratory_automation_requests" ADD CONSTRAINT "inventory_laboratory_automation_requests_patient_id_inventory_patients_id_fk" FOREIGN KEY ("patient_id") REFERENCES "public"."inventory_patients"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
++ALTER TABLE "inventory_laboratory_automation_requests" ADD CONSTRAINT "inventory_laboratory_automation_requests_unit_id_inventory_units_id_fk" FOREIGN KEY ("unit_id") REFERENCES "public"."inventory_units"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
++ALTER TABLE "inventory_laboratory_automation_requests" ADD CONSTRAINT "inventory_laboratory_automation_requests_receipt_event_id_inventory_patient_document_classification_events_id_fk" FOREIGN KEY ("receipt_event_id") REFERENCES "public"."inventory_patient_document_classification_events"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
++ALTER TABLE "inventory_laboratory_automation_requests" ADD CONSTRAINT "inventory_laboratory_automation_requests_initiated_by_user_id_inventory_users_id_fk" FOREIGN KEY ("initiated_by_user_id") REFERENCES "public"."inventory_users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
++CREATE UNIQUE INDEX "laboratory_automation_attempt_once" ON "inventory_laboratory_automation_events" USING btree ("attempt_id") WHERE "inventory_laboratory_automation_events"."action"='STARTED';--> statement-breakpoint
++CREATE INDEX "laboratory_automation_latest" ON "inventory_laboratory_automation_events" USING btree ("request_id","revision" DESC NULLS LAST);--> statement-breakpoint
++CREATE INDEX "laboratory_automation_scope" ON "inventory_laboratory_automation_requests" USING btree ("organization_id","patient_id","unit_id","created_at");
++--> statement-breakpoint
+ CREATE FUNCTION inventory_laboratory_automation_authorized(actor uuid,org uuid,doc_unit uuid,patient_unit uuid)
+ RETURNS boolean LANGUAGE sql STABLE SET search_path=pg_catalog,public,pg_temp AS $$
+  SELECT EXISTS(SELECT 1 FROM inventory_memberships m JOIN inventory_users u ON u.id=m.user_id
+@@ -46,6 +61,7 @@ RETURNS boolean LANGUAGE sql STABLE SET search_path=pg_catalog,public,pg_temp AS
+  JOIN inventory_units n ON n.id=doc_unit AND n.organization_id=org
+  JOIN inventory_units n2 ON n2.id=patient_unit AND n2.organization_id=org
+  WHERE m.user_id=actor AND m.organization_id=org AND m.active AND u.active AND o.active AND n.active AND n2.active
++ AND inventory_professional_registration_state(u.id,m.organization_id) NOT IN ('DUPLICATE','INVALID')
+  AND m.role IN ('SUPER_ADMIN','PARTNER_ADMIN','CLINICIAN') AND (m.role='SUPER_ADMIN' OR
+  (EXISTS(SELECT 1 FROM inventory_unit_access a WHERE a.membership_id=m.id AND a.unit_id=doc_unit) AND
+   EXISTS(SELECT 1 FROM inventory_unit_access a WHERE a.membership_id=m.id AND a.unit_id=patient_unit))))
+@@ -83,6 +99,8 @@ BEGIN
+  -- Same lock order as F2; a concurrent human correction cannot race a completion commit.
+  PERFORM pg_advisory_xact_lock(hashtextextended('patient-document-classification:'||q.document_id::text,0));
+  PERFORM pg_advisory_xact_lock(hashtextextended('laboratory-automation:'||q.id::text,0));
++ -- Also serialize absent-import claims with the existing manual v3 endpoint.
++ PERFORM pg_advisory_xact_lock(hashtextextended('lab:'||q.organization_id::text||':'||q.document_id::text,0));
+  SELECT * INTO previous FROM inventory_laboratory_automation_events WHERE request_id=q.id ORDER BY revision DESC LIMIT 1;
+  prior:=coalesce(previous.action,'ENROLLED');
+  IF NEW.created_at IS DISTINCT FROM transaction_timestamp() THEN RAISE EXCEPTION 'Automation event timestamp must be current'; END IF;
+@@ -135,7 +153,13 @@ BEGIN
+   SELECT * INTO j FROM inventory_laboratory_imports WHERE id=(NEW.payload->>'importId')::uuid FOR UPDATE;
+   IF j.id IS NULL OR (j.organization_id,j.patient_id,j.unit_id,j.document_id,j.source_sha256)
+    IS DISTINCT FROM (q.organization_id,q.patient_id,q.unit_id,q.document_id,q.source_sha256)
+-   OR j.status<>'READY_REVIEW' OR j.latest_review_id IS NOT NULL OR j.attempt_id IS DISTINCT FROM NEW.attempt_id THEN
++   OR j.status<>'READY_REVIEW' OR j.latest_review_id IS NOT NULL OR j.attempt_id IS DISTINCT FROM NEW.attempt_id
++   OR j.created_by_user_id IS DISTINCT FROM q.initiated_by_user_id
++   OR j.updated_by_user_id IS DISTINCT FROM q.initiated_by_user_id
++   OR j.updated_at IS DISTINCT FROM transaction_timestamp()
++   OR j.draft->'patientConfirmed' IS DISTINCT FROM 'false'::jsonb
++   OR jsonb_typeof(j.draft->'rows') IS DISTINCT FROM 'array'
++   OR EXISTS(SELECT 1 FROM jsonb_array_elements(j.draft->'rows') r WHERE r->'verified' IS DISTINCT FROM 'false'::jsonb) THEN
+    RAISE EXCEPTION 'Automation completion requires the same unconfirmed draft'; END IF;
+  ELSIF NEW.action='FAILED' THEN
+   IF NEW.payload-ARRAY['schemaVersion','failureCode']<>'{}'::jsonb OR NOT coalesce(NEW.payload->>'failureCode'=ANY(
+@@ -152,9 +176,13 @@ CREATE TRIGGER laboratory_automation_event_immutable BEFORE UPDATE OR DELETE ON
+ CREATE TRIGGER laboratory_automation_request_no_truncate BEFORE TRUNCATE ON inventory_laboratory_automation_requests FOR EACH STATEMENT EXECUTE FUNCTION inventory_reject_history_change();
+ CREATE TRIGGER laboratory_automation_event_no_truncate BEFORE TRUNCATE ON inventory_laboratory_automation_events FOR EACH STATEMENT EXECUTE FUNCTION inventory_reject_history_change();
+ REVOKE ALL ON inventory_laboratory_automation_requests,inventory_laboratory_automation_events FROM PUBLIC;
+--- Restricted runtime provisioning only after schema review/testing and explicit Preview approval.
+-REVOKE UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER ON inventory_laboratory_automation_requests,inventory_laboratory_automation_events FROM allik_runtime;
+-GRANT SELECT,INSERT ON inventory_laboratory_automation_requests,inventory_laboratory_automation_events TO allik_runtime;
+-COMMIT;
++-- Fresh local databases may provision the restricted role after migration.
++-- Existing role gets append-only access; the provisioning script discovers these guards.
++DO $$ BEGIN
++ IF EXISTS(SELECT 1 FROM pg_roles WHERE rolname='allik_runtime') THEN
++  REVOKE UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER ON inventory_laboratory_automation_requests,inventory_laboratory_automation_events FROM allik_runtime;
++  GRANT SELECT,INSERT ON inventory_laboratory_automation_requests,inventory_laboratory_automation_events TO allik_runtime;
++ END IF;
++END $$;
+ -- NO destructive down SQL. Operational rollback: disable F3 dispatch, retain both tables,
+ -- events, imports and existing guards. No DELETE/TRUNCATE/DROP or automatic data backfill.

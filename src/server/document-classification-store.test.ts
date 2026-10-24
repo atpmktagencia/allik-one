@@ -615,11 +615,23 @@ describe("F2 revised SQL, backend authorization and concurrency (no provider)", 
   it("re-running the official migration is a no-op and preserves persisted events", async () => {
     const f = await fixture();
     const before = await f.events();
+    const beforeJournal = (
+      await getPool().query(
+        "SELECT hash,created_at::text FROM drizzle.__drizzle_migrations ORDER BY created_at",
+      )
+    ).rows;
     await migrate(getDb(), { migrationsFolder: "./drizzle" });
+    expect(
+      (
+        await getPool().query(
+          "SELECT hash,created_at::text FROM drizzle.__drizzle_migrations ORDER BY created_at",
+        )
+      ).rows,
+    ).toEqual(beforeJournal);
     expect(await f.events()).toEqual(before);
     const journal = (
       await getPool().query(
-        "SELECT hash,created_at::text FROM drizzle.__drizzle_migrations ORDER BY created_at DESC LIMIT 1",
+        "SELECT hash,created_at::text FROM drizzle.__drizzle_migrations WHERE created_at=1794272400034",
       )
     ).rows[0];
     expect(journal).toEqual({

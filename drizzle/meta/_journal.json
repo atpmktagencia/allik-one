@@ -547,6 +547,13 @@
       "when": 1794272400034,
       "tag": "0077_patient_document_classification_events",
       "breakpoints": true
+    },
+    {
+      "idx": 78,
+      "version": "7",
+      "when": 1794272400035,
+      "tag": "0078_laboratory_automation_handoff",
+      "breakpoints": true
     }
   ]
 }

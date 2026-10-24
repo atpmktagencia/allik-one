@@ -1,6 +1,8 @@
 # F3 — revisão da persistência de encaminhamento
 
-**Candidato para revisão; SQL não executado.** Não integra `drizzle/`, schema Drizzle ou journal. Nenhuma migração de metas ideais está incluída.
+**Atualização de 24/10/2026:** proposta aprovada para implementação/testes locais. A versão final 0078 foi validada exclusivamente em PostgreSQL descartável; Preview e produção não foram migrados. Veja [SQL final, resultados e rollback](../patient-ai-first-f3-persistence-local.md). Nenhuma migration de metas ideais está incluída.
+
+O restante deste documento preserva o escopo da proposta original e suas limitações anteriores à validação local.
 
 ## O que já foi autorizado e entregue nesta rodada
 
