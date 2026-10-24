@@ -153,6 +153,7 @@ CREATE TRIGGER laboratory_automation_request_no_truncate BEFORE TRUNCATE ON inve
 CREATE TRIGGER laboratory_automation_event_no_truncate BEFORE TRUNCATE ON inventory_laboratory_automation_events FOR EACH STATEMENT EXECUTE FUNCTION inventory_reject_history_change();
 REVOKE ALL ON inventory_laboratory_automation_requests,inventory_laboratory_automation_events FROM PUBLIC;
 -- Restricted runtime provisioning only after schema review/testing and explicit Preview approval.
+REVOKE UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER ON inventory_laboratory_automation_requests,inventory_laboratory_automation_events FROM allik_runtime;
 GRANT SELECT,INSERT ON inventory_laboratory_automation_requests,inventory_laboratory_automation_events TO allik_runtime;
 COMMIT;
 -- NO destructive down SQL. Operational rollback: disable F3 dispatch, retain both tables,

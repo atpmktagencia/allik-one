@@ -83,3 +83,9 @@ A inspeção visual utilizou sandbox temporário, encerrado após recolher as ev
 ## Continuidade F3
 
 F3 autorizada como próxima fase. Primeiro incremento: contrato e revisão de persistência, sem execução operacional até cumprir a aprovação prévia de SQL exigida pelo responsável. Veja [a proposta e rollback](proposals/patient-f3-handoff-review.md). F4/F5 e produção não fazem parte desta autorização.
+
+### Publicação do encerramento — 23/10/2026
+
+Runtime `b448ed69d5ddb153a3e525280c43ec8e76f57145`, deployment `dpl_nWC4Kbz9NhzWxTcD2wcG6nNZThrY`, READY, Preview (`staging`). URL imutável https://allik-52b32j9sd-atp-mkt.vercel.app e alias fixo preservado. Este runtime acrescenta o alias PCR aprovado e o aviso de persistência de Ideal adiada; não altera a estrutura visual. As capturas e medições da seção anterior referem-se ao candidato anterior, mantidas como evidência histórica, não como novas capturas desta atualização.
+
+Regressão atual: 677 testes unitários/interface, typecheck e lint dos arquivos alterados passaram. Teste de interface confirma o nome canônico na tabela e o original `PROTEINA C REATIVA 1` no detalhe. [Estado, preservação e limites da F3](patient-ai-first-f3-contract.md).
