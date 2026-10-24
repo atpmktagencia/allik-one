@@ -1,5 +1,7 @@
 # F2.5 — Catálogo clínico e observações laboratoriais
 
+**Encerramento aprovado em 23/10/2026.** A decisão abaixo substitui a cautela anterior apenas na apresentação da PCR: alias específico `PROTEINA C REATIVA 1` → **Proteína C-reativa (PCR)**, mantendo nomes originais nos detalhes. A escala ambígua das hemácias permanece neutra. Persistência de Ideal adiada; nenhuma migration ou configuração adicional de metas está autorizada nesta etapa.
+
 ## Escopo e diagnóstico
 
 Implementação exclusivamente na projeção de leitura do Preview. A tabela compacta, as modalidades, as referências por coleta, as cores e o editor de Ideal foram preservados. Não há migrations, mudança do pipeline, nova inferência, F3 ou publicação clínica.
@@ -9,20 +11,20 @@ Implementação exclusivamente na projeção de leitura do Preview. A tabela com
 | Hemácias, Blastos, Células atípicas e outros em grupos inadequados | Agrupamento anterior por regex incompleto                                | Catálogo canônico antes do fallback conservador                                       |
 | Potássio em Outros; coagulação sem grupo próprio                   | Ausência das identidades/categorias correspondentes                      | Eletrólitos e minerais; Coagulação / Coagulograma                                     |
 | `Obs` como biomarcador                                             | Todas as linhas confirmadas eram encaminhadas ao agrupador numérico      | Projeção separada de narrativas, sem excluir nem alterar linhas confirmadas           |
-| `PROTEINA C REATIVA 1`                                             | O título do próprio PDF contém o sufixo, no mesmo item de texto          | Não remover um número cuja natureza espúria não foi demonstrada                       |
+| `PROTEINA C REATIVA 1`                                             | O título do próprio PDF contém o sufixo, no mesmo item de texto          | Alias clínico específico aprovado; nome original integral nos detalhes                |
 | Hemácias `4,630` frente a referência em milhões                    | O original escreve `4,630 /mm3`; separador/escala não estão demonstrados | Original neutro, aviso de conferência, nenhuma conversão ou gráfico numérico inferido |
 
-A investigação da PCR e das hemácias foi feita por leitura nativa independente dos originais já existentes, sem IA. [Trechos e coordenadas](benchmarks/patient-f25-catalog-source-review.json). O número `1` não é erro de extração comprovado; continua uma limitação documental. Não se afirma se é código interno, numeração ou parte clínica legítima.
+A investigação da PCR e das hemácias foi feita por leitura nativa independente dos originais já existentes, sem IA. [Trechos e coordenadas](benchmarks/patient-f25-catalog-source-review.json). O número `1` não é erro de extração comprovado. Seu significado documental continua desconhecido, mas isso não impede a apresentação canônica explicitamente aprovada. Não se afirma se é código interno, numeração ou parte clínica legítima.
 
 ## Catálogo
 
-`src/lib/laboratory-catalog.ts`, versão `f25-catalog-1`: IDs estáveis, nomes de apresentação, sinônimos/siglas explícitos, grupo clínico, modalidades, unidades documentadas e contrato de comparabilidade por unidade/método/material/laboratório exatos. As unidades listadas não autorizam conversões. Não há fuzzy matching nem remoção geral de números.
+`src/lib/laboratory-catalog.ts`, versão `f25-catalog-2`: IDs estáveis, nomes de apresentação, sinônimos/siglas explícitos, grupo clínico, modalidades, unidades documentadas e contrato de comparabilidade por unidade/método/material/laboratório exatos. As unidades listadas não autorizam conversões. Não há fuzzy matching nem remoção geral de números.
 
 Alias adicional confirmado no conjunto existente: `TAP Tempo protrombina` → Tempo de protrombina (TP); atividade protrombínica mantém identidade separada.
 
 Cobertura inicial: hemograma e seus componentes, TP, atividade de protrombina, INR/RNI, TTPa, fibrinogênio; sódio, potássio, cloro, cálcio total e ionizado separados, magnésio e fósforo; PCR convencional e ultrassensível separadas, VHS, HbA1c, B12, T3/T4 livres e totais. Reutiliza os demais grupos anteriores como fallback para nomes não catalogados. O catálogo é extensível, não uma terminologia clínica exaustiva.
 
-Aliases compartilham identidade visual, mas unidade, modalidade, método, material e laboratório continuam particionando as séries. Nenhum resultado numérico é convertido. Metas anteriores não são alteradas; a persistência de Ideal continua pendente de autorização separada, como já documentado na entrega anterior.
+Aliases compartilham identidade visual, mas unidade, modalidade, método, material e laboratório continuam particionando as séries. Nenhum resultado numérico é convertido. Metas anteriores não são alteradas; a persistência de Ideal foi adiada por decisão expressa de produto, sem novos campos, configurações ou migrations.
 
 ## Observações e evidências
 
@@ -60,11 +62,11 @@ Runtime: `6767dcf6030bd71d8eda90ba8415c7c5483fc7f4`, tag `f25-clinical-catalog-r
 
 ## Limitações remanescentes
 
-1. O significado do sufixo `1` na PCR permanece documentalmente não esclarecido. Removê-lo indiscriminadamente contrariaria o requisito de preservar números não comprovadamente espúrios.
+1. O significado do sufixo `1` na PCR permanece documentalmente não esclarecido. O alias aprovado resolve apenas a apresentação e preserva a origem; não há remoção genérica de números.
 2. Escala de hemácias não corrigida por plausibilidade clínica; depende de evidência/validação. Não há normalização em milhões inferida nem OCR adicional.
 3. Catálogo inicial não é exaustivo; desconhecidos continuam no fallback. Observações sem associação segura permanecem documentais, sem perda de texto.
 4. A comparação se limita à página de resultados carregada; esse aviso permanece na interface. Um contexto dividido pela paginação pode exigir conferência manual da observação.
-5. Persistência de Ideal continua pendente da autorização específica anterior. Nenhuma migration ou meta aplicada nesta rodada.
+5. Persistência de Ideal adiada. Coluna e rascunhos visuais preservados, sem promessa de salvamento persistente, migration ou meta aplicada.
 6. O fragmento de página inicial depende do leitor PDF; a página também permanece escrita no detalhe para conferência manual.
 
 Rollback operacional: apontar apenas o alias de Preview para o deployment anterior `dpl_7hHKfqzxAc4A7wuGne32YtmzzcN2`. Não há rollback de dados, porque a entrega não altera dados clínicos. Não remover observações persistidas nem versões históricas.
@@ -77,3 +79,7 @@ Rollback operacional: apontar apenas o alias de Preview para o deployment anteri
 - Evidências: este relatório, JSONs de inspeção/preservação/medição, runner visual e cinco capturas em `docs/screenshots/patient-f25-catalog/`.
 
 A inspeção visual utilizou sandbox temporário, encerrado após recolher as evidências. Nenhuma credencial, link temporário de acesso ou documento original foi incluído no repositório. Custo de inferências nesta entrega: nenhum, pois não houve chamadas de IA.
+
+## Continuidade F3
+
+F3 autorizada como próxima fase. Primeiro incremento: contrato e revisão de persistência, sem execução operacional até cumprir a aprovação prévia de SQL exigida pelo responsável. Veja [a proposta e rollback](proposals/patient-f3-handoff-review.md). F4/F5 e produção não fazem parte desta autorização.

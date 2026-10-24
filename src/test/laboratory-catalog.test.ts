@@ -58,8 +58,8 @@ it("resolves explicit aliases without merging distinct analytes or legitimate nu
   expect(resolveLaboratoryCatalog("Atividade Protrombinica")?.id).not.toBe("tp");
   expect(resolveLaboratoryCatalog("PCR ultrassensível")?.id).not.toBe("pcr");
   expect(resolveLaboratoryCatalog("Proteína C reativa 2")).toBeUndefined();
-  // The inspected original itself says PCR 1: its suffix is NOT proven spurious.
-  expect(resolveLaboratoryCatalog("PROTEINA C REATIVA 1")).toBeUndefined();
+  // Explicitly approved display alias; original title and qualifier remain in the payload.
+  expect(resolveLaboratoryCatalog("PROTEINA C REATIVA 1")?.name).toBe("Proteína C-reativa (PCR)");
   expect(resolveLaboratoryCatalog("T3 livre")?.name).toBe("T3 Livre");
   expect(resolveLaboratoryCatalog("T4 total")?.name).toBe("T4 Total");
   expect(resolveLaboratoryCatalog("Vitamina B12")?.name).toBe("Vitamina B12");
@@ -124,4 +124,23 @@ it("does not compare a reference expressed in a different unit", () => {
   entry.payload.unit = "mmol/L";
   entry.payload.reference = "3 a 5 mg/dL";
   expect(applicableLaboratoryReference(entry)).toBe("unknown");
+});
+
+it("uses the approved PCR display alias without changing source names or merging ultrasensitive PCR", () => {
+  const rows = [
+    row("a", "PROTEINA C REATIVA 1"),
+    row("b", "Proteína C reativa"),
+    row("c", "PCR ultrassensível"),
+  ];
+  const before = JSON.stringify(rows);
+  const biomarkers = groupLaboratoryBiomarkers(buildLaboratoryHistory(rows).groups);
+  expect(biomarkers).toHaveLength(2);
+  expect(biomarkers.find((b) => b.id === "pcr")?.name).toBe("Proteína C-reativa (PCR)");
+  expect(
+    biomarkers
+      .find((b) => b.id === "pcr")
+      ?.modalities.flatMap((m) => m.entries.map((e) => e.payload.name)),
+  ).toEqual(expect.arrayContaining(["PROTEINA C REATIVA 1", "Proteína C reativa"]));
+  expect(resolveLaboratoryCatalog("T4 1")).toBeUndefined();
+  expect(JSON.stringify(rows)).toBe(before);
 });

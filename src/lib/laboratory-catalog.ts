@@ -1,5 +1,5 @@
 /** Versioned, read-only clinical identities. No numerical equivalence follows from an alias. */
-export const laboratoryCatalogVersion = "f25-catalog-1";
+export const laboratoryCatalogVersion = "f25-catalog-2";
 export const laboratoryClinicalGroups = [
   "Hematologia",
   "Coagulação / Coagulograma",
@@ -118,7 +118,7 @@ export const laboratoryCatalog: readonly LaboratoryCatalogItem[] = [
     "pcr",
     "Proteína C-reativa (PCR)",
     "Inflamação",
-    ["PCR", "Proteína C reativa", "Proteína C-reativa"],
+    ["PCR", "Proteína C reativa", "Proteína C-reativa", "PROTEINA C REATIVA 1"],
     false,
     ["mg/L", "mg/dL"],
   ),

@@ -337,7 +337,7 @@ it("opens Ideal editor, validates and holds a draft without recoloring confirmed
   fireEvent.click(screen.getByRole("button", { name: "Editar Ideal de Basófilos" }));
   const dialog = screen.getByRole("dialog");
   expect(
-    within(dialog).getByText(/persistência com autoria e versão aguarda aprovação/),
+    within(dialog).getByText(/persistência de metas personalizadas foi adiada/),
   ).toBeInTheDocument();
   fireEvent.change(within(dialog).getByLabelText("Mínimo ideal"), { target: { value: "0" } });
   fireEvent.change(within(dialog).getByLabelText("Máximo ideal"), { target: { value: "1" } });
@@ -387,4 +387,41 @@ it("renders observations at group end with dates and provenance, never as biomar
     "href",
     "/original?unitId=unit#page=2",
   );
+});
+
+it("shows canonical PCR while exposing its unchanged original title in details", () => {
+  const entry = {
+    id: "pcr",
+    reviewId: "r",
+    documentId: "d",
+    documentTitle: "Sintético.pdf",
+    previewUrl: "/original",
+    payload: {
+      ...emptyLaboratoryRow(),
+      name: "PROTEINA C REATIVA 1",
+      result: "7,01",
+      unit: "mg/L",
+      collectedOn: "2026-01-01",
+      reference: "até 6 mg/L",
+    },
+  };
+  mock.useInventory.mockReturnValue({
+    data: { rows: [entry], hasMore: false },
+    isPending: false,
+    error: null,
+    refetch: vi.fn(),
+  });
+  const before = JSON.stringify(entry);
+  render(<LaboratoryHistory patientId="patient" />);
+  expect(screen.getByRole("button", { name: "Proteína C-reativa (PCR)" })).toBeInTheDocument();
+  fireEvent.click(
+    screen.getByRole("button", { name: "Detalhes de Proteína C-reativa (PCR): 7,01" }),
+  );
+  expect(
+    within(screen.getByRole("dialog", { name: "Resultado confirmado" })).getByText(
+      "PROTEINA C REATIVA 1",
+      { exact: true },
+    ),
+  ).toBeInTheDocument();
+  expect(JSON.stringify(entry)).toBe(before);
 });

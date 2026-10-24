@@ -1,5 +1,7 @@
 # Proposta — Central de Documentos AI-First e exames longitudinais
 
+> Atualização de 23/10/2026: F1/F2 entregues e F2.5 encerrada pelo responsável. F3 autorizada e iniciada pelo contrato; a persistência proposta aguarda revisão prévia. Veja [estado e SQL F3](proposals/patient-f3-handoff-review.md). O diagnóstico original abaixo é histórico; não autoriza F4/F5.
+
 **Escopo atualizado: F1 aprovada e implementada; F2–F5 continuam como proposta.**
 Veja [a entrega F1](patient-ai-first-f1.md), suas evidências e limitações. A rodada D.2
 foi encerrada com ressalvas. Nenhuma classificação por IA, novo prompt ou extração

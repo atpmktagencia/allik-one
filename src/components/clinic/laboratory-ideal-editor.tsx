@@ -69,8 +69,8 @@ export function LaboratoryIdealEditor({
         <DialogHeader>
           <DialogTitle>Meta ideal · {name}</DialogTitle>
           <DialogDescription>
-            Rascunho não aplicado. A persistência com autoria e versão aguarda aprovação da
-            migration. Nenhum resultado será reclassificado por este rascunho.
+            Rascunho não aplicado. A persistência de metas personalizadas foi adiada. Nenhum
+            resultado será reclassificado por este rascunho.
           </DialogDescription>
         </DialogHeader>
         <form
